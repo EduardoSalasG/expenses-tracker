@@ -13,6 +13,7 @@
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
     "whatsapp:audit": "tsx src/infrastructure/whatsapp-audit-tail.ts",
     "whatsapp:send-test": "tsx src/infrastructure/whatsapp-send-test.ts",
+    "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
   },

@@ -90,6 +90,12 @@ MESSAGE_INTERPRETER_BASE_URL=https://models.github.ai/inference
 MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324
 ```
 
+Interpreter smoke check:
+
+```bash
+pnpm --filter @expenses-tracker/backend interpreter:smoke "CLP 12500 groceries cash"
+```
+
 ## Smoke Checks
 
 After starting services:
