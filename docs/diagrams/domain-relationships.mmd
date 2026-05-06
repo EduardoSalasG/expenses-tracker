@@ -1,0 +1,11 @@
+erDiagram
+  TENANT ||--|| USER : owns
+  TENANT ||--o{ CATEGORY : has
+  TENANT ||--o{ EXPENSE : records
+  TENANT ||--o{ INCOME : records
+  TENANT ||--o{ MONTHLY_BUDGET : plans
+  USER ||--o{ EXPENSE : creates
+  USER ||--o{ INCOME : creates
+  CATEGORY ||--o{ CATEGORY : contains
+  CATEGORY ||--o{ EXPENSE : classifies
+  CATEGORY ||--o{ MONTHLY_BUDGET : budgets

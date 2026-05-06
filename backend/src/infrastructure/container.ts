@@ -1,0 +1,69 @@
+import type { AppConfig } from './config.js';
+import { createPool } from './database.js';
+import { createLogger } from './logger.js';
+import { JwtTokenService } from './token.service.js';
+import { WhatsAppCloudProvider } from './whatsapp.provider.js';
+import {
+  InMemoryBudgetRepository,
+  InMemoryCategoryRepository,
+  InMemoryExpenseRepository,
+  InMemoryIncomeRepository,
+  InMemoryOtpRepository,
+  InMemoryUserRepository,
+  InMemoryWhatsAppMessageAuditRepository
+} from './repositories/in-memory.js';
+import {
+  PostgresBudgetRepository,
+  PostgresCategoryRepository,
+  PostgresExpenseRepository,
+  PostgresIncomeRepository,
+  PostgresOtpRepository,
+  PostgresUserRepository,
+  PostgresWhatsAppMessageAuditRepository
+} from './repositories/postgres.js';
+import {
+  FinanceUseCases,
+  ProcessWhatsAppExpenseUseCase,
+  RefreshSessionUseCase,
+  RequestOtpUseCase,
+  SendDueReportsUseCase,
+  UpdateProfileUseCase,
+  UpdateReportPreferencesUseCase,
+  VerifyOtpUseCase
+} from '../application/use-cases.js';
+
+export function createContainer(config: AppConfig) {
+  const logger = createLogger();
+  const clock = { now: () => new Date() };
+  const pool = config.useInMemoryRepositories ? undefined : createPool(config);
+  const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
+  const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
+  const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
+  const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
+  const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
+  const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
+  const messageAudits = pool ? new PostgresWhatsAppMessageAuditRepository(pool) : new InMemoryWhatsAppMessageAuditRepository();
+  const tokens = new JwtTokenService(config);
+  const whatsapp = new WhatsAppCloudProvider(config, logger);
+  const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
+
+  return {
+    config,
+    logger,
+    users,
+    tokens,
+    close: () => pool?.end() ?? Promise.resolve(),
+    useCases: {
+      requestOtp: new RequestOtpUseCase(otps, whatsapp, clock),
+      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock),
+      refreshSession: new RefreshSessionUseCase(users, tokens),
+      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, messageAudits, whatsapp, clock),
+      finance,
+      updateProfile: new UpdateProfileUseCase(users),
+      updateReportPreferences: new UpdateReportPreferencesUseCase(users),
+      sendDueReports: new SendDueReportsUseCase(users, finance, whatsapp, clock)
+    }
+  };
+}
+
+export type AppContainer = ReturnType<typeof createContainer>;

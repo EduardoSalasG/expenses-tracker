@@ -1,0 +1,29 @@
+sequenceDiagram
+  actor User
+  participant WhatsApp
+  participant API
+  participant Parser
+  participant DB
+  User->>WhatsApp: Send expense message
+  WhatsApp->>WhatsApp: Allow only registered/test-approved senders
+  WhatsApp->>API: POST /webhooks/whatsapp
+  API->>DB: Reserve WhatsApp message id
+  alt message id already processed
+    API-->>WhatsApp: 200 OK without duplicate expense
+  else new message id
+  API->>DB: Find user by phone number
+  alt sender is not registered
+    API->>DB: Mark audit as unknown_user
+    API-->>WhatsApp: 200 OK without processing
+  else registered sender
+    API->>Parser: Parse amount, concept, currency, payment method
+    alt missing data
+      API->>DB: Mark audit as needs_confirmation
+      API->>WhatsApp: Ask for clarification
+    else ready
+      API->>DB: Insert expense scoped by tenant
+      API->>DB: Mark audit as saved
+      API->>WhatsApp: Confirm saved expense
+    end
+  end
+  end

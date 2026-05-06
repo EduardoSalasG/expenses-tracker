@@ -1,0 +1,169 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { ApiService, type Category } from '../core/api.service';
+import { EmptyStateComponent } from '../shared/components/empty-state.component';
+import { PageHeaderComponent } from '../shared/components/page-header.component';
+
+@Component({
+  selector: 'app-categories',
+  standalone: true,
+  imports: [
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    EmptyStateComponent,
+    PageHeaderComponent
+  ],
+  template: `
+    <app-page-header title="Categories" eyebrow="Organize expenses with main categories and subcategories">
+      <button mat-stroked-button type="button" (click)="load()">Refresh</button>
+    </app-page-header>
+
+    <section class="grid gap-4 lg:grid-cols-2">
+      <mat-card class="p-4">
+        <h2 class="mb-3 text-lg font-semibold">Create main category</h2>
+        <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+          <mat-form-field appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="name">
+          </mat-form-field>
+          <div class="flex items-center">
+            <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">Add</button>
+          </div>
+        </form>
+      </mat-card>
+
+      <mat-card class="p-4">
+        <h2 class="mb-3 text-lg font-semibold">Create subcategory</h2>
+        <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <mat-form-field appearance="outline">
+            <mat-label>Parent</mat-label>
+            <mat-select formControlName="parentId">
+              @for (category of rootCategories(); track category.id) {
+                <mat-option [value]="category.id">{{ category.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="name">
+          </mat-form-field>
+          <div class="flex items-center">
+            <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">Add</button>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+
+    @if (message()) {
+      <div class="mt-4 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{{ message() }}</div>
+    }
+
+    <mat-card class="mt-4 p-4">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold">Category library</h2>
+        <span class="text-sm text-slate-500">{{ categories().length }} categories</span>
+      </div>
+
+      @if (rootCategories().length) {
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (category of rootCategories(); track category.id) {
+            <div class="rounded border border-slate-200 bg-white p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="font-semibold">{{ category.name }}</h3>
+                  <div class="mt-1 text-xs text-slate-500">{{ category.isDefault ? 'Default' : 'Custom' }}</div>
+                </div>
+                <span class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">{{ subcategories(category.id).length }} sub</span>
+              </div>
+
+              @if (subcategories(category.id).length) {
+                <div class="mt-4 grid gap-2">
+                  @for (subcategory of subcategories(category.id); track subcategory.id) {
+                    <div class="flex items-center justify-between rounded border border-slate-100 px-3 py-2 text-sm">
+                      <span>{{ subcategory.name }}</span>
+                      <span class="text-xs text-slate-500">{{ subcategory.isDefault ? 'Default' : 'Custom' }}</span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="mt-4 text-sm text-slate-500">No subcategories yet.</p>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <app-empty-state message="No categories found. Create a main category to get started." />
+      }
+    </mat-card>
+  `
+})
+export class CategoriesComponent {
+  private readonly fb = inject(FormBuilder);
+  readonly categories = signal<Category[]>([]);
+  readonly saving = signal(false);
+  readonly message = signal('');
+  readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
+  readonly mainForm = this.fb.nonNullable.group({ name: ['', Validators.required] });
+  readonly subForm = this.fb.nonNullable.group({
+    parentId: ['', Validators.required],
+    name: ['', Validators.required]
+  });
+
+  constructor(private readonly api: ApiService) {
+    this.load();
+  }
+
+  load() {
+    this.api.categories().subscribe((categories) => {
+      this.categories.set(categories);
+      const firstRoot = categories.find((category) => !category.parentId);
+      if (firstRoot && !this.subForm.controls.parentId.value) {
+        this.subForm.controls.parentId.setValue(firstRoot.id);
+      }
+    });
+  }
+
+  saveMain() {
+    const value = this.mainForm.getRawValue();
+    this.createCategory({ name: value.name }, () => this.mainForm.reset({ name: '' }), 'Main category created.');
+  }
+
+  saveSubcategory() {
+    const value = this.subForm.getRawValue();
+    this.createCategory(
+      { name: value.name, parentId: value.parentId },
+      () => this.subForm.patchValue({ name: '' }),
+      'Subcategory created.'
+    );
+  }
+
+  subcategories(parentId: string) {
+    return this.categories().filter((category) => category.parentId === parentId);
+  }
+
+  private createCategory(payload: { name: string; parentId?: string }, reset: () => void, message: string) {
+    this.saving.set(true);
+    this.message.set('');
+    this.api.createCategory(payload).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(message);
+        reset();
+        this.load();
+      },
+      error: () => {
+        this.saving.set(false);
+        this.message.set('Could not create category.');
+      }
+    });
+  }
+}

@@ -1,0 +1,13 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant DB
+  User->>Frontend: Fill income form
+  Frontend->>API: POST /incomes with JWT
+  API->>API: Validate Zod schema
+  API->>DB: Insert income with tenant_id
+  API-->>Frontend: Created income
+  Frontend->>API: GET /incomes with filters
+  API->>DB: Read tenant-scoped filtered incomes
+  API-->>Frontend: Updated income history

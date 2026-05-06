@@ -1,0 +1,28 @@
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Roboto, Arial, sans-serif;
+  background: #f6f8fb;
+  color: #172026;
+}
+
+.mat-mdc-card {
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.mat-mdc-form-field {
+  width: 100%;
+}

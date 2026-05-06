@@ -1,0 +1,14 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant DB
+  User->>Frontend: Edit name, email, country, currency
+  Frontend->>API: PUT /me with JWT
+  API->>API: Validate Zod schema
+  API->>DB: Update authenticated user profile
+  DB-->>API: Updated user
+  API-->>Frontend: Updated profile
+  Frontend->>API: PUT /report-preferences with JWT
+  API->>DB: Save selected report frequencies
+  API-->>Frontend: Updated report preferences

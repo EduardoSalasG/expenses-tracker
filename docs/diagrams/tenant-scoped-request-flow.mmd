@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant Frontend
+  participant API
+  participant UseCase
+  participant Repository
+  participant DB
+  Frontend->>API: Request with bearer token
+  API->>API: Verify JWT and extract user_id, tenant_id
+  alt Access token expired
+    API-->>Frontend: 401 Unauthorized
+    Frontend->>API: POST /auth/refresh with refresh token
+    API->>API: Verify refresh token
+    API-->>Frontend: New access token and refresh token
+    Frontend->>API: Retry original request with new bearer token
+  end
+  opt GET or PUT /me
+    API->>DB: Read user profile by user_id
+  end
+  API->>UseCase: Execute with tenant_id
+  UseCase->>Repository: Tenant-scoped operation
+  Repository->>DB: SQL where tenant_id = $1
+  DB-->>Frontend: Tenant data only

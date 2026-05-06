@@ -1,0 +1,81 @@
+import { describe, expect, it } from 'vitest';
+import { FinanceUseCases, SendDueReportsUseCase } from './use-cases.js';
+import {
+  InMemoryBudgetRepository,
+  InMemoryCategoryRepository,
+  InMemoryExpenseRepository,
+  InMemoryIncomeRepository,
+  InMemoryUserRepository
+} from '../infrastructure/repositories/in-memory.js';
+import type { WhatsAppProvider } from './ports.js';
+
+describe('SendDueReportsUseCase', () => {
+  it('sends reports only to users with the selected frequency', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const whatsapp = new CapturingWhatsAppProvider();
+    const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      name: 'Report User',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.updateReportPreferences(user.id, ['monthly']);
+    await categories.ensureDefaults(user.tenantId);
+    const category = (await categories.listByTenant(user.tenantId))[0];
+    await finance.createExpense({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-06T12:00:00.000Z',
+      amount: 12500,
+      currency: 'CLP',
+      concept: 'groceries',
+      categoryId: category.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    await finance.createIncome({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-01T12:00:00.000Z',
+      amount: 100000,
+      currency: 'CLP',
+      concept: 'salary'
+    });
+
+    const useCase = new SendDueReportsUseCase(
+      users,
+      finance,
+      whatsapp,
+      { now: () => new Date('2026-05-20T00:00:00.000Z') }
+    );
+
+    const result = await useCase.execute('monthly');
+
+    expect(result.sent).toBe(1);
+    expect(whatsapp.messages).toEqual([
+      {
+        toPhoneNumber: '+56982439041',
+        body: [
+          'Expenses Tracker monthly report (2026-05)',
+          'Income: CLP 100000.00',
+          'Expenses: CLP 12500.00',
+          'Income records: 1',
+          'Expense records: 1'
+        ].join('\n')
+      }
+    ]);
+  });
+});
+
+class CapturingWhatsAppProvider implements WhatsAppProvider {
+  readonly messages: Array<{ toPhoneNumber: string; body: string }> = [];
+
+  async sendText(toPhoneNumber: string, body: string) {
+    this.messages.push({ toPhoneNumber, body });
+    return { captured: true };
+  }
+}

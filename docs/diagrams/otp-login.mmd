@@ -1,0 +1,17 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant OTP
+  participant WhatsApp
+  User->>Frontend: Enter phone number
+  Frontend->>API: POST /auth/otp/request
+  API->>OTP: Store code with expiry
+  API->>WhatsApp: Send OTP
+  User->>Frontend: Enter code and profile data
+  Frontend->>API: POST /auth/otp/verify
+  API->>OTP: Verify code
+  API->>API: Upsert user and tenant
+  API->>API: Seed default categories
+  API-->>Frontend: Access token, refresh token, and user
+  Frontend->>Frontend: Store tokens for authenticated requests

@@ -1,0 +1,13 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant DB
+  User->>Frontend: Fill expense form
+  Frontend->>API: POST /expenses with JWT
+  API->>API: Validate Zod schema
+  API->>DB: Insert expense with tenant_id
+  API-->>Frontend: Created expense
+  Frontend->>API: GET /expenses with filters
+  API->>DB: Read tenant-scoped filtered expenses
+  API-->>Frontend: Updated expense history

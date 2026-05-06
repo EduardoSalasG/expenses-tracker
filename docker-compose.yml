@@ -1,0 +1,53 @@
+services:
+  database:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: expenses-tracker-database:local
+    environment:
+      POSTGRES_DB: expenses_tracker
+      POSTGRES_USER: expenses
+      POSTGRES_PASSWORD: expenses
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expenses -d expenses_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: expenses-tracker-backend:local
+    env_file:
+      - backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://expenses:expenses@database:5432/expenses_tracker
+      JWT_SECRET: change-me-for-local-docker
+      WHATSAPP_VERIFY_TOKEN: local-verify-token
+      FRONTEND_ORIGIN: http://localhost:4200
+      USE_IN_MEMORY_REPOSITORIES: "false"
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: expenses-tracker-frontend:local
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
+volumes:
+  postgres_data:

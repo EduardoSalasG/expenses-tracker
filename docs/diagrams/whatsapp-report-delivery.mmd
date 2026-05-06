@@ -1,0 +1,15 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant Scheduler
+  participant API
+  participant DB
+  participant WhatsApp
+  User->>Frontend: Select report frequencies
+  Frontend->>API: PUT /report-preferences
+  API->>DB: Save tenant user preferences
+  Scheduler->>API: Run reports:send-due frequency
+  API->>DB: Find users with matching preference
+  API->>DB: Generate tenant report
+  API->>WhatsApp: Send report summary
+  API-->>Scheduler: Sent count and recipients

@@ -1,0 +1,21 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant DB
+  User->>Frontend: Open categories page
+  Frontend->>API: GET /categories with JWT
+  API->>DB: Read tenant-scoped categories
+  API-->>Frontend: Main categories and subcategories
+  alt create main category
+    User->>Frontend: Enter category name
+    Frontend->>API: POST /categories without parentId
+  else create subcategory
+    User->>Frontend: Select parent and enter name
+    Frontend->>API: POST /categories with parentId
+  end
+  API->>API: Validate Zod schema
+  API->>DB: Insert tenant-scoped category
+  API-->>Frontend: Created category
+  Frontend->>API: GET /categories with JWT
+  API-->>Frontend: Updated category library

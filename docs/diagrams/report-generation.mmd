@@ -1,0 +1,11 @@
+sequenceDiagram
+  actor User
+  participant Frontend
+  participant API
+  participant DB
+  User->>Frontend: Open report period
+  Frontend->>API: GET /reports?from&to
+  API->>DB: Read tenant expenses by period
+  API->>DB: Read tenant incomes by period
+  API->>API: Group totals by currency
+  API-->>Frontend: Report data

@@ -1,0 +1,9 @@
+flowchart TD
+  A[Dashboard or report request] --> B[Validate period and tenant]
+  B --> C{Query complexity}
+  C -->|Simple list or insert| D[Parameterized SQL]
+  C -->|Atomic multi-step or aggregation| E[PostgreSQL function]
+  D --> F[EXPLAIN ANALYZE for critical paths]
+  E --> F
+  F --> G[Index decision]
+  G --> H[Update query-analysis.md]
