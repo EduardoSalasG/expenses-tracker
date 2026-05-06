@@ -103,6 +103,14 @@ Send due WhatsApp reports manually:
 pnpm --filter @expenses-tracker/backend reports:send-due monthly
 ```
 
+Run production-style report jobs through Docker Compose:
+
+```bash
+pnpm reports:docker:monthly
+```
+
+The report worker is one-shot by design. Use cron or a platform scheduler to invoke the daily, weekly, monthly, or yearly command at the desired time.
+
 Meta's test number is not a visible inbox. Messages sent to it arrive at the webhook URL configured in Meta. Before inbound testing, register the approved recipient number locally:
 
 ```bash
@@ -115,5 +123,6 @@ See:
 - [Frontend README](frontend/README.md)
 - [Database README](database/README.md)
 - [Architecture](docs/architecture.md)
+- [Operations](docs/operations.md)
 - [Flow Diagrams](docs/diagrams/flows.md)
 - [Database Query Analysis](database/query-analysis.md)

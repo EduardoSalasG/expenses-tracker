@@ -39,6 +39,29 @@ services:
     ports:
       - "3000:3000"
 
+  report-worker:
+    profiles:
+      - jobs
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: expenses-tracker-backend:local
+    env_file:
+      - backend/.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://expenses:expenses@database:5432/expenses_tracker
+      JWT_SECRET: change-me-for-local-docker
+      WHATSAPP_VERIFY_TOKEN: local-verify-token
+      FRONTEND_ORIGIN: http://localhost:4200
+      USE_IN_MEMORY_REPOSITORIES: "false"
+      REPORT_FREQUENCY: monthly
+    depends_on:
+      database:
+        condition: service_healthy
+    command: ["sh", "-c", "node dist/infrastructure/send-due-reports.js $${REPORT_FREQUENCY:-monthly}"]
+    restart: "no"
+
   frontend:
     build:
       context: .

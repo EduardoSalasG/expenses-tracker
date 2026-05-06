@@ -14,6 +14,10 @@
     "dev:stop-app-containers": "docker compose stop backend frontend",
     "db:migrate": "pnpm --filter @expenses-tracker/backend db:migrate",
     "db:seed": "pnpm --filter @expenses-tracker/backend db:seed",
+    "reports:docker:daily": "docker compose run --rm -e REPORT_FREQUENCY=daily report-worker",
+    "reports:docker:weekly": "docker compose run --rm -e REPORT_FREQUENCY=weekly report-worker",
+    "reports:docker:monthly": "docker compose run --rm -e REPORT_FREQUENCY=monthly report-worker",
+    "reports:docker:yearly": "docker compose run --rm -e REPORT_FREQUENCY=yearly report-worker",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"

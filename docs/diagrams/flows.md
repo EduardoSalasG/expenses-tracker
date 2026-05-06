@@ -11,7 +11,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Category Management](category-management.mmd): Tenant-scoped main category and subcategory creation.
 - [Monthly Budget Flow](monthly-budget-flow.mmd): Monthly category budget upsert from the dashboard.
 - [Report Generation](report-generation.mmd): Dashboard report request, period reads, and currency-separated totals.
-- [WhatsApp Report Delivery](whatsapp-report-delivery.mmd): Scheduled report selection and WhatsApp summary delivery.
+- [WhatsApp Report Delivery](whatsapp-report-delivery.mmd): Scheduled one-shot worker selection and WhatsApp summary delivery.
 - [Profile Settings](profile-settings.mmd): Current user profile edits and report preference updates.
 - [Tenant-Scoped Request Flow](tenant-scoped-request-flow.mmd): JWT tenant extraction and repository-level tenant filtering.
 - [Database and Report Query Flow](database-report-query-flow.mmd): Decision path for direct SQL vs PostgreSQL functions and query analysis updates.

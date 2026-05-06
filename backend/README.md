@@ -181,6 +181,17 @@ pnpm --filter @expenses-tracker/backend reports:send-due monthly
 
 Accepted frequencies are `daily`, `weekly`, `monthly`, and `yearly`. The command finds users whose `report_preferences` include the selected frequency, generates the matching period report, and sends a WhatsApp summary. In production this command can be scheduled by cron, a worker container, or an external scheduler.
 
+Docker Compose exposes a one-shot `report-worker` job profile for production-style scheduling:
+
+```bash
+pnpm reports:docker:daily
+pnpm reports:docker:weekly
+pnpm reports:docker:monthly
+pnpm reports:docker:yearly
+```
+
+The worker exits after one batch. Schedule these commands from cron or the deployment platform instead of running an always-on loop.
+
 ## Logging
 
 Use the shared Winston logger adapter. Do not log OTP values, JWTs, WhatsApp access tokens, or full authorization headers.
