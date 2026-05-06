@@ -17,15 +17,16 @@ sequenceDiagram
     API-->>WhatsApp: 200 OK without processing
   else registered sender
     API->>Interpreter: Interpret intent and structured fields
+    Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
     alt missing or ambiguous data
       API->>DB: Mark audit as needs_confirmation
       API->>WhatsApp: Ask for clarification
     else create expense
-      API->>DB: Insert expense scoped by tenant
+      API->>DB: Insert expense scoped by tenant using preferred currency
       API->>DB: Mark audit as saved
       API->>WhatsApp: Confirm saved expense
     else create income
-      API->>DB: Insert income scoped by tenant
+      API->>DB: Insert income scoped by tenant using preferred currency
       API->>DB: Mark audit as saved
       API->>WhatsApp: Confirm saved income
     else ask report or budget status

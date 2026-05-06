@@ -29,7 +29,7 @@ export interface ExpenseRepository {
     to?: string;
     categoryId?: string;
     currency?: string;
-    paymentMethodKind?: 'cash' | 'card';
+    paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
   }): Promise<Expense[]>;
   listRecent(tenantId: TenantId, limit: number): Promise<Expense[]>;

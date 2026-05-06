@@ -104,7 +104,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     to?: string;
     categoryId?: string;
     currency?: string;
-    paymentMethodKind?: 'cash' | 'card';
+    paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
   }) {
     return this.expenses

@@ -52,15 +52,15 @@ create table expenses (
   concept text not null,
   category_id uuid not null references categories(id),
   subcategory_id uuid references categories(id),
-  payment_method_kind text not null check (payment_method_kind in ('cash', 'card')),
+  payment_method_kind text not null check (payment_method_kind in ('cash', 'card', 'transfer')),
   bank text,
   card_type text check (card_type in ('credit', 'debit')),
   original_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint expenses_card_details_check check (
-    payment_method_kind = 'cash'
-    or payment_method_kind = 'card'
+  constraint expenses_payment_method_details_check check (
+    payment_method_kind = 'card'
+    or card_type is null
   )
 );
 

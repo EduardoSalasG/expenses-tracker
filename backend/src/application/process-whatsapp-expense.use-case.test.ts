@@ -9,7 +9,7 @@ import {
   InMemoryWhatsAppMessageAuditRepository
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter } from './message-interpreter.js';
-import type { WhatsAppProvider } from './ports.js';
+import type { MessageInterpreterPort, WhatsAppProvider } from './ports.js';
 
 describe('ProcessWhatsAppExpenseUseCase', () => {
   it('audits and ignores unregistered senders', async () => {
@@ -118,10 +118,57 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(0);
     expect(await incomes.listByPeriod(user.tenantId, '2026-05-01T00:00:00.000Z', '2026-05-31T23:59:59.999Z')).toHaveLength(1);
   });
+
+  it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      name: 'Test User',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessWhatsAppExpenseUseCase(
+      users,
+      categories,
+      new InMemoryExpenseRepository(),
+      incomes,
+      new InMemoryBudgetRepository(),
+      new InMemoryWhatsAppMessageAuditRepository(),
+      new NoopWhatsAppProvider(),
+      new FixedIncomeInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+    );
+
+    await useCase.execute({
+      providerMessageId: 'wamid.income-currency',
+      fromPhoneNumber: '+56982439041',
+      message: 'Ingreso de sueldo 1200000 Bci transferencia'
+    });
+
+    const [income] = await incomes.listByPeriod(user.tenantId, '2026-05-01T00:00:00.000Z', '2026-05-31T23:59:59.999Z');
+    expect(income.currency).toBe('CLP');
+  });
 });
 
 class NoopWhatsAppProvider implements WhatsAppProvider {
   async sendText() {
     return { skipped: true };
+  }
+}
+
+class FixedIncomeInterpreter implements MessageInterpreterPort {
+  async interpret() {
+    return {
+      intent: 'create_income' as const,
+      confidence: 0.9,
+      amount: 1200000,
+      currency: 'LDO',
+      concept: 'sueldo',
+      missingFields: [],
+      needsConfirmation: false
+    };
   }
 }

@@ -21,6 +21,14 @@ export const openApiSpec = {
             type: 'object',
             required: ['kind'],
             properties: {
+              kind: { type: 'string', enum: ['transfer'] },
+              bank: { type: 'string' }
+            }
+          },
+          {
+            type: 'object',
+            required: ['kind'],
+            properties: {
               kind: { type: 'string', enum: ['card'] },
               bank: { type: 'string' },
               cardType: { type: 'string', enum: ['credit', 'debit'] }
@@ -90,7 +98,7 @@ export const openApiSpec = {
           queryParam('to', 'string', 'ISO datetime upper bound'),
           queryParam('categoryId', 'string', 'Category UUID'),
           queryParam('currency', 'string', 'Currency code such as CLP'),
-          queryParam('paymentMethodKind', 'string', 'cash or card'),
+          queryParam('paymentMethodKind', 'string', 'cash, transfer, or card'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],
         responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })

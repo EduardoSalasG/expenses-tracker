@@ -64,7 +64,7 @@ export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPor
         return this.fallback.interpret(message, context);
       }
 
-      return interpretedMessageSchema.parse(JSON.parse(extractJson(content)));
+      return interpretedMessageSchema.parse(normalizeInterpretedPayload(JSON.parse(extractJson(content))));
     } catch (error) {
       this.logger.warn('Message interpreter fallback used.', { error });
       return this.fallback.interpret(message, context);
@@ -85,9 +85,14 @@ function systemPrompt() {
     'You interpret WhatsApp messages for a consumer personal finance tracker.',
     'Return only valid JSON. Do not include markdown.',
     'Supported intents: create_expense, create_income, ask_report, ask_budget_status, unknown.',
-    'Use the user preferred currency when no explicit currency is present.',
-    'For create_expense include amount, currency, concept, paymentMethod, optional categoryName/subcategoryName.',
-    'For create_income include amount, currency, and concept.',
+    'Never infer currency from arbitrary words. Currency is tenant configuration, not a message-level input. Omit currency unless the message contains an explicit ISO currency code or currency symbol.',
+    'Understand natural Spanish and English personal finance phrases.',
+    'Examples: "Ingreso de sueldo 1200000 Bci transferencia" is create_income with amount 1200000 and concept "sueldo".',
+    'Examples: "20.000 clases de bachata bsoul mayo, transferencia desde bci" is create_expense with amount 20000, concept "clases de bachata bsoul mayo", paymentMethod transfer, bank "bci".',
+    'Examples: "25.000 polera paris, tdc bci" is create_expense with amount 25000, concept "polera paris", paymentMethod card, cardType credit, bank "bci".',
+    'For create_expense include amount, concept, paymentMethod, optional categoryName/subcategoryName. paymentMethod must be an object, never a string.',
+    'paymentMethod object examples: {"kind":"cash"}, {"kind":"transfer","bank":"bci"}, {"kind":"card","cardType":"credit","bank":"bci"}. For tdc use credit card; for tdd use debit card.',
+    'For create_income include amount and concept. Words like sueldo, salario, ingreso, paid, salary indicate income.',
     'For ask_report choose period daily, weekly, monthly, or yearly.',
     'For ask_budget_status include month as YYYY-MM when possible.',
     'Set needsConfirmation true and missingFields when required data is ambiguous.',
@@ -99,4 +104,42 @@ function extractJson(content: string) {
   const trimmed = content.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return fenced?.[1]?.trim() ?? trimmed;
+}
+
+function normalizeInterpretedPayload(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return payload;
+  const normalized = { ...(payload as Record<string, unknown>) };
+
+  if (typeof normalized.paymentMethod === 'string') {
+    normalized.paymentMethod = paymentMethodFromText(normalized.paymentMethod);
+  }
+
+  return normalized;
+}
+
+function paymentMethodFromText(value: string) {
+  const lower = value.toLowerCase();
+  const bank = lower.match(/\b(?:desde|de|with|from|banco)?\s*(bci|santander|banco de chile|itau|itaú|scotiabank|falabella|estado)\b/)?.[1];
+
+  if (/\b(transferencia|transfer|transf)\b/.test(lower)) {
+    return { kind: 'transfer', bank };
+  }
+
+  if (/\b(tdc|credito|crédito|credit)\b/.test(lower)) {
+    return { kind: 'card', cardType: 'credit', bank };
+  }
+
+  if (/\b(tdd|debito|débito|debit)\b/.test(lower)) {
+    return { kind: 'card', cardType: 'debit', bank };
+  }
+
+  if (/\b(card|tarjeta)\b/.test(lower)) {
+    return { kind: 'card', bank };
+  }
+
+  if (/\b(cash|efectivo)\b/.test(lower)) {
+    return { kind: 'cash' };
+  }
+
+  return value;
 }

@@ -60,11 +60,11 @@ describe('SendDueReportsUseCase', () => {
       {
         toPhoneNumber: '+56982439041',
         body: [
-          'Expenses Tracker monthly report (2026-05)',
-          'Income: CLP 100000.00',
-          'Expenses: CLP 12500.00',
-          'Income records: 1',
-          'Expense records: 1'
+          'Reporte mensual (2026-05)',
+          'Ingresos: $100.000',
+          'Gastos: $12.500',
+          'Movimientos de ingreso: 1',
+          'Movimientos de gasto: 1'
         ].join('\n')
       }
     ]);

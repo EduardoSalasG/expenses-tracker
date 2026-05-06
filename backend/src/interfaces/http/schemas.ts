@@ -29,6 +29,10 @@ export const updateProfileSchema = z.object({
 export const paymentMethodSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('cash') }),
   z.object({
+    kind: z.literal('transfer'),
+    bank: z.string().min(1).optional()
+  }),
+  z.object({
     kind: z.literal('card'),
     bank: z.string().min(1).optional(),
     cardType: z.enum(['credit', 'debit']).optional()
@@ -50,7 +54,7 @@ export const expenseQuerySchema = z.object({
   to: z.string().datetime().optional(),
   categoryId: z.string().uuid().optional(),
   currency: z.string().length(3).transform((value) => value.toUpperCase()).optional(),
-  paymentMethodKind: z.enum(['cash', 'card']).optional(),
+  paymentMethodKind: z.enum(['cash', 'card', 'transfer']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });
 

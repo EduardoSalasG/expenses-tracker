@@ -9,6 +9,7 @@ The database image is built from `database/Dockerfile`. On first container start
 - `10-001-initial-schema.sql`
 - `11-002-whatsapp-message-id-idempotency.sql`
 - `12-003-report-preferences-index.sql`
+- `13-004-transfer-payment-method.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
@@ -17,6 +18,8 @@ The seed creates:
 - Admin user: `+56900000000`, `admin@example.com`
 - Default categories for both tenants
 - Compatibility login role: `postgres` / `postgres`, useful for older local `.env` files
+
+Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.
 
 ## Local Compose
 

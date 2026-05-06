@@ -25,7 +25,7 @@ Inbound WhatsApp messages reserve Meta's `messages[].id` in `whatsapp_messages.p
 
 ## Currency
 
-MVP stores the original currency for every expense, income, and budget. Cross-currency conversion is intentionally out of scope. Reports group totals by currency.
+MVP uses the user's preferred currency as tenant-level parametrization for WhatsApp-created expenses and incomes. WhatsApp messages do not choose currency per movement. Manual screens may still expose currency fields while the UI is being tightened, but the product direction is one working currency per consumer tenant. Cross-currency conversion is intentionally out of scope.
 
 ## Documentation Contract
 

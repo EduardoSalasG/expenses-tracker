@@ -9,24 +9,16 @@ export interface ParsedExpenseMessage {
   missingFields: string[];
 }
 
-const currencyBySymbol: Record<string, string> = {
-  '$': 'USD',
-  '€': 'EUR',
-  '£': 'GBP'
-};
-
 export function parseExpenseMessage(message: string, preferredCurrency: string): ParsedExpenseMessage {
   const trimmed = message.trim();
-  const amountMatch = trimmed.match(/(?:([A-Z]{3})\s*)?([$€£])?\s*(\d+(?:[.,]\d{1,2})?)/i);
-  const amount = amountMatch ? Number(amountMatch[3].replace(',', '.')) : undefined;
-  const explicitCurrency = amountMatch?.[1]?.toUpperCase();
-  const symbolCurrency = amountMatch?.[2] ? currencyBySymbol[amountMatch[2]] : undefined;
-  const currency = explicitCurrency ?? symbolCurrency ?? preferredCurrency;
+  const amountMatch = trimmed.match(/(^|[\s(])(?:(CLP|USD|EUR|GBP)\s+)?([$€£])?\s*(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d{1,2})?)(?=$|[\s,.)])/i);
+  const amount = amountMatch ? parseLocalizedAmount(amountMatch[4]) : undefined;
+  const currency = preferredCurrency;
 
   const lower = trimmed.toLowerCase();
   const paymentMethod = parsePaymentMethod(lower);
   const concept = amountMatch
-    ? trimmed.replace(amountMatch[0], '').replace(/\b(cash|efectivo|credit|debit|credito|debito|card|tarjeta)\b/gi, '').trim()
+    ? cleanConcept(trimmed.replace(amountMatch[0], ''))
     : trimmed;
 
   const missingFields = [
@@ -50,15 +42,60 @@ function parsePaymentMethod(lowerMessage: string): PaymentMethod | undefined {
     return { kind: 'cash' };
   }
 
-  const cardType = /\b(credit|credito|crédito)\b/.test(lowerMessage)
+  const transferBank = extractBank(lowerMessage, [
+    /\btransferencia\s+(?:desde|de|por|con)\s+([a-z0-9 -]+)/,
+    /\btransfer\s+(?:from|with)\s+([a-z0-9 -]+)/,
+    /\b([a-z0-9]+)\s+(?:transferencia|transfer|transf)\b/
+  ]);
+  if (/\b(transferencia|transfer|transf)\b/.test(lowerMessage)) {
+    return { kind: 'transfer', bank: transferBank };
+  }
+
+  const cardType = /\b(credit|credito|crédito|tdc|tarjeta de credito|tarjeta de crédito)\b/.test(lowerMessage)
     ? 'credit'
-    : /\b(debit|debito|débito)\b/.test(lowerMessage)
+    : /\b(debit|debito|débito|tdd|tarjeta de debito|tarjeta de débito)\b/.test(lowerMessage)
       ? 'debit'
       : undefined;
 
   if (cardType || /\b(card|tarjeta)\b/.test(lowerMessage)) {
-    const bankMatch = lowerMessage.match(/\b(?:bank|banco)\s+([a-z0-9 -]+)/);
-    return { kind: 'card', cardType, bank: bankMatch?.[1]?.trim() };
+    return {
+      kind: 'card',
+      cardType,
+      bank: extractBank(lowerMessage, [
+        /\b(?:tdc|tdd|card|tarjeta|credito|crédito|debito|débito)\s+([a-z0-9 -]+)/,
+        /\b(?:bank|banco)\s+([a-z0-9 -]+)/
+      ])
+    };
+  }
+
+  return undefined;
+}
+
+function parseLocalizedAmount(value: string) {
+  if (/^\d{1,3}(?:[.,]\d{3})+$/.test(value)) {
+    return Number(value.replace(/[.,]/g, ''));
+  }
+
+  return Number(value.replace(',', '.'));
+}
+
+function cleanConcept(value: string) {
+  return value
+    .replace(/\b(cash|efectivo)\b/gi, '')
+    .replace(/\b(transferencia|transfer|transf)\s+(desde|de|por|con)\s+[a-z0-9 -]+/gi, '')
+    .replace(/\b[a-z0-9]+\s+(transferencia|transfer|transf)\b/gi, '')
+    .replace(/\b(tdc|tdd|card|tarjeta|credito|crédito|debito|débito)\s+[a-z0-9 -]+/gi, '')
+    .replace(/\b(credit|debit)\b/gi, '')
+    .replace(/\s*,\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function extractBank(lowerMessage: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = lowerMessage.match(pattern);
+    const bank = match?.[1]?.replace(/\b(mayo|abril|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|enero|febrero|marzo)\b.*/i, '').trim();
+    if (bank) return bank;
   }
 
   return undefined;

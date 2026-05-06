@@ -7,5 +7,5 @@ sequenceDiagram
   Frontend->>API: GET /reports?from&to
   API->>DB: Read tenant expenses by period
   API->>DB: Read tenant incomes by period
-  API->>API: Group totals by currency
+  API->>API: Format totals with tenant working currency
   API-->>Frontend: Report data

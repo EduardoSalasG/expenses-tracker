@@ -46,7 +46,7 @@ The Docker frontend uses `/api`, which Nginx proxies to the backend container.
 
 - `/login`: WhatsApp OTP login.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
-- `/expenses`: manual expense creation, card/cash details, filtered expense history, and auto-refresh after save.
+- `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.
 - `/budgets`: monthly budget planner with category/subcategory limits, spending progress, remaining amounts, and inline updates.
 - `/categories`: main category and subcategory management with default/custom labels.
@@ -61,6 +61,7 @@ The frontend stores the access token and refresh token after OTP verification. A
 - Angular Material supplies form fields, buttons, nav, cards, tables, and progress indicators.
 - Tailwind supplies layout, spacing, and responsive utilities.
 - Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
+- CLP amounts are displayed in Chilean currency format, for example `$20.000`.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 
 ## Tests

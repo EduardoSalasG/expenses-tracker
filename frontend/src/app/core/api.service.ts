@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 
 export interface PaymentMethod {
-  kind: 'cash' | 'card';
+  kind: 'cash' | 'card' | 'transfer';
   bank?: string;
   cardType?: 'credit' | 'debit';
 }
@@ -70,7 +70,7 @@ export interface ExpenseFilters {
   to?: string;
   categoryId?: string;
   currency?: string;
-  paymentMethodKind?: 'cash' | 'card';
+  paymentMethodKind?: 'cash' | 'card' | 'transfer';
   limit?: number;
 }
 

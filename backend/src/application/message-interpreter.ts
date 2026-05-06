@@ -14,6 +14,10 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     paymentMethod: z.discriminatedUnion('kind', [
       z.object({ kind: z.literal('cash') }),
       z.object({
+        kind: z.literal('transfer'),
+        bank: z.string().min(1).optional()
+      }),
+      z.object({
         kind: z.literal('card'),
         bank: z.string().min(1).optional(),
         cardType: z.enum(['credit', 'debit']).optional()

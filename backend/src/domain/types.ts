@@ -6,7 +6,7 @@ export type ExpenseId = string;
 export type CurrencyCode = string;
 export type ReportFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type CardType = 'credit' | 'debit';
-export type PaymentMethodKind = 'cash' | 'card';
+export type PaymentMethodKind = 'cash' | 'card' | 'transfer';
 
 export interface User {
   id: UserId;

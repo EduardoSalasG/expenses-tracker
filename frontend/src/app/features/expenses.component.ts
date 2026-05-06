@@ -61,14 +61,17 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
           <mat-label>Payment method</mat-label>
           <mat-select formControlName="paymentKind">
             <mat-option value="cash">Cash</mat-option>
+            <mat-option value="transfer">Transfer</mat-option>
             <mat-option value="card">Card</mat-option>
           </mat-select>
         </mat-form-field>
-        @if (form.controls.paymentKind.value === 'card') {
+        @if (form.controls.paymentKind.value === 'card' || form.controls.paymentKind.value === 'transfer') {
           <mat-form-field appearance="outline">
             <mat-label>Bank</mat-label>
             <input matInput formControlName="bank">
           </mat-form-field>
+        }
+        @if (form.controls.paymentKind.value === 'card') {
           <mat-form-field appearance="outline">
             <mat-label>Card type</mat-label>
             <mat-select formControlName="cardType">
@@ -118,6 +121,7 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
           <mat-select formControlName="paymentMethodKind">
             <mat-option value="">All</mat-option>
             <mat-option value="cash">Cash</mat-option>
+            <mat-option value="transfer">Transfer</mat-option>
             <mat-option value="card">Card</mat-option>
           </mat-select>
         </mat-form-field>
@@ -215,7 +219,7 @@ export class ExpensesComponent implements OnInit {
       to: filters.to ? endOfDay(filters.to) : undefined,
       categoryId: filters.categoryId || undefined,
       currency: filters.currency ? filters.currency.toUpperCase() : undefined,
-      paymentMethodKind: filters.paymentMethodKind ? filters.paymentMethodKind as 'cash' | 'card' : undefined,
+      paymentMethodKind: filters.paymentMethodKind ? filters.paymentMethodKind as 'cash' | 'transfer' | 'card' : undefined,
       limit: 100
     }).subscribe((expenses) => this.expenses.set(expenses));
   }
@@ -236,9 +240,7 @@ export class ExpensesComponent implements OnInit {
       concept: value.concept,
       categoryId: value.categoryId,
       subcategoryId: value.subcategoryId || undefined,
-      paymentMethod: value.paymentKind === 'card'
-        ? { kind: 'card', bank: value.bank || undefined, cardType: value.cardType as 'credit' | 'debit' }
-        : { kind: 'cash' }
+      paymentMethod: this.paymentMethodPayload(value.paymentKind, value.bank, value.cardType)
     }).subscribe({
       next: () => {
         this.saving.set(false);
@@ -264,6 +266,9 @@ export class ExpensesComponent implements OnInit {
 
   paymentLabel(expense: Expense) {
     if (expense.paymentMethod.kind === 'cash') return 'Cash';
+    if (expense.paymentMethod.kind === 'transfer') {
+      return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} transfer` : 'Transfer';
+    }
     const cardType = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType} card` : 'Card';
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${cardType}` : cardType;
   }
@@ -273,7 +278,20 @@ export class ExpensesComponent implements OnInit {
   }
 
   formatMoney(currency: string, amount: number) {
-    return `${currency} ${Number(amount).toLocaleString('en', { maximumFractionDigits: 0 })}`;
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
+  }
+
+  private paymentMethodPayload(kind: string, bank: string, cardType: string) {
+    if (kind === 'card') {
+      return { kind: 'card', bank: bank || undefined, cardType: cardType as 'credit' | 'debit' };
+    }
+
+    if (kind === 'transfer') {
+      return { kind: 'transfer', bank: bank || undefined };
+    }
+
+    return { kind: 'cash' };
   }
 }
 

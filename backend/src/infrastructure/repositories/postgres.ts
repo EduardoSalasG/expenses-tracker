@@ -143,7 +143,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     to?: string;
     categoryId?: string;
     currency?: string;
-    paymentMethodKind?: 'cash' | 'card';
+    paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
   }) {
     const result = await this.pool.query(

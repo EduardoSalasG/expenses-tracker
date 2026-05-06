@@ -188,7 +188,8 @@ export class IncomesComponent {
   }
 
   formatMoney(currency: string, amount: number) {
-    return `${currency} ${Number(amount).toLocaleString('en', { maximumFractionDigits: 0 })}`;
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
   }
 }
 

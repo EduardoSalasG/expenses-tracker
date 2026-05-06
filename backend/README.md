@@ -81,7 +81,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 `GET /expenses` lists tenant-scoped expenses with optional `from`, `to`, `categoryId`, `currency`, `paymentMethodKind`, and `limit` query parameters. Use it for history screens and filtered views.
 
-`POST /expenses` creates manual expenses. WhatsApp-created expenses use the same persistence model after parsing and validation.
+`POST /expenses` creates manual expenses. WhatsApp-created expenses use the same persistence model after parsing and validation, but always use the user's preferred currency instead of treating currency as message input.
 
 ## Income API
 
@@ -135,6 +135,16 @@ GET /webhooks/whatsapp
 Only registered users should be able to message the app number. In development, enforce this in Meta by adding only registered phone numbers to the test recipient list. The backend also ignores unregistered senders defensively and does not parse, save, or reply to their messages.
 
 Inbound text is interpreted through the `MessageInterpreterPort`. The default deterministic interpreter supports basic expense, income, report, and budget-status intents. Set `MESSAGE_INTERPRETER_PROVIDER=github-models` with a GitHub token, `MESSAGE_INTERPRETER_BASE_URL=https://models.github.ai/inference`, and `MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324` to use GitHub Models. Use `openai-compatible` for another chat completions provider with the same request shape. The provider only proposes structured JSON; the backend still validates required fields, tenant scope, categories, and persistence rules before saving or replying.
+
+Natural WhatsApp examples:
+
+```text
+Ingreso de sueldo 1200000 Bci transferencia
+20.000 clases de bachata bsoul mayo, transferencia desde bci
+25.000 polera paris, tdc bci
+```
+
+For WhatsApp-created movements, currency comes from `users.preferred_currency`. The backend ignores hallucinated or ambiguous currency values returned by the interpreter and formats CLP replies as `$20.000`.
 
 Smoke test the configured interpreter without going through Meta:
 

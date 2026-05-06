@@ -209,6 +209,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   paymentLabel(expense: Expense) {
     if (expense.paymentMethod.kind === 'cash') return 'Cash';
+    if (expense.paymentMethod.kind === 'transfer') {
+      return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} transfer` : 'Transfer';
+    }
     const card = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType} card` : 'Card';
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${card}` : card;
   }
@@ -218,7 +221,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   formatMoney(currency: string, amount: number) {
-    return `${currency} ${Number(amount).toLocaleString('en', { maximumFractionDigits: 0 })}`;
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
   }
 
   private formatTotals(totals?: Record<string, number>) {

@@ -134,7 +134,7 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         date: this.clock.now().toISOString(),
         amount: interpreted.amount,
-        currency: interpreted.currency ?? user.preferredCurrency,
+        currency: user.preferredCurrency,
         concept: interpreted.concept
       });
       await this.auditMessage(input, {
@@ -142,7 +142,7 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
-      await this.whatsapp.sendText(input.fromPhoneNumber, `Saved income ${income.currency} ${income.amount.toFixed(2)} for ${income.concept}.`);
+      await this.whatsapp.sendText(input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
       return { status: 'income_saved' as const, income };
     }
 
@@ -201,7 +201,7 @@ export class ProcessWhatsAppExpenseUseCase {
       userId: user.id,
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
-      currency: interpreted.currency ?? user.preferredCurrency,
+      currency: user.preferredCurrency,
       concept: interpreted.concept,
       categoryId: category.id,
       subcategoryId: matchedCategory.subcategory?.id,
@@ -215,7 +215,7 @@ export class ProcessWhatsAppExpenseUseCase {
       parsingStatus: 'saved',
       expenseId: expense.id
     });
-    await this.whatsapp.sendText(input.fromPhoneNumber, `Saved ${expense.currency} ${expense.amount.toFixed(2)} for ${expense.concept}.`);
+    await this.whatsapp.sendText(input.fromPhoneNumber, `Gasto guardado: ${formatMoney(expense.currency, expense.amount)} por ${expense.concept}.`);
     return { status: 'saved' as const, expense };
   }
 
@@ -282,7 +282,7 @@ export class FinanceUseCases {
     to?: string;
     categoryId?: string;
     currency?: string;
-    paymentMethodKind?: 'cash' | 'card';
+    paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit?: number;
   }) {
     return this.expenses.list({ ...input, limit: input.limit ?? 50 });
@@ -419,11 +419,11 @@ function formatReportMessage(
   const expenseTotals = formatTotals(report.expenseTotalsByCurrency);
   const incomeTotals = formatTotals(report.incomeTotalsByCurrency);
   return [
-    `Expenses Tracker ${frequency} report (${label})`,
-    `Income: ${incomeTotals}`,
-    `Expenses: ${expenseTotals}`,
-    `Income records: ${report.incomes.length}`,
-    `Expense records: ${report.expenses.length}`
+    `Reporte ${reportFrequencyLabel(frequency)} (${label})`,
+    `Ingresos: ${incomeTotals}`,
+    `Gastos: ${expenseTotals}`,
+    `Movimientos de ingreso: ${report.incomes.length}`,
+    `Movimientos de gasto: ${report.expenses.length}`
   ].join('\n');
 }
 
@@ -432,7 +432,7 @@ function formatTotals(totals: Record<string, number>) {
   if (!entries.length) return 'No movement';
   return entries
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([currency, amount]) => `${currency} ${amount.toFixed(2)}`)
+    .map(([currency, amount]) => formatMoney(currency, amount))
     .join(' | ');
 }
 
@@ -491,10 +491,20 @@ function formatBudgetStatusMessage(
       .reduce((total, expense) => total + expense.amount, 0);
     const remaining = Math.max(budget.amount - spent, 0);
     const label = categoryLabel(categories, budget.subcategoryId ?? budget.categoryId);
-    return `${label}: spent ${budget.currency} ${spent.toFixed(2)} of ${budget.currency} ${budget.amount.toFixed(2)}. Left: ${budget.currency} ${remaining.toFixed(2)}.`;
+    return `${label}: gastado ${formatMoney(budget.currency, spent)} de ${formatMoney(budget.currency, budget.amount)}. Disponible: ${formatMoney(budget.currency, remaining)}.`;
   });
 
-  return [`Budget status for ${month}`, ...lines].join('\n');
+  return [`Presupuesto ${month}`, ...lines].join('\n');
+}
+
+function reportFrequencyLabel(frequency: ReportFrequency) {
+  const labels: Record<ReportFrequency, string> = {
+    daily: 'diario',
+    weekly: 'semanal',
+    monthly: 'mensual',
+    yearly: 'anual'
+  };
+  return labels[frequency];
 }
 
 function categoryLabel(categories: Category[], categoryId: string): string {
@@ -506,4 +516,17 @@ function categoryLabel(categories: Category[], categoryId: string): string {
 
 function normalizeName(value: string) {
   return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatMoney(currency: string, amount: number) {
+  const normalizedCurrency = currency.trim().toUpperCase();
+  if (normalizedCurrency === 'CLP') {
+    return `$${Math.round(amount).toLocaleString('es-CL')}`;
+  }
+
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: normalizedCurrency,
+    maximumFractionDigits: normalizedCurrency === 'USD' ? 2 : 0
+  }).format(amount);
 }
