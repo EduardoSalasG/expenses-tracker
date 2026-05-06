@@ -4,13 +4,14 @@ import type {
   Clock,
   ExpenseRepository,
   IncomeRepository,
+  MessageInterpreterPort,
   OtpRepository,
   TokenService,
   UserRepository,
   WhatsAppMessageAuditRepository,
   WhatsAppProvider
 } from './ports.js';
-import { parseExpenseMessage } from './expense-parser.js';
+import { categoryByInterpretedName, isCompleteExpense, isCompleteIncome } from './message-interpreter.js';
 import type { Category, Expense, Income, MonthlyBudget, ReportFrequency } from '../domain/types.js';
 
 export class RequestOtpUseCase {
@@ -87,8 +88,11 @@ export class ProcessWhatsAppExpenseUseCase {
     private readonly users: UserRepository,
     private readonly categories: CategoryRepository,
     private readonly expenses: ExpenseRepository,
+    private readonly incomes: IncomeRepository,
+    private readonly budgets: BudgetRepository,
     private readonly messageAudits: WhatsAppMessageAuditRepository,
     private readonly whatsapp: WhatsAppProvider,
+    private readonly interpreter: MessageInterpreterPort,
     private readonly clock: Clock
   ) {}
 
@@ -111,20 +115,84 @@ export class ProcessWhatsAppExpenseUseCase {
       return { status: 'ignored_unregistered_sender' as const };
     }
 
-    const parsed = parseExpenseMessage(input.message, user.preferredCurrency);
-    if (parsed.status !== 'ready' || !parsed.amount || !parsed.concept || !parsed.paymentMethod) {
+    const categories = await this.categories.listByTenant(user.tenantId);
+    const interpreted = await this.interpreter.interpret(input.message, {
+      user,
+      categories,
+      now: this.clock.now()
+    });
+
+    if (interpreted.intent === 'create_income') {
+      if (!isCompleteIncome(interpreted)) {
+        await this.auditNeedsConfirmation(input, user.id, user.tenantId);
+        await this.whatsapp.sendText(input.fromPhoneNumber, `Please send the missing income data: ${interpreted.missingFields.join(', ')}.`);
+        return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
+      }
+
+      const income = await this.incomes.create({
+        tenantId: user.tenantId,
+        userId: user.id,
+        date: this.clock.now().toISOString(),
+        amount: interpreted.amount,
+        currency: interpreted.currency ?? user.preferredCurrency,
+        concept: interpreted.concept
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'saved'
+      });
+      await this.whatsapp.sendText(input.fromPhoneNumber, `Saved income ${income.currency} ${income.amount.toFixed(2)} for ${income.concept}.`);
+      return { status: 'income_saved' as const, income };
+    }
+
+    if (interpreted.intent === 'ask_report') {
+      const period = reportPeriod(interpreted.period, this.clock.now());
+      const report = filterReportByCategory(
+        await this.report(user.tenantId, period.from, period.to),
+        categories,
+        interpreted.categoryName
+      );
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'saved'
+      });
+      await this.whatsapp.sendText(input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
+      return { status: 'report_sent' as const, report };
+    }
+
+    if (interpreted.intent === 'ask_budget_status') {
+      const month = interpreted.month ?? this.clock.now().toISOString().slice(0, 7);
+      const { from, to } = monthPeriod(month);
+      const [budgets, report] = await Promise.all([
+        this.budgets.listMonthly(user.tenantId, month),
+        this.report(user.tenantId, from, to)
+      ]);
+      const budgetMessage = formatBudgetStatusMessage(month, budgets, report.expenses, categories, interpreted.categoryName);
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'saved'
+      });
+      await this.whatsapp.sendText(input.fromPhoneNumber, budgetMessage);
+      return { status: 'budget_status_sent' as const };
+    }
+
+    if (interpreted.intent !== 'create_expense' || !isCompleteExpense(interpreted)) {
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.whatsapp.sendText(input.fromPhoneNumber, `Please send the missing expense data: ${parsed.missingFields.join(', ')}.`);
-      return { status: 'needs_confirmation' as const, missingFields: parsed.missingFields };
+      const missingFields = interpreted.intent === 'create_expense' ? interpreted.missingFields : ['intent'];
+      await this.whatsapp.sendText(input.fromPhoneNumber, `Please clarify this message. Missing or ambiguous: ${missingFields.join(', ')}.`);
+      return { status: 'needs_confirmation' as const, missingFields };
     }
 
-    const categories = await this.categories.listByTenant(user.tenantId);
-    const fallbackCategory = categories.find((category) => !category.parentId) ?? categories[0];
-    if (!fallbackCategory) {
+    const matchedCategory = categoryByInterpretedName(categories, interpreted.categoryName, interpreted.subcategoryName);
+    const category = matchedCategory.category ?? categories.find((item) => !item.parentId) ?? categories[0];
+    if (!category) {
       throw new Error('No category is available for this tenant.');
     }
 
@@ -132,11 +200,12 @@ export class ProcessWhatsAppExpenseUseCase {
       tenantId: user.tenantId,
       userId: user.id,
       date: this.clock.now().toISOString(),
-      amount: parsed.amount,
-      currency: parsed.currency ?? user.preferredCurrency,
-      concept: parsed.concept,
-      categoryId: fallbackCategory.id,
-      paymentMethod: parsed.paymentMethod,
+      amount: interpreted.amount,
+      currency: interpreted.currency ?? user.preferredCurrency,
+      concept: interpreted.concept,
+      categoryId: category.id,
+      subcategoryId: matchedCategory.subcategory?.id,
+      paymentMethod: interpreted.paymentMethod,
       originalMessage: input.message
     });
 
@@ -148,6 +217,30 @@ export class ProcessWhatsAppExpenseUseCase {
     });
     await this.whatsapp.sendText(input.fromPhoneNumber, `Saved ${expense.currency} ${expense.amount.toFixed(2)} for ${expense.concept}.`);
     return { status: 'saved' as const, expense };
+  }
+
+  private auditNeedsConfirmation(input: { providerMessageId?: string; fromPhoneNumber: string; message: string }, userId: string, tenantId: string) {
+    return this.auditMessage(input, {
+      tenantId,
+      userId,
+      parsingStatus: 'needs_confirmation'
+    });
+  }
+
+  private async report(tenantId: string, from: string, to: string) {
+    const [expenses, incomes] = await Promise.all([
+      this.expenses.listByPeriod(tenantId, from, to),
+      this.incomes.listByPeriod(tenantId, from, to)
+    ]);
+
+    return {
+      from,
+      to,
+      expenses,
+      incomes,
+      expenseTotalsByCurrency: totalsByCurrency(expenses),
+      incomeTotalsByCurrency: totalsByCurrency(incomes)
+    };
   }
 
   private auditMessage(
@@ -341,4 +434,76 @@ function formatTotals(totals: Record<string, number>) {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([currency, amount]) => `${currency} ${amount.toFixed(2)}`)
     .join(' | ');
+}
+
+function monthPeriod(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const from = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
+  const to = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+function filterReportByCategory<T extends Awaited<ReturnType<FinanceUseCases['report']>>>(
+  report: T,
+  categories: Category[],
+  categoryName?: string
+): T {
+  if (!categoryName) return report;
+  const category = categories.find((item) => normalizeName(item.name) === normalizeName(categoryName));
+  if (!category) return report;
+  const rootId = category.parentId ?? category.id;
+  const subcategoryId = category.parentId ? category.id : undefined;
+  const expenses = report.expenses.filter((expense) =>
+    expense.categoryId === rootId && (!subcategoryId || expense.subcategoryId === subcategoryId)
+  );
+  return {
+    ...report,
+    expenses,
+    expenseTotalsByCurrency: totalsByCurrency(expenses)
+  };
+}
+
+function formatBudgetStatusMessage(
+  month: string,
+  budgets: MonthlyBudget[],
+  expenses: Expense[],
+  categories: Category[],
+  categoryName?: string
+) {
+  const filteredBudgets = categoryName
+    ? budgets.filter((budget) => {
+      const category = categories.find((item) => item.id === (budget.subcategoryId ?? budget.categoryId));
+      return category && normalizeName(category.name) === normalizeName(categoryName);
+    })
+    : budgets;
+
+  if (!filteredBudgets.length) {
+    return `No budgets configured for ${categoryName ? `${categoryName} in ` : ''}${month}.`;
+  }
+
+  const lines = filteredBudgets.map((budget) => {
+    const spent = expenses
+      .filter((expense) =>
+        expense.currency === budget.currency &&
+        expense.categoryId === budget.categoryId &&
+        (!budget.subcategoryId || expense.subcategoryId === budget.subcategoryId)
+      )
+      .reduce((total, expense) => total + expense.amount, 0);
+    const remaining = Math.max(budget.amount - spent, 0);
+    const label = categoryLabel(categories, budget.subcategoryId ?? budget.categoryId);
+    return `${label}: spent ${budget.currency} ${spent.toFixed(2)} of ${budget.currency} ${budget.amount.toFixed(2)}. Left: ${budget.currency} ${remaining.toFixed(2)}.`;
+  });
+
+  return [`Budget status for ${month}`, ...lines].join('\n');
+}
+
+function categoryLabel(categories: Category[], categoryId: string): string {
+  const category = categories.find((item) => item.id === categoryId);
+  if (!category) return 'Uncategorized';
+  if (!category.parentId) return category.name;
+  return `${categoryLabel(categories, category.parentId)} / ${category.name}`;
+}
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }

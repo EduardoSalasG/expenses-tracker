@@ -6,7 +6,7 @@ The system follows clean architecture and hexagonal boundaries.
 
 - Domain: entities and value types with no framework dependencies.
 - Application: use cases and ports.
-- Infrastructure: PostgreSQL, WhatsApp Cloud API, JWT, OTP storage, logging.
+- Infrastructure: PostgreSQL, WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
 - Interfaces: Express controllers, middleware, Zod schemas, Swagger/OpenAPI.
 
 Dependencies point inward. Controllers call use cases. Use cases depend on ports. Infrastructure implements ports.

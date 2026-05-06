@@ -99,6 +99,11 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     whatsappPhoneNumberId: '',
     whatsappBusinessAccountId: '',
     whatsappTestRecipientPhone: '',
+    messageInterpreterProvider: 'deterministic',
+    messageInterpreterApiKey: '',
+    messageInterpreterBaseUrl: 'https://api.deepseek.com',
+    messageInterpreterModel: 'deepseek-chat',
+    messageInterpreterTemperature: 0.1,
     frontendOrigin: 'http://localhost:4200',
     useInMemoryRepositories: true,
     ...overrides

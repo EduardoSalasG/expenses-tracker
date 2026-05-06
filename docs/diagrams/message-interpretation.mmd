@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant WhatsApp
+  participant API
+  participant Port as MessageInterpreterPort
+  participant LLM as OpenAI-compatible provider
+  participant Fallback as Deterministic interpreter
+  participant UseCase
+  WhatsApp->>API: Text message
+  API->>Port: interpret(message, user, categories, now)
+  alt provider configured with API key
+    Port->>LLM: Chat completions JSON request
+    LLM-->>Port: Structured intent JSON
+    Port->>Port: Validate with Zod
+  else provider unavailable or invalid response
+    Port->>Fallback: Deterministic parse
+    Fallback-->>Port: Structured intent JSON
+  end
+  Port-->>UseCase: create_expense, create_income, ask_report, ask_budget_status, or unknown
+  UseCase->>UseCase: Validate tenant scope and required fields before action

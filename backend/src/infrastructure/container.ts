@@ -1,6 +1,7 @@
 import type { AppConfig } from './config.js';
 import { createPool } from './database.js';
 import { createLogger } from './logger.js';
+import { createMessageInterpreter } from './message-interpreter.provider.js';
 import { JwtTokenService } from './token.service.js';
 import { WhatsAppCloudProvider } from './whatsapp.provider.js';
 import {
@@ -45,6 +46,7 @@ export function createContainer(config: AppConfig) {
   const messageAudits = pool ? new PostgresWhatsAppMessageAuditRepository(pool) : new InMemoryWhatsAppMessageAuditRepository();
   const tokens = new JwtTokenService(config);
   const whatsapp = new WhatsAppCloudProvider(config, logger);
+  const interpreter = createMessageInterpreter(config, logger);
   const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
 
   return {
@@ -57,7 +59,7 @@ export function createContainer(config: AppConfig) {
       requestOtp: new RequestOtpUseCase(otps, whatsapp, clock),
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock),
       refreshSession: new RefreshSessionUseCase(users, tokens),
-      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, messageAudits, whatsapp, clock),
+      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, whatsapp, interpreter, clock),
       finance,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),

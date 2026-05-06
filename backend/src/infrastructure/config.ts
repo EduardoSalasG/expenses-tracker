@@ -21,6 +21,11 @@ const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().default(''),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().default(''),
   WHATSAPP_TEST_RECIPIENT_PHONE: z.string().default(''),
+  MESSAGE_INTERPRETER_PROVIDER: z.enum(['deterministic', 'openai-compatible']).default('deterministic'),
+  MESSAGE_INTERPRETER_API_KEY: z.string().default(''),
+  MESSAGE_INTERPRETER_BASE_URL: z.string().url().default('https://api.deepseek.com'),
+  MESSAGE_INTERPRETER_MODEL: z.string().default('deepseek-chat'),
+  MESSAGE_INTERPRETER_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
   FRONTEND_ORIGIN: z.string().default('http://localhost:4200'),
   USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false)
 });
@@ -43,6 +48,11 @@ export function loadConfig() {
     whatsappPhoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
     whatsappBusinessAccountId: env.WHATSAPP_BUSINESS_ACCOUNT_ID,
     whatsappTestRecipientPhone: env.WHATSAPP_TEST_RECIPIENT_PHONE,
+    messageInterpreterProvider: env.MESSAGE_INTERPRETER_PROVIDER,
+    messageInterpreterApiKey: env.MESSAGE_INTERPRETER_API_KEY,
+    messageInterpreterBaseUrl: env.MESSAGE_INTERPRETER_BASE_URL,
+    messageInterpreterModel: env.MESSAGE_INTERPRETER_MODEL,
+    messageInterpreterTemperature: env.MESSAGE_INTERPRETER_TEMPERATURE,
     frontendOrigin: env.FRONTEND_ORIGIN,
     useInMemoryRepositories: env.USE_IN_MEMORY_REPOSITORIES
   };

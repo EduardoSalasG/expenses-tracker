@@ -1,3 +1,4 @@
+import type { InterpretedMessage, MessageInterpreterContext } from './message-interpreter.js';
 import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, TenantId, User } from '../domain/types.js';
 
 export interface UserRepository {
@@ -84,6 +85,10 @@ export interface TokenService {
 
 export interface WhatsAppProvider {
   sendText(toPhoneNumber: string, body: string): Promise<unknown>;
+}
+
+export interface MessageInterpreterPort {
+  interpret(message: string, context: MessageInterpreterContext): Promise<InterpretedMessage>;
 }
 
 export interface Clock {
