@@ -73,7 +73,7 @@ export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPor
 }
 
 export function createMessageInterpreter(config: AppConfig, logger: Logger): MessageInterpreterPort {
-  if (config.messageInterpreterProvider === 'openai-compatible') {
+  if (config.messageInterpreterProvider === 'openai-compatible' || config.messageInterpreterProvider === 'github-models') {
     return new OpenAiCompatibleMessageInterpreter(config, logger);
   }
 

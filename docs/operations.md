@@ -81,6 +81,15 @@ Keep `backend/.env` outside Git. Production deployments need:
 - `MESSAGE_INTERPRETER_MODEL`
 - `FRONTEND_ORIGIN`
 
+For GitHub Models, configure:
+
+```text
+MESSAGE_INTERPRETER_PROVIDER=github-models
+MESSAGE_INTERPRETER_API_KEY=<github-token-with-models-access>
+MESSAGE_INTERPRETER_BASE_URL=https://models.github.ai/inference
+MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324
+```
+
 ## Smoke Checks
 
 After starting services:

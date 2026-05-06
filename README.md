@@ -4,7 +4,7 @@ Consumer expenses tracker with WhatsApp-first capture, PostgreSQL persistence, a
 
 WhatsApp expense capture is intended for registered users only. In development, use Meta's test recipient allowlist so unregistered numbers cannot interact with the app number; the backend also ignores unregistered sender numbers defensively.
 
-WhatsApp messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; an OpenAI-compatible provider can be configured for DeepSeek or another LLM without changing application use cases.
+WhatsApp messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; GitHub Models with `deepseek/DeepSeek-V3-0324` or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
 
 ## Repository
 

@@ -2,7 +2,7 @@ sequenceDiagram
   participant WhatsApp
   participant API
   participant Port as MessageInterpreterPort
-  participant LLM as OpenAI-compatible provider
+  participant LLM as GitHub Models / OpenAI-compatible provider
   participant Fallback as Deterministic interpreter
   participant UseCase
   WhatsApp->>API: Text message
