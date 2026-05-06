@@ -21,6 +21,10 @@ Every behavior change must keep documentation aligned:
 - Domain, architecture, or persistence changes update `docs/diagrams/flows.md`.
 - Database query changes update `database/query-analysis.md` when performance or index usage matters.
 
+## CI
+
+GitHub Actions verifies backend tests/build, frontend tests/build, and Docker Compose config on pushes and pull requests to `main`.
+
 ## Quick Start
 
 Install dependencies after network access is available, then run PostgreSQL in Docker:

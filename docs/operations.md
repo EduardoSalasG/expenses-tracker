@@ -22,6 +22,18 @@ docker compose up --build
 
 The backend and frontend containers are intended for image validation and deployment packaging. Normal development should keep them stopped.
 
+## Continuous Integration
+
+GitHub Actions runs on pushes and pull requests to `main`:
+
+- backend tests
+- backend build
+- frontend tests in headless Chrome
+- frontend build
+- Docker Compose config validation
+
+Linting is intentionally not part of CI yet because ESLint and Angular lint configuration are not finalized in this MVP.
+
 ## Report Worker
 
 The report worker is a one-shot job. It sends one batch for one frequency and exits. This avoids duplicate sends from a long-running loop.
