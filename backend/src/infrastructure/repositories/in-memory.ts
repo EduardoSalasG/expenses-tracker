@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository } from '../../application/ports.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/types.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository, WhatsAppPendingDraftRepository } from '../../application/ports.js';
+import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User, WhatsAppPendingDraft } from '../../domain/types.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -205,5 +205,30 @@ export class InMemoryWhatsAppMessageAuditRepository implements WhatsAppMessageAu
 
   async create(input: Parameters<WhatsAppMessageAuditRepository['create']>[0]) {
     this.messages.push(input);
+  }
+}
+
+export class InMemoryWhatsAppPendingDraftRepository implements WhatsAppPendingDraftRepository {
+  readonly drafts: WhatsAppPendingDraft[] = [];
+
+  async findActive(tenantId: string, userId: string, now: Date) {
+    return this.drafts.find((draft) =>
+      draft.tenantId === tenantId &&
+      draft.userId === userId &&
+      draft.expiresAt >= now.toISOString()
+    );
+  }
+
+  async upsert(input: Omit<WhatsAppPendingDraft, 'id'>) {
+    const index = this.drafts.findIndex((draft) => draft.tenantId === input.tenantId && draft.userId === input.userId);
+    const draft = { ...input, id: index >= 0 ? this.drafts[index].id : randomUUID() };
+    if (index >= 0) this.drafts[index] = draft;
+    else this.drafts.push(draft);
+    return draft;
+  }
+
+  async clear(tenantId: string, userId: string) {
+    const index = this.drafts.findIndex((draft) => draft.tenantId === tenantId && draft.userId === userId);
+    if (index >= 0) this.drafts.splice(index, 1);
   }
 }

@@ -4,8 +4,10 @@ erDiagram
   TENANT ||--o{ EXPENSE : records
   TENANT ||--o{ INCOME : records
   TENANT ||--o{ MONTHLY_BUDGET : plans
+  TENANT ||--o{ WHATSAPP_PENDING_DRAFT : tracks
   USER ||--o{ EXPENSE : creates
   USER ||--o{ INCOME : creates
+  USER ||--o{ WHATSAPP_PENDING_DRAFT : clarifies
   CATEGORY ||--o{ CATEGORY : contains
   CATEGORY ||--o{ EXPENSE : classifies
   CATEGORY ||--o{ MONTHLY_BUDGET : budgets

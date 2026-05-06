@@ -1,5 +1,5 @@
 import type { InterpretedMessage, MessageInterpreterContext } from './message-interpreter.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, TenantId, User } from '../domain/types.js';
+import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, TenantId, User, WhatsAppPendingDraft } from '../domain/types.js';
 
 export interface UserRepository {
   findByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
@@ -74,6 +74,12 @@ export interface WhatsAppMessageAuditRepository {
     parsingStatus: 'saved' | 'needs_confirmation' | 'unknown_user' | 'failed' | 'processing';
     expenseId?: string;
   }): Promise<void>;
+}
+
+export interface WhatsAppPendingDraftRepository {
+  findActive(tenantId: TenantId, userId: string, now: Date): Promise<WhatsAppPendingDraft | undefined>;
+  upsert(input: Omit<WhatsAppPendingDraft, 'id'>): Promise<WhatsAppPendingDraft>;
+  clear(tenantId: TenantId, userId: string): Promise<void>;
 }
 
 export interface TokenService {

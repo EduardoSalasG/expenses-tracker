@@ -23,6 +23,10 @@ Development and test environments must use Meta's verified recipient/test number
 
 Inbound WhatsApp messages reserve Meta's `messages[].id` in `whatsapp_messages.provider_message_id` before parsing or creating an expense. The database unique partial index rejects repeated webhook deliveries for the same provider id, and the use case returns `duplicate_ignored` without creating another expense.
 
+## WhatsApp Clarifications
+
+When a registered user sends an incomplete finance message, the backend stores one active `whatsapp_pending_drafts` row for that tenant/user. The next WhatsApp reply can add missing fields such as payment method, confirm the draft, or cancel it. Drafts expire after 30 minutes.
+
 ## Currency
 
 MVP uses the user's preferred currency as tenant-level parametrization for WhatsApp-created expenses and incomes. WhatsApp messages do not choose currency per movement. Manual screens may still expose currency fields while the UI is being tightened, but the product direction is one working currency per consumer tenant. Cross-currency conversion is intentionally out of scope.

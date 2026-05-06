@@ -67,3 +67,13 @@ export interface MonthlyBudget {
   amount: number;
   currency: CurrencyCode;
 }
+
+export interface WhatsAppPendingDraft {
+  id: string;
+  tenantId: TenantId;
+  userId: UserId;
+  originalMessage: string;
+  draft: unknown;
+  missingFields: string[];
+  expiresAt: string;
+}

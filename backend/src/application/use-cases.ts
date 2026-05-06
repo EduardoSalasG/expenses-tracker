@@ -6,13 +6,14 @@ import type {
   IncomeRepository,
   MessageInterpreterPort,
   OtpRepository,
+  WhatsAppPendingDraftRepository,
   TokenService,
   UserRepository,
   WhatsAppMessageAuditRepository,
   WhatsAppProvider
 } from './ports.js';
-import { categoryByInterpretedName, isCompleteExpense, isCompleteIncome } from './message-interpreter.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency } from '../domain/types.js';
+import { categoryByInterpretedName, interpretedMessageSchema, isCompleteExpense, isCompleteIncome, type InterpretedMessage } from './message-interpreter.js';
+import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../domain/types.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -91,6 +92,7 @@ export class ProcessWhatsAppExpenseUseCase {
     private readonly incomes: IncomeRepository,
     private readonly budgets: BudgetRepository,
     private readonly messageAudits: WhatsAppMessageAuditRepository,
+    private readonly pendingDrafts: WhatsAppPendingDraftRepository,
     private readonly whatsapp: WhatsAppProvider,
     private readonly interpreter: MessageInterpreterPort,
     private readonly clock: Clock
@@ -116,17 +118,74 @@ export class ProcessWhatsAppExpenseUseCase {
     }
 
     const categories = await this.categories.listByTenant(user.tenantId);
+    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now());
+    if (pendingDraft) {
+      if (isCancelMessage(input.message)) {
+        await this.pendingDrafts.clear(user.tenantId, user.id);
+        await this.auditMessage(input, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          parsingStatus: 'failed'
+        });
+        await this.whatsapp.sendText(input.fromPhoneNumber, 'Ok, descarté el movimiento pendiente.');
+        return { status: 'draft_cancelled' as const };
+      }
+
+      const interpretedReply = await this.interpreter.interpret(input.message, {
+        user,
+        categories,
+        now: this.clock.now()
+      });
+      const merged = mergePendingDraft(interpretedMessageSchema.parse(pendingDraft.draft), interpretedReply, input.message);
+      const completed = await this.trySaveInterpreted({
+        ...input,
+        message: `${pendingDraft.originalMessage} | ${input.message}`
+      }, user, categories, merged, { clearDraft: true });
+      if (completed) return completed;
+
+      await this.storePendingDraft(input, user, merged);
+      const missingFields = missingFieldsFor(merged);
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.whatsapp.sendText(input.fromPhoneNumber, clarificationMessage(missingFields));
+      return { status: 'needs_confirmation' as const, missingFields };
+    }
+
     const interpreted = await this.interpreter.interpret(input.message, {
       user,
       categories,
       now: this.clock.now()
     });
 
+    const saved = await this.trySaveInterpreted(input, user, categories, interpreted);
+    if (saved) return saved;
+
+    if (canStoreDraft(interpreted)) {
+      await this.storePendingDraft(input, user, interpreted);
+    }
+    const missingFields = missingFieldsFor(interpreted);
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'needs_confirmation'
+    });
+    await this.whatsapp.sendText(input.fromPhoneNumber, clarificationMessage(missingFields));
+    return { status: 'needs_confirmation' as const, missingFields };
+  }
+
+  private async trySaveInterpreted(
+    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    user: User,
+    categories: Category[],
+    interpreted: InterpretedMessage,
+    options: { clearDraft?: boolean } = {}
+  ) {
     if (interpreted.intent === 'create_income') {
       if (!isCompleteIncome(interpreted)) {
-        await this.auditNeedsConfirmation(input, user.id, user.tenantId);
-        await this.whatsapp.sendText(input.fromPhoneNumber, `Please send the missing income data: ${interpreted.missingFields.join(', ')}.`);
-        return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
+        return undefined;
       }
 
       const income = await this.incomes.create({
@@ -142,6 +201,7 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
+      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
       await this.whatsapp.sendText(input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
       return { status: 'income_saved' as const, income };
     }
@@ -158,6 +218,7 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
+      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
       await this.whatsapp.sendText(input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
       return { status: 'report_sent' as const, report };
     }
@@ -175,19 +236,13 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
+      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
       await this.whatsapp.sendText(input.fromPhoneNumber, budgetMessage);
       return { status: 'budget_status_sent' as const };
     }
 
     if (interpreted.intent !== 'create_expense' || !isCompleteExpense(interpreted)) {
-      await this.auditMessage(input, {
-        tenantId: user.tenantId,
-        userId: user.id,
-        parsingStatus: 'needs_confirmation'
-      });
-      const missingFields = interpreted.intent === 'create_expense' ? interpreted.missingFields : ['intent'];
-      await this.whatsapp.sendText(input.fromPhoneNumber, `Please clarify this message. Missing or ambiguous: ${missingFields.join(', ')}.`);
-      return { status: 'needs_confirmation' as const, missingFields };
+      return undefined;
     }
 
     const matchedCategory = categoryByInterpretedName(categories, interpreted.categoryName, interpreted.subcategoryName);
@@ -215,15 +270,23 @@ export class ProcessWhatsAppExpenseUseCase {
       parsingStatus: 'saved',
       expenseId: expense.id
     });
+    if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
     await this.whatsapp.sendText(input.fromPhoneNumber, `Gasto guardado: ${formatMoney(expense.currency, expense.amount)} por ${expense.concept}.`);
     return { status: 'saved' as const, expense };
   }
 
-  private auditNeedsConfirmation(input: { providerMessageId?: string; fromPhoneNumber: string; message: string }, userId: string, tenantId: string) {
-    return this.auditMessage(input, {
-      tenantId,
-      userId,
-      parsingStatus: 'needs_confirmation'
+  private storePendingDraft(
+    input: { fromPhoneNumber: string; message: string },
+    user: User,
+    interpreted: InterpretedMessage
+  ) {
+    return this.pendingDrafts.upsert({
+      tenantId: user.tenantId,
+      userId: user.id,
+      originalMessage: input.message,
+      draft: interpreted,
+      missingFields: missingFieldsFor(interpreted),
+      expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString()
     });
   }
 
@@ -262,6 +325,98 @@ export class ProcessWhatsAppExpenseUseCase {
       message: input.message
     });
   }
+}
+
+function canStoreDraft(interpreted: InterpretedMessage) {
+  if (interpreted.intent === 'create_expense') {
+    return Boolean(interpreted.amount || interpreted.concept || interpreted.paymentMethod);
+  }
+
+  if (interpreted.intent === 'create_income') {
+    return Boolean(interpreted.amount || interpreted.concept);
+  }
+
+  return false;
+}
+
+function mergePendingDraft(
+  pending: InterpretedMessage,
+  reply: InterpretedMessage,
+  replyText: string
+): InterpretedMessage {
+  if (isAffirmativeMessage(replyText)) return pending;
+  if (pending.intent === 'create_expense') {
+    const replyExpense = reply.intent === 'create_expense' ? reply : undefined;
+    const merged = {
+      ...pending,
+      amount: pending.amount ?? replyExpense?.amount,
+      currency: pending.currency ?? replyExpense?.currency,
+      concept: pending.concept ?? replyExpense?.concept,
+      categoryName: replyExpense?.categoryName ?? pending.categoryName,
+      subcategoryName: replyExpense?.subcategoryName ?? pending.subcategoryName,
+      paymentMethod: pending.paymentMethod ?? replyExpense?.paymentMethod
+    };
+    return {
+      ...merged,
+      missingFields: missingFieldsFor(merged),
+      needsConfirmation: missingFieldsFor(merged).length > 0
+    };
+  }
+
+  if (pending.intent === 'create_income') {
+    const replyIncome = reply.intent === 'create_income' ? reply : undefined;
+    const merged = {
+      ...pending,
+      amount: pending.amount ?? replyIncome?.amount,
+      currency: pending.currency ?? replyIncome?.currency,
+      concept: pending.concept ?? replyIncome?.concept
+    };
+    return {
+      ...merged,
+      missingFields: missingFieldsFor(merged),
+      needsConfirmation: missingFieldsFor(merged).length > 0
+    };
+  }
+
+  return reply;
+}
+
+function missingFieldsFor(interpreted: InterpretedMessage) {
+  if (interpreted.intent === 'create_expense') {
+    return [
+      interpreted.amount === undefined ? 'amount' : undefined,
+      interpreted.concept ? undefined : 'concept',
+      interpreted.paymentMethod ? undefined : 'paymentMethod'
+    ].filter((field): field is string => Boolean(field));
+  }
+
+  if (interpreted.intent === 'create_income') {
+    return [
+      interpreted.amount === undefined ? 'amount' : undefined,
+      interpreted.concept ? undefined : 'concept'
+    ].filter((field): field is string => Boolean(field));
+  }
+
+  return ['intent'];
+}
+
+function clarificationMessage(missingFields: string[]) {
+  const labels: Record<string, string> = {
+    amount: 'monto',
+    concept: 'concepto',
+    paymentMethod: 'medio de pago',
+    intent: 'si es gasto, ingreso, reporte o presupuesto'
+  };
+  const missing = missingFields.map((field) => labels[field] ?? field).join(', ');
+  return `Me falta: ${missing}. Puedes responder solo con el dato faltante, por ejemplo "transferencia desde bci", "tdc bci" o "efectivo". Responde "cancelar" para descartarlo.`;
+}
+
+function isCancelMessage(message: string) {
+  return /\b(cancelar|cancela|descartar|descarta|no|olvida|ignora)\b/i.test(message.trim());
+}
+
+function isAffirmativeMessage(message: string) {
+  return /^(si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
 }
 
 export class FinanceUseCases {

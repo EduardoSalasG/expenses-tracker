@@ -10,6 +10,7 @@ The database image is built from `database/Dockerfile`. On first container start
 - `11-002-whatsapp-message-id-idempotency.sql`
 - `12-003-report-preferences-index.sql`
 - `13-004-transfer-payment-method.sql`
+- `14-005-whatsapp-pending-drafts.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
@@ -20,6 +21,8 @@ The seed creates:
 - Compatibility login role: `postgres` / `postgres`, useful for older local `.env` files
 
 Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.
+
+WhatsApp clarification state is stored in `whatsapp_pending_drafts` with one active draft per tenant/user.
 
 ## Local Compose
 

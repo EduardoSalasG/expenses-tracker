@@ -146,6 +146,15 @@ Ingreso de sueldo 1200000 Bci transferencia
 
 For WhatsApp-created movements, currency comes from `users.preferred_currency`. The backend ignores hallucinated or ambiguous currency values returned by the interpreter and formats CLP replies as `$20.000`.
 
+If the message is incomplete, the backend stores a pending draft for 30 minutes. The user can reply with only the missing detail:
+
+```text
+20.000 clases de bachata bsoul mayo
+transferencia desde bci
+```
+
+The second message completes and saves the draft. Reply `cancelar` to discard a pending movement.
+
 Smoke test the configured interpreter without going through Meta:
 
 ```bash

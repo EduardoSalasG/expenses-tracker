@@ -103,6 +103,19 @@ create table whatsapp_messages (
   created_at timestamptz not null default now()
 );
 
+create table whatsapp_pending_drafts (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  original_message text not null,
+  draft_json jsonb not null,
+  missing_fields text[] not null default array[]::text[],
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (tenant_id, user_id)
+);
+
 create index users_phone_number_idx on users (phone_number);
 create index users_report_preferences_gin_idx on users using gin (report_preferences);
 create index categories_tenant_parent_idx on categories (tenant_id, parent_id);
@@ -112,6 +125,7 @@ create index incomes_tenant_date_idx on incomes (tenant_id, income_date desc);
 create index monthly_budgets_tenant_month_idx on monthly_budgets (tenant_id, budget_month);
 create index whatsapp_messages_phone_created_idx on whatsapp_messages (from_phone_number, created_at desc);
 create unique index whatsapp_messages_provider_message_id_uidx on whatsapp_messages (provider_message_id) where provider_message_id is not null;
+create index whatsapp_pending_drafts_active_idx on whatsapp_pending_drafts (tenant_id, user_id, expires_at desc);
 
 create or replace function upsert_user_by_phone(
   p_phone_number text,

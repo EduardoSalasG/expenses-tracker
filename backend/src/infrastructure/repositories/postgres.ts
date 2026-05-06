@@ -1,6 +1,6 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository } from '../../application/ports.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/types.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository, WhatsAppPendingDraftRepository } from '../../application/ports.js';
+import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User, WhatsAppPendingDraft } from '../../domain/types.js';
 import type { DatabasePool } from '../database.js';
 
 export class PostgresUserRepository implements UserRepository {
@@ -307,6 +307,55 @@ export class PostgresWhatsAppMessageAuditRepository implements WhatsAppMessageAu
   }
 }
 
+export class PostgresWhatsAppPendingDraftRepository implements WhatsAppPendingDraftRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async findActive(tenantId: string, userId: string, now: Date) {
+    const result = await this.pool.query(
+      `select *
+       from whatsapp_pending_drafts
+       where tenant_id = $1 and user_id = $2 and expires_at >= $3
+       order by updated_at desc
+       limit 1`,
+      [tenantId, userId, now]
+    );
+    return result.rows[0] ? mapPendingDraft(result.rows[0]) : undefined;
+  }
+
+  async upsert(input: Omit<WhatsAppPendingDraft, 'id'>) {
+    const result = await this.pool.query(
+      `insert into whatsapp_pending_drafts (
+        tenant_id, user_id, original_message, draft_json, missing_fields, expires_at
+      )
+      values ($1, $2, $3, $4, $5, $6)
+      on conflict (tenant_id, user_id)
+      do update set
+        original_message = excluded.original_message,
+        draft_json = excluded.draft_json,
+        missing_fields = excluded.missing_fields,
+        expires_at = excluded.expires_at,
+        updated_at = now()
+      returning *`,
+      [
+        input.tenantId,
+        input.userId,
+        input.originalMessage,
+        JSON.stringify(input.draft),
+        input.missingFields,
+        input.expiresAt
+      ]
+    );
+    return mapPendingDraft(result.rows[0]);
+  }
+
+  async clear(tenantId: string, userId: string) {
+    await this.pool.query(
+      `delete from whatsapp_pending_drafts where tenant_id = $1 and user_id = $2`,
+      [tenantId, userId]
+    );
+  }
+}
+
 function mapUser(row: QueryResultRow): User {
   return {
     id: row.id,
@@ -373,5 +422,17 @@ function mapBudget(row: QueryResultRow): MonthlyBudget {
     subcategoryId: row.subcategory_id ?? undefined,
     amount: Number(row.amount),
     currency: row.currency
+  };
+}
+
+function mapPendingDraft(row: QueryResultRow): WhatsAppPendingDraft {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    userId: row.user_id,
+    originalMessage: row.original_message,
+    draft: row.draft_json,
+    missingFields: row.missing_fields,
+    expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at
   };
 }

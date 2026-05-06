@@ -11,7 +11,8 @@ import {
   InMemoryIncomeRepository,
   InMemoryOtpRepository,
   InMemoryUserRepository,
-  InMemoryWhatsAppMessageAuditRepository
+  InMemoryWhatsAppMessageAuditRepository,
+  InMemoryWhatsAppPendingDraftRepository
 } from './repositories/in-memory.js';
 import {
   PostgresBudgetRepository,
@@ -20,7 +21,8 @@ import {
   PostgresIncomeRepository,
   PostgresOtpRepository,
   PostgresUserRepository,
-  PostgresWhatsAppMessageAuditRepository
+  PostgresWhatsAppMessageAuditRepository,
+  PostgresWhatsAppPendingDraftRepository
 } from './repositories/postgres.js';
 import {
   FinanceUseCases,
@@ -44,6 +46,7 @@ export function createContainer(config: AppConfig) {
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
   const messageAudits = pool ? new PostgresWhatsAppMessageAuditRepository(pool) : new InMemoryWhatsAppMessageAuditRepository();
+  const pendingDrafts = pool ? new PostgresWhatsAppPendingDraftRepository(pool) : new InMemoryWhatsAppPendingDraftRepository();
   const tokens = new JwtTokenService(config);
   const whatsapp = new WhatsAppCloudProvider(config, logger);
   const interpreter = createMessageInterpreter(config, logger);
@@ -59,7 +62,7 @@ export function createContainer(config: AppConfig) {
       requestOtp: new RequestOtpUseCase(otps, whatsapp, clock),
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock),
       refreshSession: new RefreshSessionUseCase(users, tokens),
-      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, whatsapp, interpreter, clock),
+      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, pendingDrafts, whatsapp, interpreter, clock),
       finance,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),

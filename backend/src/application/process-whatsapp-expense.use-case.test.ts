@@ -6,7 +6,8 @@ import {
   InMemoryExpenseRepository,
   InMemoryIncomeRepository,
   InMemoryUserRepository,
-  InMemoryWhatsAppMessageAuditRepository
+  InMemoryWhatsAppMessageAuditRepository,
+  InMemoryWhatsAppPendingDraftRepository
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter } from './message-interpreter.js';
 import type { MessageInterpreterPort, WhatsAppProvider } from './ports.js';
@@ -21,6 +22,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
       audits,
+      new InMemoryWhatsAppPendingDraftRepository(),
       new NoopWhatsAppProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
@@ -62,6 +64,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
       audits,
+      new InMemoryWhatsAppPendingDraftRepository(),
       new NoopWhatsAppProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
@@ -103,6 +106,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       incomes,
       new InMemoryBudgetRepository(),
       audits,
+      new InMemoryWhatsAppPendingDraftRepository(),
       new NoopWhatsAppProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
@@ -137,6 +141,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       incomes,
       new InMemoryBudgetRepository(),
       new InMemoryWhatsAppMessageAuditRepository(),
+      new InMemoryWhatsAppPendingDraftRepository(),
       new NoopWhatsAppProvider(),
       new FixedIncomeInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
@@ -150,6 +155,51 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
 
     const [income] = await incomes.listByPeriod(user.tenantId, '2026-05-01T00:00:00.000Z', '2026-05-31T23:59:59.999Z');
     expect(income.currency).toBe('CLP');
+  });
+
+  it('stores an incomplete WhatsApp expense draft and completes it with the next reply', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryWhatsAppPendingDraftRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      name: 'Test User',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessWhatsAppExpenseUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryWhatsAppMessageAuditRepository(),
+      drafts,
+      new NoopWhatsAppProvider(),
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+    );
+
+    const first = await useCase.execute({
+      providerMessageId: 'wamid.pending-1',
+      fromPhoneNumber: '+56982439041',
+      message: '20.000 clases de bachata bsoul mayo'
+    });
+    const second = await useCase.execute({
+      providerMessageId: 'wamid.pending-2',
+      fromPhoneNumber: '+56982439041',
+      message: 'transferencia desde bci'
+    });
+
+    expect(first.status).toBe('needs_confirmation');
+    expect(second.status).toBe('saved');
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    expect(expense.amount).toBe(20000);
+    expect(expense.concept).toBe('clases de bachata bsoul mayo');
+    expect(expense.paymentMethod).toEqual({ kind: 'transfer', bank: 'bci', cardType: undefined });
+    expect(await drafts.findActive(user.tenantId, user.id, new Date('2026-05-06T00:00:00.000Z'))).toBeUndefined();
   });
 });
 
