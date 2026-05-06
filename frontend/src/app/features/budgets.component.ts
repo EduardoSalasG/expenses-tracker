@@ -45,22 +45,22 @@ interface BudgetRow {
     </app-page-header>
 
     <section class="grid gap-4 lg:grid-cols-3">
-      <mat-card class="p-4">
+      <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Budgeted</div>
-        <div class="mt-2 text-3xl font-semibold">{{ totalBudgetedLabel() }}</div>
+        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalBudgetedLabel() }}</div>
       </mat-card>
-      <mat-card class="p-4">
+      <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Spent</div>
-        <div class="mt-2 text-3xl font-semibold">{{ totalSpentLabel() }}</div>
+        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalSpentLabel() }}</div>
       </mat-card>
-      <mat-card class="p-4">
+      <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Remaining</div>
-        <div class="mt-2 text-3xl font-semibold">{{ totalRemainingLabel() }}</div>
+        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalRemainingLabel() }}</div>
       </mat-card>
     </section>
 
-    <mat-card class="mt-4 p-4">
-      <h2 class="mb-3 text-lg font-semibold">{{ editingBudgetId() ? 'Update budget' : 'Create budget' }}</h2>
+    <mat-card class="page-panel mt-4 p-5">
+      <h2 class="mb-4 text-lg font-semibold text-slate-950">{{ editingBudgetId() ? 'Update budget' : 'Create budget' }}</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>Category</mat-label>
@@ -101,7 +101,7 @@ interface BudgetRow {
       </form>
     </mat-card>
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Budget progress</h2>
         <span class="text-sm text-slate-500">{{ budgetRows().length }} active budgets</span>
@@ -110,7 +110,7 @@ interface BudgetRow {
       @if (budgetRows().length) {
         <div class="grid gap-5">
           @for (row of budgetRows(); track row.budget.id) {
-            <div>
+            <div class="rounded border border-slate-200 p-4">
               <div class="mb-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                 <div class="min-w-0">
                   <div class="font-medium">{{ row.label }}</div>

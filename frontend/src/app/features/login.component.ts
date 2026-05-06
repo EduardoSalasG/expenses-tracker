@@ -12,10 +12,15 @@ import { AuthService } from '../core/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   template: `
-    <main class="min-h-screen grid place-items-center px-4">
-      <mat-card class="w-full max-w-md p-6">
-        <h1 class="text-2xl font-semibold mb-2">Expenses Tracker</h1>
-        <p class="text-sm text-slate-600 mb-6">Sign in with the WhatsApp number you use to track expenses.</p>
+    <main class="app-surface min-h-screen grid place-items-center px-4 py-10">
+      <mat-card class="page-panel w-full max-w-md p-7">
+        <div class="mb-6">
+          <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-slate-950 text-sm font-semibold text-white">ET</div>
+          <h1 class="text-3xl font-semibold text-slate-950">Expenses Tracker</h1>
+          <p class="mt-2 text-sm leading-6 text-slate-600">
+            Sign in with the WhatsApp number you use to track expenses.
+          </p>
+        </div>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
           <mat-form-field appearance="outline">
@@ -38,7 +43,9 @@ import { AuthService } from '../core/auth.service';
             </mat-form-field>
           }
 
-          <button mat-flat-button color="primary" type="submit">{{ otpSent() ? 'Verify' : 'Send code' }}</button>
+          <button mat-flat-button color="primary" type="submit" class="!h-11">
+            {{ otpSent() ? 'Verify and enter' : 'Send code' }}
+          </button>
         </form>
       </mat-card>
     </main>

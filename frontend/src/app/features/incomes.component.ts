@@ -25,7 +25,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <button mat-stroked-button type="button" (click)="loadIncomes()">Refresh</button>
     </app-page-header>
 
-    <mat-card class="p-4">
+    <mat-card class="page-panel p-5">
+      <h2 class="mb-4 text-lg font-semibold text-slate-950">New income</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
         <mat-form-field appearance="outline">
           <mat-label>Concept</mat-label>
@@ -55,7 +56,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       </form>
     </mat-card>
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
+      <h2 class="mb-4 text-lg font-semibold text-slate-950">Filters</h2>
       <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="grid gap-4 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>From</mat-label>
@@ -76,7 +78,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       </form>
     </mat-card>
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Income history</h2>
         <span class="text-sm text-slate-500">{{ totalLabel() }} across {{ incomes().length }} records</span>
@@ -86,18 +88,18 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <div class="overflow-x-auto">
           <table class="w-full min-w-[720px] border-collapse text-left">
             <thead>
-              <tr class="border-b border-slate-200 text-sm text-slate-500">
-                <th class="py-2 pr-3 font-medium">Date</th>
-                <th class="py-2 pr-3 font-medium">Concept</th>
-                <th class="py-2 text-right font-medium">Amount</th>
+              <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
+                <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
+                <th class="py-2.5 pr-3 font-medium">Concept</th>
+                <th class="py-2.5 pr-3 text-right font-medium">Amount</th>
               </tr>
             </thead>
             <tbody>
               @for (income of incomes(); track income.id) {
                 <tr class="border-b border-slate-100 last:border-0">
-                  <td class="py-3 pr-3 text-sm text-slate-500">{{ formatDate(income.date) }}</td>
+                  <td class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(income.date) }}</td>
                   <td class="py-3 pr-3 font-medium">{{ income.concept }}</td>
-                  <td class="py-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
+                  <td class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                 </tr>
               }
             </tbody>

@@ -12,15 +12,16 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
-        <p class="text-sm font-medium text-slate-500">Manual capture and history</p>
-        <h1 class="text-2xl font-semibold">Expenses</h1>
+        <p class="text-sm font-medium uppercase tracking-wide text-slate-500">Manual capture and history</p>
+        <h1 class="mt-1 text-3xl font-semibold text-slate-950">Expenses</h1>
       </div>
       <button mat-stroked-button type="button" (click)="loadExpenses()">Refresh</button>
     </div>
 
-    <mat-card class="p-4">
+    <mat-card class="page-panel p-5">
+      <h2 class="mb-4 text-lg font-semibold text-slate-950">New expense</h2>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
         <mat-form-field appearance="outline">
           <mat-label>Concept</mat-label>
@@ -88,7 +89,8 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
       </form>
     </mat-card>
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
+      <h2 class="mb-4 text-lg font-semibold text-slate-950">Filters</h2>
       <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="grid gap-4 lg:grid-cols-6">
         <mat-form-field appearance="outline">
           <mat-label>From</mat-label>
@@ -126,7 +128,7 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
       </form>
     </mat-card>
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Expense history</h2>
         <span class="text-sm text-slate-500">{{ expenses().length }} records</span>
@@ -135,22 +137,22 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
       <div class="overflow-x-auto">
         <table class="w-full min-w-[860px] border-collapse text-left">
           <thead>
-            <tr class="border-b border-slate-200 text-sm text-slate-500">
-              <th class="py-2 pr-3 font-medium">Date</th>
-              <th class="py-2 pr-3 font-medium">Concept</th>
-              <th class="py-2 pr-3 font-medium">Category</th>
-              <th class="py-2 pr-3 font-medium">Payment</th>
-              <th class="py-2 text-right font-medium">Amount</th>
+            <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
+              <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
+              <th class="py-2.5 pr-3 font-medium">Concept</th>
+              <th class="py-2.5 pr-3 font-medium">Category</th>
+              <th class="py-2.5 pr-3 font-medium">Payment</th>
+              <th class="py-2.5 pr-3 text-right font-medium">Amount</th>
             </tr>
           </thead>
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-slate-100 last:border-0">
-                <td class="py-3 pr-3 text-sm text-slate-500">{{ formatDate(expense.date) }}</td>
+                <td class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(expense.date) }}</td>
                 <td class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
                 <td class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
                 <td class="py-3 pr-3 text-sm text-slate-600">{{ paymentLabel(expense) }}</td>
-                <td class="py-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
               </tr>
             } @empty {
               <tr>

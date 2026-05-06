@@ -28,8 +28,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     </app-page-header>
 
     <section class="grid gap-4 lg:grid-cols-2">
-      <mat-card class="p-4">
-        <h2 class="mb-3 text-lg font-semibold">Create main category</h2>
+      <mat-card class="page-panel p-5">
+        <h2 class="mb-4 text-lg font-semibold text-slate-950">Create main category</h2>
         <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>Name</mat-label>
@@ -41,8 +41,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         </form>
       </mat-card>
 
-      <mat-card class="p-4">
-        <h2 class="mb-3 text-lg font-semibold">Create subcategory</h2>
+      <mat-card class="page-panel p-5">
+        <h2 class="mb-4 text-lg font-semibold text-slate-950">Create subcategory</h2>
         <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>Parent</mat-label>
@@ -67,7 +67,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <div class="mt-4 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{{ message() }}</div>
     }
 
-    <mat-card class="mt-4 p-4">
+    <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Category library</h2>
         <span class="text-sm text-slate-500">{{ categories().length }} categories</span>
@@ -76,7 +76,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       @if (rootCategories().length) {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           @for (category of rootCategories(); track category.id) {
-            <div class="rounded border border-slate-200 bg-white p-4">
+            <div class="rounded border border-slate-200 bg-white p-4 shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="font-semibold">{{ category.name }}</h3>

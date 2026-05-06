@@ -21,12 +21,12 @@ interface BudgetProgressRow {
   standalone: true,
   imports: [MatCardModule, MatProgressBarModule],
   template: `
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
-        <p class="text-sm font-medium text-slate-500">{{ monthLabel() }}</p>
-        <h1 class="text-2xl font-semibold">Dashboard</h1>
+        <p class="text-sm font-medium uppercase tracking-wide text-slate-500">{{ monthLabel() }}</p>
+        <h1 class="mt-1 text-3xl font-semibold text-slate-950">Dashboard</h1>
       </div>
-      <div class="rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+      <div class="rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
         Net balance <strong class="ml-2 text-slate-950">{{ netBalanceLabel() }}</strong>
       </div>
     </div>
@@ -41,31 +41,31 @@ interface BudgetProgressRow {
       <mat-card class="border border-red-100 p-4 text-red-700">{{ error() }}</mat-card>
     } @else {
       <section class="grid gap-4 lg:grid-cols-3">
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <div class="text-sm font-medium text-slate-500">This month expenses</div>
-          <div class="mt-2 text-3xl font-semibold">{{ expenseTotalLabel() }}</div>
+          <div class="mt-2 text-3xl font-semibold text-slate-950">{{ expenseTotalLabel() }}</div>
           <div class="mt-3 text-sm text-slate-500">{{ report()?.expenses?.length ?? 0 }} expense records</div>
         </mat-card>
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <div class="text-sm font-medium text-slate-500">This month income</div>
-          <div class="mt-2 text-3xl font-semibold">{{ incomeTotalLabel() }}</div>
+          <div class="mt-2 text-3xl font-semibold text-slate-950">{{ incomeTotalLabel() }}</div>
           <div class="mt-3 text-sm text-slate-500">{{ report()?.incomes?.length ?? 0 }} income records</div>
         </mat-card>
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <div class="text-sm font-medium text-slate-500">Budget progress</div>
           @if (overallBudget()) {
-            <div class="mt-2 text-3xl font-semibold">{{ overallBudget()?.progress }}%</div>
+            <div class="mt-2 text-3xl font-semibold text-slate-950">{{ overallBudget()?.progress }}%</div>
             <mat-progress-bar class="mt-4" mode="determinate" [value]="overallBudget()?.progress ?? 0" />
             <div class="mt-3 text-sm text-slate-500">{{ overallBudget()?.spentLabel }} spent of {{ overallBudget()?.amountLabel }}</div>
           } @else {
-            <div class="mt-2 text-3xl font-semibold">No budget</div>
+            <div class="mt-2 text-3xl font-semibold text-slate-950">No budget</div>
             <div class="mt-3 text-sm text-slate-500">Create monthly budgets to track progress.</div>
           }
         </mat-card>
       </section>
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold">Cash flow by currency</h2>
           </div>
@@ -74,7 +74,7 @@ interface BudgetProgressRow {
           </div>
         </mat-card>
 
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">Expenses by category</h2>
           <div class="h-72">
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
@@ -83,7 +83,7 @@ interface BudgetProgressRow {
       </section>
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">Recent expenses</h2>
           <div class="grid gap-1">
             @for (expense of recentExpenses(); track expense.id) {
@@ -104,7 +104,7 @@ interface BudgetProgressRow {
           </div>
         </mat-card>
 
-        <mat-card class="p-4">
+        <mat-card class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">Monthly budgets</h2>
           <div class="grid gap-4">
             @for (budget of budgetProgress(); track budget.label + budget.currency) {

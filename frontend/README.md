@@ -60,6 +60,7 @@ The frontend stores the access token and refresh token after OTP verification. A
 
 - Angular Material supplies form fields, buttons, nav, cards, tables, and progress indicators.
 - Tailwind supplies layout, spacing, and responsive utilities.
+- Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 
 ## Tests

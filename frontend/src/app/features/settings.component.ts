@@ -33,8 +33,8 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
     </app-page-header>
 
     <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <mat-card class="p-4">
-        <h2 class="mb-4 text-lg font-semibold">Profile</h2>
+      <mat-card class="page-panel p-5">
+        <h2 class="mb-4 text-lg font-semibold text-slate-950">Profile</h2>
         @if (user()) {
           <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3">
             <mat-form-field appearance="outline">
@@ -74,13 +74,13 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
         }
       </mat-card>
 
-      <mat-card class="p-4">
-        <h2 class="mb-2 text-lg font-semibold">Report delivery</h2>
+      <mat-card class="page-panel p-5">
+        <h2 class="mb-2 text-lg font-semibold text-slate-950">Report delivery</h2>
         <p class="mb-4 text-sm text-slate-500">Choose which dashboard reports should be delivered through WhatsApp.</p>
 
         <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-3">
           @for (frequency of frequencies; track frequency.key) {
-            <label class="rounded border border-slate-200 p-3">
+            <label class="rounded border border-slate-200 bg-white p-3 shadow-sm">
               <mat-checkbox [formControlName]="frequency.key">{{ frequency.label }}</mat-checkbox>
               <div class="ml-10 text-sm text-slate-500">{{ frequency.description }}</div>
             </label>
