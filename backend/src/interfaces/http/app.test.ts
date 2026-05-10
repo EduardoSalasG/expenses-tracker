@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createApp, extractWhatsAppMessages } from './app.js';
+import { createApp, extractWhatsAppMessages, extractWhatsAppStatuses } from './app.js';
 import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
 
@@ -81,6 +81,42 @@ describe('extractWhatsAppMessages', () => {
       providerMessageId: 'ABGGFlA5Fpa',
       fromPhoneNumber: '+16315551181',
       message: 'this is a text message'
+    }]);
+  });
+});
+
+describe('extractWhatsAppStatuses', () => {
+  it('extracts delivery statuses from Meta webhook wrapper', () => {
+    const statuses = extractWhatsAppStatuses({
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                statuses: [
+                  {
+                    id: 'wamid.delivery',
+                    recipient_id: '56982439041',
+                    status: 'failed',
+                    timestamp: '1760000000',
+                    conversation: { id: 'conversation-id' },
+                    errors: [{ code: 131026, title: 'Message undeliverable' }]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(statuses).toEqual([{
+      providerMessageId: 'wamid.delivery',
+      recipientPhoneNumber: '+56982439041',
+      status: 'failed',
+      timestamp: '1760000000',
+      conversationId: 'conversation-id',
+      errors: [{ code: 131026, title: 'Message undeliverable' }]
     }]);
   });
 });
