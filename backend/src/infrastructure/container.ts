@@ -59,7 +59,7 @@ export function createContainer(config: AppConfig) {
     tokens,
     close: () => pool?.end() ?? Promise.resolve(),
     useCases: {
-      requestOtp: new RequestOtpUseCase(otps, whatsapp, clock),
+      requestOtp: new RequestOtpUseCase(users, otps, whatsapp, clock),
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock),
       refreshSession: new RefreshSessionUseCase(users, tokens),
       processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, pendingDrafts, whatsapp, interpreter, clock),

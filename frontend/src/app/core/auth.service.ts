@@ -13,6 +13,11 @@ interface VerifyOtpResponse {
   };
 }
 
+export interface RequestOtpResponse {
+  sent: boolean;
+  requiresRegistration: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenKey = 'expenses_tracker_access_token';
@@ -30,10 +35,17 @@ export class AuthService {
   }
 
   requestOtp(phoneNumber: string) {
-    return this.http.post(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber });
+    return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber });
   }
 
-  verifyOtp(payload: { phoneNumber: string; code: string; name?: string; preferredCurrency?: string }) {
+  verifyOtp(payload: {
+    phoneNumber: string;
+    code: string;
+    name?: string;
+    email?: string;
+    countryOfResidence?: string;
+    preferredCurrency?: string;
+  }) {
     return this.http.post<VerifyOtpResponse>(`${environment.apiBaseUrl}/auth/otp/verify`, payload).pipe(
       tap((response) => {
         this.storeSession(response);

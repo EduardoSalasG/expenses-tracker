@@ -12,7 +12,7 @@ export const verifyOtpSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
   countryOfResidence: z.string().min(2).optional(),
-  preferredCurrency: z.string().length(3).default('USD')
+  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()).optional()
 });
 
 export const refreshTokenSchema = z.object({

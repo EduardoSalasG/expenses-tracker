@@ -29,17 +29,35 @@ import { AuthService } from '../core/auth.service';
           </mat-form-field>
 
           @if (otpSent()) {
+            @if (requiresRegistration()) {
+              <div class="rounded border border-slate-200 bg-white p-4">
+                <p class="text-sm font-medium text-slate-950">Create your profile</p>
+                <p class="mt-1 text-xs text-slate-500">This number is not registered yet.</p>
+              </div>
+              <mat-form-field appearance="outline">
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="firstName">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Last name</mat-label>
+                <input matInput formControlName="lastName">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Country</mat-label>
+                <input matInput formControlName="countryOfResidence" placeholder="Chile">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Preferred currency</mat-label>
+                <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP">
+              </mat-form-field>
+            }
             <mat-form-field appearance="outline">
               <mat-label>Verification code</mat-label>
               <input matInput formControlName="code" placeholder="123456">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Name</mat-label>
-              <input matInput formControlName="name">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Preferred currency</mat-label>
-              <input matInput formControlName="preferredCurrency" maxlength="3">
             </mat-form-field>
           }
 
@@ -54,11 +72,15 @@ import { AuthService } from '../core/auth.service';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   readonly otpSent = signal(false);
+  readonly requiresRegistration = signal(false);
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
     code: [''],
-    name: [''],
-    preferredCurrency: ['USD']
+    firstName: [''],
+    lastName: [''],
+    email: [''],
+    countryOfResidence: [''],
+    preferredCurrency: ['CLP']
   });
 
   constructor(
@@ -67,12 +89,59 @@ export class LoginComponent {
   ) {}
 
   submit() {
-    const value = this.form.getRawValue();
-    if (!this.otpSent()) {
-      this.auth.requestOtp(value.phoneNumber).subscribe(() => this.otpSent.set(true));
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       return;
     }
 
-    this.auth.verifyOtp(value).subscribe(() => this.router.navigateByUrl('/dashboard'));
+    const value = this.form.getRawValue();
+    if (!this.otpSent()) {
+      this.auth.requestOtp(value.phoneNumber).subscribe((response) => {
+        this.requiresRegistration.set(response.requiresRegistration);
+        this.otpSent.set(true);
+        this.applyRegistrationValidators(response.requiresRegistration);
+      });
+      return;
+    }
+
+    const payload = this.requiresRegistration()
+      ? {
+        phoneNumber: value.phoneNumber,
+        code: value.code,
+        name: `${value.firstName} ${value.lastName}`.trim(),
+        email: value.email,
+        countryOfResidence: value.countryOfResidence,
+        preferredCurrency: value.preferredCurrency.toUpperCase()
+      }
+      : {
+        phoneNumber: value.phoneNumber,
+        code: value.code
+      };
+
+    this.auth.verifyOtp(payload).subscribe(() => this.router.navigateByUrl('/dashboard'));
+  }
+
+  private applyRegistrationValidators(required: boolean) {
+    const controls = [
+      this.form.controls.firstName,
+      this.form.controls.lastName,
+      this.form.controls.email,
+      this.form.controls.countryOfResidence,
+      this.form.controls.preferredCurrency
+    ];
+    for (const control of controls) {
+      control.clearValidators();
+    }
+
+    if (required) {
+      this.form.controls.firstName.addValidators([Validators.required]);
+      this.form.controls.lastName.addValidators([Validators.required]);
+      this.form.controls.email.addValidators([Validators.required, Validators.email]);
+      this.form.controls.countryOfResidence.addValidators([Validators.required, Validators.minLength(2)]);
+      this.form.controls.preferredCurrency.addValidators([Validators.required, Validators.minLength(3), Validators.maxLength(3)]);
+    }
+
+    this.form.controls.code.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(6)]);
+    [...controls, this.form.controls.code].forEach((control) => control.updateValueAndValidity());
   }
 }

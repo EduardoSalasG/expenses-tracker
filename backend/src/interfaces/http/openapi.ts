@@ -43,7 +43,13 @@ export const openApiSpec = {
       post: {
         summary: 'Request WhatsApp OTP',
         requestBody: jsonBody({ phoneNumber: { type: 'string', example: '+56912345678' } }, ['phoneNumber']),
-        responses: standardResponses({ sent: { type: 'boolean' } })
+        responses: standardResponses({
+          sent: { type: 'boolean' },
+          requiresRegistration: {
+            type: 'boolean',
+            description: 'True when the phone number has no registered user profile yet.'
+          }
+        })
       }
     },
     '/auth/otp/verify': {

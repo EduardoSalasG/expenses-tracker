@@ -79,9 +79,9 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 ## Auth API
 
-`POST /auth/otp/request` sends a WhatsApp OTP to a registered/test-approved phone number.
+`POST /auth/otp/request` sends a WhatsApp OTP to a registered/test-approved phone number and returns `requiresRegistration`. Existing users continue with OTP-only login. Unknown phone numbers must complete registration fields during OTP verification.
 
-`POST /auth/otp/verify` verifies the code, upserts the user, seeds default categories, and returns an access token plus refresh token.
+`POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `name`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile and seeds default categories after OTP verification.
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
 

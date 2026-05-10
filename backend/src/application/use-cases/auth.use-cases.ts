@@ -2,17 +2,19 @@ import type { CategoryRepository, Clock, OtpRepository, TokenService, UserReposi
 
 export class RequestOtpUseCase {
   constructor(
+    private readonly users: UserRepository,
     private readonly otps: OtpRepository,
     private readonly whatsapp: WhatsAppProvider,
     private readonly clock: Clock
   ) {}
 
   async execute(phoneNumber: string) {
+    const existingUser = await this.users.findByPhoneNumber(phoneNumber);
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
     await this.otps.create(phoneNumber, code, expiresAt);
     await this.whatsapp.sendText(phoneNumber, `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`);
-    return { sent: true };
+    return { sent: true, requiresRegistration: !existingUser };
   }
 }
 
@@ -31,12 +33,26 @@ export class VerifyOtpUseCase {
       throw new Error('Invalid or expired OTP.');
     }
 
+    const existingUser = await this.users.findByPhoneNumber(input.phoneNumber);
+    if (existingUser) {
+      await this.categories.ensureDefaults(existingUser.tenantId);
+      return {
+        user: existingUser,
+        accessToken: this.tokens.signAccessToken(existingUser),
+        refreshToken: this.tokens.signRefreshToken(existingUser)
+      };
+    }
+
+    if (!input.name || !input.email || !input.countryOfResidence || !input.preferredCurrency) {
+      throw new Error('Registration details are required for new users.');
+    }
+
     const user = await this.users.upsertByPhoneNumber({
       phoneNumber: input.phoneNumber,
-      name: input.name ?? 'New user',
+      name: input.name,
       email: input.email,
-      countryOfResidence: input.countryOfResidence ?? 'Unknown',
-      preferredCurrency: input.preferredCurrency ?? 'USD'
+      countryOfResidence: input.countryOfResidence,
+      preferredCurrency: input.preferredCurrency
     });
     await this.categories.ensureDefaults(user.tenantId);
 

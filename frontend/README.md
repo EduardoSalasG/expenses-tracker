@@ -49,7 +49,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 
 ## Routes
 
-- `/login`: WhatsApp OTP login.
+- `/login`: WhatsApp OTP login. Existing users enter only phone number and OTP. Unknown phone numbers must complete name, last name, email, country, and preferred currency before OTP verification creates the profile.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.
