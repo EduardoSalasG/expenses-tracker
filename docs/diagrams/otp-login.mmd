@@ -22,6 +22,7 @@ sequenceDiagram
     API->>Users: Load existing profile
   else New user
     API->>Users: Create user and tenant from registration fields
+    API->>WhatsApp: Send greeting and usage instructions
   end
   API->>API: Seed default categories if needed
   API-->>Frontend: Access token, refresh token, and user

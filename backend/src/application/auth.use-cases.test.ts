@@ -66,7 +66,8 @@ describe('auth use cases', () => {
       preferredCurrency: 'CLP'
     });
     await otps.create(existing.phoneNumber, '123456', new Date('2026-05-10T00:10:00.000Z'));
-    const useCase = new VerifyOtpUseCase(users, otps, categories, new FakeTokenService(), fixedClock());
+    const whatsapp = new CapturingWhatsAppProvider();
+    const useCase = new VerifyOtpUseCase(users, otps, categories, new FakeTokenService(), fixedClock(), whatsapp);
 
     const result = await useCase.execute({ phoneNumber: existing.phoneNumber, code: '123456' });
 
@@ -75,6 +76,7 @@ describe('auth use cases', () => {
     expect(result.user.preferredName).toBe('Existing');
     expect(result.user.email).toBe('existing@example.com');
     expect(result.user.preferredCurrency).toBe('CLP');
+    expect(whatsapp.messages).toEqual([]);
   });
 
   it('requires registration fields for new users during OTP verification', async () => {
@@ -85,11 +87,47 @@ describe('auth use cases', () => {
       otps,
       new InMemoryCategoryRepository(),
       new FakeTokenService(),
-      fixedClock()
+      fixedClock(),
+      new CapturingWhatsAppProvider()
     );
 
     await expect(useCase.execute({ phoneNumber: '+56982439041', code: '123456' }))
       .rejects.toThrow('Registration details are required for new users.');
+  });
+
+  it('sends a registration greeting with WhatsApp usage examples for new users', async () => {
+    const users = new InMemoryUserRepository();
+    const otps = new InMemoryOtpRepository();
+    const whatsapp = new CapturingWhatsAppProvider();
+    await otps.create('+56982439041', '123456', new Date('2026-05-10T00:10:00.000Z'));
+    const useCase = new VerifyOtpUseCase(
+      users,
+      otps,
+      new InMemoryCategoryRepository(),
+      new FakeTokenService(),
+      fixedClock(),
+      whatsapp
+    );
+
+    const result = await useCase.execute({
+      phoneNumber: '+56982439041',
+      code: '123456',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Edu',
+      email: 'eduardo@example.com',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+
+    expect(result.user.preferredName).toBe('Edu');
+    expect(whatsapp.messages).toHaveLength(1);
+    expect(whatsapp.messages[0]).toEqual({
+      toPhoneNumber: '+56982439041',
+      body: expect.stringContaining('Hi Edu, welcome to Expenses Tracker.')
+    });
+    expect(whatsapp.messages[0].body).toContain('20.000 classes at Bsoul');
+    expect(whatsapp.messages[0].body).toContain('How much did I spend this month?');
   });
 });
 

@@ -62,7 +62,7 @@ export function createContainer(config: AppConfig) {
       requestOtp: new RequestOtpUseCase(users, otps, whatsapp, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
-      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock),
+      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, whatsapp),
       refreshSession: new RefreshSessionUseCase(users, tokens),
       processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, pendingDrafts, whatsapp, interpreter, clock),
       finance,

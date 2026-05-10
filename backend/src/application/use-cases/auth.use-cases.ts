@@ -29,7 +29,8 @@ export class VerifyOtpUseCase {
     private readonly otps: OtpRepository,
     private readonly categories: CategoryRepository,
     private readonly tokens: TokenService,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly whatsapp: WhatsAppProvider
   ) {}
 
   async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string }) {
@@ -62,6 +63,7 @@ export class VerifyOtpUseCase {
       preferredCurrency: input.preferredCurrency
     });
     await this.categories.ensureDefaults(user.tenantId);
+    await this.whatsapp.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredName));
 
     return {
       user,
@@ -69,6 +71,23 @@ export class VerifyOtpUseCase {
       refreshToken: this.tokens.signRefreshToken(user)
     };
   }
+}
+
+function buildRegistrationGreeting(preferredName: string) {
+  return [
+    `Hi ${preferredName}, welcome to Expenses Tracker.`,
+    '',
+    'You can now send natural WhatsApp messages to track your finances.',
+    '',
+    'Examples:',
+    '- 20.000 classes at Bsoul, transfer from BCI',
+    '- 25.000 shirt at Paris, credit card BCI',
+    '- Salary income 1.200.000, bank transfer',
+    '- How much did I spend this month?',
+    '- Send me my monthly report',
+    '',
+    'Use your preferred currency from your profile. You do not need to write the currency in each message.'
+  ].join('\n');
 }
 
 export class RefreshSessionUseCase {

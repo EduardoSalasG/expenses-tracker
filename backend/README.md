@@ -84,7 +84,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
-`POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `firstName`, `lastName`, `preferredName`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile and seeds default categories after OTP verification. `preferredName` is the name the app should use when communicating with the user.
+`POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `firstName`, `lastName`, `preferredName`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile, seeds default categories, and sends a WhatsApp greeting after OTP verification. The greeting uses `preferredName` and explains natural-language examples for expenses, incomes, reports, and budget questions. `preferredName` is the name the app should use when communicating with the user.
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
 
