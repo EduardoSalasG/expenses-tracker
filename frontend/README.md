@@ -24,6 +24,9 @@ The app runs at:
 http://localhost:4200
 ```
 
+In local development, Angular proxies `/api` requests to `http://localhost:3000`
+and removes the `/api` prefix before forwarding to Express.
+
 ## Docker
 
 The frontend image is built from `frontend/Dockerfile` and served by Nginx.
@@ -38,9 +41,11 @@ docker compose up --build frontend
 
 Edit `src/environments/environment.ts` for local development:
 
-- `apiBaseUrl`: backend API base URL.
+- `apiBaseUrl`: frontend-facing API base URL. Keep it as `/api` for local
+  development and Docker.
 
-The Docker frontend uses `/api`, which Nginx proxies to the backend container.
+Local Angular and the Docker frontend both use `/api`; Angular uses
+`proxy.conf.json`, and Docker uses Nginx.
 
 ## Routes
 
