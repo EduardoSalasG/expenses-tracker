@@ -9,7 +9,9 @@ export const requestOtpSchema = z.object({
 export const verifyOtpSchema = z.object({
   phoneNumber: phoneNumberSchema,
   code: z.string().length(6),
-  name: z.string().min(1).optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  preferredName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   countryOfResidence: z.string().min(2).optional(),
   preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()).optional()
@@ -20,7 +22,9 @@ export const refreshTokenSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  name: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  preferredName: z.string().min(1),
   email: z.union([z.string().email(), z.literal('')]).optional().transform((value) => value || undefined),
   countryOfResidence: z.string().min(2),
   preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase())

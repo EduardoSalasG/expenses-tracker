@@ -39,7 +39,17 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
           <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3">
             <mat-form-field appearance="outline">
               <mat-label>Name</mat-label>
-              <input matInput formControlName="name" />
+              <input matInput formControlName="firstName" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Last name</mat-label>
+              <input matInput formControlName="lastName" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Preferred name</mat-label>
+              <input matInput formControlName="preferredName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -106,7 +116,9 @@ export class SettingsComponent {
   readonly message = signal('');
   readonly profileMessage = signal('');
   readonly profileForm = this.fb.nonNullable.group({
-    name: ['', Validators.required],
+    firstName: ['', Validators.required],
+    lastName: ['', Validators.required],
+    preferredName: ['', Validators.required],
     email: [''],
     countryOfResidence: ['', Validators.required],
     preferredCurrency: ['USD', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]]
@@ -126,7 +138,9 @@ export class SettingsComponent {
     this.api.me().subscribe((user) => {
       this.user.set(user);
       this.profileForm.setValue({
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        preferredName: user.preferredName,
         email: user.email ?? '',
         countryOfResidence: user.countryOfResidence,
         preferredCurrency: user.preferredCurrency

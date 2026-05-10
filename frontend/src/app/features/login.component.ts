@@ -54,6 +54,10 @@ import { AuthService } from '../core/auth.service';
                 <mat-label>Preferred currency</mat-label>
                 <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP">
               </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Preferred name</mat-label>
+                <input matInput formControlName="preferredName" placeholder="How should we call you?">
+              </mat-form-field>
             }
             <mat-form-field appearance="outline">
               <mat-label>Verification code</mat-label>
@@ -78,6 +82,7 @@ export class LoginComponent {
     code: [''],
     firstName: [''],
     lastName: [''],
+    preferredName: [''],
     email: [''],
     countryOfResidence: [''],
     preferredCurrency: ['CLP']
@@ -108,7 +113,9 @@ export class LoginComponent {
       ? {
         phoneNumber: value.phoneNumber,
         code: value.code,
-        name: `${value.firstName} ${value.lastName}`.trim(),
+        firstName: value.firstName,
+        lastName: value.lastName,
+        preferredName: value.preferredName || value.firstName,
         email: value.email,
         countryOfResidence: value.countryOfResidence,
         preferredCurrency: value.preferredCurrency.toUpperCase()
@@ -127,7 +134,8 @@ export class LoginComponent {
       this.form.controls.lastName,
       this.form.controls.email,
       this.form.controls.countryOfResidence,
-      this.form.controls.preferredCurrency
+      this.form.controls.preferredCurrency,
+      this.form.controls.preferredName
     ];
     for (const control of controls) {
       control.clearValidators();
@@ -139,6 +147,7 @@ export class LoginComponent {
       this.form.controls.email.addValidators([Validators.required, Validators.email]);
       this.form.controls.countryOfResidence.addValidators([Validators.required, Validators.minLength(2)]);
       this.form.controls.preferredCurrency.addValidators([Validators.required, Validators.minLength(3), Validators.maxLength(3)]);
+      this.form.controls.preferredName.addValidators([Validators.required]);
     }
 
     this.form.controls.code.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(6)]);

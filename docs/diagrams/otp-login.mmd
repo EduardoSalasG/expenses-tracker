@@ -14,7 +14,7 @@ sequenceDiagram
   alt Existing user
     User->>Frontend: Enter code
   else New user
-    User->>Frontend: Enter code, name, last name, email, country, currency
+    User->>Frontend: Enter code, first name, last name, preferred name, email, country, currency
   end
   Frontend->>API: POST /auth/otp/verify
   API->>OTP: Verify code

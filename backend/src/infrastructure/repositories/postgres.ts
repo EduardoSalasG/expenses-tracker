@@ -26,23 +26,41 @@ export class PostgresUserRepository implements UserRepository {
 
   async upsertByPhoneNumber(input: Omit<User, 'id' | 'tenantId' | 'role' | 'reportPreferences'>) {
     const result = await this.pool.query(
-      `select * from upsert_user_by_phone($1, $2, $3, $4, $5)`,
-      [input.phoneNumber, input.name, input.email ?? null, input.countryOfResidence, input.preferredCurrency]
+      `select * from upsert_user_by_phone($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        input.phoneNumber,
+        input.firstName,
+        input.lastName,
+        input.preferredName,
+        input.email ?? null,
+        input.countryOfResidence,
+        input.preferredCurrency
+      ]
     );
     return mapUser(result.rows[0]);
   }
 
-  async updateProfile(userId: string, input: Pick<User, 'name' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
+  async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
     const result = await this.pool.query(
       `update users
-       set name = $2,
-           email = $3,
-           country_of_residence = $4,
-           preferred_currency = $5,
+       set first_name = $2,
+           last_name = $3,
+           preferred_name = $4,
+           email = $5,
+           country_of_residence = $6,
+           preferred_currency = $7,
            updated_at = now()
        where id = $1
        returning *`,
-      [userId, input.name, input.email ?? null, input.countryOfResidence, input.preferredCurrency]
+      [
+        userId,
+        input.firstName,
+        input.lastName,
+        input.preferredName,
+        input.email ?? null,
+        input.countryOfResidence,
+        input.preferredCurrency
+      ]
     );
     if (!result.rows[0]) throw new Error('User not found.');
     return mapUser(result.rows[0]);
@@ -362,7 +380,9 @@ function mapUser(row: QueryResultRow): User {
     tenantId: row.tenant_id,
     email: row.email ?? undefined,
     phoneNumber: row.phone_number,
-    name: row.name,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    preferredName: row.preferred_name,
     role: row.role,
     countryOfResidence: row.country_of_residence,
     preferredCurrency: row.preferred_currency,

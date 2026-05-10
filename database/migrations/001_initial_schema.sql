@@ -10,7 +10,9 @@ create table users (
   tenant_id uuid not null references tenants(id) on delete cascade,
   email text,
   phone_number text not null unique,
-  name text not null,
+  first_name text not null,
+  last_name text not null,
+  preferred_name text not null,
   role text not null default 'consumer',
   country_of_residence text not null,
   preferred_currency char(3) not null,
@@ -129,7 +131,9 @@ create index whatsapp_pending_drafts_active_idx on whatsapp_pending_drafts (tena
 
 create or replace function upsert_user_by_phone(
   p_phone_number text,
-  p_name text,
+  p_first_name text,
+  p_last_name text,
+  p_preferred_name text,
   p_email text,
   p_country_of_residence text,
   p_preferred_currency char(3)
@@ -146,10 +150,12 @@ begin
     insert into tenants default values returning id into v_tenant_id;
   end if;
 
-  insert into users (tenant_id, phone_number, name, email, country_of_residence, preferred_currency)
-  values (v_tenant_id, p_phone_number, p_name, p_email, p_country_of_residence, p_preferred_currency)
+  insert into users (tenant_id, phone_number, first_name, last_name, preferred_name, email, country_of_residence, preferred_currency)
+  values (v_tenant_id, p_phone_number, p_first_name, p_last_name, p_preferred_name, p_email, p_country_of_residence, p_preferred_currency)
   on conflict (phone_number) do update set
-    name = excluded.name,
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    preferred_name = excluded.preferred_name,
     email = excluded.email,
     country_of_residence = excluded.country_of_residence,
     preferred_currency = excluded.preferred_currency,

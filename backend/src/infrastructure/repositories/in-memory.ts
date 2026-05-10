@@ -36,7 +36,7 @@ export class InMemoryUserRepository implements UserRepository {
     return user;
   }
 
-  async updateProfile(userId: string, input: Pick<User, 'name' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
+  async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
     const user = this.users.get(userId);
     if (!user) throw new Error('User not found.');
     const updated = { ...user, ...input };

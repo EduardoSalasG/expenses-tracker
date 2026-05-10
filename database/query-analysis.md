@@ -59,7 +59,7 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
   - Index: `users_pkey`.
 
 - User profile updates: direct SQL.
-  - Query shape: update `name`, `email`, `country_of_residence`, and `preferred_currency` by authenticated user id.
+  - Query shape: update `first_name`, `last_name`, `preferred_name`, `email`, `country_of_residence`, and `preferred_currency` by authenticated user id.
   - Reason: single-row update with no cross-table transactional behavior.
   - Index: `users_pkey`.
 

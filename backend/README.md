@@ -81,7 +81,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 `POST /auth/otp/request` sends a WhatsApp OTP to a registered/test-approved phone number and returns `requiresRegistration`. Existing users continue with OTP-only login. Unknown phone numbers must complete registration fields during OTP verification.
 
-`POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `name`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile and seeds default categories after OTP verification.
+`POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `firstName`, `lastName`, `preferredName`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile and seeds default categories after OTP verification. `preferredName` is the name the app should use when communicating with the user.
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
 
@@ -113,7 +113,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 `GET /me` returns the authenticated user profile and report preferences.
 
-`PUT /me` updates the authenticated user's name, email, country of residence, and preferred currency.
+`PUT /me` updates the authenticated user's first name, last name, preferred name, email, country of residence, and preferred currency.
 
 `PUT /report-preferences` updates the selected WhatsApp report frequencies: `daily`, `weekly`, `monthly`, and `yearly`.
 
@@ -201,7 +201,7 @@ pnpm --filter @expenses-tracker/backend db:register-test-user
 Or pass explicit data:
 
 ```bash
-pnpm --filter @expenses-tracker/backend db:register-test-user +56982439041 "Test User" test@example.com Chile CLP
+pnpm --filter @expenses-tracker/backend db:register-test-user +56982439041 Test User Test test@example.com Chile CLP
 ```
 
 Inspect recent inbound webhook audits:

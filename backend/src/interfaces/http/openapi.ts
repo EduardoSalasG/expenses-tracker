@@ -58,7 +58,9 @@ export const openApiSpec = {
         requestBody: jsonBody({
           phoneNumber: { type: 'string' },
           code: { type: 'string' },
-          name: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          preferredName: { type: 'string' },
           email: { type: 'string' },
           countryOfResidence: { type: 'string' },
           preferredCurrency: { type: 'string', example: 'CLP' }
@@ -87,11 +89,13 @@ export const openApiSpec = {
         summary: 'Update current user profile',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
-          name: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          preferredName: { type: 'string' },
           email: { type: 'string' },
           countryOfResidence: { type: 'string' },
           preferredCurrency: { type: 'string', example: 'CLP' }
-        }, ['name', 'countryOfResidence', 'preferredCurrency']),
+        }, ['firstName', 'lastName', 'preferredName', 'countryOfResidence', 'preferredCurrency']),
         responses: standardResponses({ data: { type: 'object' } })
       }
     },

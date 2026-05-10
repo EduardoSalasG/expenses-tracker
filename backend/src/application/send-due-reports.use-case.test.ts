@@ -20,7 +20,9 @@ describe('SendDueReportsUseCase', () => {
     const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Report User',
+      firstName: 'Report',
+      lastName: 'User',
+      preferredName: 'Report',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });

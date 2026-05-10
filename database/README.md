@@ -11,6 +11,7 @@ The database image is built from `database/Dockerfile`. On first container start
 - `12-003-report-preferences-index.sql`
 - `13-004-transfer-payment-method.sql`
 - `14-005-whatsapp-pending-drafts.sql`
+- `15-006-split-user-names.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
@@ -23,6 +24,8 @@ The seed creates:
 Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.
 
 WhatsApp clarification state is stored in `whatsapp_pending_drafts` with one active draft per tenant/user.
+
+Users store `first_name`, `last_name`, and `preferred_name`. `preferred_name` is the display/communication name used by the app when addressing the user.
 
 ## Local Compose
 

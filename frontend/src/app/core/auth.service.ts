@@ -7,7 +7,9 @@ interface VerifyOtpResponse {
   accessToken: string;
   refreshToken: string;
   user: {
-    name: string;
+    firstName: string;
+    lastName: string;
+    preferredName: string;
     phoneNumber: string;
     preferredCurrency: string;
   };
@@ -41,7 +43,9 @@ export class AuthService {
   verifyOtp(payload: {
     phoneNumber: string;
     code: string;
-    name?: string;
+    firstName?: string;
+    lastName?: string;
+    preferredName?: string;
     email?: string;
     countryOfResidence?: string;
     preferredCurrency?: string;

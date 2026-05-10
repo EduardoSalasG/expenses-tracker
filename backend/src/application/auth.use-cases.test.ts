@@ -23,7 +23,9 @@ describe('auth use cases', () => {
     const users = new InMemoryUserRepository();
     await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Existing User',
+      firstName: 'Existing',
+      lastName: 'User',
+      preferredName: 'Existing',
       email: 'existing@example.com',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
@@ -41,7 +43,9 @@ describe('auth use cases', () => {
     const categories = new InMemoryCategoryRepository();
     const existing = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Existing User',
+      firstName: 'Existing',
+      lastName: 'User',
+      preferredName: 'Existing',
       email: 'existing@example.com',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
@@ -51,7 +55,9 @@ describe('auth use cases', () => {
 
     const result = await useCase.execute({ phoneNumber: existing.phoneNumber, code: '123456' });
 
-    expect(result.user.name).toBe('Existing User');
+    expect(result.user.firstName).toBe('Existing');
+    expect(result.user.lastName).toBe('User');
+    expect(result.user.preferredName).toBe('Existing');
     expect(result.user.email).toBe('existing@example.com');
     expect(result.user.preferredCurrency).toBe('CLP');
   });

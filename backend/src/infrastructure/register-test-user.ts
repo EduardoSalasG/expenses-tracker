@@ -7,10 +7,12 @@ const logger = createLogger();
 const pool = createPool(config);
 
 const phoneNumber = process.argv[2] ?? config.whatsappTestRecipientPhone;
-const name = process.argv[3] ?? 'WhatsApp Test User';
-const email = process.argv[4] ?? null;
-const country = process.argv[5] ?? 'Chile';
-const currency = process.argv[6] ?? 'CLP';
+const firstName = process.argv[3] ?? 'WhatsApp';
+const lastName = process.argv[4] ?? 'Test User';
+const preferredName = process.argv[5] ?? firstName;
+const email = process.argv[6] ?? null;
+const country = process.argv[7] ?? 'Chile';
+const currency = process.argv[8] ?? 'CLP';
 
 if (!phoneNumber) {
   throw new Error('Missing phone number. Set WHATSAPP_TEST_RECIPIENT_PHONE or pass it as the first argument.');
@@ -18,8 +20,8 @@ if (!phoneNumber) {
 
 try {
   const result = await pool.query(
-    `select * from upsert_user_by_phone($1, $2, $3, $4, $5)`,
-    [phoneNumber, name, email, country, currency]
+    `select * from upsert_user_by_phone($1, $2, $3, $4, $5, $6, $7)`,
+    [phoneNumber, firstName, lastName, preferredName, email, country, currency]
   );
   const user = result.rows[0];
   await pool.query('select seed_default_categories($1)', [user.tenant_id]);

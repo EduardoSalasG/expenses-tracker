@@ -11,7 +11,9 @@ describe('SettingsComponent', () => {
   const user: CurrentUser = {
     id: 'user-1',
     phoneNumber: '+56982439041',
-    name: 'Test User',
+    firstName: 'Test',
+    lastName: 'User',
+    preferredName: 'Test',
     role: 'consumer',
     countryOfResidence: 'Chile',
     preferredCurrency: 'CLP',
@@ -21,7 +23,7 @@ describe('SettingsComponent', () => {
   beforeEach(async () => {
     api = jasmine.createSpyObj<ApiService>('ApiService', ['me', 'updateMe', 'updateReportPreferences']);
     api.me.and.returnValue(of(user));
-    api.updateMe.and.returnValue(of({ ...user, name: 'Updated User' }));
+    api.updateMe.and.returnValue(of({ ...user, firstName: 'Updated', lastName: 'User', preferredName: 'Updated' }));
     api.updateReportPreferences.and.returnValue(of({ ...user, reportPreferences: ['weekly', 'monthly'] }));
 
     await TestBed.configureTestingModule({
@@ -43,12 +45,14 @@ describe('SettingsComponent', () => {
 
   it('saves profile edits', () => {
     const component = fixture.componentInstance;
-    component.profileForm.patchValue({ name: 'Updated User', preferredCurrency: 'usd' });
+    component.profileForm.patchValue({ firstName: 'Updated', lastName: 'User', preferredName: 'Updated', preferredCurrency: 'usd' });
 
     component.saveProfile();
 
     expect(api.updateMe).toHaveBeenCalledWith(jasmine.objectContaining({
-      name: 'Updated User',
+      firstName: 'Updated',
+      lastName: 'User',
+      preferredName: 'Updated',
       preferredCurrency: 'USD'
     }));
     expect(component.profileMessage()).toBe('Profile saved.');

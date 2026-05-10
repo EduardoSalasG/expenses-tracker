@@ -3,7 +3,7 @@ sequenceDiagram
   participant Frontend
   participant API
   participant DB
-  User->>Frontend: Edit name, email, country, currency
+  User->>Frontend: Edit first name, last name, preferred name, email, country, currency
   Frontend->>API: PUT /me with JWT
   API->>API: Validate Zod schema
   API->>DB: Update authenticated user profile

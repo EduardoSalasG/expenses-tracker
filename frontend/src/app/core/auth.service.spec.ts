@@ -30,7 +30,9 @@ describe('AuthService', () => {
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       user: {
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
+        preferredName: 'Test',
         phoneNumber: '+56982439041',
         preferredCurrency: 'CLP'
       }

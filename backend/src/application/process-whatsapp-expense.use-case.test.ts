@@ -52,7 +52,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const audits = new InMemoryWhatsAppMessageAuditRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
@@ -94,7 +96,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const audits = new InMemoryWhatsAppMessageAuditRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
@@ -129,7 +133,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const incomes = new InMemoryIncomeRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
@@ -164,7 +170,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const drafts = new InMemoryWhatsAppPendingDraftRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });

@@ -38,7 +38,9 @@ export interface CurrentUser {
   id: string;
   email?: string;
   phoneNumber: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
   role: 'consumer' | 'admin';
   countryOfResidence: string;
   preferredCurrency: string;
@@ -89,7 +91,7 @@ export class ApiService {
     return this.http.get<CurrentUser>(`${environment.apiBaseUrl}/me`);
   }
 
-  updateMe(payload: Pick<CurrentUser, 'name' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
+  updateMe(payload: Pick<CurrentUser, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
     return this.http.put<CurrentUser>(`${environment.apiBaseUrl}/me`, payload);
   }
 

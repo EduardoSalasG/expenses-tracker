@@ -13,7 +13,9 @@ export interface User {
   tenantId: TenantId;
   email?: string;
   phoneNumber: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
   role: 'consumer' | 'admin';
   countryOfResidence: string;
   preferredCurrency: CurrencyCode;

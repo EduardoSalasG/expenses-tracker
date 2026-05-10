@@ -27,7 +27,7 @@ export class VerifyOtpUseCase {
     private readonly clock: Clock
   ) {}
 
-  async execute(input: { phoneNumber: string; code: string; name?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string }) {
+  async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string }) {
     const verified = await this.otps.verify(input.phoneNumber, input.code, this.clock.now());
     if (!verified) {
       throw new Error('Invalid or expired OTP.');
@@ -43,13 +43,15 @@ export class VerifyOtpUseCase {
       };
     }
 
-    if (!input.name || !input.email || !input.countryOfResidence || !input.preferredCurrency) {
+    if (!input.firstName || !input.lastName || !input.preferredName || !input.email || !input.countryOfResidence || !input.preferredCurrency) {
       throw new Error('Registration details are required for new users.');
     }
 
     const user = await this.users.upsertByPhoneNumber({
       phoneNumber: input.phoneNumber,
-      name: input.name,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      preferredName: input.preferredName,
       email: input.email,
       countryOfResidence: input.countryOfResidence,
       preferredCurrency: input.preferredCurrency

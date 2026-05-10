@@ -6,9 +6,9 @@ begin
 end;
 $$;
 
-select upsert_user_by_phone('+56912345678', 'Demo User', 'demo@example.com', 'Chile', 'CLP');
+select upsert_user_by_phone('+56912345678', 'Demo', 'User', 'Demo', 'demo@example.com', 'Chile', 'CLP');
 
-select upsert_user_by_phone('+56900000000', 'Admin User', 'admin@example.com', 'Chile', 'CLP');
+select upsert_user_by_phone('+56900000000', 'Admin', 'User', 'Admin', 'admin@example.com', 'Chile', 'CLP');
 
 update users
 set role = 'admin',
