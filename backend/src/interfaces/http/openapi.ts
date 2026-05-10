@@ -48,6 +48,10 @@ export const openApiSpec = {
           requiresRegistration: {
             type: 'boolean',
             description: 'True when the phone number has no registered user profile yet.'
+          },
+          debugCode: {
+            type: 'string',
+            description: 'Development-only OTP code returned only when OTP_DEBUG_RESPONSE_ENABLED=true outside production.'
           }
         })
       }

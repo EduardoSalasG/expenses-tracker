@@ -5,7 +5,8 @@ export class RequestOtpUseCase {
     private readonly users: UserRepository,
     private readonly otps: OtpRepository,
     private readonly whatsapp: WhatsAppProvider,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly options: { exposeOtpInResponse: boolean } = { exposeOtpInResponse: false }
   ) {}
 
   async execute(phoneNumber: string) {
@@ -14,7 +15,11 @@ export class RequestOtpUseCase {
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
     await this.otps.create(phoneNumber, code, expiresAt);
     await this.whatsapp.sendText(phoneNumber, `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`);
-    return { sent: true, requiresRegistration: !existingUser };
+    return {
+      sent: true,
+      requiresRegistration: !existingUser,
+      ...(this.options.exposeOtpInResponse ? { debugCode: code } : {})
+    };
   }
 }
 

@@ -8,6 +8,12 @@ const booleanEnvSchema = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
+const optionalNumberEnvSchema = (defaultValue: number) => z.preprocess((value) => {
+  if (value === undefined || value === '') return defaultValue;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
+}, z.number());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -25,7 +31,8 @@ const envSchema = z.object({
   MESSAGE_INTERPRETER_API_KEY: z.string().default(''),
   MESSAGE_INTERPRETER_BASE_URL: z.string().url().default('https://models.github.ai/inference'),
   MESSAGE_INTERPRETER_MODEL: z.string().default('deepseek/DeepSeek-V3-0324'),
-  MESSAGE_INTERPRETER_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
+  MESSAGE_INTERPRETER_TEMPERATURE: optionalNumberEnvSchema(0.1).pipe(z.number().min(0).max(2)),
+  OTP_DEBUG_RESPONSE_ENABLED: booleanEnvSchema.default(false),
   FRONTEND_ORIGIN: z.string().default('http://localhost:4200'),
   USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false)
 });
@@ -53,6 +60,7 @@ export function loadConfig() {
     messageInterpreterBaseUrl: env.MESSAGE_INTERPRETER_BASE_URL,
     messageInterpreterModel: env.MESSAGE_INTERPRETER_MODEL,
     messageInterpreterTemperature: env.MESSAGE_INTERPRETER_TEMPERATURE,
+    otpDebugResponseEnabled: env.OTP_DEBUG_RESPONSE_ENABLED,
     frontendOrigin: env.FRONTEND_ORIGIN,
     useInMemoryRepositories: env.USE_IN_MEMORY_REPOSITORIES
   };

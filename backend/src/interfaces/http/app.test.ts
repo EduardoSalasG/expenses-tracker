@@ -104,6 +104,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     messageInterpreterBaseUrl: 'https://api.deepseek.com',
     messageInterpreterModel: 'deepseek-chat',
     messageInterpreterTemperature: 0.1,
+    otpDebugResponseEnabled: false,
     frontendOrigin: 'http://localhost:4200',
     useInMemoryRepositories: true,
     ...overrides

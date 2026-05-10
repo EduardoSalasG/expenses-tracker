@@ -37,6 +37,21 @@ describe('auth use cases', () => {
     expect(result).toEqual({ sent: true, requiresRegistration: false });
   });
 
+  it('can expose the OTP in development diagnostics when explicitly enabled', async () => {
+    const useCase = new RequestOtpUseCase(
+      new InMemoryUserRepository(),
+      new InMemoryOtpRepository(),
+      new CapturingWhatsAppProvider(),
+      fixedClock(),
+      { exposeOtpInResponse: true }
+    );
+
+    const result = await useCase.execute('+56982439041');
+
+    expect(result.sent).toBe(true);
+    expect(result.debugCode).toMatch(/^\d{6}$/);
+  });
+
   it('does not overwrite existing user profile during OTP verification', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();

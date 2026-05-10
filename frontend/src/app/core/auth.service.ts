@@ -18,6 +18,7 @@ interface VerifyOtpResponse {
 export interface RequestOtpResponse {
   sent: boolean;
   requiresRegistration: boolean;
+  debugCode?: string;
 }
 
 @Injectable({ providedIn: 'root' })

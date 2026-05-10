@@ -29,6 +29,11 @@ import { AuthService } from '../core/auth.service';
           </mat-form-field>
 
           @if (otpSent()) {
+            @if (debugCode()) {
+              <div class="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Local OTP code: <strong>{{ debugCode() }}</strong>
+              </div>
+            }
             @if (requiresRegistration()) {
               <div class="rounded border border-slate-200 bg-white p-4">
                 <p class="text-sm font-medium text-slate-950">Create your profile</p>
@@ -77,6 +82,7 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   readonly otpSent = signal(false);
   readonly requiresRegistration = signal(false);
+  readonly debugCode = signal('');
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
     code: [''],
@@ -103,6 +109,7 @@ export class LoginComponent {
     if (!this.otpSent()) {
       this.auth.requestOtp(value.phoneNumber).subscribe((response) => {
         this.requiresRegistration.set(response.requiresRegistration);
+        this.debugCode.set(response.debugCode ?? '');
         this.otpSent.set(true);
         this.applyRegistrationValidators(response.requiresRegistration);
       });

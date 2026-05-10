@@ -33,4 +33,22 @@ describe('loadConfig', () => {
     expect(config.messageInterpreterModel).toBe('deepseek/DeepSeek-V3-0324');
     vi.unstubAllEnvs();
   });
+
+  it('keeps OTP debug response disabled by default', async () => {
+    vi.resetModules();
+
+    const { loadConfig } = await import('./config.js');
+
+    expect(loadConfig().otpDebugResponseEnabled).toBe(false);
+  });
+
+  it('parses OTP debug response flag when explicitly enabled', async () => {
+    vi.resetModules();
+    vi.stubEnv('OTP_DEBUG_RESPONSE_ENABLED', 'true');
+
+    const { loadConfig } = await import('./config.js');
+
+    expect(loadConfig().otpDebugResponseEnabled).toBe(true);
+    vi.unstubAllEnvs();
+  });
 });

@@ -37,6 +37,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_BASE_URL`: chat completions base URL. GitHub Models uses `https://models.github.ai/inference`.
 - `MESSAGE_INTERPRETER_MODEL`: model name. For the planned GitHub Models setup, use `deepseek/DeepSeek-V3-0324`.
 - `MESSAGE_INTERPRETER_TEMPERATURE`: low value recommended for structured financial extraction.
+- `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing if WhatsApp delivery is unreliable. Keep this `false` in production.
 - `FRONTEND_ORIGIN`: allowed CORS origin.
 
 ## Database
@@ -80,6 +81,8 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 ## Auth API
 
 `POST /auth/otp/request` sends a WhatsApp OTP to a registered/test-approved phone number and returns `requiresRegistration`. Existing users continue with OTP-only login. Unknown phone numbers must complete registration fields during OTP verification.
+
+For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
 `POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `firstName`, `lastName`, `preferredName`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile and seeds default categories after OTP verification. `preferredName` is the name the app should use when communicating with the user.
 
