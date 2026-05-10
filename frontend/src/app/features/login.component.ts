@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -23,6 +24,12 @@ import { AuthService } from '../core/auth.service';
         </div>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
+          @if (errorMessage()) {
+            <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {{ errorMessage() }}
+            </div>
+          }
+
           <mat-form-field appearance="outline">
             <mat-label>WhatsApp phone number</mat-label>
             <input matInput formControlName="phoneNumber" placeholder="+56912345678">
@@ -83,6 +90,7 @@ export class LoginComponent {
   readonly otpSent = signal(false);
   readonly requiresRegistration = signal(false);
   readonly debugCode = signal('');
+  readonly errorMessage = signal('');
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
     code: [''],
@@ -106,12 +114,19 @@ export class LoginComponent {
     }
 
     const value = this.form.getRawValue();
+    this.errorMessage.set('');
+
     if (!this.otpSent()) {
-      this.auth.requestOtp(value.phoneNumber).subscribe((response) => {
-        this.requiresRegistration.set(response.requiresRegistration);
-        this.debugCode.set(response.debugCode ?? '');
-        this.otpSent.set(true);
-        this.applyRegistrationValidators(response.requiresRegistration);
+      this.auth.requestOtp(value.phoneNumber).subscribe({
+        next: (response) => {
+          this.requiresRegistration.set(response.requiresRegistration);
+          this.debugCode.set(response.debugCode ?? '');
+          this.otpSent.set(true);
+          this.applyRegistrationValidators(response.requiresRegistration);
+        },
+        error: (error) => {
+          this.errorMessage.set(this.toErrorMessage(error, 'Could not send the verification code.'));
+        }
       });
       return;
     }
@@ -132,7 +147,12 @@ export class LoginComponent {
         code: value.code
       };
 
-    this.auth.verifyOtp(payload).subscribe(() => this.router.navigateByUrl('/dashboard'));
+    this.auth.verifyOtp(payload).subscribe({
+      next: () => this.router.navigateByUrl('/dashboard'),
+      error: (error) => {
+        this.errorMessage.set(this.toErrorMessage(error, 'Could not verify the code.'));
+      }
+    });
   }
 
   private applyRegistrationValidators(required: boolean) {
@@ -159,5 +179,13 @@ export class LoginComponent {
 
     this.form.controls.code.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(6)]);
     [...controls, this.form.controls.code].forEach((control) => control.updateValueAndValidity());
+  }
+
+  private toErrorMessage(error: unknown, fallback: string) {
+    if (error instanceof HttpErrorResponse && typeof error.error?.error === 'string') {
+      return error.error.error;
+    }
+
+    return fallback;
   }
 }
