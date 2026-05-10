@@ -1,0 +1,40 @@
+flowchart LR
+  subgraph Interfaces["Interfaces / HTTP"]
+    App["app.ts<br/>Express composition"]
+    Routes["routes/*<br/>URL registration"]
+    Controllers["controllers/*<br/>HTTP input/output"]
+    Middleware["middleware/*<br/>Auth, signatures, errors"]
+    Schemas["schemas.ts<br/>Zod contracts"]
+  end
+
+  subgraph Application["Application"]
+    UseCases["use-cases/*<br/>Workflow orchestration"]
+    Services["services/*<br/>Application policies"]
+    Ports["ports/*<br/>Repository/provider contracts"]
+  end
+
+  subgraph Domain["Domain"]
+    Finance["finance/*<br/>Money, payment methods"]
+    Types["types.ts<br/>Core entities/types"]
+  end
+
+  subgraph Infrastructure["Infrastructure"]
+    Repositories["repositories/*<br/>PostgreSQL / in-memory"]
+    Providers["adapters<br/>WhatsApp, JWT, LLM"]
+    Container["container.ts<br/>Dependency wiring"]
+  end
+
+  App --> Routes
+  Routes --> Controllers
+  Routes --> Middleware
+  Controllers --> Schemas
+  Controllers --> UseCases
+  UseCases --> Services
+  UseCases --> Ports
+  Services --> Domain
+  Ports --> Domain
+  Repositories -. implement .-> Ports
+  Providers -. implement .-> Ports
+  Container --> Repositories
+  Container --> Providers
+  Container --> UseCases

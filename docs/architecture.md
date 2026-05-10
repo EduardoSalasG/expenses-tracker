@@ -4,12 +4,60 @@ The system follows clean architecture and hexagonal boundaries.
 
 ## Backend Layers
 
-- Domain: entities and value types with no framework dependencies.
-- Application: use cases and ports.
-- Infrastructure: PostgreSQL, WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
-- Interfaces: Express controllers, middleware, Zod schemas, Swagger/OpenAPI.
+- Domain: entities, domain types, and value objects with no framework dependencies.
+- Application: use cases, application services, and ports.
+- Infrastructure: PostgreSQL repositories, WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
+- Interfaces: Express route modules, controllers, middleware, Zod schemas, Swagger/OpenAPI.
 
 Dependencies point inward. Controllers call use cases. Use cases depend on ports. Infrastructure implements ports.
+
+## Backend Module Layout
+
+The backend is organized by clean architecture boundaries:
+
+```text
+backend/src
+  domain/
+    finance/
+      money.ts
+      payment-method.ts
+    users/
+    tenancy/
+    types.ts
+  application/
+    ports/
+      *.repository.ts
+      *.provider.ts
+      *.service.ts
+    services/
+      reporting.service.ts
+      whatsapp-draft.service.ts
+    use-cases/
+      auth.use-cases.ts
+      finance.use-cases.ts
+      process-whatsapp-expense.use-case.ts
+      send-due-reports.use-case.ts
+      profile.use-cases.ts
+  infrastructure/
+    repositories/
+      postgres.ts
+      in-memory.ts
+    container.ts
+    database.ts
+    token.service.ts
+    whatsapp.provider.ts
+    message-interpreter.provider.ts
+  interfaces/
+    http/
+      app.ts
+      controllers/
+      routes/
+      middleware/
+      schemas.ts
+      openapi.ts
+```
+
+`interfaces/http/app.ts` only composes Express middleware, Swagger, health checks, and route registration. Route modules bind URLs to controllers. Controllers parse HTTP input and call application use cases. Application use cases coordinate domain/application rules through ports. Infrastructure adapters implement those ports.
 
 ## Tenancy
 

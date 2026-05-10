@@ -64,10 +64,18 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 ## Architecture
 
-- `domain`: entities and value types.
-- `application`: use cases and ports.
-- `infrastructure`: PostgreSQL, WhatsApp, token, OTP, and logging adapters.
-- `interfaces/http`: Express controllers, middleware, schemas, and OpenAPI.
+- `domain`: framework-free business types and value objects, grouped by finance, users, and tenancy.
+- `application/ports`: repository, provider, and service contracts used by use cases.
+- `application/use-cases`: application services grouped by workflow: auth, finance, profile, WhatsApp processing, and report delivery.
+- `application/services`: reusable application/domain-policy helpers such as reporting calculations and WhatsApp draft handling.
+- `infrastructure`: PostgreSQL, WhatsApp, token, OTP, LLM interpreter, and logging adapters.
+- `interfaces/http/routes`: Express route registration by feature.
+- `interfaces/http/controllers`: request parsing and use-case invocation.
+- `interfaces/http/middleware`: auth, Meta signature verification, webhook logging, and error handling.
+- `interfaces/http/schemas.ts`: Zod HTTP request contracts.
+- `interfaces/http/openapi.ts`: Swagger/OpenAPI contract.
+
+`interfaces/http/app.ts` is intentionally only the Express composition root for middleware, Swagger, health checks, and route registration.
 
 ## Auth API
 

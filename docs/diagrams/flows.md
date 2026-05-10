@@ -17,6 +17,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Tenant-Scoped Request Flow](tenant-scoped-request-flow.mmd): JWT tenant extraction and repository-level tenant filtering.
 - [Database and Report Query Flow](database-report-query-flow.mmd): Decision path for direct SQL vs PostgreSQL functions and query analysis updates.
 - [Domain Relationships](domain-relationships.mmd): Core tenant, user, category, expense, income, and budget relationships.
+- [Backend Architecture](backend-architecture.mmd): Clean/hexagonal backend dependency direction and module responsibilities.
 
 ## Resume
 
