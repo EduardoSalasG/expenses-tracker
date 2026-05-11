@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createApp, extractWhatsAppMessages, extractWhatsAppStatuses } from './app.js';
+import { createApp } from './app.js';
+import { extractWhatsAppMessages, extractWhatsAppStatuses } from './messaging-providers/whatsapp.extractor.js';
 import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
 

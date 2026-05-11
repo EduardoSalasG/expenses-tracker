@@ -7,7 +7,7 @@ The system follows clean architecture and hexagonal boundaries.
 - Domain: entities, domain types, and value objects with no framework dependencies.
 - Application: use cases, application services, and ports.
 - Infrastructure: PostgreSQL repositories, messaging providers such as WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
-- Interfaces: Express route modules, controllers, middleware, Zod schemas, Swagger/OpenAPI.
+- Interfaces: Express route modules, provider-specific controllers/extractors, middleware, Zod schemas, Swagger/OpenAPI.
 
 Dependencies point inward. Controllers call use cases. Use cases depend on ports. Infrastructure implements ports.
 
@@ -55,8 +55,10 @@ backend/src
     http/
       app.ts
       controllers/
+      messaging-providers/
       routes/
       middleware/
+      services/
       schemas.ts
       openapi.ts
 ```
@@ -69,7 +71,7 @@ MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, an
 
 ## Messaging Providers
 
-Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook parsing/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A future Telegram adapter should translate Telegram updates into the same inbound message batch shape and implement the same outbound `MessagingProvider` contract.
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook extraction/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A future Telegram adapter should add a Telegram extractor/controller/routes, translate Telegram updates into the same inbound message batch shape, and implement the same outbound `MessagingProvider` contract.
 
 ## WhatsApp Sender Access
 

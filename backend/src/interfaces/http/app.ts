@@ -8,8 +8,6 @@ import type { RequestWithRawBody } from './request-with-raw-body.js';
 import { openApiSpec } from './openapi.js';
 import { registerRoutes } from './routes/index.js';
 
-export { extractWhatsAppMessages, extractWhatsAppStatuses } from './controllers/whatsapp-webhook.controller.js';
-
 export function createApp(container: AppContainer) {
   const app = express();
   app.use(helmet());
