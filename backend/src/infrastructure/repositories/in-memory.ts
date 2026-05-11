@@ -271,6 +271,3 @@ export class InMemoryMessagingPendingDraftRepository implements MessagingPending
     if (index >= 0) this.drafts.splice(index, 1);
   }
 }
-
-export { InMemoryMessagingMessageAuditRepository as InMemoryWhatsAppMessageAuditRepository };
-export { InMemoryMessagingPendingDraftRepository as InMemoryWhatsAppPendingDraftRepository };

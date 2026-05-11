@@ -461,5 +461,3 @@ function mapPendingDraft(row: QueryResultRow): ConversationPendingDraft {
   };
 }
 
-export { PostgresMessagingMessageAuditRepository as PostgresWhatsAppMessageAuditRepository };
-export { PostgresMessagingPendingDraftRepository as PostgresWhatsAppPendingDraftRepository };
