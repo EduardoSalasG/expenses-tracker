@@ -1,3 +1,1 @@
-export interface WhatsAppProvider {
-  sendText(toPhoneNumber: string, body: string): Promise<unknown>;
-}
+export type { MessagingProvider as WhatsAppProvider } from './messaging.provider.js';

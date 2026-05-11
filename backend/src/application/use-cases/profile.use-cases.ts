@@ -1,4 +1,4 @@
-import type { ReportFrequency } from '../../domain/types.js';
+import type { ReportFrequency } from '../../domain/index.js';
 import type { UserRepository } from '../ports.js';
 
 export class UpdateReportPreferencesUseCase {

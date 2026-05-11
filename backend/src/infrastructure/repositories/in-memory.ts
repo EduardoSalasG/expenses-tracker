@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository, WhatsAppPendingDraftRepository } from '../../application/ports.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User, WhatsAppPendingDraft } from '../../domain/types.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, UserRepository } from '../../application/ports.js';
+import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -203,10 +203,10 @@ export class InMemoryBudgetRepository implements BudgetRepository {
   }
 }
 
-export class InMemoryWhatsAppMessageAuditRepository implements WhatsAppMessageAuditRepository {
-  readonly messages: Array<Parameters<WhatsAppMessageAuditRepository['create']>[0]> = [];
+export class InMemoryMessagingMessageAuditRepository implements MessagingMessageAuditRepository {
+  readonly messages: Array<Parameters<MessagingMessageAuditRepository['create']>[0]> = [];
 
-  async reserve(input: Parameters<WhatsAppMessageAuditRepository['reserve']>[0]) {
+  async reserve(input: Parameters<MessagingMessageAuditRepository['reserve']>[0]) {
     if (this.messages.some((message) => message.providerMessageId === input.providerMessageId)) {
       return false;
     }
@@ -217,20 +217,20 @@ export class InMemoryWhatsAppMessageAuditRepository implements WhatsAppMessageAu
 
   async updateByProviderMessageId(
     providerMessageId: string,
-    input: Parameters<WhatsAppMessageAuditRepository['updateByProviderMessageId']>[1]
+    input: Parameters<MessagingMessageAuditRepository['updateByProviderMessageId']>[1]
   ) {
     const index = this.messages.findIndex((message) => message.providerMessageId === providerMessageId);
     if (index < 0) return;
     this.messages[index] = { ...this.messages[index], ...input };
   }
 
-  async create(input: Parameters<WhatsAppMessageAuditRepository['create']>[0]) {
+  async create(input: Parameters<MessagingMessageAuditRepository['create']>[0]) {
     this.messages.push(input);
   }
 }
 
-export class InMemoryWhatsAppPendingDraftRepository implements WhatsAppPendingDraftRepository {
-  readonly drafts: WhatsAppPendingDraft[] = [];
+export class InMemoryMessagingPendingDraftRepository implements MessagingPendingDraftRepository {
+  readonly drafts: ConversationPendingDraft[] = [];
 
   async findActive(tenantId: string, userId: string, now: Date) {
     return this.drafts.find((draft) =>
@@ -240,7 +240,7 @@ export class InMemoryWhatsAppPendingDraftRepository implements WhatsAppPendingDr
     );
   }
 
-  async upsert(input: Omit<WhatsAppPendingDraft, 'id'>) {
+  async upsert(input: Omit<ConversationPendingDraft, 'id'>) {
     const index = this.drafts.findIndex((draft) => draft.tenantId === input.tenantId && draft.userId === input.userId);
     const draft = { ...input, id: index >= 0 ? this.drafts[index].id : randomUUID() };
     if (index >= 0) this.drafts[index] = draft;
@@ -253,3 +253,6 @@ export class InMemoryWhatsAppPendingDraftRepository implements WhatsAppPendingDr
     if (index >= 0) this.drafts.splice(index, 1);
   }
 }
+
+export { InMemoryMessagingMessageAuditRepository as InMemoryWhatsAppMessageAuditRepository };
+export { InMemoryMessagingPendingDraftRepository as InMemoryWhatsAppPendingDraftRepository };

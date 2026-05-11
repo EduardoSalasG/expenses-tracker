@@ -9,24 +9,24 @@ import {
   InMemoryCategoryRepository,
   InMemoryExpenseRepository,
   InMemoryIncomeRepository,
+  InMemoryMessagingMessageAuditRepository,
+  InMemoryMessagingPendingDraftRepository,
   InMemoryOtpRepository,
-  InMemoryUserRepository,
-  InMemoryWhatsAppMessageAuditRepository,
-  InMemoryWhatsAppPendingDraftRepository
+  InMemoryUserRepository
 } from './repositories/in-memory.js';
 import {
   PostgresBudgetRepository,
   PostgresCategoryRepository,
   PostgresExpenseRepository,
   PostgresIncomeRepository,
+  PostgresMessagingMessageAuditRepository,
+  PostgresMessagingPendingDraftRepository,
   PostgresOtpRepository,
-  PostgresUserRepository,
-  PostgresWhatsAppMessageAuditRepository,
-  PostgresWhatsAppPendingDraftRepository
+  PostgresUserRepository
 } from './repositories/postgres.js';
 import {
   FinanceUseCases,
-  ProcessWhatsAppExpenseUseCase,
+  ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
   RequestOtpUseCase,
   SendDueReportsUseCase,
@@ -45,12 +45,24 @@ export function createContainer(config: AppConfig) {
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
-  const messageAudits = pool ? new PostgresWhatsAppMessageAuditRepository(pool) : new InMemoryWhatsAppMessageAuditRepository();
-  const pendingDrafts = pool ? new PostgresWhatsAppPendingDraftRepository(pool) : new InMemoryWhatsAppPendingDraftRepository();
+  const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();
+  const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const tokens = new JwtTokenService(config);
-  const whatsapp = new WhatsAppCloudProvider(config, logger);
+  const messaging = new WhatsAppCloudProvider(config, logger);
   const interpreter = createMessageInterpreter(config, logger);
   const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
+  const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
+    users,
+    categories,
+    expenses,
+    incomes,
+    budgets,
+    messageAudits,
+    pendingDrafts,
+    messaging,
+    interpreter,
+    clock
+  );
 
   return {
     config,
@@ -59,16 +71,17 @@ export function createContainer(config: AppConfig) {
     tokens,
     close: () => pool?.end() ?? Promise.resolve(),
     useCases: {
-      requestOtp: new RequestOtpUseCase(users, otps, whatsapp, clock, {
+      requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
-      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, whatsapp),
+      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging),
       refreshSession: new RefreshSessionUseCase(users, tokens),
-      processWhatsAppExpense: new ProcessWhatsAppExpenseUseCase(users, categories, expenses, incomes, budgets, messageAudits, pendingDrafts, whatsapp, interpreter, clock),
+      processInboundFinanceMessage,
+      processWhatsAppExpense: processInboundFinanceMessage,
       finance,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),
-      sendDueReports: new SendDueReportsUseCase(users, finance, whatsapp, clock)
+      sendDueReports: new SendDueReportsUseCase(users, finance, messaging, clock)
     }
   };
 }

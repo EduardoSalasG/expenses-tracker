@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { TokenService } from '../application/ports.js';
-import type { User } from '../domain/types.js';
+import type { User } from '../domain/index.js';
 import type { AppConfig } from './config.js';
 
 export class JwtTokenService implements TokenService {

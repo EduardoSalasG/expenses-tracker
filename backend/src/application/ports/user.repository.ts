@@ -1,4 +1,4 @@
-import type { ReportFrequency, User } from '../../domain/types.js';
+import type { ReportFrequency, User } from '../../domain/index.js';
 
 export interface UserRepository {
   findByPhoneNumber(phoneNumber: string): Promise<User | undefined>;

@@ -1,6 +1,6 @@
 import { loadConfig } from './config.js';
 import { createContainer } from './container.js';
-import type { ReportFrequency } from '../domain/types.js';
+import type { ReportFrequency } from '../domain/index.js';
 
 const frequencies = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 const frequency = process.argv[2] as ReportFrequency | undefined;

@@ -1,4 +1,4 @@
-import type { Category, Expense, Income, MonthlyBudget } from '../../domain/types.js';
+import type { Category, Expense, Income, MonthlyBudget } from '../../domain/index.js';
 import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository } from '../ports.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
 

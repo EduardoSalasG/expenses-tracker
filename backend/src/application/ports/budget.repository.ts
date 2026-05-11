@@ -1,4 +1,4 @@
-import type { MonthlyBudget, TenantId } from '../../domain/types.js';
+import type { MonthlyBudget, TenantId } from '../../domain/index.js';
 
 export interface BudgetRepository {
   upsertMonthly(input: Omit<MonthlyBudget, 'id'>): Promise<MonthlyBudget>;

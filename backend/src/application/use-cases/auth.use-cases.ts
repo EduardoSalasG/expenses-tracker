@@ -1,10 +1,10 @@
-import type { CategoryRepository, Clock, OtpRepository, TokenService, UserRepository, WhatsAppProvider } from '../ports.js';
+import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly otps: OtpRepository,
-    private readonly whatsapp: WhatsAppProvider,
+    private readonly messaging: MessagingProvider,
     private readonly clock: Clock,
     private readonly options: { exposeOtpInResponse: boolean } = { exposeOtpInResponse: false }
   ) {}
@@ -14,7 +14,7 @@ export class RequestOtpUseCase {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
     await this.otps.create(phoneNumber, code, expiresAt);
-    await this.whatsapp.sendText(phoneNumber, `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`);
+    await this.messaging.sendText(phoneNumber, `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`);
     return {
       sent: true,
       requiresRegistration: !existingUser,
@@ -30,7 +30,7 @@ export class VerifyOtpUseCase {
     private readonly categories: CategoryRepository,
     private readonly tokens: TokenService,
     private readonly clock: Clock,
-    private readonly whatsapp: WhatsAppProvider
+    private readonly messaging: MessagingProvider
   ) {}
 
   async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string }) {
@@ -63,7 +63,7 @@ export class VerifyOtpUseCase {
       preferredCurrency: input.preferredCurrency
     });
     await this.categories.ensureDefaults(user.tenantId);
-    await this.whatsapp.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredName));
+    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredName));
 
     return {
       user,
@@ -77,7 +77,7 @@ function buildRegistrationGreeting(preferredName: string) {
   return [
     `Hi ${preferredName}, welcome to Expenses Tracker.`,
     '',
-    'You can now send natural WhatsApp messages to track your finances.',
+    'You can now send natural messages to track your finances.',
     '',
     'Examples:',
     '- 20.000 classes at Bsoul, transfer from BCI',

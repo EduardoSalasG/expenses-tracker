@@ -1,4 +1,4 @@
-import type { Category, TenantId } from '../../domain/types.js';
+import type { Category, TenantId } from '../../domain/index.js';
 
 export interface CategoryRepository {
   listByTenant(tenantId: TenantId): Promise<Category[]>;

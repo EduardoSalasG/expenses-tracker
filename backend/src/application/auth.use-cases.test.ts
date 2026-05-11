@@ -5,14 +5,14 @@ import {
   InMemoryOtpRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
-import type { TokenService, WhatsAppProvider } from './ports.js';
-import type { User } from '../domain/types.js';
+import type { MessagingProvider, TokenService } from './ports.js';
+import type { User } from '../domain/index.js';
 
 describe('auth use cases', () => {
   it('marks OTP requests for unknown phones as requiring registration', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
-    const useCase = new RequestOtpUseCase(users, otps, new CapturingWhatsAppProvider(), fixedClock());
+    const useCase = new RequestOtpUseCase(users, otps, new CapturingMessagingProvider(), fixedClock());
 
     const result = await useCase.execute('+56982439041');
 
@@ -30,7 +30,7 @@ describe('auth use cases', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
-    const useCase = new RequestOtpUseCase(users, new InMemoryOtpRepository(), new CapturingWhatsAppProvider(), fixedClock());
+    const useCase = new RequestOtpUseCase(users, new InMemoryOtpRepository(), new CapturingMessagingProvider(), fixedClock());
 
     const result = await useCase.execute('+56982439041');
 
@@ -41,7 +41,7 @@ describe('auth use cases', () => {
     const useCase = new RequestOtpUseCase(
       new InMemoryUserRepository(),
       new InMemoryOtpRepository(),
-      new CapturingWhatsAppProvider(),
+      new CapturingMessagingProvider(),
       fixedClock(),
       { exposeOtpInResponse: true }
     );
@@ -66,8 +66,8 @@ describe('auth use cases', () => {
       preferredCurrency: 'CLP'
     });
     await otps.create(existing.phoneNumber, '123456', new Date('2026-05-10T00:10:00.000Z'));
-    const whatsapp = new CapturingWhatsAppProvider();
-    const useCase = new VerifyOtpUseCase(users, otps, categories, new FakeTokenService(), fixedClock(), whatsapp);
+    const messaging = new CapturingMessagingProvider();
+    const useCase = new VerifyOtpUseCase(users, otps, categories, new FakeTokenService(), fixedClock(), messaging);
 
     const result = await useCase.execute({ phoneNumber: existing.phoneNumber, code: '123456' });
 
@@ -76,7 +76,7 @@ describe('auth use cases', () => {
     expect(result.user.preferredName).toBe('Existing');
     expect(result.user.email).toBe('existing@example.com');
     expect(result.user.preferredCurrency).toBe('CLP');
-    expect(whatsapp.messages).toEqual([]);
+    expect(messaging.messages).toEqual([]);
   });
 
   it('requires registration fields for new users during OTP verification', async () => {
@@ -88,7 +88,7 @@ describe('auth use cases', () => {
       new InMemoryCategoryRepository(),
       new FakeTokenService(),
       fixedClock(),
-      new CapturingWhatsAppProvider()
+      new CapturingMessagingProvider()
     );
 
     await expect(useCase.execute({ phoneNumber: '+56982439041', code: '123456' }))
@@ -98,7 +98,7 @@ describe('auth use cases', () => {
   it('sends a registration greeting with WhatsApp usage examples for new users', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
-    const whatsapp = new CapturingWhatsAppProvider();
+    const messaging = new CapturingMessagingProvider();
     await otps.create('+56982439041', '123456', new Date('2026-05-10T00:10:00.000Z'));
     const useCase = new VerifyOtpUseCase(
       users,
@@ -106,7 +106,7 @@ describe('auth use cases', () => {
       new InMemoryCategoryRepository(),
       new FakeTokenService(),
       fixedClock(),
-      whatsapp
+      messaging
     );
 
     const result = await useCase.execute({
@@ -121,13 +121,13 @@ describe('auth use cases', () => {
     });
 
     expect(result.user.preferredName).toBe('Edu');
-    expect(whatsapp.messages).toHaveLength(1);
-    expect(whatsapp.messages[0]).toEqual({
+    expect(messaging.messages).toHaveLength(1);
+    expect(messaging.messages[0]).toEqual({
       toPhoneNumber: '+56982439041',
       body: expect.stringContaining('Hi Edu, welcome to Expenses Tracker.')
     });
-    expect(whatsapp.messages[0].body).toContain('20.000 classes at Bsoul');
-    expect(whatsapp.messages[0].body).toContain('How much did I spend this month?');
+    expect(messaging.messages[0].body).toContain('20.000 classes at Bsoul');
+    expect(messaging.messages[0].body).toContain('How much did I spend this month?');
   });
 });
 
@@ -135,7 +135,7 @@ function fixedClock() {
   return { now: () => new Date('2026-05-10T00:00:00.000Z') };
 }
 
-class CapturingWhatsAppProvider implements WhatsAppProvider {
+class CapturingMessagingProvider implements MessagingProvider {
   readonly messages: Array<{ toPhoneNumber: string; body: string }> = [];
 
   async sendText(toPhoneNumber: string, body: string) {

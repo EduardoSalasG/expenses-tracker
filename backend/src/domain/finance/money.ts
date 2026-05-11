@@ -1,4 +1,4 @@
-import type { CurrencyCode } from '../types.js';
+import type { CurrencyCode } from './types.js';
 
 export interface Money {
   amount: number;

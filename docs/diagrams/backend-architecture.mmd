@@ -15,12 +15,15 @@ flowchart LR
 
   subgraph Domain["Domain"]
     Finance["finance/*<br/>Money, payment methods"]
-    Types["types.ts<br/>Core entities/types"]
+    Categories["categories/*<br/>Category tree"]
+    Users["users/*<br/>User identity"]
+    Messaging["messaging/*<br/>Inbound text, drafts"]
+    Types["types.ts<br/>Compatibility exports"]
   end
 
   subgraph Infrastructure["Infrastructure"]
     Repositories["repositories/*<br/>PostgreSQL / in-memory"]
-    Providers["adapters<br/>WhatsApp, JWT, LLM"]
+    Providers["adapters<br/>Messaging, JWT, LLM"]
     Container["container.ts<br/>Dependency wiring"]
   end
 

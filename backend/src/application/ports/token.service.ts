@@ -1,4 +1,4 @@
-import type { User } from '../../domain/types.js';
+import type { User } from '../../domain/index.js';
 
 export interface TokenService {
   signAccessToken(user: User): string;

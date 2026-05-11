@@ -65,11 +65,11 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 ## Architecture
 
-- `domain`: framework-free business types and value objects, grouped by finance, users, and tenancy.
+- `domain`: framework-free business types and value objects, grouped by auth, categories, finance, messaging, users, and tenancy.
 - `application/ports`: repository, provider, and service contracts used by use cases.
-- `application/use-cases`: application services grouped by workflow: auth, finance, profile, WhatsApp processing, and report delivery.
-- `application/services`: reusable application/domain-policy helpers such as reporting calculations and WhatsApp draft handling.
-- `infrastructure`: PostgreSQL, WhatsApp, token, OTP, LLM interpreter, and logging adapters.
+- `application/use-cases`: application services grouped by workflow: auth, finance, profile, provider-neutral inbound messaging, and report delivery.
+- `application/services`: reusable application/domain-policy helpers such as reporting calculations and messaging draft handling.
+- `infrastructure`: PostgreSQL, messaging adapters, token, OTP, LLM interpreter, and logging adapters.
 - `interfaces/http/routes`: Express route registration by feature.
 - `interfaces/http/controllers`: request parsing and use-case invocation.
 - `interfaces/http/middleware`: auth, Meta signature verification, webhook logging, and error handling.
@@ -77,6 +77,8 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 - `interfaces/http/openapi.ts`: Swagger/OpenAPI contract.
 
 `interfaces/http/app.ts` is intentionally only the Express composition root for middleware, Swagger, health checks, and route registration.
+
+Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp-specific webhook parsing and Meta signature verification stay in the HTTP adapter. Future providers such as Telegram should translate their inbound events into the same `processInboundFinanceMessage` use case and implement the same outbound messaging provider contract.
 
 ## Auth API
 

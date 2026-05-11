@@ -6,7 +6,7 @@ The system follows clean architecture and hexagonal boundaries.
 
 - Domain: entities, domain types, and value objects with no framework dependencies.
 - Application: use cases, application services, and ports.
-- Infrastructure: PostgreSQL repositories, WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
+- Infrastructure: PostgreSQL repositories, messaging providers such as WhatsApp Cloud API, JWT, OTP storage, provider-agnostic message interpretation, logging.
 - Interfaces: Express route modules, controllers, middleware, Zod schemas, Swagger/OpenAPI.
 
 Dependencies point inward. Controllers call use cases. Use cases depend on ports. Infrastructure implements ports.
@@ -18,9 +18,13 @@ The backend is organized by clean architecture boundaries:
 ```text
 backend/src
   domain/
+    auth/
+    categories/
     finance/
       money.ts
       payment-method.ts
+      types.ts
+    messaging/
     users/
     tenancy/
     types.ts
@@ -31,7 +35,7 @@ backend/src
       *.service.ts
     services/
       reporting.service.ts
-      whatsapp-draft.service.ts
+      messaging-draft.service.ts
     use-cases/
       auth.use-cases.ts
       finance.use-cases.ts
@@ -62,6 +66,10 @@ backend/src
 ## Tenancy
 
 MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, and authenticated requests use the tenant id from the JWT.
+
+## Messaging Providers
+
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook parsing/signature verification. A future Telegram adapter should translate Telegram updates into the same inbound finance-message use case and implement the same outbound `MessagingProvider` contract.
 
 ## WhatsApp Sender Access
 

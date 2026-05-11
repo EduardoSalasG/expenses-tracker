@@ -7,7 +7,7 @@ import {
   InMemoryIncomeRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
-import type { WhatsAppProvider } from './ports.js';
+import type { MessagingProvider } from './ports.js';
 
 describe('SendDueReportsUseCase', () => {
   it('sends reports only to users with the selected frequency', async () => {
@@ -16,7 +16,7 @@ describe('SendDueReportsUseCase', () => {
     const expenses = new InMemoryExpenseRepository();
     const incomes = new InMemoryIncomeRepository();
     const budgets = new InMemoryBudgetRepository();
-    const whatsapp = new CapturingWhatsAppProvider();
+    const messaging = new CapturingMessagingProvider();
     const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
@@ -51,14 +51,14 @@ describe('SendDueReportsUseCase', () => {
     const useCase = new SendDueReportsUseCase(
       users,
       finance,
-      whatsapp,
+      messaging,
       { now: () => new Date('2026-05-20T00:00:00.000Z') }
     );
 
     const result = await useCase.execute('monthly');
 
     expect(result.sent).toBe(1);
-    expect(whatsapp.messages).toEqual([
+    expect(messaging.messages).toEqual([
       {
         toPhoneNumber: '+56982439041',
         body: [
@@ -73,7 +73,7 @@ describe('SendDueReportsUseCase', () => {
   });
 });
 
-class CapturingWhatsAppProvider implements WhatsAppProvider {
+class CapturingMessagingProvider implements MessagingProvider {
   readonly messages: Array<{ toPhoneNumber: string; body: string }> = [];
 
   async sendText(toPhoneNumber: string, body: string) {

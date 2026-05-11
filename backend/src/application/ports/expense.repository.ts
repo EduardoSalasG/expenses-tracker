@@ -1,4 +1,4 @@
-import type { Expense, TenantId } from '../../domain/types.js';
+import type { Expense, TenantId } from '../../domain/index.js';
 
 export interface ExpenseRepository {
   create(input: Omit<Expense, 'id'>): Promise<Expense>;

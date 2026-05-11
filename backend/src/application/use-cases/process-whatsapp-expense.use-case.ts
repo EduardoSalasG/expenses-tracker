@@ -1,15 +1,15 @@
-import type { Category, User } from '../../domain/types.js';
+import type { Category, User } from '../../domain/index.js';
 import type {
   BudgetRepository,
   CategoryRepository,
   Clock,
   ExpenseRepository,
   IncomeRepository,
+  MessagingMessageAuditRepository,
+  MessagingPendingDraftRepository,
+  MessagingProvider,
   MessageInterpreterPort,
-  WhatsAppMessageAuditRepository,
-  WhatsAppPendingDraftRepository,
-  UserRepository,
-  WhatsAppProvider
+  UserRepository
 } from '../ports.js';
 import { categoryByInterpretedName, inferCategoryFromText, interpretedMessageSchema, isCompleteExpense, isCompleteIncome, type InterpretedMessage } from '../message-interpreter.js';
 import {
@@ -18,7 +18,7 @@ import {
   isCancelMessage,
   mergePendingDraft,
   missingFieldsFor
-} from '../services/whatsapp-draft.service.js';
+} from '../services/messaging-draft.service.js';
 import {
   filterReportByCategory,
   formatBudgetStatusMessage,
@@ -29,16 +29,16 @@ import {
   totalsByCurrency
 } from '../services/reporting.service.js';
 
-export class ProcessWhatsAppExpenseUseCase {
+export class ProcessInboundFinanceMessageUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly categories: CategoryRepository,
     private readonly expenses: ExpenseRepository,
     private readonly incomes: IncomeRepository,
     private readonly budgets: BudgetRepository,
-    private readonly messageAudits: WhatsAppMessageAuditRepository,
-    private readonly pendingDrafts: WhatsAppPendingDraftRepository,
-    private readonly whatsapp: WhatsAppProvider,
+    private readonly messageAudits: MessagingMessageAuditRepository,
+    private readonly pendingDrafts: MessagingPendingDraftRepository,
+    private readonly messaging: MessagingProvider,
     private readonly interpreter: MessageInterpreterPort,
     private readonly clock: Clock
   ) {}
@@ -312,9 +312,11 @@ export class ProcessWhatsAppExpenseUseCase {
   }
 
   private reply(user: User, toPhoneNumber: string, body: string) {
-    return this.whatsapp.sendText(toPhoneNumber, `${user.preferredName}, ${body}`);
+    return this.messaging.sendText(toPhoneNumber, `${user.preferredName}, ${body}`);
   }
 }
+
+export { ProcessInboundFinanceMessageUseCase as ProcessWhatsAppExpenseUseCase };
 
 function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
   const category = categories.find((item) => item.id === categoryId);

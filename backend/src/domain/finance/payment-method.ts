@@ -1,4 +1,4 @@
-import type { CardType, PaymentMethod, PaymentMethodKind } from '../types.js';
+import type { CardType, PaymentMethod, PaymentMethodKind } from './types.js';
 
 export function createCashPaymentMethod(): PaymentMethod {
   return { kind: 'cash' };

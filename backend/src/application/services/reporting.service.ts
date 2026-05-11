@@ -1,4 +1,4 @@
-import type { Category, Expense, MonthlyBudget, ReportFrequency } from '../../domain/types.js';
+import type { Category, Expense, MonthlyBudget, ReportFrequency } from '../../domain/index.js';
 
 export function totalsByCurrency(items: Array<{ amount: number; currency: string }>) {
   return items.reduce<Record<string, number>>((totals, item) => {

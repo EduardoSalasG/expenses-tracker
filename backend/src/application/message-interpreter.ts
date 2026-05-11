@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Category, PaymentMethod, ReportFrequency, User } from '../domain/types.js';
+import type { Category, PaymentMethod, ReportFrequency, User } from '../domain/index.js';
 import { parseExpenseMessage } from './expense-parser.js';
 
 export const interpretedMessageSchema = z.discriminatedUnion('intent', [

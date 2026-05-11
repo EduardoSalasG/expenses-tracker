@@ -1,5 +1,5 @@
-import type { ReportFrequency } from '../../domain/types.js';
-import type { Clock, UserRepository, WhatsAppProvider } from '../ports.js';
+import type { ReportFrequency } from '../../domain/index.js';
+import type { Clock, MessagingProvider, UserRepository } from '../ports.js';
 import { formatReportMessage, reportPeriod } from '../services/reporting.service.js';
 import type { FinanceUseCases } from './finance.use-cases.js';
 
@@ -7,7 +7,7 @@ export class SendDueReportsUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly finance: FinanceUseCases,
-    private readonly whatsapp: WhatsAppProvider,
+    private readonly messaging: MessagingProvider,
     private readonly clock: Clock
   ) {}
 
@@ -19,7 +19,7 @@ export class SendDueReportsUseCase {
     for (const user of users) {
       const report = await this.finance.report(user.tenantId, period.from, period.to);
       const body = `${user.preferredName}, ${formatReportMessage(frequency, period.label, report)}`;
-      await this.whatsapp.sendText(user.phoneNumber, body);
+      await this.messaging.sendText(user.phoneNumber, body);
       results.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId });
     }
 

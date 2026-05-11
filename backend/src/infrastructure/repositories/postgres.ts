@@ -1,6 +1,6 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, OtpRepository, UserRepository, WhatsAppMessageAuditRepository, WhatsAppPendingDraftRepository } from '../../application/ports.js';
-import type { Category, Expense, Income, MonthlyBudget, ReportFrequency, User, WhatsAppPendingDraft } from '../../domain/types.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, UserRepository } from '../../application/ports.js';
+import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 export class PostgresUserRepository implements UserRepository {
@@ -272,10 +272,10 @@ export class PostgresBudgetRepository implements BudgetRepository {
   }
 }
 
-export class PostgresWhatsAppMessageAuditRepository implements WhatsAppMessageAuditRepository {
+export class PostgresMessagingMessageAuditRepository implements MessagingMessageAuditRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async reserve(input: Parameters<WhatsAppMessageAuditRepository['reserve']>[0]) {
+  async reserve(input: Parameters<MessagingMessageAuditRepository['reserve']>[0]) {
     const result = await this.pool.query(
       `insert into whatsapp_messages (provider_message_id, from_phone_number, message, parsing_status)
        values ($1, $2, $3, 'processing')
@@ -289,7 +289,7 @@ export class PostgresWhatsAppMessageAuditRepository implements WhatsAppMessageAu
 
   async updateByProviderMessageId(
     providerMessageId: string,
-    input: Parameters<WhatsAppMessageAuditRepository['updateByProviderMessageId']>[1]
+    input: Parameters<MessagingMessageAuditRepository['updateByProviderMessageId']>[1]
   ) {
     await this.pool.query(
       `update whatsapp_messages
@@ -308,7 +308,7 @@ export class PostgresWhatsAppMessageAuditRepository implements WhatsAppMessageAu
     );
   }
 
-  async create(input: Parameters<WhatsAppMessageAuditRepository['create']>[0]) {
+  async create(input: Parameters<MessagingMessageAuditRepository['create']>[0]) {
     await this.pool.query(
       `insert into whatsapp_messages (provider_message_id, tenant_id, user_id, from_phone_number, message, parsing_status, expense_id)
        values ($1, $2, $3, $4, $5, $6, $7)`,
@@ -325,7 +325,7 @@ export class PostgresWhatsAppMessageAuditRepository implements WhatsAppMessageAu
   }
 }
 
-export class PostgresWhatsAppPendingDraftRepository implements WhatsAppPendingDraftRepository {
+export class PostgresMessagingPendingDraftRepository implements MessagingPendingDraftRepository {
   constructor(private readonly pool: DatabasePool) {}
 
   async findActive(tenantId: string, userId: string, now: Date) {
@@ -340,7 +340,7 @@ export class PostgresWhatsAppPendingDraftRepository implements WhatsAppPendingDr
     return result.rows[0] ? mapPendingDraft(result.rows[0]) : undefined;
   }
 
-  async upsert(input: Omit<WhatsAppPendingDraft, 'id'>) {
+  async upsert(input: Omit<ConversationPendingDraft, 'id'>) {
     const result = await this.pool.query(
       `insert into whatsapp_pending_drafts (
         tenant_id, user_id, original_message, draft_json, missing_fields, expires_at
@@ -445,7 +445,7 @@ function mapBudget(row: QueryResultRow): MonthlyBudget {
   };
 }
 
-function mapPendingDraft(row: QueryResultRow): WhatsAppPendingDraft {
+function mapPendingDraft(row: QueryResultRow): ConversationPendingDraft {
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -456,3 +456,6 @@ function mapPendingDraft(row: QueryResultRow): WhatsAppPendingDraft {
     expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at
   };
 }
+
+export { PostgresMessagingMessageAuditRepository as PostgresWhatsAppMessageAuditRepository };
+export { PostgresMessagingPendingDraftRepository as PostgresWhatsAppPendingDraftRepository };

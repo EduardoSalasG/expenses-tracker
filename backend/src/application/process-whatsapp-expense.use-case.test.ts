@@ -1,29 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { ProcessWhatsAppExpenseUseCase } from './use-cases.js';
+import { ProcessInboundFinanceMessageUseCase } from './use-cases.js';
 import {
   InMemoryCategoryRepository,
   InMemoryBudgetRepository,
   InMemoryExpenseRepository,
   InMemoryIncomeRepository,
   InMemoryUserRepository,
-  InMemoryWhatsAppMessageAuditRepository,
-  InMemoryWhatsAppPendingDraftRepository
+  InMemoryMessagingMessageAuditRepository,
+  InMemoryMessagingPendingDraftRepository
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter } from './message-interpreter.js';
-import type { MessageInterpreterPort, WhatsAppProvider } from './ports.js';
+import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
 
-describe('ProcessWhatsAppExpenseUseCase', () => {
+describe('ProcessInboundFinanceMessageUseCase', () => {
   it('audits and ignores unregistered senders', async () => {
-    const audits = new InMemoryWhatsAppMessageAuditRepository();
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const audits = new InMemoryMessagingMessageAuditRepository();
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       new InMemoryUserRepository(),
       new InMemoryCategoryRepository(),
       new InMemoryExpenseRepository(),
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
       audits,
-      new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -49,7 +49,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
-    const audits = new InMemoryWhatsAppMessageAuditRepository();
+    const audits = new InMemoryMessagingMessageAuditRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Test',
@@ -59,15 +59,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
       audits,
-      new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -93,7 +93,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
     const incomes = new InMemoryIncomeRepository();
-    const audits = new InMemoryWhatsAppMessageAuditRepository();
+    const audits = new InMemoryMessagingMessageAuditRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Test',
@@ -103,15 +103,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       expenses,
       incomes,
       new InMemoryBudgetRepository(),
       audits,
-      new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -140,16 +140,16 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const whatsapp = new CapturingWhatsAppProvider();
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const messaging = new CapturingMessagingProvider();
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
-      new InMemoryWhatsAppMessageAuditRepository(),
-      new InMemoryWhatsAppPendingDraftRepository(),
-      whatsapp,
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -167,7 +167,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const groceries = tenantCategories.find((category) => category.name === 'Groceries' && category.parentId === food?.id);
     expect(expense.categoryId).toBe(food?.id);
     expect(expense.subcategoryId).toBe(groceries?.id);
-    expect(whatsapp.messages).toEqual([{
+    expect(messaging.messages).toEqual([{
       toPhoneNumber: '+56982439041',
       body: [
         'Test, Gasto guardado.',
@@ -191,16 +191,16 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const whatsapp = new CapturingWhatsAppProvider();
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const messaging = new CapturingMessagingProvider();
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
-      new InMemoryWhatsAppMessageAuditRepository(),
-      new InMemoryWhatsAppPendingDraftRepository(),
-      whatsapp,
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -218,9 +218,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const dance = tenantCategories.find((category) => category.name === 'Dance' && category.parentId === education?.id);
     expect(expense.categoryId).toBe(education?.id);
     expect(expense.subcategoryId).toBe(dance?.id);
-    expect(whatsapp.messages[0].body).toContain('Test, Gasto guardado.');
-    expect(whatsapp.messages[0].body).toContain('Monto: $20.000.');
-    expect(whatsapp.messages[0].body).toContain('Categoría: Education > Dance.');
+    expect(messaging.messages[0].body).toContain('Test, Gasto guardado.');
+    expect(messaging.messages[0].body).toContain('Monto: $20.000.');
+    expect(messaging.messages[0].body).toContain('Categoría: Education > Dance.');
   });
 
   it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
@@ -236,15 +236,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       new InMemoryExpenseRepository(),
       incomes,
       new InMemoryBudgetRepository(),
-      new InMemoryWhatsAppMessageAuditRepository(),
-      new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
       new FixedIncomeInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -263,7 +263,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
-    const drafts = new InMemoryWhatsAppPendingDraftRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Test',
@@ -273,15 +273,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const useCase = new ProcessWhatsAppExpenseUseCase(
+    const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
-      new InMemoryWhatsAppMessageAuditRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
       drafts,
-      new NoopWhatsAppProvider(),
+      new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -307,13 +307,13 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
   });
 });
 
-class NoopWhatsAppProvider implements WhatsAppProvider {
+class NoopMessagingProvider implements MessagingProvider {
   async sendText() {
     return { skipped: true };
   }
 }
 
-class CapturingWhatsAppProvider implements WhatsAppProvider {
+class CapturingMessagingProvider implements MessagingProvider {
   readonly messages: Array<{ toPhoneNumber: string; body: string }> = [];
 
   async sendText(toPhoneNumber: string, body: string) {

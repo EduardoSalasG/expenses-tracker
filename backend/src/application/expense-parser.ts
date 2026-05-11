@@ -1,4 +1,4 @@
-import type { PaymentMethod } from '../domain/types.js';
+import type { PaymentMethod } from '../domain/index.js';
 
 export interface ParsedExpenseMessage {
   status: 'ready' | 'needs_confirmation';

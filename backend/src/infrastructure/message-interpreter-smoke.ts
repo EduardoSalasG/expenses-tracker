@@ -1,7 +1,7 @@
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
-import type { Category, User } from '../domain/types.js';
+import type { Category, User } from '../domain/index.js';
 
 const config = loadConfig();
 const logger = createLogger();
