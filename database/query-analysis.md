@@ -24,15 +24,15 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
   - Reason: this is a straightforward read for the history screen; direct parameterized SQL keeps it visible and easy to tune.
   - Indexes: `expenses_tenant_date_idx` for date-ordered tenant history and `expenses_tenant_category_date_idx` when category filtering is selective.
 
-- WhatsApp message idempotency: direct SQL reservation.
-  - Query shape: insert `provider_message_id` into `whatsapp_messages` before expense creation.
-  - Reason: a unique partial index lets PostgreSQL atomically reject Meta webhook retries before duplicate expenses are created.
-  - Index: `whatsapp_messages_provider_message_id_uidx`.
+- Messaging message idempotency: direct SQL reservation.
+  - Query shape: insert `channel` and `provider_message_id` into `messaging_messages` before expense creation.
+  - Reason: a unique partial index lets PostgreSQL atomically reject provider webhook retries before duplicate expenses are created.
+  - Index: `messaging_messages_provider_message_id_uidx` on `(channel, provider_message_id)`.
 
-- WhatsApp pending drafts: direct SQL upsert/read/delete.
-  - Query shape: one active `whatsapp_pending_drafts` row by `tenant_id`, `user_id`, and `expires_at`.
+- Messaging pending drafts: direct SQL upsert/read/delete.
+  - Query shape: one active `messaging_pending_drafts` row by `tenant_id`, `user_id`, `channel`, and `expires_at`.
   - Reason: the draft is a simple per-user conversational state record; direct SQL keeps expiration and overwrite behavior visible.
-  - Index: `whatsapp_pending_drafts_active_idx` plus unique `(tenant_id, user_id)`.
+  - Index: `messaging_pending_drafts_active_idx` plus unique `(tenant_id, user_id, channel)`.
 
 - Reports: application orchestrates period reads for MVP; `report_totals_by_currency` is available for database-side aggregation.
   - Query shape: tenant and date range over expenses/incomes.

@@ -77,11 +77,11 @@ Development and test environments must use Meta's verified recipient/test number
 
 ## WhatsApp Idempotency
 
-Inbound WhatsApp messages reserve Meta's `messages[].id` in `whatsapp_messages.provider_message_id` before parsing or creating an expense. The database unique partial index rejects repeated webhook deliveries for the same provider id, and the use case returns `duplicate_ignored` without creating another expense.
+Inbound provider messages reserve their external message id in `messaging_messages.provider_message_id` before parsing or creating an expense. The database unique partial index is scoped by `channel` and rejects repeated webhook deliveries for the same provider id, and the use case returns `duplicate_ignored` without creating another expense.
 
 ## WhatsApp Clarifications
 
-When a registered user sends an incomplete finance message, the backend stores one active `whatsapp_pending_drafts` row for that tenant/user. The next WhatsApp reply can add missing fields such as payment method, confirm the draft, or cancel it. Drafts expire after 30 minutes.
+When a registered user sends an incomplete finance message, the backend stores one active `messaging_pending_drafts` row for that tenant/user/channel. The next provider reply can add missing fields such as payment method, confirm the draft, or cancel it. Drafts expire after 30 minutes.
 
 ## Currency
 

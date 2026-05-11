@@ -7,7 +7,7 @@ sequenceDiagram
   User->>WhatsApp: Send finance message or question
   WhatsApp->>WhatsApp: Allow only registered/test-approved senders
   WhatsApp->>API: POST /webhooks/whatsapp
-  API->>DB: Reserve WhatsApp message id
+  API->>DB: Reserve provider message id
   alt message id already processed
     API-->>WhatsApp: 200 OK without duplicate expense
   else new message id

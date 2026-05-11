@@ -1,4 +1,4 @@
-import type { Category, User } from '../../domain/index.js';
+import type { Category, InboundTextMessage, User } from '../../domain/index.js';
 import type {
   BudgetRepository,
   CategoryRepository,
@@ -43,10 +43,11 @@ export class ProcessInboundFinanceMessageUseCase {
     private readonly clock: Clock
   ) {}
 
-  async execute(input: { providerMessageId?: string; fromPhoneNumber: string; message: string }) {
+  async execute(input: InboundTextMessage) {
     const reserved = input.providerMessageId
       ? await this.messageAudits.reserve({
         providerMessageId: input.providerMessageId,
+        channel: input.channel,
         fromPhoneNumber: input.fromPhoneNumber,
         message: input.message
       })
@@ -63,7 +64,7 @@ export class ProcessInboundFinanceMessageUseCase {
     }
 
     const categories = await this.categories.listByTenant(user.tenantId);
-    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now());
+    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft) {
       return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
     }
@@ -91,14 +92,14 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private async processPendingDraft(
-    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     user: User,
     categories: Category[],
     originalMessage: string,
     draft: unknown
   ) {
     if (isCancelMessage(input.message)) {
-      await this.pendingDrafts.clear(user.tenantId, user.id);
+      await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
@@ -133,7 +134,7 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private async trySaveInterpreted(
-    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     user: User,
     categories: Category[],
     interpreted: InterpretedMessage,
@@ -155,7 +156,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
-      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
+      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
       await this.reply(user, input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
       return { status: 'report_sent' as const, report };
     }
@@ -173,7 +174,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'saved'
       });
-      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
+      if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
       await this.reply(user, input.fromPhoneNumber, budgetMessage);
       return { status: 'budget_status_sent' as const };
     }
@@ -182,7 +183,7 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private async trySaveIncome(
-    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     user: User,
     interpreted: InterpretedMessage,
     options: { clearDraft?: boolean }
@@ -204,13 +205,13 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'saved'
     });
-    if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
+    if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
     await this.reply(user, input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
     return { status: 'income_saved' as const, income };
   }
 
   private async trySaveExpense(
-    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     user: User,
     categories: Category[],
     interpreted: InterpretedMessage,
@@ -250,7 +251,7 @@ export class ProcessInboundFinanceMessageUseCase {
       parsingStatus: 'saved',
       expenseId: expense.id
     });
-    if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
+    if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
     await this.reply(user, input.fromPhoneNumber, [
       'Gasto guardado.',
       `Monto: ${formatMoney(expense.currency, expense.amount)}.`,
@@ -261,7 +262,7 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private storePendingDraft(
-    input: { fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     user: User,
     interpreted: InterpretedMessage
   ) {
@@ -271,7 +272,8 @@ export class ProcessInboundFinanceMessageUseCase {
       originalMessage: input.message,
       draft: interpreted,
       missingFields: missingFieldsFor(interpreted),
-      expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString()
+      expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString(),
+      channel: input.channel
     });
   }
 
@@ -292,7 +294,7 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private auditMessage(
-    input: { providerMessageId?: string; fromPhoneNumber: string; message: string },
+    input: InboundTextMessage,
     audit: {
       tenantId?: string;
       userId?: string;
@@ -301,11 +303,15 @@ export class ProcessInboundFinanceMessageUseCase {
     }
   ) {
     if (input.providerMessageId) {
-      return this.messageAudits.updateByProviderMessageId(input.providerMessageId, audit);
+      return this.messageAudits.updateByProviderMessageId(input.providerMessageId, {
+        ...audit,
+        channel: input.channel
+      });
     }
 
     return this.messageAudits.create({
       ...audit,
+      channel: input.channel,
       fromPhoneNumber: input.fromPhoneNumber,
       message: input.message
     });

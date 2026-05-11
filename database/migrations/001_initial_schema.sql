@@ -93,9 +93,10 @@ create table monthly_budgets (
   unique (tenant_id, budget_month, category_id, subcategory_key)
 );
 
-create table whatsapp_messages (
+create table messaging_messages (
   id uuid primary key default gen_random_uuid(),
   provider_message_id text,
+  channel text not null default 'whatsapp' check (channel in ('whatsapp', 'telegram')),
   tenant_id uuid references tenants(id) on delete set null,
   user_id uuid references users(id) on delete set null,
   from_phone_number text not null,
@@ -105,17 +106,18 @@ create table whatsapp_messages (
   created_at timestamptz not null default now()
 );
 
-create table whatsapp_pending_drafts (
+create table messaging_pending_drafts (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references tenants(id) on delete cascade,
   user_id uuid not null references users(id) on delete cascade,
+  channel text not null default 'whatsapp' check (channel in ('whatsapp', 'telegram')),
   original_message text not null,
   draft_json jsonb not null,
   missing_fields text[] not null default array[]::text[],
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (tenant_id, user_id)
+  unique (tenant_id, user_id, channel)
 );
 
 create index users_phone_number_idx on users (phone_number);
@@ -125,9 +127,9 @@ create index expenses_tenant_date_idx on expenses (tenant_id, expense_date desc)
 create index expenses_tenant_category_date_idx on expenses (tenant_id, category_id, subcategory_id, expense_date desc);
 create index incomes_tenant_date_idx on incomes (tenant_id, income_date desc);
 create index monthly_budgets_tenant_month_idx on monthly_budgets (tenant_id, budget_month);
-create index whatsapp_messages_phone_created_idx on whatsapp_messages (from_phone_number, created_at desc);
-create unique index whatsapp_messages_provider_message_id_uidx on whatsapp_messages (provider_message_id) where provider_message_id is not null;
-create index whatsapp_pending_drafts_active_idx on whatsapp_pending_drafts (tenant_id, user_id, expires_at desc);
+create index messaging_messages_phone_created_idx on messaging_messages (from_phone_number, created_at desc);
+create unique index messaging_messages_provider_message_id_uidx on messaging_messages (channel, provider_message_id) where provider_message_id is not null;
+create index messaging_pending_drafts_active_idx on messaging_pending_drafts (tenant_id, user_id, expires_at desc);
 
 create or replace function upsert_user_by_phone(
   p_phone_number text,

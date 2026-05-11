@@ -13,6 +13,7 @@
     "dev:frontend": "pnpm --filter @expenses-tracker/frontend start",
     "dev:stop-app-containers": "docker compose stop backend frontend",
     "db:migrate": "pnpm --filter @expenses-tracker/backend db:migrate",
+    "db:migrate:messaging": "pnpm --filter @expenses-tracker/backend db:migrate:messaging",
     "db:seed": "pnpm --filter @expenses-tracker/backend db:seed",
     "reports:docker:daily": "docker compose run --rm -e REPORT_FREQUENCY=daily report-worker",
     "reports:docker:weekly": "docker compose run --rm -e REPORT_FREQUENCY=weekly report-worker",

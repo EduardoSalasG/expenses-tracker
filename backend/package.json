@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "db:migrate": "tsx src/infrastructure/db-runner.ts migrate",
+    "db:migrate:messaging": "tsx src/infrastructure/db-runner.ts migrate:file database/migrations/008_rename_whatsapp_messaging_tables.sql",
     "db:seed": "tsx src/infrastructure/db-runner.ts seed",
     "db:register-test-user": "tsx src/infrastructure/register-test-user.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",

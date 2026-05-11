@@ -277,11 +277,11 @@ export class PostgresMessagingMessageAuditRepository implements MessagingMessage
 
   async reserve(input: Parameters<MessagingMessageAuditRepository['reserve']>[0]) {
     const result = await this.pool.query(
-      `insert into whatsapp_messages (provider_message_id, from_phone_number, message, parsing_status)
-       values ($1, $2, $3, 'processing')
-       on conflict (provider_message_id) where provider_message_id is not null do nothing
+      `insert into messaging_messages (provider_message_id, channel, from_phone_number, message, parsing_status)
+       values ($1, $2, $3, $4, 'processing')
+       on conflict (channel, provider_message_id) where provider_message_id is not null do nothing
        returning id`,
-      [input.providerMessageId, input.fromPhoneNumber, input.message]
+      [input.providerMessageId, input.channel ?? 'whatsapp', input.fromPhoneNumber, input.message]
     );
 
     return result.rowCount === 1;
@@ -292,28 +292,30 @@ export class PostgresMessagingMessageAuditRepository implements MessagingMessage
     input: Parameters<MessagingMessageAuditRepository['updateByProviderMessageId']>[1]
   ) {
     await this.pool.query(
-      `update whatsapp_messages
+      `update messaging_messages
        set tenant_id = $2,
            user_id = $3,
            parsing_status = $4,
            expense_id = $5
-       where provider_message_id = $1`,
+       where provider_message_id = $1 and channel = $6`,
       [
         providerMessageId,
         input.tenantId ?? null,
         input.userId ?? null,
         input.parsingStatus,
-        input.expenseId ?? null
+        input.expenseId ?? null,
+        input.channel ?? 'whatsapp'
       ]
     );
   }
 
   async create(input: Parameters<MessagingMessageAuditRepository['create']>[0]) {
     await this.pool.query(
-      `insert into whatsapp_messages (provider_message_id, tenant_id, user_id, from_phone_number, message, parsing_status, expense_id)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+      `insert into messaging_messages (provider_message_id, channel, tenant_id, user_id, from_phone_number, message, parsing_status, expense_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         input.providerMessageId ?? null,
+        input.channel ?? 'whatsapp',
         input.tenantId ?? null,
         input.userId ?? null,
         input.fromPhoneNumber,
@@ -328,25 +330,25 @@ export class PostgresMessagingMessageAuditRepository implements MessagingMessage
 export class PostgresMessagingPendingDraftRepository implements MessagingPendingDraftRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async findActive(tenantId: string, userId: string, now: Date) {
+  async findActive(tenantId: string, userId: string, now: Date, channel = 'whatsapp') {
     const result = await this.pool.query(
       `select *
-       from whatsapp_pending_drafts
-       where tenant_id = $1 and user_id = $2 and expires_at >= $3
+       from messaging_pending_drafts
+       where tenant_id = $1 and user_id = $2 and expires_at >= $3 and channel = $4
        order by updated_at desc
        limit 1`,
-      [tenantId, userId, now]
+      [tenantId, userId, now, channel]
     );
     return result.rows[0] ? mapPendingDraft(result.rows[0]) : undefined;
   }
 
   async upsert(input: Omit<ConversationPendingDraft, 'id'>) {
     const result = await this.pool.query(
-      `insert into whatsapp_pending_drafts (
-        tenant_id, user_id, original_message, draft_json, missing_fields, expires_at
+      `insert into messaging_pending_drafts (
+        tenant_id, user_id, channel, original_message, draft_json, missing_fields, expires_at
       )
-      values ($1, $2, $3, $4, $5, $6)
-      on conflict (tenant_id, user_id)
+      values ($1, $2, $3, $4, $5, $6, $7)
+      on conflict (tenant_id, user_id, channel)
       do update set
         original_message = excluded.original_message,
         draft_json = excluded.draft_json,
@@ -357,6 +359,7 @@ export class PostgresMessagingPendingDraftRepository implements MessagingPending
       [
         input.tenantId,
         input.userId,
+        input.channel ?? 'whatsapp',
         input.originalMessage,
         JSON.stringify(input.draft),
         input.missingFields,
@@ -366,10 +369,10 @@ export class PostgresMessagingPendingDraftRepository implements MessagingPending
     return mapPendingDraft(result.rows[0]);
   }
 
-  async clear(tenantId: string, userId: string) {
+  async clear(tenantId: string, userId: string, channel = 'whatsapp') {
     await this.pool.query(
-      `delete from whatsapp_pending_drafts where tenant_id = $1 and user_id = $2`,
-      [tenantId, userId]
+      `delete from messaging_pending_drafts where tenant_id = $1 and user_id = $2 and channel = $3`,
+      [tenantId, userId, channel]
     );
   }
 }
@@ -453,7 +456,8 @@ function mapPendingDraft(row: QueryResultRow): ConversationPendingDraft {
     originalMessage: row.original_message,
     draft: row.draft_json,
     missingFields: row.missing_fields,
-    expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at
+    expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
+    channel: row.channel
   };
 }
 

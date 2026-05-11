@@ -7,12 +7,13 @@ PostgreSQL schema, seed data, functions, and query analysis notes.
 The database image is built from `database/Dockerfile`. On first container startup, PostgreSQL executes:
 
 - `10-001-initial-schema.sql`
-- `11-002-whatsapp-message-id-idempotency.sql`
+- `11-002-messaging-message-id-idempotency.sql`
 - `12-003-report-preferences-index.sql`
 - `13-004-transfer-payment-method.sql`
-- `14-005-whatsapp-pending-drafts.sql`
+- `14-005-messaging-pending-drafts.sql`
 - `15-006-split-user-names.sql`
 - `16-007-expand-default-categories.sql`
+- `17-008-rename-whatsapp-messaging-tables.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
@@ -24,7 +25,7 @@ The seed creates:
 
 Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.
 
-WhatsApp clarification state is stored in `whatsapp_pending_drafts` with one active draft per tenant/user.
+Provider clarification state is stored in `messaging_pending_drafts` with one active draft per tenant/user/channel.
 
 Users store `first_name`, `last_name`, and `preferred_name`. `preferred_name` is the display/communication name used by the app when addressing the user.
 
@@ -41,6 +42,12 @@ When PostgreSQL is already running, use the backend runner:
 ```bash
 pnpm db:migrate
 pnpm db:seed
+```
+
+For an existing local database created before the messaging table rename, run the targeted migration:
+
+```bash
+pnpm db:migrate:messaging
 ```
 
 The database is exposed at:

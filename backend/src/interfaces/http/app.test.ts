@@ -57,6 +57,7 @@ describe('extractWhatsAppMessages', () => {
 
     expect(messages).toEqual([{
       providerMessageId: 'wamid.real-wrapper',
+      channel: 'whatsapp',
       fromPhoneNumber: '+56982439041',
       message: 'CLP 12500 groceries cash'
     }]);
@@ -79,6 +80,7 @@ describe('extractWhatsAppMessages', () => {
 
     expect(messages).toEqual([{
       providerMessageId: 'ABGGFlA5Fpa',
+      channel: 'whatsapp',
       fromPhoneNumber: '+16315551181',
       message: 'this is a text message'
     }]);

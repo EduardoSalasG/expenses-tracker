@@ -207,11 +207,15 @@ export class InMemoryMessagingMessageAuditRepository implements MessagingMessage
   readonly messages: Array<Parameters<MessagingMessageAuditRepository['create']>[0]> = [];
 
   async reserve(input: Parameters<MessagingMessageAuditRepository['reserve']>[0]) {
-    if (this.messages.some((message) => message.providerMessageId === input.providerMessageId)) {
+    const channel = input.channel ?? 'whatsapp';
+    if (this.messages.some((message) =>
+      message.providerMessageId === input.providerMessageId &&
+      (message.channel ?? 'whatsapp') === channel
+    )) {
       return false;
     }
 
-    this.messages.push({ ...input, parsingStatus: 'processing' });
+    this.messages.push({ ...input, channel, parsingStatus: 'processing' });
     return true;
   }
 
@@ -219,7 +223,11 @@ export class InMemoryMessagingMessageAuditRepository implements MessagingMessage
     providerMessageId: string,
     input: Parameters<MessagingMessageAuditRepository['updateByProviderMessageId']>[1]
   ) {
-    const index = this.messages.findIndex((message) => message.providerMessageId === providerMessageId);
+    const channel = input.channel ?? 'whatsapp';
+    const index = this.messages.findIndex((message) =>
+      message.providerMessageId === providerMessageId &&
+      (message.channel ?? 'whatsapp') === channel
+    );
     if (index < 0) return;
     this.messages[index] = { ...this.messages[index], ...input };
   }
@@ -232,24 +240,34 @@ export class InMemoryMessagingMessageAuditRepository implements MessagingMessage
 export class InMemoryMessagingPendingDraftRepository implements MessagingPendingDraftRepository {
   readonly drafts: ConversationPendingDraft[] = [];
 
-  async findActive(tenantId: string, userId: string, now: Date) {
+  async findActive(tenantId: string, userId: string, now: Date, channel = 'whatsapp') {
     return this.drafts.find((draft) =>
       draft.tenantId === tenantId &&
       draft.userId === userId &&
+      (draft.channel ?? 'whatsapp') === channel &&
       draft.expiresAt >= now.toISOString()
     );
   }
 
   async upsert(input: Omit<ConversationPendingDraft, 'id'>) {
-    const index = this.drafts.findIndex((draft) => draft.tenantId === input.tenantId && draft.userId === input.userId);
+    const channel = input.channel ?? 'whatsapp';
+    const index = this.drafts.findIndex((draft) =>
+      draft.tenantId === input.tenantId &&
+      draft.userId === input.userId &&
+      (draft.channel ?? 'whatsapp') === channel
+    );
     const draft = { ...input, id: index >= 0 ? this.drafts[index].id : randomUUID() };
     if (index >= 0) this.drafts[index] = draft;
     else this.drafts.push(draft);
     return draft;
   }
 
-  async clear(tenantId: string, userId: string) {
-    const index = this.drafts.findIndex((draft) => draft.tenantId === tenantId && draft.userId === userId);
+  async clear(tenantId: string, userId: string, channel = 'whatsapp') {
+    const index = this.drafts.findIndex((draft) =>
+      draft.tenantId === tenantId &&
+      draft.userId === userId &&
+      (draft.channel ?? 'whatsapp') === channel
+    );
     if (index >= 0) this.drafts.splice(index, 1);
   }
 }

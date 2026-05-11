@@ -26,12 +26,32 @@ async function runSqlDirectory(directory: string) {
   }
 }
 
+async function runSqlFile(filePath: string) {
+  const config = loadConfig();
+  const pool = createPool(config);
+  const fullPath = path.resolve(process.cwd(), '..', filePath);
+
+  try {
+    const sql = await readFile(fullPath, 'utf8');
+    logger.info(`Running ${filePath}`);
+    await pool.query(sql);
+  } finally {
+    await pool.end();
+  }
+}
+
 const command = process.argv[2];
 
 if (command === 'migrate') {
   await runSqlDirectory('database/migrations');
 } else if (command === 'seed') {
   await runSqlDirectory('database/seeds');
+} else if (command === 'migrate:file') {
+  const filePath = process.argv[3];
+  if (!filePath) {
+    throw new Error('Expected file path for migrate:file.');
+  }
+  await runSqlFile(filePath);
 } else {
-  throw new Error('Expected command: migrate or seed.');
+  throw new Error('Expected command: migrate, migrate:file, or seed.');
 }

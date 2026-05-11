@@ -8,7 +8,7 @@ const limit = Number(process.argv[2] ?? 20);
 try {
   const result = await pool.query(
     `select created_at, provider_message_id, from_phone_number, parsing_status, message, expense_id
-     from whatsapp_messages
+     from messaging_messages
      order by created_at desc
      limit $1`,
     [limit]

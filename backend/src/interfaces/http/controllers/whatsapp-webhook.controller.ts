@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { InboundTextMessage } from '../../../domain/index.js';
 import type { AppContainer } from '../../../infrastructure/container.js';
 
 export class WhatsAppWebhookController {
@@ -27,7 +28,7 @@ export class WhatsAppWebhookController {
       this.container.logger.info('WhatsApp webhook delivery status received.', status);
     }
     for (const message of messages) {
-      const result = await this.container.useCases.processWhatsAppExpense.execute(message);
+      const result = await this.container.useCases.processInboundFinanceMessage.execute(message);
       this.container.logger.info('WhatsApp webhook message processed.', {
         providerMessageId: message.providerMessageId,
         fromPhoneNumber: message.fromPhoneNumber,
@@ -47,7 +48,7 @@ export interface WhatsAppDeliveryStatus {
   errors?: unknown[];
 }
 
-export function extractWhatsAppMessages(body: any): Array<{ providerMessageId?: string; fromPhoneNumber: string; message: string }> {
+export function extractWhatsAppMessages(body: any): InboundTextMessage[] {
   if (body?.field === 'messages' && body?.value?.messages) {
     return messagesFromValue(body.value);
   }
@@ -73,11 +74,12 @@ export function extractWhatsAppStatuses(body: any): WhatsAppDeliveryStatus[] {
   );
 }
 
-function messagesFromValue(value: any): Array<{ providerMessageId?: string; fromPhoneNumber: string; message: string }> {
+function messagesFromValue(value: any): InboundTextMessage[] {
   return (value?.messages ?? [])
     .filter((message: any) => message.type === 'text')
     .map((message: any) => ({
       providerMessageId: message.id,
+      channel: 'whatsapp',
       fromPhoneNumber: normalizeWhatsAppPhone(message.from),
       message: message.text.body
     }));
