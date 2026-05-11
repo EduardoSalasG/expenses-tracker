@@ -140,6 +140,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
+    const whatsapp = new CapturingWhatsAppProvider();
     const useCase = new ProcessWhatsAppExpenseUseCase(
       users,
       categories,
@@ -148,7 +149,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       new InMemoryBudgetRepository(),
       new InMemoryWhatsAppMessageAuditRepository(),
       new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      whatsapp,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -166,6 +167,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const groceries = tenantCategories.find((category) => category.name === 'Groceries' && category.parentId === food?.id);
     expect(expense.categoryId).toBe(food?.id);
     expect(expense.subcategoryId).toBe(groceries?.id);
+    expect(whatsapp.messages).toEqual([{
+      toPhoneNumber: '+56982439041',
+      body: [
+        'Test, Gasto guardado.',
+        'Monto: $20.000.',
+        'Concepto: groceries.',
+        'Categoría: Food > Groceries.'
+      ].join('\n')
+    }]);
   });
 
   it('assigns dance classes to education dance when available', async () => {
@@ -181,6 +191,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
+    const whatsapp = new CapturingWhatsAppProvider();
     const useCase = new ProcessWhatsAppExpenseUseCase(
       users,
       categories,
@@ -189,7 +200,7 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
       new InMemoryBudgetRepository(),
       new InMemoryWhatsAppMessageAuditRepository(),
       new InMemoryWhatsAppPendingDraftRepository(),
-      new NoopWhatsAppProvider(),
+      whatsapp,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') }
     );
@@ -207,6 +218,9 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     const dance = tenantCategories.find((category) => category.name === 'Dance' && category.parentId === education?.id);
     expect(expense.categoryId).toBe(education?.id);
     expect(expense.subcategoryId).toBe(dance?.id);
+    expect(whatsapp.messages[0].body).toContain('Test, Gasto guardado.');
+    expect(whatsapp.messages[0].body).toContain('Monto: $20.000.');
+    expect(whatsapp.messages[0].body).toContain('Categoría: Education > Dance.');
   });
 
   it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
@@ -296,6 +310,15 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
 class NoopWhatsAppProvider implements WhatsAppProvider {
   async sendText() {
     return { skipped: true };
+  }
+}
+
+class CapturingWhatsAppProvider implements WhatsAppProvider {
+  readonly messages: Array<{ toPhoneNumber: string; body: string }> = [];
+
+  async sendText(toPhoneNumber: string, body: string) {
+    this.messages.push({ toPhoneNumber, body });
+    return { captured: true };
   }
 }
 

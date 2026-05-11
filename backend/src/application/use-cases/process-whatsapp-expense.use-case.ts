@@ -86,7 +86,7 @@ export class ProcessWhatsAppExpenseUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.whatsapp.sendText(input.fromPhoneNumber, clarificationMessage(missingFields));
+    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields));
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
@@ -104,7 +104,7 @@ export class ProcessWhatsAppExpenseUseCase {
         userId: user.id,
         parsingStatus: 'failed'
       });
-      await this.whatsapp.sendText(input.fromPhoneNumber, 'Ok, descarté el movimiento pendiente.');
+      await this.reply(user, input.fromPhoneNumber, 'Ok, descarté el movimiento pendiente.');
       return { status: 'draft_cancelled' as const };
     }
 
@@ -128,7 +128,7 @@ export class ProcessWhatsAppExpenseUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.whatsapp.sendText(input.fromPhoneNumber, clarificationMessage(missingFields));
+    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields));
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
@@ -156,7 +156,7 @@ export class ProcessWhatsAppExpenseUseCase {
         parsingStatus: 'saved'
       });
       if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
-      await this.whatsapp.sendText(input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
+      await this.reply(user, input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
       return { status: 'report_sent' as const, report };
     }
 
@@ -174,7 +174,7 @@ export class ProcessWhatsAppExpenseUseCase {
         parsingStatus: 'saved'
       });
       if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
-      await this.whatsapp.sendText(input.fromPhoneNumber, budgetMessage);
+      await this.reply(user, input.fromPhoneNumber, budgetMessage);
       return { status: 'budget_status_sent' as const };
     }
 
@@ -205,7 +205,7 @@ export class ProcessWhatsAppExpenseUseCase {
       parsingStatus: 'saved'
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
-    await this.whatsapp.sendText(input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
+    await this.reply(user, input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
     return { status: 'income_saved' as const, income };
   }
 
@@ -251,10 +251,12 @@ export class ProcessWhatsAppExpenseUseCase {
       expenseId: expense.id
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
-    const categoryLabel = matchedCategory.subcategory
-      ? `${category.name} > ${matchedCategory.subcategory.name}`
-      : category.name;
-    await this.whatsapp.sendText(input.fromPhoneNumber, `Gasto guardado: ${formatMoney(expense.currency, expense.amount)} por ${expense.concept}. Categoría: ${categoryLabel}.`);
+    await this.reply(user, input.fromPhoneNumber, [
+      'Gasto guardado.',
+      `Monto: ${formatMoney(expense.currency, expense.amount)}.`,
+      `Concepto: ${expense.concept}.`,
+      `Categoría: ${preciseCategoryLabel(categories, category.id, matchedCategory.subcategory?.id)}.`
+    ].join('\n'));
     return { status: 'saved' as const, expense };
   }
 
@@ -308,4 +310,15 @@ export class ProcessWhatsAppExpenseUseCase {
       message: input.message
     });
   }
+
+  private reply(user: User, toPhoneNumber: string, body: string) {
+    return this.whatsapp.sendText(toPhoneNumber, `${user.preferredName}, ${body}`);
+  }
+}
+
+function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
+  const category = categories.find((item) => item.id === categoryId);
+  const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;
+  if (subcategory) return `${category?.name ?? 'Uncategorized'} > ${subcategory.name}`;
+  return category?.name ?? 'Uncategorized';
 }

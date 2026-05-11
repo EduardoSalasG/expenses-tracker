@@ -18,7 +18,7 @@ export class SendDueReportsUseCase {
 
     for (const user of users) {
       const report = await this.finance.report(user.tenantId, period.from, period.to);
-      const body = formatReportMessage(frequency, period.label, report);
+      const body = `${user.preferredName}, ${formatReportMessage(frequency, period.label, report)}`;
       await this.whatsapp.sendText(user.phoneNumber, body);
       results.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId });
     }

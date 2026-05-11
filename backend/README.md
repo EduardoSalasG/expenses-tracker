@@ -159,6 +159,8 @@ For WhatsApp-created movements, currency comes from `users.preferred_currency`. 
 
 Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic fallback matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, gifts, and dance classes.
 
+Successful WhatsApp replies always address the user by `preferredName`. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
+
 If the message is incomplete, the backend stores a pending draft for 30 minutes. The user can reply with only the missing detail:
 
 ```text
