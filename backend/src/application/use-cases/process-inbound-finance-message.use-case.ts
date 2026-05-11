@@ -322,8 +322,6 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 }
 
-export { ProcessInboundFinanceMessageUseCase as ProcessWhatsAppExpenseUseCase };
-
 function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
   const category = categories.find((item) => item.id === categoryId);
   const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;

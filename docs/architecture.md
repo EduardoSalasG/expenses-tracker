@@ -39,7 +39,7 @@ backend/src
     use-cases/
       auth.use-cases.ts
       finance.use-cases.ts
-      process-whatsapp-expense.use-case.ts
+      process-inbound-finance-message.use-case.ts
       send-due-reports.use-case.ts
       profile.use-cases.ts
   infrastructure/
