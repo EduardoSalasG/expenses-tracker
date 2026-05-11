@@ -9,7 +9,7 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
   - Indexes: `users_phone_number_idx` plus `users.phone_number unique`.
 
 - `seed_default_categories`: PostgreSQL function.
-  - Reason: default category seeding is idempotent and tenant-scoped.
+  - Reason: default category tree seeding is idempotent and tenant-scoped, including root categories and subcategories used by WhatsApp category assignment.
   - Indexes: `categories_tenant_parent_idx` and generated `parent_key` uniqueness so root categories do not duplicate.
 
 - Expense and income inserts: direct SQL.

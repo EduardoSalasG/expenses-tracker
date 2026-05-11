@@ -11,7 +11,7 @@ import type {
   UserRepository,
   WhatsAppProvider
 } from '../ports.js';
-import { categoryByInterpretedName, interpretedMessageSchema, isCompleteExpense, isCompleteIncome, type InterpretedMessage } from '../message-interpreter.js';
+import { categoryByInterpretedName, inferCategoryFromText, interpretedMessageSchema, isCompleteExpense, isCompleteIncome, type InterpretedMessage } from '../message-interpreter.js';
 import {
   clarificationMessage,
   canStoreDraft,
@@ -220,7 +220,12 @@ export class ProcessWhatsAppExpenseUseCase {
       return undefined;
     }
 
-    const matchedCategory = categoryByInterpretedName(categories, interpreted.categoryName, interpreted.subcategoryName);
+    const inferredCategory = inferCategoryFromText(categories, input.message);
+    const matchedCategory = categoryByInterpretedName(
+      categories,
+      interpreted.categoryName ?? inferredCategory.categoryName,
+      interpreted.subcategoryName ?? inferredCategory.subcategoryName
+    );
     const category = matchedCategory.category ?? categories.find((item) => !item.parentId) ?? categories[0];
     if (!category) {
       throw new Error('No category is available for this tenant.');
@@ -246,7 +251,10 @@ export class ProcessWhatsAppExpenseUseCase {
       expenseId: expense.id
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id);
-    await this.whatsapp.sendText(input.fromPhoneNumber, `Gasto guardado: ${formatMoney(expense.currency, expense.amount)} por ${expense.concept}.`);
+    const categoryLabel = matchedCategory.subcategory
+      ? `${category.name} > ${matchedCategory.subcategory.name}`
+      : category.name;
+    await this.whatsapp.sendText(input.fromPhoneNumber, `Gasto guardado: ${formatMoney(expense.currency, expense.amount)} por ${expense.concept}. Categoría: ${categoryLabel}.`);
     return { status: 'saved' as const, expense };
   }
 

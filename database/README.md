@@ -12,13 +12,14 @@ The database image is built from `database/Dockerfile`. On first container start
 - `13-004-transfer-payment-method.sql`
 - `14-005-whatsapp-pending-drafts.sql`
 - `15-006-split-user-names.sql`
+- `16-007-expand-default-categories.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
 
 - Demo consumer user: `+56912345678`, `demo@example.com`
 - Admin user: `+56900000000`, `admin@example.com`
-- Default categories for both tenants
+- Default category tree for both tenants, including Food/Groceries, Food/Restaurants, Transport/Uber, Education/Dance, Services/Phone, and related consumer categories
 - Compatibility login role: `postgres` / `postgres`, useful for older local `.env` files
 
 Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.

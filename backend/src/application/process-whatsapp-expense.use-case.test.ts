@@ -127,6 +127,88 @@ describe('ProcessWhatsAppExpenseUseCase', () => {
     expect(await incomes.listByPeriod(user.tenantId, '2026-05-01T00:00:00.000Z', '2026-05-31T23:59:59.999Z')).toHaveLength(1);
   });
 
+  it('assigns categories and subcategories from natural WhatsApp expense text', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessWhatsAppExpenseUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryWhatsAppMessageAuditRepository(),
+      new InMemoryWhatsAppPendingDraftRepository(),
+      new NoopWhatsAppProvider(),
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'wamid.groceries-category',
+      fromPhoneNumber: '+56982439041',
+      message: '20.000 groceries cash'
+    });
+
+    expect(result.status).toBe('saved');
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
+    const groceries = tenantCategories.find((category) => category.name === 'Groceries' && category.parentId === food?.id);
+    expect(expense.categoryId).toBe(food?.id);
+    expect(expense.subcategoryId).toBe(groceries?.id);
+  });
+
+  it('assigns dance classes to education dance when available', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessWhatsAppExpenseUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryWhatsAppMessageAuditRepository(),
+      new InMemoryWhatsAppPendingDraftRepository(),
+      new NoopWhatsAppProvider(),
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'wamid.dance-category',
+      fromPhoneNumber: '+56982439041',
+      message: '20.000 clases de bachata bsoul mayo, transferencia desde bci'
+    });
+
+    expect(result.status).toBe('saved');
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
+    const dance = tenantCategories.find((category) => category.name === 'Dance' && category.parentId === education?.id);
+    expect(expense.categoryId).toBe(education?.id);
+    expect(expense.subcategoryId).toBe(dance?.id);
+  });
+
   it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

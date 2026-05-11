@@ -83,11 +83,32 @@ export class InMemoryCategoryRepository implements CategoryRepository {
 
   async ensureDefaults(tenantId: string) {
     if ((await this.listByTenant(tenantId)).length > 0) return;
-    for (const name of ['Food', 'Transport', 'Housing', 'Health', 'Entertainment', 'Other']) {
-      await this.create({ tenantId, name, isDefault: true });
+    const roots = new Map<string, Category>();
+    for (const root of DEFAULT_CATEGORY_TREE) {
+      const category = await this.create({ tenantId, name: root.name, isDefault: true });
+      roots.set(root.name, category);
+    }
+
+    for (const root of DEFAULT_CATEGORY_TREE) {
+      const parent = roots.get(root.name);
+      if (!parent) continue;
+      for (const subcategory of root.subcategories) {
+        await this.create({ tenantId, name: subcategory, parentId: parent.id, isDefault: true });
+      }
     }
   }
 }
+
+const DEFAULT_CATEGORY_TREE = [
+  { name: 'Food', subcategories: ['Groceries', 'Restaurants'] },
+  { name: 'Transport', subcategories: ['Public Transport', 'Uber'] },
+  { name: 'Housing', subcategories: ['Rent'] },
+  { name: 'Health', subcategories: ['Appointments', 'Medicines', 'Procedures', 'Sports'] },
+  { name: 'Entertainment', subcategories: ['Dance', 'Theater'] },
+  { name: 'Education', subcategories: ['Dance', 'Work'] },
+  { name: 'Services', subcategories: ['Phone'] },
+  { name: 'Other', subcategories: ['Gifts'] }
+];
 
 export class InMemoryExpenseRepository implements ExpenseRepository {
   private readonly expenses: Expense[] = [];

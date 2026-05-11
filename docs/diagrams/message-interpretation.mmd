@@ -6,7 +6,7 @@ sequenceDiagram
   participant Fallback as Deterministic interpreter
   participant UseCase
   WhatsApp->>API: Text message
-  API->>Port: interpret(message, user, categories, now)
+  API->>Port: interpret(message, user, category tree, now)
   alt provider configured with API key
     Port->>LLM: Chat completions JSON request
     LLM-->>Port: Structured intent JSON
@@ -16,4 +16,5 @@ sequenceDiagram
     Fallback-->>Port: Structured intent JSON
   end
   Port-->>UseCase: create_expense, create_income, ask_report, ask_budget_status, or unknown
+  UseCase->>UseCase: Match category/subcategory names or infer from text
   UseCase->>UseCase: Validate tenant scope and required fields before action

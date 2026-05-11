@@ -42,10 +42,7 @@ export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPor
                   countryOfResidence: context.user.countryOfResidence,
                   preferredCurrency: context.user.preferredCurrency
                 },
-                categories: context.categories.map((category) => ({
-                  name: category.name,
-                  parentId: category.parentId
-                })),
+                categories: categoryOptions(context.categories),
                 now: context.now.toISOString()
               })
             }
@@ -96,8 +93,24 @@ function systemPrompt() {
     'For ask_report choose period daily, weekly, monthly, or yearly.',
     'For ask_budget_status include month as YYYY-MM when possible.',
     'Set needsConfirmation true and missingFields when required data is ambiguous.',
-    'Use category names only from the supplied category list when confident.'
+    'Use categoryName and subcategoryName only from the supplied category list when confident.',
+    'When a supplied category has subcategories, prefer the most specific matching subcategory.'
   ].join(' ');
+}
+
+function categoryOptions(categories: MessageInterpreterContext['categories']) {
+  return categories
+    .filter((category) => !category.parentId)
+    .map((category) => ({
+      name: category.name,
+      subcategories: categories
+        .filter((subcategory) => subcategory.parentId === category.id)
+        .map((subcategory) => subcategory.name),
+      examples: `${category.name}${categories.some((subcategory) => subcategory.parentId === category.id) ? ` > ${categories
+        .filter((subcategory) => subcategory.parentId === category.id)
+        .map((subcategory) => subcategory.name)
+        .join(', ')}` : ''}`
+    }));
 }
 
 function extractJson(content: string) {

@@ -157,6 +157,8 @@ Ingreso de sueldo 1200000 Bci transferencia
 
 For WhatsApp-created movements, currency comes from `users.preferred_currency`. The backend ignores hallucinated or ambiguous currency values returned by the interpreter and formats CLP replies as `$20.000`.
 
+Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic fallback matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, gifts, and dance classes.
+
 If the message is incomplete, the backend stores a pending draft for 30 minutes. The user can reply with only the missing detail:
 
 ```text
