@@ -77,7 +77,6 @@ export function createContainer(config: AppConfig) {
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging),
       refreshSession: new RefreshSessionUseCase(users, tokens),
       processInboundFinanceMessage,
-      processWhatsAppExpense: processInboundFinanceMessage,
       finance,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),

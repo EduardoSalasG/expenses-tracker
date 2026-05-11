@@ -2,11 +2,13 @@ import type { Express } from 'express';
 import type { AppContainer } from '../../../infrastructure/container.js';
 import { WhatsAppWebhookController } from '../controllers/whatsapp-webhook.controller.js';
 import { verifyMetaSignature } from '../middleware/meta-signature.middleware.js';
+import { InboundMessagingService } from '../services/inbound-messaging.service.js';
 import { logWebhookAttempt } from '../middleware/webhook-logging.middleware.js';
 import { asyncHandler } from '../utils.js';
 
 export function registerWhatsAppWebhookRoutes(app: Express, container: AppContainer) {
-  const controller = new WhatsAppWebhookController(container);
+  const inboundMessaging = new InboundMessagingService(container);
+  const controller = new WhatsAppWebhookController(container.config.whatsappVerifyToken, inboundMessaging);
 
   app.get('/webhooks/whatsapp', controller.verify);
   app.post(

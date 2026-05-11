@@ -71,14 +71,15 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 - `application/services`: reusable application/domain-policy helpers such as reporting calculations and messaging draft handling.
 - `infrastructure`: PostgreSQL, messaging adapters, token, OTP, LLM interpreter, and logging adapters.
 - `interfaces/http/routes`: Express route registration by feature.
-- `interfaces/http/controllers`: request parsing and use-case invocation.
+- `interfaces/http/controllers`: provider-specific HTTP parsing and response handling.
+- `interfaces/http/services`: provider-neutral interface workflows, such as inbound messaging orchestration.
 - `interfaces/http/middleware`: auth, Meta signature verification, webhook logging, and error handling.
 - `interfaces/http/schemas.ts`: Zod HTTP request contracts.
 - `interfaces/http/openapi.ts`: Swagger/OpenAPI contract.
 
 `interfaces/http/app.ts` is intentionally only the Express composition root for middleware, Swagger, health checks, and route registration.
 
-Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp-specific webhook parsing and Meta signature verification stay in the HTTP adapter. Future providers such as Telegram should translate their inbound events into the same `processInboundFinanceMessage` use case and implement the same outbound messaging provider contract.
+Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp-specific webhook parsing and Meta signature verification stay in the HTTP adapter, then the adapter forwards provider-neutral messages to `InboundMessagingService`. Future providers such as Telegram should translate their inbound events into the same `InboundTextMessage` shape and implement the same outbound messaging provider contract.
 
 ## Auth API
 

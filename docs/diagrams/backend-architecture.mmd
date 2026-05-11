@@ -3,6 +3,7 @@ flowchart LR
     App["app.ts<br/>Express composition"]
     Routes["routes/*<br/>URL registration"]
     Controllers["controllers/*<br/>HTTP input/output"]
+    InterfaceServices["services/*<br/>Provider-neutral interface workflows"]
     Middleware["middleware/*<br/>Auth, signatures, errors"]
     Schemas["schemas.ts<br/>Zod contracts"]
   end
@@ -31,7 +32,8 @@ flowchart LR
   Routes --> Controllers
   Routes --> Middleware
   Controllers --> Schemas
-  Controllers --> UseCases
+  Controllers --> InterfaceServices
+  InterfaceServices --> UseCases
   UseCases --> Services
   UseCases --> Ports
   Services --> Domain

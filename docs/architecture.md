@@ -61,7 +61,7 @@ backend/src
       openapi.ts
 ```
 
-`interfaces/http/app.ts` only composes Express middleware, Swagger, health checks, and route registration. Route modules bind URLs to controllers. Controllers parse HTTP input and call application use cases. Application use cases coordinate domain/application rules through ports. Infrastructure adapters implement those ports.
+`interfaces/http/app.ts` only composes Express middleware, Swagger, health checks, and route registration. Route modules bind URLs to controllers. Controllers parse provider-specific HTTP input and delegate provider-neutral orchestration to interface services when a flow is shared across providers. Application use cases coordinate domain/application rules through ports. Infrastructure adapters implement those ports.
 
 ## Tenancy
 
@@ -69,7 +69,7 @@ MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, an
 
 ## Messaging Providers
 
-Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook parsing/signature verification. A future Telegram adapter should translate Telegram updates into the same inbound finance-message use case and implement the same outbound `MessagingProvider` contract.
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook parsing/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A future Telegram adapter should translate Telegram updates into the same inbound message batch shape and implement the same outbound `MessagingProvider` contract.
 
 ## WhatsApp Sender Access
 

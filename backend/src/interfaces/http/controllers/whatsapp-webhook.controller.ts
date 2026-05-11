@@ -1,15 +1,18 @@
 import type { Request, Response } from 'express';
 import type { InboundTextMessage } from '../../../domain/index.js';
-import type { AppContainer } from '../../../infrastructure/container.js';
+import type { InboundDeliveryStatus, InboundMessagingService } from '../services/inbound-messaging.service.js';
 
 export class WhatsAppWebhookController {
-  constructor(private readonly container: AppContainer) {}
+  constructor(
+    private readonly verifyToken: string,
+    private readonly inboundMessaging: InboundMessagingService
+  ) {}
 
   verify = (request: Request, response: Response) => {
     const mode = request.query['hub.mode'];
     const token = request.query['hub.verify_token'];
     const challenge = request.query['hub.challenge'];
-    if (mode === 'subscribe' && token === this.container.config.whatsappVerifyToken) {
+    if (mode === 'subscribe' && token === this.verifyToken) {
       response.status(200).send(challenge);
       return;
     }
@@ -19,33 +22,15 @@ export class WhatsAppWebhookController {
   receive = async (request: Request, response: Response) => {
     const messages = extractWhatsAppMessages(request.body);
     const statuses = extractWhatsAppStatuses(request.body);
-    this.container.logger.info('WhatsApp webhook received.', {
-      extractedMessages: messages.length,
-      extractedStatuses: statuses.length,
-      bodyShape: request.body?.entry ? 'entry_changes' : request.body?.field ? 'field_value' : 'unknown'
+    await this.inboundMessaging.receive({
+      channel: 'whatsapp',
+      providerName: 'WhatsApp',
+      bodyShape: request.body?.entry ? 'entry_changes' : request.body?.field ? 'field_value' : 'unknown',
+      messages,
+      statuses
     });
-    for (const status of statuses) {
-      this.container.logger.info('WhatsApp webhook delivery status received.', status);
-    }
-    for (const message of messages) {
-      const result = await this.container.useCases.processInboundFinanceMessage.execute(message);
-      this.container.logger.info('WhatsApp webhook message processed.', {
-        providerMessageId: message.providerMessageId,
-        fromPhoneNumber: message.fromPhoneNumber,
-        status: result.status
-      });
-    }
     response.json({ received: true });
   };
-}
-
-export interface WhatsAppDeliveryStatus {
-  providerMessageId?: string;
-  recipientPhoneNumber?: string;
-  status: string;
-  timestamp?: string;
-  conversationId?: string;
-  errors?: unknown[];
 }
 
 export function extractWhatsAppMessages(body: any): InboundTextMessage[] {
@@ -61,7 +46,7 @@ export function extractWhatsAppMessages(body: any): InboundTextMessage[] {
   );
 }
 
-export function extractWhatsAppStatuses(body: any): WhatsAppDeliveryStatus[] {
+export function extractWhatsAppStatuses(body: any): InboundDeliveryStatus[] {
   if (body?.field === 'messages' && body?.value?.statuses) {
     return statusesFromValue(body.value);
   }
@@ -85,7 +70,7 @@ function messagesFromValue(value: any): InboundTextMessage[] {
     }));
 }
 
-function statusesFromValue(value: any): WhatsAppDeliveryStatus[] {
+function statusesFromValue(value: any): InboundDeliveryStatus[] {
   return (value?.statuses ?? [])
     .map((status: any) => ({
       providerMessageId: status.id,
