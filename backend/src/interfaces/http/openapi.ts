@@ -192,6 +192,15 @@ export const openApiSpec = {
           '401': { description: 'Invalid or missing Meta signature' }
         }
       }
+    },
+    '/webhooks/telegram': {
+      post: {
+        summary: 'Receive Telegram webhook event',
+        description: 'Current skeleton accepts text messages only when the payload includes a contact phone number.',
+        responses: {
+          '200': { description: 'Accepted' }
+        }
+      }
     }
   }
 };

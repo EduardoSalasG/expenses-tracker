@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import { extractWhatsAppMessages, extractWhatsAppStatuses } from './messaging-providers/whatsapp.extractor.js';
+import { extractTelegramMessages } from './messaging-providers/telegram.extractor.js';
 import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
 
@@ -121,6 +122,40 @@ describe('extractWhatsAppStatuses', () => {
       conversationId: 'conversation-id',
       errors: [{ code: 131026, title: 'Message undeliverable' }]
     }]);
+  });
+});
+
+describe('Telegram webhook skeleton', () => {
+  it('extracts text messages when contact phone number is present', () => {
+    const messages = extractTelegramMessages({
+      message: {
+        message_id: 42,
+        text: '20000 bachata classes transfer from bci',
+        contact: { phone_number: '56982439041' }
+      }
+    });
+
+    expect(messages).toEqual([{
+      providerMessageId: '42',
+      channel: 'telegram',
+      fromPhoneNumber: '+56982439041',
+      message: '20000 bachata classes transfer from bci'
+    }]);
+  });
+
+  it('ignores updates without contact phone number', async () => {
+    const app = createApp(createContainer(testConfig()));
+    const response = await request(app)
+      .post('/webhooks/telegram')
+      .send({
+        message: {
+          message_id: 77,
+          text: '25000 shirt'
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true, ignored: true });
   });
 });
 

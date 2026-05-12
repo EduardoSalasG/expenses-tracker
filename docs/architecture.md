@@ -72,7 +72,7 @@ MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, an
 
 ## Messaging Providers
 
-Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook extraction/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A future Telegram adapter should add a Telegram extractor/controller/routes, translate Telegram updates into the same inbound message batch shape, and implement the same outbound `MessagingProvider` contract.
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook extraction/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A Telegram skeleton is now present with its own extractor/controller/routes; it currently processes only text updates that include `message.contact.phone_number`, which preserves the existing phone-based user identity rule.
 
 ## WhatsApp Sender Access
 

@@ -81,6 +81,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 `interfaces/http/app.ts` is intentionally only the Express composition root for middleware, Swagger, health checks, and route registration.
 
 Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp-specific webhook extraction and Meta signature verification stay in the HTTP adapter, then the adapter forwards provider-neutral messages to `InboundMessagingService`. Future providers such as Telegram should add their own extractor/controller/routes, translate inbound events into the same `InboundTextMessage` shape, and implement the same outbound messaging provider contract.
+Telegram skeleton routes are available at `POST /webhooks/telegram`. The current extractor accepts text updates only when `message.contact.phone_number` is present, so identity stays aligned with the existing phone-number model.
 
 ## Auth API
 
