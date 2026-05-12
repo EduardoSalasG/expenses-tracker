@@ -5,24 +5,29 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category, type Expense } from '../core/api.service';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatExpansionModule, FeedbackBannerComponent],
   template: `
     <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
         <p class="text-sm font-medium uppercase tracking-wide text-slate-500">Manual capture and history</p>
         <h1 class="mt-1 text-3xl font-semibold text-slate-950">Expenses</h1>
       </div>
-      <button mat-stroked-button type="button" (click)="loadExpenses()">Refresh</button>
     </div>
 
-    <mat-card class="page-panel p-5">
-      <h2 class="mb-4 text-lg font-semibold text-slate-950">New expense</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
+    <mat-card class="page-panel p-2">
+      <mat-accordion>
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>New expense</mat-panel-title>
+          </mat-expansion-panel-header>
+      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-4">
         <mat-form-field appearance="outline">
           <mat-label>Concept</mat-label>
           <input matInput formControlName="concept">
@@ -85,16 +90,20 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
             {{ saving() ? 'Saving...' : 'Save expense' }}
           </button>
-          @if (saveMessage()) {
-            <span class="text-sm text-slate-600">{{ saveMessage() }}</span>
-          }
+          <app-feedback-banner [message]="saveMessage()" tone="success" />
         </div>
       </form>
+        </mat-expansion-panel>
+      </mat-accordion>
     </mat-card>
 
-    <mat-card class="page-panel mt-4 p-5">
-      <h2 class="mb-4 text-lg font-semibold text-slate-950">Filters</h2>
-      <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="grid gap-4 lg:grid-cols-6">
+    <mat-card class="page-panel mt-4 p-2">
+      <mat-accordion>
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Filters</mat-panel-title>
+          </mat-expansion-panel-header>
+      <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="grid gap-4 p-3 lg:grid-cols-6">
         <mat-form-field appearance="outline">
           <mat-label>From</mat-label>
           <input matInput type="date" formControlName="from">
@@ -130,6 +139,8 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
           <button mat-button type="button" (click)="clearFilters()">Clear</button>
         </div>
       </form>
+        </mat-expansion-panel>
+      </mat-accordion>
     </mat-card>
 
     <mat-card class="page-panel mt-4 p-5">
@@ -137,9 +148,11 @@ import { ApiService, type Category, type Expense } from '../core/api.service';
         <h2 class="text-lg font-semibold">Expense history</h2>
         <span class="text-sm text-slate-500">{{ expenses().length }} records</span>
       </div>
+      <app-feedback-banner [message]="error()" tone="error" />
+      <app-feedback-banner [message]="loading() ? 'Loading expenses...' : ''" tone="info" />
 
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[860px] border-collapse text-left">
+        <table class="w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
               <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
@@ -173,6 +186,8 @@ export class ExpensesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly categories = signal<Category[]>([]);
   readonly expenses = signal<Expense[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
@@ -213,6 +228,8 @@ export class ExpensesComponent implements OnInit {
   }
 
   loadExpenses() {
+    this.loading.set(true);
+    this.error.set('');
     const filters = this.filters.getRawValue();
     this.api.expenses({
       from: filters.from ? startOfDay(filters.from) : undefined,
@@ -221,7 +238,16 @@ export class ExpensesComponent implements OnInit {
       currency: filters.currency ? filters.currency.toUpperCase() : undefined,
       paymentMethodKind: filters.paymentMethodKind ? filters.paymentMethodKind as 'cash' | 'transfer' | 'card' : undefined,
       limit: 100
-    }).subscribe((expenses) => this.expenses.set(expenses));
+    }).subscribe({
+      next: (expenses) => {
+        this.expenses.set(expenses);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Could not load expenses.');
+      }
+    });
   }
 
   clearFilters() {

@@ -65,6 +65,15 @@ export interface Report {
   incomes: Income[];
   expenseTotalsByCurrency: Record<string, number>;
   incomeTotalsByCurrency: Record<string, number>;
+  expenseVariationByCategory: Array<{
+    categoryId: string;
+    categoryName: string;
+    currency: string;
+    currentTotal: number;
+    previousTotal: number;
+    delta: number;
+    deltaPercent: number | null;
+  }>;
 }
 
 export interface ExpenseFilters {

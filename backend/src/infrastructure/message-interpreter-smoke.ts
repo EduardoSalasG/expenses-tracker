@@ -6,7 +6,9 @@ import type { Category, User } from '../domain/index.js';
 const config = loadConfig();
 const logger = createLogger();
 const interpreter = createMessageInterpreter(config, logger);
-const message = process.argv.slice(2).join(' ').trim();
+const args = process.argv.slice(2);
+const allowSmoke = args.includes('--allow-smoke');
+const message = args.filter((arg) => arg !== '--allow-smoke').join(' ').trim();
 
 const user: User = {
   id: 'smoke-user',
@@ -29,8 +31,12 @@ const categories: Category[] = [
 ];
 
 async function main() {
+  if (!allowSmoke) {
+    throw new Error('Interpreter smoke tests are manual-only. Re-run with --allow-smoke to confirm this should execute locally.');
+  }
+
   if (!message) {
-    throw new Error('Missing message. Usage: pnpm --filter @expenses-tracker/backend interpreter:smoke "20.000 clases de bachata, transferencia bci"');
+    throw new Error('Missing message. Usage: pnpm --filter @expenses-tracker/backend interpreter:smoke --allow-smoke "20.000 clases de bachata, transferencia bci"');
   }
 
   const result = await interpreter.interpret(message, {
@@ -48,6 +54,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  logger.error('Message interpreter smoke test failed.', { error });
+  logger.error('Message interpreter smoke test failed.', {
+    error: error instanceof Error ? error.message : String(error)
+  });
   process.exitCode = 1;
 });

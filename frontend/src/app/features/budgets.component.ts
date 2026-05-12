@@ -6,9 +6,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 interface BudgetRow {
@@ -30,7 +32,9 @@ interface BudgetRow {
     MatInputModule,
     MatProgressBarModule,
     MatSelectModule,
+    MatExpansionModule,
     EmptyStateComponent,
+    FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
@@ -40,7 +44,6 @@ interface BudgetRow {
           <mat-label>Month</mat-label>
           <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)">
         </mat-form-field>
-        <button mat-stroked-button type="button" (click)="loadMonth()">Refresh</button>
       </div>
     </app-page-header>
 
@@ -59,9 +62,13 @@ interface BudgetRow {
       </mat-card>
     </section>
 
-    <mat-card class="page-panel mt-4 p-5">
-      <h2 class="mb-4 text-lg font-semibold text-slate-950">{{ editingBudgetId() ? 'Update budget' : 'Create budget' }}</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-5">
+    <mat-card class="page-panel mt-4 p-2">
+      <mat-accordion>
+        <mat-expansion-panel [expanded]="!!editingBudgetId()">
+          <mat-expansion-panel-header>
+            <mat-panel-title>{{ editingBudgetId() ? 'Update budget' : 'Create budget' }}</mat-panel-title>
+          </mat-expansion-panel-header>
+      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>Category</mat-label>
           <mat-select formControlName="categoryId">
@@ -95,10 +102,12 @@ interface BudgetRow {
             <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
           }
         </div>
-        @if (saveMessage()) {
-          <div class="text-sm text-slate-600 lg:col-span-5">{{ saveMessage() }}</div>
-        }
+        <div class="lg:col-span-5">
+          <app-feedback-banner [message]="saveMessage()" tone="success" />
+        </div>
       </form>
+        </mat-expansion-panel>
+      </mat-accordion>
     </mat-card>
 
     <mat-card class="page-panel mt-4 p-5">
@@ -106,6 +115,8 @@ interface BudgetRow {
         <h2 class="text-lg font-semibold">Budget progress</h2>
         <span class="text-sm text-slate-500">{{ budgetRows().length }} active budgets</span>
       </div>
+      <app-feedback-banner [message]="error()" tone="error" />
+      <app-feedback-banner [message]="loading() ? 'Loading budgets...' : ''" tone="info" />
 
       @if (budgetRows().length) {
         <div class="grid gap-5">
@@ -140,6 +151,8 @@ export class BudgetsComponent {
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
   readonly report = signal<Report | null>(null);
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly editingBudgetId = signal<string | null>(null);
@@ -172,18 +185,27 @@ export class BudgetsComponent {
   }
 
   loadMonth() {
+    this.loading.set(true);
+    this.error.set('');
     const { from, to } = monthRange(this.selectedMonth());
     forkJoin({
       categories: this.api.categories(),
       budgets: this.api.monthlyBudgets(this.selectedMonth()),
       report: this.api.report(from, to)
-    }).subscribe(({ categories, budgets, report }) => {
-      this.categories.set(categories);
-      this.budgets.set(budgets);
-      this.report.set(report);
-      const firstRoot = categories.find((category) => !category.parentId);
-      if (firstRoot && !this.form.controls.categoryId.value) {
-        this.form.controls.categoryId.setValue(firstRoot.id);
+    }).subscribe({
+      next: ({ categories, budgets, report }) => {
+        this.categories.set(categories);
+        this.budgets.set(budgets);
+        this.report.set(report);
+        const firstRoot = categories.find((category) => !category.parentId);
+        if (firstRoot && !this.form.controls.categoryId.value) {
+          this.form.controls.categoryId.setValue(firstRoot.id);
+        }
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Could not load budgets.');
       }
     });
   }

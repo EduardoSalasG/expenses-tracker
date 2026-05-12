@@ -5,7 +5,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 const frequencies: Array<{ key: ReportFrequency; label: string; description: string }> = [
@@ -25,18 +27,24 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
     MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
+    MatExpansionModule,
+    FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Settings" eyebrow="Profile and WhatsApp report preferences">
-      <button mat-stroked-button type="button" (click)="load()">Refresh</button>
-    </app-page-header>
+    <app-page-header title="Settings" eyebrow="Profile and WhatsApp report preferences"></app-page-header>
+    <app-feedback-banner [message]="loadError()" tone="error" />
+    <app-feedback-banner [message]="loading() ? 'Loading settings...' : ''" tone="info" />
 
     <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <mat-card class="page-panel p-5">
-        <h2 class="mb-4 text-lg font-semibold text-slate-950">Profile</h2>
+      <mat-card class="page-panel p-2">
+        <mat-accordion>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>Profile</mat-panel-title>
+            </mat-expansion-panel-header>
         @if (user()) {
-          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3">
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3 p-3">
             <mat-form-field appearance="outline">
               <mat-label>Name</mat-label>
               <input matInput formControlName="firstName" />
@@ -74,21 +82,25 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
 
             <div class="flex items-center gap-3">
               <button mat-flat-button color="primary" type="submit" [disabled]="profileForm.invalid || savingProfile()">Save profile</button>
-              @if (profileMessage()) {
-                <span class="text-sm text-slate-600">{{ profileMessage() }}</span>
-              }
+              <app-feedback-banner [message]="profileMessage()" tone="success" />
             </div>
           </form>
         } @else {
-          <p class="text-sm text-slate-500">Loading profile...</p>
+          <p class="p-3 text-sm text-slate-500">Loading profile...</p>
         }
+          </mat-expansion-panel>
+        </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-5">
-        <h2 class="mb-2 text-lg font-semibold text-slate-950">Report delivery</h2>
-        <p class="mb-4 text-sm text-slate-500">Choose which dashboard reports should be delivered through WhatsApp.</p>
+      <mat-card class="page-panel p-2">
+        <mat-accordion>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>Report delivery</mat-panel-title>
+            </mat-expansion-panel-header>
+        <p class="mb-4 p-3 pb-0 text-sm text-slate-500">Choose which dashboard reports should be delivered through WhatsApp.</p>
 
-        <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-3">
+        <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-3 p-3 pt-0">
           @for (frequency of frequencies; track frequency.key) {
             <label class="rounded border border-slate-200 bg-white p-3 shadow-sm">
               <mat-checkbox [formControlName]="frequency.key">{{ frequency.label }}</mat-checkbox>
@@ -98,11 +110,11 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
 
           <div class="mt-2 flex items-center gap-3">
             <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Save preferences</button>
-            @if (message()) {
-              <span class="text-sm text-slate-600">{{ message() }}</span>
-            }
+            <app-feedback-banner [message]="message()" tone="success" />
           </div>
         </form>
+          </mat-expansion-panel>
+        </mat-accordion>
       </mat-card>
     </section>
   `
@@ -111,6 +123,8 @@ export class SettingsComponent {
   private readonly fb = inject(FormBuilder);
   readonly frequencies = frequencies;
   readonly user = signal<CurrentUser | null>(null);
+  readonly loading = signal(false);
+  readonly loadError = signal('');
   readonly saving = signal(false);
   readonly savingProfile = signal(false);
   readonly message = signal('');
@@ -135,22 +149,31 @@ export class SettingsComponent {
   }
 
   load() {
-    this.api.me().subscribe((user) => {
-      this.user.set(user);
-      this.profileForm.setValue({
-        firstName: user.firstName,
-        lastName: user.lastName,
-        preferredName: user.preferredName,
-        email: user.email ?? '',
-        countryOfResidence: user.countryOfResidence,
-        preferredCurrency: user.preferredCurrency
-      });
-      this.form.setValue({
-        daily: user.reportPreferences.includes('daily'),
-        weekly: user.reportPreferences.includes('weekly'),
-        monthly: user.reportPreferences.includes('monthly'),
-        yearly: user.reportPreferences.includes('yearly')
-      });
+    this.loading.set(true);
+    this.loadError.set('');
+    this.api.me().subscribe({
+      next: (user) => {
+        this.user.set(user);
+        this.profileForm.setValue({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          preferredName: user.preferredName,
+          email: user.email ?? '',
+          countryOfResidence: user.countryOfResidence,
+          preferredCurrency: user.preferredCurrency
+        });
+        this.form.setValue({
+          daily: user.reportPreferences.includes('daily'),
+          weekly: user.reportPreferences.includes('weekly'),
+          monthly: user.reportPreferences.includes('monthly'),
+          yearly: user.reportPreferences.includes('yearly')
+        });
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.loadError.set('Could not load settings.');
+      }
     });
   }
 

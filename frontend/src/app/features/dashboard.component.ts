@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatButtonModule } from '@angular/material/button';
 import { Chart, type ChartConfiguration, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
@@ -19,15 +20,39 @@ interface BudgetProgressRow {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule],
   template: `
     <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
       <div>
-        <p class="text-sm font-medium uppercase tracking-wide text-slate-500">{{ monthLabel() }}</p>
+        <p class="text-sm font-medium uppercase tracking-wide text-slate-500">{{ periodLabel() }}</p>
         <h1 class="mt-1 text-3xl font-semibold text-slate-950">Dashboard</h1>
       </div>
-      <div class="rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-        Net balance <strong class="ml-2 text-slate-950">{{ netBalanceLabel() }}</strong>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="inline-flex overflow-hidden rounded border border-slate-300 bg-white text-sm">
+          <button mat-button type="button" (click)="setViewMode('monthly')" [disabled]="viewMode() === 'monthly'">Monthly</button>
+          <button mat-button type="button" (click)="setViewMode('yearly')" [disabled]="viewMode() === 'yearly'">Annual</button>
+        </div>
+        @if (viewMode() === 'monthly') {
+          <input
+            type="month"
+            class="rounded border border-slate-300 px-3 py-2 text-sm"
+            [value]="selectedMonth()"
+            (change)="changeMonth($event)"
+          >
+        } @else {
+          <select
+            class="rounded border border-slate-300 px-3 py-2 text-sm"
+            [value]="selectedYear()"
+            (change)="changeYear($event)"
+          >
+            @for (year of availableYears(); track year) {
+              <option [value]="year">{{ year }}</option>
+            }
+          </select>
+        }
+        <div class="rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+          Net balance <strong class="ml-2 text-slate-950">{{ netBalanceLabel() }}</strong>
+        </div>
       </div>
     </div>
 
@@ -42,12 +67,12 @@ interface BudgetProgressRow {
     } @else {
       <section class="grid gap-4 lg:grid-cols-3">
         <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-slate-500">This month expenses</div>
+          <div class="text-sm font-medium text-slate-500">{{ viewMode() === 'monthly' ? 'This month expenses' : 'This year expenses' }}</div>
           <div class="mt-2 text-3xl font-semibold text-slate-950">{{ expenseTotalLabel() }}</div>
           <div class="mt-3 text-sm text-slate-500">{{ report()?.expenses?.length ?? 0 }} expense records</div>
         </mat-card>
         <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-slate-500">This month income</div>
+          <div class="text-sm font-medium text-slate-500">{{ viewMode() === 'monthly' ? 'This month income' : 'This year income' }}</div>
           <div class="mt-2 text-3xl font-semibold text-slate-950">{{ incomeTotalLabel() }}</div>
           <div class="mt-3 text-sm text-slate-500">{{ report()?.incomes?.length ?? 0 }} income records</div>
         </mat-card>
@@ -78,6 +103,15 @@ interface BudgetProgressRow {
           <h2 class="mb-3 text-lg font-semibold">Expenses by category</h2>
           <div class="h-72">
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
+          </div>
+        </mat-card>
+      </section>
+
+      <section class="mt-4">
+        <mat-card class="page-panel p-5">
+          <h2 class="mb-3 text-lg font-semibold">This week expenses</h2>
+          <div class="h-72">
+            <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
           </div>
         </mat-card>
       </section>
@@ -130,6 +164,7 @@ interface BudgetProgressRow {
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('currencyChart') private currencyChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('categoryChart') private categoryChartCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('weeklyChart') private weeklyChartCanvas?: ElementRef<HTMLCanvasElement>;
 
   readonly loading = signal(true);
   readonly error = signal('');
@@ -137,7 +172,17 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
   readonly report = signal<Report | null>(null);
-  readonly monthLabel = signal(new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(new Date()));
+  readonly viewMode = signal<'monthly' | 'yearly'>('monthly');
+  readonly selectedMonth = signal(new Date().toISOString().slice(0, 7));
+  readonly selectedYear = signal(new Date().getUTCFullYear());
+  readonly availableYears = signal(buildYearOptions());
+  readonly periodLabel = computed(() => {
+    if (this.viewMode() === 'monthly') {
+      const [year, month] = this.selectedMonth().split('-').map(Number);
+      return new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
+    }
+    return `${this.selectedYear()}`;
+  });
   readonly expenseTotalLabel = computed(() => this.formatTotals(this.report()?.expenseTotalsByCurrency));
   readonly incomeTotalLabel = computed(() => this.formatTotals(this.report()?.incomeTotalsByCurrency));
   readonly netBalanceLabel = computed(() => {
@@ -166,31 +211,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private currencyChart?: Chart;
   private categoryChart?: Chart;
+  private weeklyChart?: Chart;
   private viewReady = false;
 
   constructor(private readonly api: ApiService) {}
 
   ngOnInit() {
-    const { from, to, month } = currentMonthRange();
-    forkJoin({
-      recentExpenses: this.api.recentExpenses(8),
-      report: this.api.report(from, to),
-      categories: this.api.categories(),
-      budgets: this.api.monthlyBudgets(month)
-    }).subscribe({
-      next: ({ recentExpenses, report, categories, budgets }) => {
-        this.recentExpenses.set(recentExpenses);
-        this.report.set(report);
-        this.categories.set(categories);
-        this.budgets.set(budgets);
-        this.loading.set(false);
-        setTimeout(() => this.renderCharts());
-      },
-      error: () => {
-        this.error.set('Dashboard data could not be loaded.');
-        this.loading.set(false);
-      }
-    });
+    this.loadDashboard();
   }
 
   ngAfterViewInit() {
@@ -201,6 +228,28 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.currencyChart?.destroy();
     this.categoryChart?.destroy();
+    this.weeklyChart?.destroy();
+  }
+
+  setViewMode(mode: 'monthly' | 'yearly') {
+    if (this.viewMode() === mode) return;
+    this.viewMode.set(mode);
+    this.loadDashboard();
+  }
+
+  changeMonth(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (!value || value === this.selectedMonth()) return;
+    this.selectedMonth.set(value);
+    this.selectedYear.set(Number(value.slice(0, 4)));
+    this.loadDashboard();
+  }
+
+  changeYear(event: Event) {
+    const value = Number((event.target as HTMLSelectElement).value);
+    if (!value || value === this.selectedYear()) return;
+    this.selectedYear.set(value);
+    this.loadDashboard();
   }
 
   categoryName(categoryId: string) {
@@ -259,6 +308,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.viewReady || this.loading() || this.error()) return;
     this.renderCurrencyChart();
     this.renderCategoryChart();
+    this.renderWeeklyChart();
   }
 
   private renderCurrencyChart() {
@@ -322,15 +372,104 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.categoryChart?.destroy();
     this.categoryChart = new Chart(canvas, config);
   }
+
+  private renderWeeklyChart() {
+    const canvas = this.weeklyChartCanvas?.nativeElement;
+    const expenses = this.report()?.expenses ?? [];
+    if (!canvas) return;
+    const { labels, values } = buildWeeklySeries(expenses);
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Expenses',
+          data: values,
+          backgroundColor: '#2563eb'
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    };
+    this.weeklyChart?.destroy();
+    this.weeklyChart = new Chart(canvas, config);
+  }
+
+  private loadDashboard() {
+    this.loading.set(true);
+    this.error.set('');
+    const range = this.viewMode() === 'monthly'
+      ? rangeFromMonth(this.selectedMonth())
+      : rangeFromYear(this.selectedYear());
+    const monthForBudget = this.selectedMonth();
+    forkJoin({
+      recentExpenses: this.api.recentExpenses(8),
+      report: this.api.report(range.from, range.to),
+      categories: this.api.categories(),
+      budgets: this.api.monthlyBudgets(monthForBudget)
+    }).subscribe({
+      next: ({ recentExpenses, report, categories, budgets }) => {
+        this.recentExpenses.set(recentExpenses);
+        this.report.set(report);
+        this.categories.set(categories);
+        this.budgets.set(budgets);
+        this.loading.set(false);
+        setTimeout(() => this.renderCharts());
+      },
+      error: () => {
+        this.error.set('Dashboard data could not be loaded.');
+        this.loading.set(false);
+      }
+    });
+  }
 }
 
-function currentMonthRange() {
-  const now = new Date();
-  const from = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1, 0, 0, 0));
-  const to = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
+function rangeFromMonth(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const from = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
+  const to = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
   return {
     from: from.toISOString(),
     to: to.toISOString(),
-    month: from.toISOString().slice(0, 7)
   };
+}
+
+function rangeFromYear(year: number) {
+  const from = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+  const to = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+  return {
+    from: from.toISOString(),
+    to: to.toISOString()
+  };
+}
+
+function buildYearOptions() {
+  const currentYear = new Date().getUTCFullYear();
+  return Array.from({ length: 6 }, (_, index) => currentYear - index);
+}
+
+function buildWeeklySeries(expenses: Expense[]) {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const offsetToMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offsetToMonday, 0, 0, 0));
+  const labels: string[] = [];
+  const values: number[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    const start = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + i, 0, 0, 0));
+    const end = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + i, 23, 59, 59));
+    labels.push(new Intl.DateTimeFormat('en', { weekday: 'short' }).format(start));
+    const total = expenses
+      .filter((expense) => {
+        const date = new Date(expense.date).getTime();
+        return date >= start.getTime() && date <= end.getTime();
+      })
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+    values.push(total);
+  }
+  return { labels, values };
 }

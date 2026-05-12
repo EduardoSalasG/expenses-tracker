@@ -5,8 +5,10 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category } from '../core/api.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -19,18 +21,22 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatExpansionModule,
     EmptyStateComponent,
+    FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Categories" eyebrow="Organize expenses with main categories and subcategories">
-      <button mat-stroked-button type="button" (click)="load()">Refresh</button>
-    </app-page-header>
+    <app-page-header title="Categories" eyebrow="Organize expenses with main categories and subcategories"></app-page-header>
 
     <section class="grid gap-4 lg:grid-cols-2">
-      <mat-card class="page-panel p-5">
-        <h2 class="mb-4 text-lg font-semibold text-slate-950">Create main category</h2>
-        <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+      <mat-card class="page-panel p-2">
+        <mat-accordion>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>Create main category</mat-panel-title>
+            </mat-expansion-panel-header>
+        <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>Name</mat-label>
             <input matInput formControlName="name">
@@ -39,11 +45,17 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">Add</button>
           </div>
         </form>
+          </mat-expansion-panel>
+        </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-5">
-        <h2 class="mb-4 text-lg font-semibold text-slate-950">Create subcategory</h2>
-        <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <mat-card class="page-panel p-2">
+        <mat-accordion>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>Create subcategory</mat-panel-title>
+            </mat-expansion-panel-header>
+        <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>Parent</mat-label>
             <mat-select formControlName="parentId">
@@ -60,18 +72,22 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">Add</button>
           </div>
         </form>
+          </mat-expansion-panel>
+        </mat-accordion>
       </mat-card>
     </section>
 
-    @if (message()) {
-      <div class="mt-4 rounded border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{{ message() }}</div>
-    }
+    <div class="mt-4">
+      <app-feedback-banner [message]="message()" tone="success" />
+    </div>
 
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Category library</h2>
         <span class="text-sm text-slate-500">{{ categories().length }} categories</span>
       </div>
+      <app-feedback-banner [message]="error()" tone="error" />
+      <app-feedback-banner [message]="loading() ? 'Loading categories...' : ''" tone="info" />
 
       @if (rootCategories().length) {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -109,6 +125,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 export class CategoriesComponent {
   private readonly fb = inject(FormBuilder);
   readonly categories = signal<Category[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly saving = signal(false);
   readonly message = signal('');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
@@ -123,11 +141,20 @@ export class CategoriesComponent {
   }
 
   load() {
-    this.api.categories().subscribe((categories) => {
-      this.categories.set(categories);
-      const firstRoot = categories.find((category) => !category.parentId);
-      if (firstRoot && !this.subForm.controls.parentId.value) {
-        this.subForm.controls.parentId.setValue(firstRoot.id);
+    this.loading.set(true);
+    this.error.set('');
+    this.api.categories().subscribe({
+      next: (categories) => {
+        this.categories.set(categories);
+        const firstRoot = categories.find((category) => !category.parentId);
+        if (firstRoot && !this.subForm.controls.parentId.value) {
+          this.subForm.controls.parentId.setValue(firstRoot.id);
+        }
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Could not load categories.');
       }
     });
   }

@@ -4,8 +4,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Income } from '../core/api.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -17,17 +19,21 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
+    MatExpansionModule,
     EmptyStateComponent,
+    FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Incomes" eyebrow="Capture salary, refunds, and other money in">
-      <button mat-stroked-button type="button" (click)="loadIncomes()">Refresh</button>
-    </app-page-header>
+    <app-page-header title="Incomes" eyebrow="Capture salary, refunds, and other money in"></app-page-header>
 
-    <mat-card class="page-panel p-5">
-      <h2 class="mb-4 text-lg font-semibold text-slate-950">New income</h2>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
+    <mat-card class="page-panel p-2">
+      <mat-accordion>
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>New income</mat-panel-title>
+          </mat-expansion-panel-header>
+      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-4">
         <mat-form-field appearance="outline">
           <mat-label>Concept</mat-label>
           <input matInput formControlName="concept">
@@ -49,16 +55,20 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
             {{ saving() ? 'Saving...' : 'Save income' }}
           </button>
-          @if (saveMessage()) {
-            <span class="text-sm text-slate-600">{{ saveMessage() }}</span>
-          }
+          <app-feedback-banner [message]="saveMessage()" tone="success" />
         </div>
       </form>
+        </mat-expansion-panel>
+      </mat-accordion>
     </mat-card>
 
-    <mat-card class="page-panel mt-4 p-5">
-      <h2 class="mb-4 text-lg font-semibold text-slate-950">Filters</h2>
-      <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="grid gap-4 lg:grid-cols-5">
+    <mat-card class="page-panel mt-4 p-2">
+      <mat-accordion>
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Filters</mat-panel-title>
+          </mat-expansion-panel-header>
+      <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>From</mat-label>
           <input matInput type="date" formControlName="from">
@@ -76,6 +86,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           <button mat-button type="button" (click)="clearFilters()">Clear</button>
         </div>
       </form>
+        </mat-expansion-panel>
+      </mat-accordion>
     </mat-card>
 
     <mat-card class="page-panel mt-4 p-5">
@@ -83,10 +95,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <h2 class="text-lg font-semibold">Income history</h2>
         <span class="text-sm text-slate-500">{{ totalLabel() }} across {{ incomes().length }} records</span>
       </div>
+      <app-feedback-banner [message]="error()" tone="error" />
+      <app-feedback-banner [message]="loading() ? 'Loading incomes...' : ''" tone="info" />
 
       @if (incomes().length) {
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[720px] border-collapse text-left">
+          <table class="w-full min-w-[560px] border-collapse text-left">
             <thead>
               <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
                 <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
@@ -114,6 +128,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 export class IncomesComponent {
   private readonly fb = inject(FormBuilder);
   readonly incomes = signal<Income[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly form = this.fb.nonNullable.group({
@@ -133,13 +149,24 @@ export class IncomesComponent {
   }
 
   loadIncomes() {
+    this.loading.set(true);
+    this.error.set('');
     const filters = this.filters.getRawValue();
     this.api.incomes({
       from: filters.from ? startOfDay(filters.from) : undefined,
       to: filters.to ? endOfDay(filters.to) : undefined,
       currency: filters.currency ? filters.currency.toUpperCase() : undefined,
       limit: 100
-    }).subscribe((incomes) => this.incomes.set(incomes));
+    }).subscribe({
+      next: (incomes) => {
+        this.incomes.set(incomes);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Could not load incomes.');
+      }
+    });
   }
 
   clearFilters() {

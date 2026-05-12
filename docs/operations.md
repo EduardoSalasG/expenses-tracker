@@ -24,7 +24,7 @@ The backend and frontend containers are intended for image validation and deploy
 
 ## Continuous Integration
 
-GitHub Actions runs on pushes and pull requests to `main`:
+GitHub Actions runs on pushes and pull requests to `dev` and `main`:
 
 - backend tests
 - backend build
@@ -33,6 +33,30 @@ GitHub Actions runs on pushes and pull requests to `main`:
 - Docker Compose config validation
 
 Linting is intentionally not part of CI yet because ESLint and Angular lint configuration are not finalized in this MVP.
+
+## Gitflow
+
+Use `main` as the production branch. Netlify and Render should deploy from `main` only.
+
+Use `dev` as the integration branch for active development. Normal work should branch from `dev`, merge back into `dev`, and then promote to `main` through a pull request when the app is ready to deploy.
+
+Recommended flow:
+
+```bash
+git checkout dev
+git pull
+git checkout -b feature/<short-name>
+git push -u origin feature/<short-name>
+```
+
+Promotion flow:
+
+```bash
+git checkout main
+git pull
+git merge dev
+git push origin main
+```
 
 ## Report Worker
 
@@ -93,8 +117,10 @@ MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324
 Interpreter smoke check:
 
 ```bash
-pnpm --filter @expenses-tracker/backend interpreter:smoke "CLP 12500 groceries cash"
+pnpm --filter @expenses-tracker/backend interpreter:smoke --allow-smoke "20.000 clases de bachata, transferencia bci"
 ```
+
+This command is local-only and does not touch the webhook, database, or WhatsApp provider. It requires `--allow-smoke` so it cannot run accidentally from copied commands or automation.
 
 ## Smoke Checks
 
