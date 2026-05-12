@@ -6,7 +6,7 @@ import type { Category, User } from '../domain/index.js';
 const config = loadConfig();
 const logger = createLogger();
 const interpreter = createMessageInterpreter(config, logger);
-const message = process.argv.slice(2).join(' ') || 'CLP 12500 groceries cash';
+const message = process.argv.slice(2).join(' ').trim();
 
 const user: User = {
   id: 'smoke-user',
@@ -29,6 +29,10 @@ const categories: Category[] = [
 ];
 
 async function main() {
+  if (!message) {
+    throw new Error('Missing message. Usage: pnpm --filter @expenses-tracker/backend interpreter:smoke "20.000 clases de bachata, transferencia bci"');
+  }
+
   const result = await interpreter.interpret(message, {
     user,
     categories,
