@@ -24,4 +24,11 @@ export interface MessagingMessageAuditRepository {
     parsingStatus: 'saved' | 'needs_confirmation' | 'unknown_user' | 'failed' | 'processing';
     expenseId?: string;
   }): Promise<void>;
+  existsRecentDuplicate(input: {
+    channel?: MessagingChannel;
+    fromPhoneNumber: string;
+    message: string;
+    since: Date;
+    excludeProviderMessageId?: string;
+  }): Promise<boolean>;
 }

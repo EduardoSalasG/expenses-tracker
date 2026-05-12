@@ -35,14 +35,13 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
 
     expect(result.status).toBe('ignored_unregistered_sender');
-    expect(audits.messages).toEqual([
-      {
-        providerMessageId: 'wamid.test-unknown',
-        fromPhoneNumber: '+16315551181',
-        message: 'this is a text message',
-        parsingStatus: 'unknown_user'
-      }
-    ]);
+    expect(audits.messages).toHaveLength(1);
+    expect(audits.messages[0]).toMatchObject({
+      providerMessageId: 'wamid.test-unknown',
+      fromPhoneNumber: '+16315551181',
+      message: 'this is a text message',
+      parsingStatus: 'unknown_user'
+    });
   });
 
   it('ignores duplicate WhatsApp provider message ids before creating a second expense', async () => {
@@ -86,6 +85,51 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(1);
     expect(audits.messages).toHaveLength(1);
     expect(audits.messages[0].parsingStatus).toBe('saved');
+  });
+
+  it('ignores recent duplicate text messages even with different provider ids', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const audits = new InMemoryMessagingMessageAuditRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      audits,
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+    );
+
+    const first = await useCase.execute({
+      providerMessageId: 'wamid.recent-1',
+      fromPhoneNumber: '+56982439041',
+      message: 'CLP 12500 groceries cash'
+    });
+    const second = await useCase.execute({
+      providerMessageId: 'wamid.recent-2',
+      fromPhoneNumber: '+56982439041',
+      message: 'CLP 12500 groceries cash'
+    });
+
+    expect(first.status).toBe('saved');
+    expect(second.status).toBe('duplicate_ignored');
+    expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(1);
+    expect(messaging.messages.at(-1)?.body).toContain('posible mensaje duplicado reciente');
   });
 
   it('saves income messages without creating expenses', async () => {

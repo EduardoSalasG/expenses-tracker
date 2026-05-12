@@ -204,7 +204,7 @@ export class InMemoryBudgetRepository implements BudgetRepository {
 }
 
 export class InMemoryMessagingMessageAuditRepository implements MessagingMessageAuditRepository {
-  readonly messages: Array<Parameters<MessagingMessageAuditRepository['create']>[0]> = [];
+  readonly messages: Array<Parameters<MessagingMessageAuditRepository['create']>[0] & { createdAt?: string }> = [];
 
   async reserve(input: Parameters<MessagingMessageAuditRepository['reserve']>[0]) {
     const channel = input.channel ?? 'whatsapp';
@@ -215,7 +215,7 @@ export class InMemoryMessagingMessageAuditRepository implements MessagingMessage
       return false;
     }
 
-    this.messages.push({ ...input, channel, parsingStatus: 'processing' });
+    this.messages.push({ ...input, channel, parsingStatus: 'processing', createdAt: new Date().toISOString() });
     return true;
   }
 
@@ -233,7 +233,27 @@ export class InMemoryMessagingMessageAuditRepository implements MessagingMessage
   }
 
   async create(input: Parameters<MessagingMessageAuditRepository['create']>[0]) {
-    this.messages.push(input);
+    this.messages.push({ ...input, createdAt: new Date().toISOString() });
+  }
+
+  async existsRecentDuplicate(input: {
+    channel?: 'whatsapp' | 'telegram';
+    fromPhoneNumber: string;
+    message: string;
+    since: Date;
+    excludeProviderMessageId?: string;
+  }) {
+    const channel = input.channel ?? 'whatsapp';
+    const sinceIso = input.since.toISOString();
+    return this.messages.some((message) =>
+      (message.channel ?? 'whatsapp') === channel &&
+      message.fromPhoneNumber === input.fromPhoneNumber &&
+      message.message.trim().toLowerCase() === input.message.trim().toLowerCase() &&
+      message.parsingStatus === 'saved' &&
+      (!input.excludeProviderMessageId || message.providerMessageId !== input.excludeProviderMessageId) &&
+      typeof message.createdAt === 'string' &&
+      message.createdAt >= sinceIso
+    );
   }
 }
 

@@ -325,6 +325,35 @@ export class PostgresMessagingMessageAuditRepository implements MessagingMessage
       ]
     );
   }
+
+  async existsRecentDuplicate(input: {
+    channel?: 'whatsapp' | 'telegram';
+    fromPhoneNumber: string;
+    message: string;
+    since: Date;
+    excludeProviderMessageId?: string;
+  }) {
+    const result = await this.pool.query(
+      `select 1
+       from messaging_messages
+       where channel = $1
+         and from_phone_number = $2
+         and lower(trim(message)) = lower(trim($3))
+         and parsing_status = 'saved'
+         and created_at >= $4
+         and ($5::text is null or provider_message_id <> $5)
+       limit 1`,
+      [
+        input.channel ?? 'whatsapp',
+        input.fromPhoneNumber,
+        input.message,
+        input.since,
+        input.excludeProviderMessageId ?? null
+      ]
+    );
+
+    return result.rowCount === 1;
+  }
 }
 
 export class PostgresMessagingPendingDraftRepository implements MessagingPendingDraftRepository {

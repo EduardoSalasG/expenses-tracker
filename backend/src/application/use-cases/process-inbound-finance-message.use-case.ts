@@ -63,6 +63,23 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'ignored_unregistered_sender' as const };
     }
 
+    const isRecentDuplicate = await this.messageAudits.existsRecentDuplicate({
+      channel: input.channel,
+      fromPhoneNumber: input.fromPhoneNumber,
+      message: input.message,
+      since: new Date(this.clock.now().getTime() - 2 * 60 * 1000),
+      excludeProviderMessageId: input.providerMessageId
+    });
+    if (isRecentDuplicate) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'failed'
+      });
+      await this.reply(user, input.fromPhoneNumber, 'Detecté un posible mensaje duplicado reciente y no lo volví a guardar.');
+      return { status: 'duplicate_ignored' as const };
+    }
+
     const categories = await this.categories.listByTenant(user.tenantId);
     const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft) {
