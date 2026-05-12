@@ -1,6 +1,6 @@
-import type { MessagingProvider } from '../application/ports.js';
-import type { AppConfig } from './config.js';
-import type { AppLogger } from './logger.js';
+import type { MessagingProvider } from '../../application/ports.js';
+import type { AppConfig } from '../config.js';
+import type { AppLogger } from '../logger.js';
 
 export class WhatsAppCloudProvider implements MessagingProvider {
   constructor(

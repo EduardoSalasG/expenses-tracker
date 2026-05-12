@@ -49,7 +49,8 @@ backend/src
     container.ts
     database.ts
     token.service.ts
-    whatsapp.provider.ts
+    messaging-providers/
+      whatsapp.provider.ts
     message-interpreter.provider.ts
   interfaces/
     http/

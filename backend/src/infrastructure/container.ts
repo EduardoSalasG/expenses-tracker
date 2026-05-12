@@ -3,7 +3,7 @@ import { createPool } from './database.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
 import { JwtTokenService } from './token.service.js';
-import { WhatsAppCloudProvider } from './whatsapp.provider.js';
+import { WhatsAppCloudProvider } from './messaging-providers/whatsapp.provider.js';
 import {
   InMemoryBudgetRepository,
   InMemoryCategoryRepository,

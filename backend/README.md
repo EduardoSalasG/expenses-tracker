@@ -69,7 +69,7 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 - `application/ports`: repository, provider, and service contracts used by use cases.
 - `application/use-cases`: application services grouped by workflow: auth, finance, profile, provider-neutral inbound messaging, and report delivery.
 - `application/services`: reusable application/domain-policy helpers such as reporting calculations and messaging draft handling.
-- `infrastructure`: PostgreSQL, messaging adapters, token, OTP, LLM interpreter, and logging adapters.
+- `infrastructure`: PostgreSQL repositories, messaging provider adapters (`infrastructure/messaging-providers`), token, OTP, LLM interpreter, and logging adapters.
 - `interfaces/http/routes`: Express route registration by feature.
 - `interfaces/http/controllers`: provider-specific HTTP parsing and response handling.
 - `interfaces/http/messaging-providers`: provider-specific webhook payload extraction.

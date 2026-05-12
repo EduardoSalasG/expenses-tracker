@@ -1,6 +1,6 @@
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
-import { WhatsAppCloudProvider } from './whatsapp.provider.js';
+import { WhatsAppCloudProvider } from './messaging-providers/whatsapp.provider.js';
 
 const config = loadConfig();
 const logger = createLogger();
