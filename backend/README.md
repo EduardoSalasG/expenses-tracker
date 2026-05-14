@@ -179,6 +179,22 @@ Expense category assignment uses the tenant category tree. The LLM receives root
 
 Successful WhatsApp replies always address the user by `preferredName`. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
 
+Users can also correct recent movements by chat. The correction message may reference a previous confirmation copied into the new message. The interpreter extracts the requested changes and the referenced movement, then the backend searches recent tenant-scoped expenses/incomes before applying changes. If the reference is not clear enough, the backend asks for more context instead of updating a guessed movement.
+
+Supported correction fields:
+- Expense: amount, concept, category/subcategory.
+- Income: amount, concept.
+
+Example:
+
+```text
+Cambia la categoría de este gasto a restaurantes
+
+Monto: $14.000.
+Concepto: Hamburguesas.
+Categoría: Education.
+```
+
 If the message is incomplete, the backend stores a pending draft for 30 minutes. The user can reply with only the missing detail:
 
 ```text

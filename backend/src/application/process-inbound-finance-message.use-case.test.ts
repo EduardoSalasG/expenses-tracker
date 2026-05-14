@@ -349,6 +349,67 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(expense.paymentMethod).toEqual({ kind: 'transfer', bank: 'bci', cardType: undefined });
     expect(await drafts.findActive(user.tenantId, user.id, new Date('2026-05-06T00:00:00.000Z'))).toBeUndefined();
   });
+
+  it('updates a referenced recent expense from a chat correction', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
+    if (!education) throw new Error('Missing Education category in test defaults.');
+    await expenses.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-06T00:00:00.000Z',
+      amount: 14000,
+      currency: 'CLP',
+      concept: 'Hamburguesas',
+      categoryId: education.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:05:00.000Z') }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'wamid.update-expense-category',
+      fromPhoneNumber: '+56982439041',
+      message: [
+        'Cambia la categoría de este gasto a restaurantes',
+        'Monto: $14.000.',
+        'Concepto: Hamburguesas.',
+        'Categoría: Education.'
+      ].join('\n')
+    });
+
+    expect(result.status).toBe('expense_updated');
+    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
+    const restaurants = tenantCategories.find((category) => category.name === 'Restaurants' && category.parentId === food?.id);
+    expect(updated.categoryId).toBe(food?.id);
+    expect(updated.subcategoryId).toBe(restaurants?.id);
+    expect(messaging.messages.at(-1)?.body).toContain('Eduardo, Gasto actualizado.');
+    expect(messaging.messages.at(-1)?.body).toContain('Categoría: Food > Restaurants.');
+  });
 });
 
 class NoopMessagingProvider implements MessagingProvider {

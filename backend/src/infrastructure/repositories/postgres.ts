@@ -155,6 +155,35 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     return mapExpense(result.rows[0]);
   }
 
+  async update(input: {
+    tenantId: string;
+    expenseId: string;
+    amount?: number;
+    concept?: string;
+    categoryId?: string;
+    subcategoryId?: string | null;
+  }) {
+    const result = await this.pool.query(
+      `update expenses
+       set amount = coalesce($3, amount),
+           concept = coalesce($4, concept),
+           category_id = coalesce($5, category_id),
+           subcategory_id = case when $6::boolean then $7::uuid else subcategory_id end
+       where tenant_id = $1 and id = $2
+       returning *`,
+      [
+        input.tenantId,
+        input.expenseId,
+        input.amount ?? null,
+        input.concept ?? null,
+        input.categoryId ?? null,
+        Object.prototype.hasOwnProperty.call(input, 'subcategoryId'),
+        input.subcategoryId ?? null
+      ]
+    );
+    return result.rows[0] ? mapExpense(result.rows[0]) : undefined;
+  }
+
   async list(input: {
     tenantId: string;
     from?: string;
@@ -218,6 +247,23 @@ export class PostgresIncomeRepository implements IncomeRepository {
     return mapIncome(result.rows[0]);
   }
 
+  async update(input: {
+    tenantId: string;
+    incomeId: string;
+    amount?: number;
+    concept?: string;
+  }) {
+    const result = await this.pool.query(
+      `update incomes
+       set amount = coalesce($3, amount),
+           concept = coalesce($4, concept)
+       where tenant_id = $1 and id = $2
+       returning *`,
+      [input.tenantId, input.incomeId, input.amount ?? null, input.concept ?? null]
+    );
+    return result.rows[0] ? mapIncome(result.rows[0]) : undefined;
+  }
+
   async list(input: {
     tenantId: string;
     from?: string;
@@ -243,6 +289,14 @@ export class PostgresIncomeRepository implements IncomeRepository {
     const result = await this.pool.query(
       `select * from incomes where tenant_id = $1 and income_date >= $2 and income_date <= $3 order by income_date desc`,
       [tenantId, from, to]
+    );
+    return result.rows.map(mapIncome);
+  }
+
+  async listRecent(tenantId: string, limit: number) {
+    const result = await this.pool.query(
+      `select * from incomes where tenant_id = $1 order by income_date desc, created_at desc limit $2`,
+      [tenantId, limit]
     );
     return result.rows.map(mapIncome);
   }

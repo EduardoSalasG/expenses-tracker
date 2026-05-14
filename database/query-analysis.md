@@ -15,6 +15,11 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
 - Expense and income inserts: direct SQL.
   - Reason: single-table writes with application-level validation.
 
+- Chat-based expense and income corrections: direct SQL.
+  - Query shape: read recent tenant-scoped movements, match the referenced movement in application code, then update one row by `(tenant_id, id)`.
+  - Reason: matching uses interpreted natural language and category labels, so the decision belongs in the application layer. The final update is a single-table tenant-scoped write.
+  - Indexes: `expenses_tenant_date_idx` and `incomes_tenant_date_idx` for recent candidate reads; primary keys plus `tenant_id` predicate for row updates.
+
 - Recent expenses: direct SQL.
   - Query shape: `where tenant_id = $1 order by expense_date desc limit $2`.
   - Index: `expenses_tenant_date_idx`.

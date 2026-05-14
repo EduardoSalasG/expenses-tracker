@@ -119,6 +119,28 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     return expense;
   }
 
+  async update(input: {
+    tenantId: string;
+    expenseId: string;
+    amount?: number;
+    concept?: string;
+    categoryId?: string;
+    subcategoryId?: string | null;
+  }) {
+    const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
+    if (index < 0) return undefined;
+    this.expenses[index] = {
+      ...this.expenses[index],
+      amount: input.amount ?? this.expenses[index].amount,
+      concept: input.concept ?? this.expenses[index].concept,
+      categoryId: input.categoryId ?? this.expenses[index].categoryId,
+      subcategoryId: Object.prototype.hasOwnProperty.call(input, 'subcategoryId')
+        ? input.subcategoryId ?? undefined
+        : this.expenses[index].subcategoryId
+    };
+    return this.expenses[index];
+  }
+
   async list(input: {
     tenantId: string;
     from?: string;
@@ -160,6 +182,22 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     return income;
   }
 
+  async update(input: {
+    tenantId: string;
+    incomeId: string;
+    amount?: number;
+    concept?: string;
+  }) {
+    const index = this.incomes.findIndex((income) => income.tenantId === input.tenantId && income.id === input.incomeId);
+    if (index < 0) return undefined;
+    this.incomes[index] = {
+      ...this.incomes[index],
+      amount: input.amount ?? this.incomes[index].amount,
+      concept: input.concept ?? this.incomes[index].concept
+    };
+    return this.incomes[index];
+  }
+
   async list(input: {
     tenantId: string;
     from?: string;
@@ -178,6 +216,13 @@ export class InMemoryIncomeRepository implements IncomeRepository {
 
   async listByPeriod(tenantId: string, from: string, to: string) {
     return this.incomes.filter((income) => income.tenantId === tenantId && income.date >= from && income.date <= to);
+  }
+
+  async listRecent(tenantId: string, limit: number) {
+    return this.incomes
+      .filter((income) => income.tenantId === tenantId)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
   }
 }
 

@@ -1,4 +1,4 @@
-import type { Category, InboundTextMessage, User } from '../../domain/index.js';
+import type { Category, Expense, Income, InboundTextMessage, User } from '../../domain/index.js';
 import type {
   BudgetRepository,
   CategoryRepository,
@@ -81,16 +81,20 @@ export class ProcessInboundFinanceMessageUseCase {
     }
 
     const categories = await this.categories.listByTenant(user.tenantId);
-    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
-    if (pendingDraft) {
-      return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
-    }
-
     const interpreted = await this.interpreter.interpret(input.message, {
       user,
       categories,
       now: this.clock.now()
     });
+
+    if (interpreted.intent === 'update_movement') {
+      return this.updateMovement(input, user, categories, interpreted);
+    }
+
+    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
+    if (pendingDraft) {
+      return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
+    }
 
     const saved = await this.trySaveInterpreted(input, user, categories, interpreted);
     if (saved) return saved;
@@ -227,6 +231,85 @@ export class ProcessInboundFinanceMessageUseCase {
     return { status: 'income_saved' as const, income };
   }
 
+  private async updateMovement(
+    input: InboundTextMessage,
+    user: User,
+    categories: Category[],
+    interpreted: Extract<InterpretedMessage, { intent: 'update_movement' }>
+  ) {
+    if (interpreted.needsConfirmation || (!interpreted.amount && !interpreted.concept && !interpreted.categoryName)) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.fromPhoneNumber, 'Necesito que indiques qué campo cambiar y a qué movimiento corresponde.');
+      return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
+    }
+
+    const [recentExpenses, recentIncomes] = await Promise.all([
+      interpreted.movementType === 'income' ? Promise.resolve([]) : this.expenses.listRecent(user.tenantId, 20),
+      interpreted.movementType === 'expense' || interpreted.categoryName ? Promise.resolve([]) : this.incomes.listRecent(user.tenantId, 20)
+    ]);
+    const target = findReferencedMovement(recentExpenses, recentIncomes, categories, interpreted);
+    if (!target || target.score < 2) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.fromPhoneNumber, 'No encontré con suficiente certeza el movimiento a modificar. Reenvíame el monto y concepto exactos del movimiento original.');
+      return { status: 'needs_confirmation' as const, missingFields: ['reference'] };
+    }
+
+    if (target.kind === 'expense') {
+      const matchedCategory: { category?: Category; subcategory?: Category } = interpreted.categoryName
+        ? categoryByInterpretedName(categories, interpreted.categoryName, interpreted.subcategoryName)
+        : {};
+      const updated = await this.expenses.update({
+        tenantId: user.tenantId,
+        expenseId: target.movement.id,
+        amount: interpreted.amount,
+        concept: interpreted.concept,
+        categoryId: matchedCategory.category?.id,
+        subcategoryId: interpreted.categoryName ? matchedCategory.subcategory?.id ?? null : undefined
+      });
+      if (!updated) throw new Error('Expense not found for update.');
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'saved',
+        expenseId: updated.id
+      });
+      await this.reply(user, input.fromPhoneNumber, [
+        'Gasto actualizado.',
+        `Monto: ${formatMoney(updated.currency, updated.amount)}.`,
+        `Concepto: ${updated.concept}.`,
+        `Categoría: ${preciseCategoryLabel(categories, updated.categoryId, updated.subcategoryId)}.`
+      ].join('\n'));
+      return { status: 'expense_updated' as const, expense: updated };
+    }
+
+    const updated = await this.incomes.update({
+      tenantId: user.tenantId,
+      incomeId: target.movement.id,
+      amount: interpreted.amount,
+      concept: interpreted.concept
+    });
+    if (!updated) throw new Error('Income not found for update.');
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'saved'
+    });
+    await this.reply(user, input.fromPhoneNumber, [
+      'Ingreso actualizado.',
+      `Monto: ${formatMoney(updated.currency, updated.amount)}.`,
+      `Concepto: ${updated.concept}.`
+    ].join('\n'));
+    return { status: 'income_updated' as const, income: updated };
+  }
+
   private async trySaveExpense(
     input: InboundTextMessage,
     user: User,
@@ -344,4 +427,49 @@ function preciseCategoryLabel(categories: Category[], categoryId: string, subcat
   const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;
   if (subcategory) return `${category?.name ?? 'Uncategorized'} > ${subcategory.name}`;
   return category?.name ?? 'Uncategorized';
+}
+
+function findReferencedMovement(
+  expenses: Expense[],
+  incomes: Income[],
+  categories: Category[],
+  interpreted: Extract<InterpretedMessage, { intent: 'update_movement' }>
+) {
+  const candidates = [
+    ...expenses.map((movement) => ({
+      kind: 'expense' as const,
+      movement,
+      score: movementScore({
+        amount: movement.amount,
+        concept: movement.concept,
+        categoryName: preciseCategoryLabel(categories, movement.categoryId, movement.subcategoryId)
+      }, interpreted)
+    })),
+    ...incomes.map((movement) => ({
+      kind: 'income' as const,
+      movement,
+      score: movementScore({
+        amount: movement.amount,
+        concept: movement.concept
+      }, interpreted)
+    }))
+  ];
+
+  return candidates.sort((left, right) => right.score - left.score)[0];
+}
+
+function movementScore(
+  candidate: { amount: number; concept: string; categoryName?: string },
+  interpreted: Extract<InterpretedMessage, { intent: 'update_movement' }>
+) {
+  let score = 0;
+  if (interpreted.referenceAmount && Math.round(candidate.amount) === Math.round(interpreted.referenceAmount)) score += 2;
+  if (interpreted.referenceConcept && normalize(candidate.concept).includes(normalize(interpreted.referenceConcept))) score += 2;
+  if (interpreted.referenceConcept && normalize(interpreted.referenceConcept).includes(normalize(candidate.concept))) score += 2;
+  if (interpreted.referenceCategoryName && candidate.categoryName && normalize(candidate.categoryName).includes(normalize(interpreted.referenceCategoryName))) score += 1;
+  return score;
+}
+
+function normalize(value: string) {
+  return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }

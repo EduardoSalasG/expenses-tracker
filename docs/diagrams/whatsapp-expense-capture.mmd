@@ -28,6 +28,12 @@ sequenceDiagram
       API->>DB: Mark audit as needs_confirmation
       API->>DB: Upsert pending draft for user
       API->>WhatsApp: Ask for clarification
+    else update referenced movement
+      API->>DB: Read recent tenant-scoped expenses/incomes
+      API->>API: Match by referenced amount, concept, category, and movement type
+      API->>DB: Update amount, concept, or category when match is confident
+      API->>DB: Mark audit as saved
+      API->>WhatsApp: Confirm updated movement
     else create expense
       API->>DB: Insert expense scoped by tenant using preferred currency
       API->>DB: Mark audit as saved

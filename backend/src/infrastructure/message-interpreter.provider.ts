@@ -81,7 +81,7 @@ function systemPrompt() {
   return [
     'You interpret WhatsApp messages for a consumer personal finance tracker.',
     'Return only valid JSON. Do not include markdown.',
-    'Supported intents: create_expense, create_income, ask_report, ask_budget_status, unknown.',
+    'Supported intents: create_expense, create_income, update_movement, ask_report, ask_budget_status, unknown.',
     'Never infer currency from arbitrary words. Currency is tenant configuration, not a message-level input. Omit currency unless the message contains an explicit ISO currency code or currency symbol.',
     'Understand natural Spanish and English personal finance phrases.',
     'Examples: "Ingreso de sueldo 1200000 Bci transferencia" is create_income with amount 1200000 and concept "sueldo".',
@@ -92,6 +92,9 @@ function systemPrompt() {
     'For create_income include amount and concept. Words like sueldo, salario, ingreso, paid, salary indicate income.',
     'For ask_report choose period daily, weekly, monthly, or yearly.',
     'For ask_budget_status include month as YYYY-MM when possible.',
+    'For update_movement, extract fields the user wants to change into amount, concept, categoryName, subcategoryName. Use movementType expense or income when stated.',
+    'For update_movement, extract the referenced previous movement into referenceAmount, referenceConcept, and referenceCategoryName when the user pasted a previous confirmation or describes the old movement.',
+    'Example update: "Cambia la categoría de este gasto a restaurantes Monto: $14.000. Concepto: Hamburguesas. Categoría: Education." means update_movement, movementType expense, categoryName Food, subcategoryName Restaurants, referenceAmount 14000, referenceConcept Hamburguesas, referenceCategoryName Education.',
     'Set needsConfirmation true and missingFields when required data is ambiguous.',
     'Use categoryName and subcategoryName only from the supplied category list when confident.',
     'When a supplied category has subcategories, prefer the most specific matching subcategory.'

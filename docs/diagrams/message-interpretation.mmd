@@ -15,6 +15,7 @@ sequenceDiagram
     Port->>Fallback: Deterministic parse
     Fallback-->>Port: Structured intent JSON
   end
-  Port-->>UseCase: create_expense, create_income, ask_report, ask_budget_status, or unknown
+  Port-->>UseCase: create_expense, create_income, update_movement, ask_report, ask_budget_status, or unknown
   UseCase->>UseCase: Match category/subcategory names or infer from text
+  UseCase->>UseCase: For update_movement, match referenced recent movement before applying changes
   UseCase->>UseCase: Validate tenant scope and required fields before action

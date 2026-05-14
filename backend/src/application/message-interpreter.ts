@@ -48,6 +48,20 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     categoryName: z.string().min(1).optional()
   }),
   z.object({
+    intent: z.literal('update_movement'),
+    confidence: z.number().min(0).max(1).default(0.5),
+    movementType: z.enum(['expense', 'income']).optional(),
+    amount: z.number().positive().optional(),
+    concept: z.string().min(1).optional(),
+    categoryName: z.string().min(1).optional(),
+    subcategoryName: z.string().min(1).optional(),
+    referenceAmount: z.number().positive().optional(),
+    referenceConcept: z.string().min(1).optional(),
+    referenceCategoryName: z.string().min(1).optional(),
+    missingFields: z.array(z.string()).default([]),
+    needsConfirmation: z.boolean().default(false)
+  }),
+  z.object({
     intent: z.literal('unknown'),
     confidence: z.number().min(0).max(1).default(0),
     reason: z.string().optional()
@@ -65,6 +79,10 @@ export interface MessageInterpreterContext {
 export class DeterministicMessageInterpreter {
   async interpret(message: string, context: MessageInterpreterContext): Promise<InterpretedMessage> {
     const lower = message.trim().toLowerCase();
+
+    if (/\b(cambia|cambiar|corrige|corregir|actualiza|actualizar|modifica|modificar|change|update|correct|edit)\b/.test(lower)) {
+      return parseMovementUpdate(message, context);
+    }
 
     if (/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/.test(lower)) {
       return parseIncome(message, context.user.preferredCurrency);
@@ -95,6 +113,60 @@ export class DeterministicMessageInterpreter {
       needsConfirmation: parsed.status !== 'ready'
     };
   }
+}
+
+function parseMovementUpdate(message: string, context: MessageInterpreterContext): InterpretedMessage {
+  const lower = message.toLowerCase();
+  const categoryHint = inferCategoryFromText(context.categories, updateInstructionText(message)) || inferCategoryFromText(context.categories, message);
+  const referenced = referencedBlock(message, context);
+  const amount = /\b(monto|amount|valor|total)\b/i.test(message) ? parseAmountAfterChangeVerb(message) : undefined;
+  const concept = parseConceptAfterChangeVerb(message);
+  const missingFields = [
+    !amount && !concept && !categoryHint.categoryName ? 'change' : undefined,
+    !referenced.referenceAmount && !referenced.referenceConcept ? 'reference' : undefined
+  ].filter((field): field is string => Boolean(field));
+
+  return {
+    intent: 'update_movement',
+    confidence: missingFields.length ? 0.45 : 0.75,
+    movementType: /\b(gasto|expense|egreso)\b/.test(lower) ? 'expense' : /\b(ingreso|income)\b/.test(lower) ? 'income' : undefined,
+    amount,
+    concept,
+    ...categoryHint,
+    ...referenced,
+    missingFields,
+    needsConfirmation: missingFields.length > 0
+  };
+}
+
+function updateInstructionText(message: string) {
+  return message
+    .split(/\n\s*(?:monto|amount|concepto|concept|categor[ií]a|category)\s*:/i)[0]
+    .trim();
+}
+
+function referencedBlock(message: string, context: MessageInterpreterContext) {
+  const amountMatches = [...message.matchAll(/(?:\$|clp\s*)?(\d{1,3}(?:[.\s]\d{3})+|\d+)(?:,\d+)?/gi)];
+  const referenceAmount = amountMatches.length
+    ? Number(amountMatches.at(-1)?.[1].replace(/[.\s]/g, ''))
+    : undefined;
+  const conceptMatch = message.match(/concepto:\s*([^\n.]+)/i);
+  const categoryMatch = message.match(/categor[ií]a:\s*([^\n.]+)/i);
+  return {
+    referenceAmount,
+    referenceConcept: conceptMatch?.[1]?.trim(),
+    referenceCategoryName: categoryMatch?.[1]?.trim() ?? inferCategoryFromText(context.categories, message).categoryName
+  };
+}
+
+function parseAmountAfterChangeVerb(message: string) {
+  const match = message.match(/\b(?:a|to|por|en)\s*(?:\$|clp\s*)?(\d{1,3}(?:[.\s]\d{3})+|\d+)(?:,\d+)?/i);
+  return match ? Number(match[1].replace(/[.\s]/g, '')) : undefined;
+}
+
+function parseConceptAfterChangeVerb(message: string) {
+  const match = message.match(/\b(?:concepto|concept)\s+(?:a|to|por|en)\s+([^\n.]+)/i);
+  return match?.[1]?.trim();
 }
 
 function parseIncome(message: string, preferredCurrency: string): InterpretedMessage {
@@ -202,7 +274,7 @@ function escapeRegExp(value: string) {
 
 const CATEGORY_INFERENCE_RULES = [
   { pattern: /\b(grocery|groceries|supermercado|mercado|verduleria|verduleria|almacen|almacen|panaderia|panaderia)\b/, categoryName: 'Food', subcategoryName: 'Groceries' },
-  { pattern: /\b(restaurante|restaurant|cafe|cafeteria|cafeteria|bar|comida|almuerzo|cena|desayuno)\b/, categoryName: 'Food', subcategoryName: 'Restaurants' },
+  { pattern: /\b(restaurante|restaurantes|restaurant|restaurants|cafe|cafeteria|cafeteria|bar|comida|almuerzo|cena|desayuno)\b/, categoryName: 'Food', subcategoryName: 'Restaurants' },
   { pattern: /\b(uber|cabify|didi)\b/, categoryName: 'Transport', subcategoryName: 'Uber' },
   { pattern: /\b(metro|micro|bus|transporte publico|public transport|bip)\b/, categoryName: 'Transport', subcategoryName: 'Public Transport' },
   { pattern: /\b(arriendo|renta|rent|dividendo)\b/, categoryName: 'Housing', subcategoryName: 'Rent' },
