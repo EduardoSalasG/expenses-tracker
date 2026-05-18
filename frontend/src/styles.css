@@ -61,6 +61,16 @@ table {
   border-radius: 6px !important;
 }
 
+.mat-expansion-panel {
+  border-radius: 8px !important;
+  border: 1px solid var(--brand-border);
+  box-shadow: none !important;
+}
+
+.mat-expansion-panel-header {
+  min-height: 54px !important;
+}
+
 .mat-mdc-unelevated-button.mat-primary,
 .mat-mdc-raised-button.mat-primary,
 .mat-mdc-fab.mat-primary,
@@ -102,6 +112,14 @@ table {
 
   .mat-mdc-button-base {
     min-height: 42px;
+  }
+
+  .mat-expansion-panel-header {
+    padding-inline: 0.75rem !important;
+  }
+
+  .mat-expansion-panel-body {
+    padding: 0 0.5rem 0.75rem !important;
   }
 
   .mobile-stack-actions .mat-mdc-button-base {

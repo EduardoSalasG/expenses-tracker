@@ -8,18 +8,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category, type Expense } from '../core/api.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatExpansionModule, FeedbackBannerComponent],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatExpansionModule, FeedbackBannerComponent, PageHeaderComponent],
   template: `
-    <div class="mb-5 border-b border-slate-200 pb-5 sm:mb-6">
-      <div>
-        <p class="text-xs font-medium uppercase tracking-wide text-slate-500 sm:text-sm">Manual capture and history</p>
-        <h1 class="mt-1 text-2xl font-semibold text-slate-950 sm:text-3xl">Expenses</h1>
-      </div>
-    </div>
+    <app-page-header title="Expenses" eyebrow="Manual capture and history"></app-page-header>
 
     <mat-card class="page-panel p-2">
       <mat-accordion>
@@ -146,7 +142,7 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Expense history</h2>
-        <span class="text-sm text-slate-500">{{ expenses().length }} records</span>
+        <span class="text-sm text-brand-muted">{{ expenses().length }} records</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? 'Loading expenses...' : ''" tone="info" />
@@ -154,7 +150,7 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
       <div class="responsive-table-wrapper overflow-x-auto">
         <table class="responsive-table w-full min-w-[640px] border-collapse text-left">
           <thead>
-            <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
+            <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
               <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
               <th class="py-2.5 pr-3 font-medium">Concept</th>
               <th class="py-2.5 pr-3 font-medium">Category</th>
@@ -164,16 +160,16 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
           </thead>
           <tbody>
             @for (expense of expenses(); track expense.id) {
-              <tr class="border-b border-slate-100 last:border-0">
-                <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(expense.date) }}</td>
+              <tr class="border-b border-brand-border/60 last:border-0">
+                <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
                 <td data-label="Concept" class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
                 <td data-label="Category" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td data-label="Payment" class="py-3 pr-3 text-sm text-slate-600">{{ paymentLabel(expense) }}</td>
+                <td data-label="Payment" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
                 <td data-label="Amount" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
               </tr>
             } @empty {
               <tr>
-                <td class="py-6 text-slate-500" colspan="5">No expenses match the selected filters.</td>
+                <td class="py-6 text-brand-muted" colspan="5">No expenses match the selected filters.</td>
               </tr>
             }
           </tbody>
