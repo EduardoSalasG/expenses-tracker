@@ -276,6 +276,8 @@ pnpm --filter @expenses-tracker/backend reports:send-due monthly
 
 Accepted frequencies are `daily`, `weekly`, `monthly`, and `yearly`. The command finds users whose `report_preferences` include the selected frequency, generates the matching period report, and sends a WhatsApp summary. In production this command can be scheduled by cron, a worker container, or an external scheduler.
 
+Scheduled report delivery is idempotent by user/frequency/period. The backend reserves a dispatch row before sending and skips already-sent periods. Failed sends are marked as `failed` and do not block future retries for that same period.
+
 Docker Compose exposes a one-shot `report-worker` job profile for production-style scheduling:
 
 ```bash

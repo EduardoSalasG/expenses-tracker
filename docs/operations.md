@@ -62,6 +62,8 @@ git push origin main
 
 The report worker is a one-shot job. It sends one batch for one frequency and exits. This avoids duplicate sends from a long-running loop.
 
+Dispatches are idempotent by `(channel, frequency, period_from, period_to, user_id)` through `report_dispatches`. Re-running the same one-shot job for the same period skips already-sent users, and failed sends are recorded as `failed` for later retries.
+
 Local one-shot commands:
 
 ```bash

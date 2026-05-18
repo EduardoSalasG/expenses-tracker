@@ -1,5 +1,5 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, UserRepository } from '../../application/ports.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, UserRepository } from '../../application/ports.js';
 import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -504,6 +504,99 @@ export class PostgresMessagingPendingDraftRepository implements MessagingPending
     await this.pool.query(
       `delete from messaging_pending_drafts where tenant_id = $1 and user_id = $2 and channel = $3`,
       [tenantId, userId, channel]
+    );
+  }
+}
+
+export class PostgresReportDispatchRepository implements ReportDispatchRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async reserve(input: {
+    tenantId: string;
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into report_dispatches (
+        tenant_id, user_id, channel, frequency, period_from, period_to, status
+      )
+      values ($1, $2, $3, $4, $5, $6, 'pending')
+      on conflict (channel, frequency, period_from, period_to, user_id)
+      where status in ('pending', 'sent')
+      do nothing
+      returning id`,
+      [
+        input.tenantId,
+        input.userId,
+        input.channel ?? 'whatsapp',
+        input.frequency,
+        input.periodFrom,
+        input.periodTo
+      ]
+    );
+
+    return result.rowCount === 1;
+  }
+
+  async markSent(input: {
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+  }) {
+    await this.pool.query(
+      `update report_dispatches
+       set status = 'sent',
+           sent_at = now(),
+           error_message = null,
+           updated_at = now()
+       where channel = $1
+         and frequency = $2
+         and period_from = $3
+         and period_to = $4
+         and user_id = $5
+         and status = 'pending'`,
+      [
+        input.channel ?? 'whatsapp',
+        input.frequency,
+        input.periodFrom,
+        input.periodTo,
+        input.userId
+      ]
+    );
+  }
+
+  async markFailed(input: {
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+    errorMessage: string;
+  }) {
+    await this.pool.query(
+      `update report_dispatches
+       set status = 'failed',
+           error_message = $6,
+           updated_at = now()
+       where channel = $1
+         and frequency = $2
+         and period_from = $3
+         and period_to = $4
+         and user_id = $5
+         and status = 'pending'`,
+      [
+        input.channel ?? 'whatsapp',
+        input.frequency,
+        input.periodFrom,
+        input.periodTo,
+        input.userId,
+        input.errorMessage
+      ]
     );
   }
 }

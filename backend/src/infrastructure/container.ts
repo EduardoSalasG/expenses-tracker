@@ -12,6 +12,7 @@ import {
   InMemoryMessagingMessageAuditRepository,
   InMemoryMessagingPendingDraftRepository,
   InMemoryOtpRepository,
+  InMemoryReportDispatchRepository,
   InMemoryUserRepository
 } from './repositories/in-memory.js';
 import {
@@ -22,6 +23,7 @@ import {
   PostgresMessagingMessageAuditRepository,
   PostgresMessagingPendingDraftRepository,
   PostgresOtpRepository,
+  PostgresReportDispatchRepository,
   PostgresUserRepository
 } from './repositories/postgres.js';
 import {
@@ -47,6 +49,7 @@ export function createContainer(config: AppConfig) {
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
+  const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const tokens = new JwtTokenService(config);
   const messaging = new WhatsAppCloudProvider(config, logger);
   const interpreter = createMessageInterpreter(config, logger);
@@ -80,7 +83,7 @@ export function createContainer(config: AppConfig) {
       finance,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),
-      sendDueReports: new SendDueReportsUseCase(users, finance, messaging, clock)
+      sendDueReports: new SendDueReportsUseCase(users, finance, messaging, reportDispatches, clock)
     }
   };
 }

@@ -19,11 +19,15 @@ try {
     frequency: result.frequency,
     period: result.period,
     sent: result.sent,
+    skipped: result.skipped,
+    failed: result.failed,
     recipients: result.recipients.map((recipient) => ({
       userId: recipient.userId,
       tenantId: recipient.tenantId,
       phoneNumber: recipient.phoneNumber
-    }))
+    })),
+    skippedRecipients: result.skippedRecipients,
+    failedRecipients: result.failedRecipients
   });
 } finally {
   await container.close();

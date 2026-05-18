@@ -7,6 +7,7 @@ import type {
   MessagingMessageAuditRepository,
   MessagingPendingDraftRepository,
   OtpRepository,
+  ReportDispatchRepository,
   UserRepository,
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
@@ -449,5 +450,92 @@ export class InMemoryMessagingPendingDraftRepository implements MessagingPending
       (draft.channel ?? 'whatsapp') === channel
     );
     if (index >= 0) this.drafts.splice(index, 1);
+  }
+}
+
+export class InMemoryReportDispatchRepository implements ReportDispatchRepository {
+  private readonly dispatches: Array<{
+    tenantId: string;
+    userId: string;
+    channel: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+    status: 'pending' | 'sent' | 'failed';
+    errorMessage?: string;
+  }> = [];
+
+  async reserve(input: {
+    tenantId: string;
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+  }) {
+    const channel = input.channel ?? 'whatsapp';
+    const exists = this.dispatches.some((item) =>
+      item.channel === channel &&
+      item.frequency === input.frequency &&
+      item.periodFrom === input.periodFrom &&
+      item.periodTo === input.periodTo &&
+      item.userId === input.userId &&
+      (item.status === 'pending' || item.status === 'sent')
+    );
+    if (exists) return false;
+
+    this.dispatches.push({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      channel,
+      frequency: input.frequency,
+      periodFrom: input.periodFrom,
+      periodTo: input.periodTo,
+      status: 'pending'
+    });
+    return true;
+  }
+
+  async markSent(input: {
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+  }) {
+    const channel = input.channel ?? 'whatsapp';
+    const dispatch = this.dispatches.find((item) =>
+      item.channel === channel &&
+      item.frequency === input.frequency &&
+      item.periodFrom === input.periodFrom &&
+      item.periodTo === input.periodTo &&
+      item.userId === input.userId &&
+      item.status === 'pending'
+    );
+    if (!dispatch) return;
+    dispatch.status = 'sent';
+    dispatch.errorMessage = undefined;
+  }
+
+  async markFailed(input: {
+    userId: string;
+    channel?: 'whatsapp' | 'telegram';
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    periodFrom: string;
+    periodTo: string;
+    errorMessage: string;
+  }) {
+    const channel = input.channel ?? 'whatsapp';
+    const dispatch = this.dispatches.find((item) =>
+      item.channel === channel &&
+      item.frequency === input.frequency &&
+      item.periodFrom === input.periodFrom &&
+      item.periodTo === input.periodTo &&
+      item.userId === input.userId &&
+      item.status === 'pending'
+    );
+    if (!dispatch) return;
+    dispatch.status = 'failed';
+    dispatch.errorMessage = input.errorMessage;
   }
 }

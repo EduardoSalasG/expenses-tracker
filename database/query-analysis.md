@@ -68,6 +68,11 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
   - Reason: simple recipient discovery before per-tenant report generation and WhatsApp delivery.
   - Index: `users_report_preferences_gin_idx`.
 
+- Report dispatch idempotency: direct SQL reservation/update.
+  - Query shape: reserve `(channel, frequency, period_from, period_to, user_id)` as `pending`, then mark `sent` or `failed`.
+  - Reason: scheduled jobs can run more than once; reservation avoids duplicate delivery while preserving retry visibility.
+  - Index: `report_dispatches_unique_active_idx` partial unique index and `report_dispatches_tenant_period_idx`.
+
 - User profile reads and session refresh: direct SQL.
   - Query shape: `users` by primary key for `GET /me` and `POST /auth/refresh`.
   - Reason: single-row identity lookup is simple, stable, and already backed by the primary key.

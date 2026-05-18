@@ -15,6 +15,7 @@ The database image is built from `database/Dockerfile`. On first container start
 - `16-007-expand-default-categories.sql`
 - `17-008-rename-whatsapp-messaging-tables.sql`
 - `18-009-reporting-aggregates-by-tenant.sql`
+- `19-010-report-dispatches.sql`
 - `20-001-demo-seed.sql`
 
 The seed creates:
