@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --brand-black: #070b12;
   --brand-ink: #111827;
   --brand-navy: #0b1f3a;
@@ -16,6 +17,23 @@
   --brand-border: #d6dee8;
   --brand-muted: #526173;
   --brand-shadow: 0 10px 30px rgb(7 11 18 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --brand-black: #020617;
+    --brand-ink: #e2e8f0;
+    --brand-navy: #1d4ed8;
+    --brand-navy-700: #2563eb;
+    --brand-blue: #3b82f6;
+    --brand-bg: #020617;
+    --brand-surface: #0f172a;
+    --brand-surface-muted: #111c33;
+    --brand-border: #1e293b;
+    --brand-muted: #94a3b8;
+    --brand-shadow: 0 10px 30px rgb(2 6 23 / 0.45);
+  }
 }
 
 html,
