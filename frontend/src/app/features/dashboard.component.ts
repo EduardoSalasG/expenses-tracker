@@ -489,7 +489,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         datasets: [{
           data: labels.length ? labels.map((label) => totals[label]) : [1],
           backgroundColor: labels.length
-            ? labels.map((_, index) => CATEGORY_CHART_COLORS[index % CATEGORY_CHART_COLORS.length])
+            ? labels.map((_, index) => this.chartColors().categoryPalette[index % this.chartColors().categoryPalette.length])
             : ['#94A3B8'],
           borderColor: this.chartColors().surface,
           borderWidth: 2
@@ -529,7 +529,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
           : `${this.selectedYear()}-${label.indexToken}`;
         return currencyBuckets[currency][periodKey] ?? 0;
       }),
-      backgroundColor: CHART_COLORS[index % CHART_COLORS.length]
+      backgroundColor: this.chartColors().seriesPalette[index % this.chartColors().seriesPalette.length]
     }));
     const config: ChartConfiguration<'bar'> = {
       type: 'bar',
@@ -623,13 +623,17 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private chartColors() {
     const styles = getComputedStyle(document.documentElement);
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const seriesPalette = isDark ? DARK_SERIES_COLORS : LIGHT_SERIES_COLORS;
+    const categoryPalette = isDark ? DARK_CATEGORY_COLORS : LIGHT_CATEGORY_COLORS;
     return {
-      income: styles.getPropertyValue('--brand-blue').trim() || '#1D4ED8',
-      expense: styles.getPropertyValue('--brand-navy').trim() || '#0B1F3A',
+      income: isDark ? '#60A5FA' : (styles.getPropertyValue('--brand-blue').trim() || '#1D4ED8'),
+      expense: isDark ? '#F97316' : (styles.getPropertyValue('--brand-navy').trim() || '#0B1F3A'),
       text: isDark ? '#E2E8F0' : '#0B1F3A',
       grid: isDark ? '#334155' : '#CBD5E1',
       surface: styles.getPropertyValue('--brand-surface').trim() || '#FFFFFF',
-      surfaceMuted: styles.getPropertyValue('--brand-surface-muted').trim() || '#EEF3F8'
+      surfaceMuted: styles.getPropertyValue('--brand-surface-muted').trim() || '#EEF3F8',
+      seriesPalette,
+      categoryPalette
     };
   }
 
@@ -697,8 +701,10 @@ function buildYearMonthLabels(year: number) {
   }));
 }
 
-const CHART_COLORS = ['#0B1F3A', '#1D4ED8', '#12355B', '#334155', '#64748B', '#94A3B8'];
-const CATEGORY_CHART_COLORS = [
+const LIGHT_SERIES_COLORS = ['#0B1F3A', '#1D4ED8', '#12355B', '#334155', '#64748B', '#94A3B8'];
+const DARK_SERIES_COLORS = ['#38BDF8', '#F97316', '#A78BFA', '#34D399', '#FBBF24', '#FB7185'];
+
+const LIGHT_CATEGORY_COLORS = [
   '#0B1F3A',
   '#1D4ED8',
   '#0F766E',
@@ -711,4 +717,19 @@ const CATEGORY_CHART_COLORS = [
   '#9333EA',
   '#C2410C',
   '#475569'
+];
+
+const DARK_CATEGORY_COLORS = [
+  '#38BDF8',
+  '#F97316',
+  '#34D399',
+  '#A78BFA',
+  '#FBBF24',
+  '#FB7185',
+  '#22D3EE',
+  '#C084FC',
+  '#4ADE80',
+  '#F472B6',
+  '#2DD4BF',
+  '#FACC15'
 ];
