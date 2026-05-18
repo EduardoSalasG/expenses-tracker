@@ -70,8 +70,17 @@ export function formatReportMessage(
     incomes: Array<{ amount: number; currency: string }>;
     expenseTotalsByCurrency: Record<string, number>;
     incomeTotalsByCurrency: Record<string, number>;
+    expenseVariationByCategory?: Array<{
+      categoryName: string;
+      currency: string;
+      currentTotal: number;
+      previousTotal: number;
+      delta: number;
+      deltaPercent: number | null;
+    }>;
   }
 ) {
+  const variationLines = formatVariationLines(frequency, report.expenseVariationByCategory ?? []);
   const expenseTotals = formatTotals(report.expenseTotalsByCurrency);
   const incomeTotals = formatTotals(report.incomeTotalsByCurrency);
   return [
@@ -79,7 +88,8 @@ export function formatReportMessage(
     `Ingresos: ${incomeTotals}`,
     `Gastos: ${expenseTotals}`,
     `Movimientos de ingreso: ${report.incomes.length}`,
-    `Movimientos de gasto: ${report.expenses.length}`
+    `Movimientos de gasto: ${report.expenses.length}`,
+    ...variationLines
   ].join('\n');
 }
 
@@ -147,6 +157,34 @@ function reportFrequencyLabel(frequency: ReportFrequency) {
     yearly: 'anual'
   };
   return labels[frequency];
+}
+
+function formatVariationLines(
+  frequency: ReportFrequency,
+  rows: Array<{
+    categoryName: string;
+    currency: string;
+    currentTotal: number;
+    previousTotal: number;
+    delta: number;
+    deltaPercent: number | null;
+  }>
+) {
+  if (frequency !== 'monthly' && frequency !== 'yearly') return [];
+  const nonZeroRows = rows.filter((row) => Math.abs(row.delta) > 0);
+  if (!nonZeroRows.length) return ['Variación por categoría vs período anterior: sin cambios.'];
+
+  const lines = nonZeroRows
+    .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
+    .slice(0, 5)
+    .map((row) => {
+      const trend = row.delta > 0 ? 'sube' : 'baja';
+      const deltaLabel = formatMoney(row.currency, Math.abs(row.delta));
+      const percentLabel = row.deltaPercent === null ? 'n/a' : `${Math.abs(row.deltaPercent).toFixed(2)}%`;
+      return `- ${row.categoryName}: ${trend} ${deltaLabel} (${percentLabel}).`;
+    });
+
+  return ['Variación por categoría vs período anterior:', ...lines];
 }
 
 function categoryLabel(categories: Category[], categoryId: string): string {

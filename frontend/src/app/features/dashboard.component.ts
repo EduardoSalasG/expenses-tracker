@@ -30,6 +30,16 @@ interface CategoryTotalRow {
   total: number;
 }
 
+interface CategoryVariationRow {
+  categoryId: string;
+  categoryName: string;
+  currency: string;
+  currentTotal: number;
+  previousTotal: number;
+  delta: number;
+  deltaPercent: number | null;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -173,6 +183,34 @@ interface CategoryTotalRow {
           </div>
         </mat-card>
       </section>
+
+      <section class="mt-4">
+        <mat-card class="page-panel p-5">
+          <h2 class="mb-3 text-lg font-semibold">Category variation vs previous period</h2>
+          <div class="grid gap-2">
+            @for (row of categoryVariation(); track row.categoryId + row.currency) {
+              <div class="grid gap-2 border-b border-brand-border/70 py-2 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div class="min-w-0">
+                  <div class="truncate font-medium">{{ row.categoryName }} ({{ row.currency }})</div>
+                  <div class="mt-1 text-sm text-brand-muted">
+                    Current {{ formatMoney(row.currency, row.currentTotal) }} vs previous {{ formatMoney(row.currency, row.previousTotal) }}
+                  </div>
+                </div>
+                <div class="text-left sm:text-right" [class.text-red-700]="row.delta > 0" [class.text-emerald-700]="row.delta < 0" [class.text-brand-muted]="row.delta === 0">
+                  <div class="font-semibold">
+                    {{ row.delta > 0 ? '+' : row.delta < 0 ? '-' : '' }}{{ formatMoney(row.currency, abs(row.delta)) }}
+                  </div>
+                  <div class="text-xs">
+                    {{ row.deltaPercent === null ? 'n/a' : (abs(row.deltaPercent).toFixed(2) + '%') }}
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <p class="text-brand-muted">No variation data for this period.</p>
+            }
+          </div>
+        </mat-card>
+      </section>
     }
   `
 })
@@ -213,6 +251,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       .join(' | ');
   });
   readonly budgetProgress = computed(() => this.buildBudgetProgress());
+  readonly categoryVariation = computed(() => this.buildCategoryVariation());
   readonly overallBudget = computed(() => {
     const rows = this.budgetProgress();
     if (!rows.length) return null;
@@ -291,6 +330,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
   }
 
+  abs(value: number) {
+    return Math.abs(value);
+  }
+
   private formatTotals(totals?: Record<string, number>) {
     if (!totals || !Object.keys(totals).length) return 'No movement';
     return Object.entries(totals)
@@ -319,6 +362,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         remaining: Math.max(Number(budget.amount) - spent, 0)
       };
     });
+  }
+
+  private buildCategoryVariation(): CategoryVariationRow[] {
+    const report = this.report();
+    if (!report?.expenseVariationByCategory?.length) return [];
+    return [...report.expenseVariationByCategory]
+      .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
+      .slice(0, 8);
   }
 
   private renderCharts() {

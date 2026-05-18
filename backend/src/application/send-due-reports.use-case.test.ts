@@ -66,7 +66,9 @@ describe('SendDueReportsUseCase', () => {
           'Ingresos: $100.000',
           'Gastos: $12.500',
           'Movimientos de ingreso: 1',
-          'Movimientos de gasto: 1'
+          'Movimientos de gasto: 1',
+          'Variación por categoría vs período anterior:',
+          '- Food: sube $12.500 (n/a).'
         ].join('\n')
       }
     ]);
