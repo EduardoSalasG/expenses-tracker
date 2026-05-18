@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, UserRepository } from '../../application/ports.js';
+import type {
+  BudgetRepository,
+  CategoryRepository,
+  ExpenseRepository,
+  IncomeRepository,
+  MessagingMessageAuditRepository,
+  MessagingPendingDraftRepository,
+  OtpRepository,
+  UserRepository,
+  CategoryTotalByPeriod,
+  CurrencyTotalByPeriod
+} from '../../application/ports.js';
 import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
@@ -171,6 +182,66 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   async listByPeriod(tenantId: string, from: string, to: string) {
     return this.expenses.filter((expense) => expense.tenantId === tenantId && expense.date >= from && expense.date <= to);
   }
+
+  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+    const source = this.expenses.filter((expense) =>
+      expense.tenantId === tenantId && new Date(expense.date).getUTCFullYear() === year
+    );
+    return aggregateCurrencyTotalsBy(source, (expense) => {
+      const date = new Date(expense.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    });
+  }
+
+  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const source = this.expenses.filter((expense) => {
+      if (expense.tenantId !== tenantId) return false;
+      const date = new Date(expense.date);
+      return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === monthNumber;
+    });
+    return aggregateCurrencyTotalsBy(source, (expense) => {
+      const date = new Date(expense.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    });
+  }
+
+  async weeklyDailyTotalsByTenant(tenantId: string, weekStartIsoDate: string) {
+    const weekStart = new Date(`${weekStartIsoDate}T00:00:00.000Z`);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    weekEnd.setUTCHours(23, 59, 59, 999);
+    const source = this.expenses.filter((expense) => {
+      if (expense.tenantId !== tenantId) return false;
+      const date = new Date(expense.date);
+      return date >= weekStart && date <= weekEnd;
+    });
+    return aggregateCurrencyTotalsBy(source, (expense) => {
+      const date = new Date(expense.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    });
+  }
+
+  async periodCategoryTotalsByTenant(tenantId: string, from: string, to: string) {
+    const totals = new Map<string, CategoryTotalByPeriod>();
+    for (const expense of this.expenses) {
+      if (expense.tenantId !== tenantId) continue;
+      if (expense.date < from || expense.date > to) continue;
+      const key = [expense.categoryId, expense.subcategoryId ?? '', expense.currency].join('__');
+      const existing = totals.get(key);
+      if (existing) {
+        existing.total += Number(expense.amount);
+        continue;
+      }
+      totals.set(key, {
+        categoryId: expense.categoryId,
+        subcategoryId: expense.subcategoryId,
+        currency: expense.currency,
+        total: Number(expense.amount)
+      });
+    }
+    return [...totals.values()];
+  }
 }
 
 export class InMemoryIncomeRepository implements IncomeRepository {
@@ -224,6 +295,50 @@ export class InMemoryIncomeRepository implements IncomeRepository {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
   }
+
+  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+    const source = this.incomes.filter((income) =>
+      income.tenantId === tenantId && new Date(income.date).getUTCFullYear() === year
+    );
+    return aggregateCurrencyTotalsBy(source, (income) => {
+      const date = new Date(income.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    });
+  }
+
+  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const source = this.incomes.filter((income) => {
+      if (income.tenantId !== tenantId) return false;
+      const date = new Date(income.date);
+      return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === monthNumber;
+    });
+    return aggregateCurrencyTotalsBy(source, (income) => {
+      const date = new Date(income.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    });
+  }
+}
+
+function aggregateCurrencyTotalsBy<T extends { amount: number; currency: string }>(
+  items: T[],
+  periodKey: (item: T) => string
+): CurrencyTotalByPeriod[] {
+  const totals = new Map<string, CurrencyTotalByPeriod>();
+  for (const item of items) {
+    const key = `${periodKey(item)}__${item.currency}`;
+    const existing = totals.get(key);
+    if (existing) {
+      existing.total += Number(item.amount);
+      continue;
+    }
+    totals.set(key, {
+      periodKey: periodKey(item),
+      currency: item.currency,
+      total: Number(item.amount)
+    });
+  }
+  return [...totals.values()].sort((a, b) => a.periodKey.localeCompare(b.periodKey));
 }
 
 export class InMemoryBudgetRepository implements BudgetRepository {

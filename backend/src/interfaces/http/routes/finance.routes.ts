@@ -18,5 +18,11 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   app.get('/budgets/monthly', auth, asyncHandler(controller.monthlyBudgets));
   app.put('/budgets/monthly', auth, asyncHandler(controller.upsertMonthlyBudget));
   app.get('/reports', auth, asyncHandler(controller.report));
+  app.get('/reports/expenses/yearly-monthly', auth, asyncHandler(controller.yearlyExpensesMonthlyTotals));
+  app.get('/reports/expenses/monthly-daily', auth, asyncHandler(controller.monthlyExpensesDailyTotals));
+  app.get('/reports/expenses/weekly-daily', auth, asyncHandler(controller.weeklyExpensesDailyTotals));
+  app.get('/reports/incomes/yearly-monthly', auth, asyncHandler(controller.yearlyIncomesMonthlyTotals));
+  app.get('/reports/incomes/monthly-daily', auth, asyncHandler(controller.monthlyIncomesDailyTotals));
+  app.get('/reports/expenses/category-totals', auth, asyncHandler(controller.periodExpenseCategoryTotals));
   app.put('/report-preferences', auth, asyncHandler(controller.updateReportPreferences));
 }

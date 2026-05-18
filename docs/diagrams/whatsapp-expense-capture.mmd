@@ -19,10 +19,17 @@ sequenceDiagram
     API->>DB: Check active pending draft
     alt pending draft exists
       API->>Interpreter: Interpret reply
-      API->>API: Merge reply into draft or cancel draft
+      API->>API: Merge reply into draft, confirm duplicate, or cancel draft
     else no pending draft
-    API->>Interpreter: Interpret intent and structured fields
-    Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
+      API->>DB: Check same sender/channel/text saved in last 2 minutes
+      alt possible recent duplicate
+        API->>DB: Mark audit as needs_confirmation
+        API->>DB: Upsert duplicate confirmation draft
+        API->>WhatsApp: Ask user to guardar or descartar
+      else not duplicate
+        API->>Interpreter: Interpret intent and structured fields
+        Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
+      end
     end
     alt missing or ambiguous data
       API->>DB: Mark audit as needs_confirmation

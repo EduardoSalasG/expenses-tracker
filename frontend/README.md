@@ -27,6 +27,10 @@ http://localhost:4200
 In local development, Angular proxies `/api` requests to `http://localhost:3000`
 and removes the `/api` prefix before forwarding to Express.
 
+The local dev server is configured with `--host 0.0.0.0` and `--disable-host-check`
+so ngrok hosts can reach port `4200` without Vite rejecting the forwarded `Host`
+header. Restart `pnpm dev:frontend` after changing these settings.
+
 ## Docker
 
 The frontend image is built from `frontend/Dockerfile` and served by Nginx.

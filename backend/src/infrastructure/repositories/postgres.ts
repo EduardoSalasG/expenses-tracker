@@ -232,6 +232,38 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     );
     return result.rows.map(mapExpense);
   }
+
+  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+    const result = await this.pool.query(
+      `select * from yearly_expenses_monthly_totals_by_tenant($1, $2)`,
+      [tenantId, year]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
+  }
+
+  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+    const result = await this.pool.query(
+      `select * from monthly_expenses_daily_totals_by_tenant($1, $2::date)`,
+      [tenantId, `${month}-01`]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
+  }
+
+  async weeklyDailyTotalsByTenant(tenantId: string, weekStartIsoDate: string) {
+    const result = await this.pool.query(
+      `select * from weekly_expenses_daily_totals_by_tenant($1, $2::date)`,
+      [tenantId, weekStartIsoDate]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
+  }
+
+  async periodCategoryTotalsByTenant(tenantId: string, from: string, to: string) {
+    const result = await this.pool.query(
+      `select * from period_expense_category_totals_by_tenant($1, $2, $3)`,
+      [tenantId, from, to]
+    );
+    return result.rows.map(mapCategoryTotalByPeriod);
+  }
 }
 
 export class PostgresIncomeRepository implements IncomeRepository {
@@ -299,6 +331,22 @@ export class PostgresIncomeRepository implements IncomeRepository {
       [tenantId, limit]
     );
     return result.rows.map(mapIncome);
+  }
+
+  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+    const result = await this.pool.query(
+      `select * from yearly_incomes_monthly_totals_by_tenant($1, $2)`,
+      [tenantId, year]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
+  }
+
+  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+    const result = await this.pool.query(
+      `select * from monthly_incomes_daily_totals_by_tenant($1, $2::date)`,
+      [tenantId, `${month}-01`]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
   }
 }
 
@@ -541,6 +589,23 @@ function mapPendingDraft(row: QueryResultRow): ConversationPendingDraft {
     missingFields: row.missing_fields,
     expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
     channel: row.channel
+  };
+}
+
+function mapCurrencyTotalByPeriod(row: QueryResultRow) {
+  return {
+    periodKey: row.period_key,
+    currency: row.currency,
+    total: Number(row.total)
+  };
+}
+
+function mapCategoryTotalByPeriod(row: QueryResultRow) {
+  return {
+    categoryId: row.category_id,
+    subcategoryId: row.subcategory_id ?? undefined,
+    currency: row.currency,
+    total: Number(row.total)
   };
 }
 

@@ -4,14 +4,14 @@ import { Component, input } from '@angular/core';
   selector: 'app-page-header',
   standalone: true,
   template: `
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
+    <div class="mb-5 flex flex-col gap-4 border-b border-brand-border pb-5 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
       <div class="min-w-0">
         @if (eyebrow()) {
-          <p class="text-sm font-medium uppercase tracking-wide text-slate-500">{{ eyebrow() }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ eyebrow() }}</p>
         }
-        <h1 class="mt-1 text-3xl font-semibold text-slate-950">{{ title() }}</h1>
+        <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ title() }}</h1>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <ng-content />
       </div>
     </div>

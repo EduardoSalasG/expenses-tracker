@@ -1,4 +1,5 @@
 import type { Income, TenantId } from '../../domain/index.js';
+import type { CurrencyTotalByPeriod } from './expense.repository.js';
 
 export interface IncomeRepository {
   create(input: Omit<Income, 'id'>): Promise<Income>;
@@ -17,4 +18,6 @@ export interface IncomeRepository {
   }): Promise<Income[]>;
   listByPeriod(tenantId: TenantId, from: string, to: string): Promise<Income[]>;
   listRecent(tenantId: TenantId, limit: number): Promise<Income[]>;
+  yearlyMonthlyTotalsByTenant(tenantId: TenantId, year: number): Promise<CurrencyTotalByPeriod[]>;
+  monthlyDailyTotalsByTenant(tenantId: TenantId, month: string): Promise<CurrencyTotalByPeriod[]>;
 }

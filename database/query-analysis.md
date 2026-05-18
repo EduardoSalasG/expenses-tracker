@@ -43,6 +43,16 @@ This project uses direct parameterized SQL for simple reads/writes and PostgreSQ
   - Query shape: tenant and date range over expenses/incomes.
   - Indexes: `expenses_tenant_date_idx`, `incomes_tenant_date_idx`.
 
+- Aggregated report series (database functions):
+  - `yearly_expenses_monthly_totals_by_tenant(tenant_id, year)`
+  - `monthly_expenses_daily_totals_by_tenant(tenant_id, month)`
+  - `weekly_expenses_daily_totals_by_tenant(tenant_id, week_start)`
+  - `yearly_incomes_monthly_totals_by_tenant(tenant_id, year)`
+  - `monthly_incomes_daily_totals_by_tenant(tenant_id, month)`
+  - `period_expense_category_totals_by_tenant(tenant_id, from, to)`
+  - Reason: these are aggregation-heavy dashboard/report workloads where database-side grouping reduces payload size, keeps period bucketing consistent, and avoids duplicate aggregation logic in multiple clients.
+  - Indexes used: `expenses_tenant_date_idx`, `expenses_tenant_category_date_idx`, `incomes_tenant_date_idx`.
+
 - Filtered incomes: direct SQL.
   - Query shape: tenant-scoped optional filters for date range and currency, ordered by `income_date desc`.
   - Reason: this is a straightforward read for the income history screen.

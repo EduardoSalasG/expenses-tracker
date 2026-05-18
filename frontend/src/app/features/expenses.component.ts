@@ -14,10 +14,10 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatExpansionModule, FeedbackBannerComponent],
   template: `
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
+    <div class="mb-5 border-b border-slate-200 pb-5 sm:mb-6">
       <div>
-        <p class="text-sm font-medium uppercase tracking-wide text-slate-500">Manual capture and history</p>
-        <h1 class="mt-1 text-3xl font-semibold text-slate-950">Expenses</h1>
+        <p class="text-xs font-medium uppercase tracking-wide text-slate-500 sm:text-sm">Manual capture and history</p>
+        <h1 class="mt-1 text-2xl font-semibold text-slate-950 sm:text-3xl">Expenses</h1>
       </div>
     </div>
 
@@ -86,7 +86,7 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
           </mat-form-field>
         }
 
-        <div class="flex items-center gap-3 lg:col-span-4">
+        <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-4">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
             {{ saving() ? 'Saving...' : 'Save expense' }}
           </button>
@@ -134,7 +134,7 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
             <mat-option value="card">Card</mat-option>
           </mat-select>
         </mat-form-field>
-        <div class="flex items-center gap-2">
+        <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center">
           <button mat-flat-button color="primary" type="submit">Apply</button>
           <button mat-button type="button" (click)="clearFilters()">Clear</button>
         </div>
@@ -151,8 +151,8 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? 'Loading expenses...' : ''" tone="info" />
 
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[640px] border-collapse text-left">
+      <div class="responsive-table-wrapper overflow-x-auto">
+        <table class="responsive-table w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
               <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
@@ -165,11 +165,11 @@ import { FeedbackBannerComponent } from '../shared/components/feedback-banner.co
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-slate-100 last:border-0">
-                <td class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(expense.date) }}</td>
-                <td class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
-                <td class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td class="py-3 pr-3 text-sm text-slate-600">{{ paymentLabel(expense) }}</td>
-                <td class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(expense.date) }}</td>
+                <td data-label="Concept" class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
+                <td data-label="Category" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
+                <td data-label="Payment" class="py-3 pr-3 text-sm text-slate-600">{{ paymentLabel(expense) }}</td>
+                <td data-label="Amount" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
               </tr>
             } @empty {
               <tr>

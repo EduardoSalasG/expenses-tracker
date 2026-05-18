@@ -18,7 +18,6 @@ export class FeedbackBannerComponent {
   classes() {
     if (this.tone() === 'error') return 'border border-red-200 bg-red-50 text-red-700';
     if (this.tone() === 'success') return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
-    return 'border border-slate-200 bg-slate-50 text-slate-700';
+    return 'border border-brand-border bg-brand-bg text-brand-ink';
   }
 }
-

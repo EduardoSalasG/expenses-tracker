@@ -8,7 +8,10 @@ import {
   expenseQuerySchema,
   incomeQuerySchema,
   monthlyBudgetSchema,
+  reportMonthQuerySchema,
   reportPreferencesSchema,
+  reportWeekStartQuerySchema,
+  reportYearQuerySchema,
   reportQuerySchema
 } from '../schemas.js';
 import { parseBody } from '../utils.js';
@@ -94,6 +97,42 @@ export class FinanceController {
     const authRequest = request as AuthenticatedRequest;
     const query = reportQuerySchema.parse(request.query);
     response.json(await this.container.useCases.finance.report(authRequest.auth.tenantId, query.from, query.to));
+  };
+
+  yearlyExpensesMonthlyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportYearQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.yearlyExpensesMonthlyTotals(authRequest.auth.tenantId, query.year));
+  };
+
+  monthlyExpensesDailyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportMonthQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.monthlyExpensesDailyTotals(authRequest.auth.tenantId, query.month));
+  };
+
+  weeklyExpensesDailyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportWeekStartQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.weeklyExpensesDailyTotals(authRequest.auth.tenantId, query.weekStart));
+  };
+
+  yearlyIncomesMonthlyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportYearQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.yearlyIncomesMonthlyTotals(authRequest.auth.tenantId, query.year));
+  };
+
+  monthlyIncomesDailyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportMonthQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.monthlyIncomesDailyTotals(authRequest.auth.tenantId, query.month));
+  };
+
+  periodExpenseCategoryTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.finance.periodExpenseCategoryTotals(authRequest.auth.tenantId, query.from, query.to));
   };
 
   updateReportPreferences = async (request: Request, response: Response) => {

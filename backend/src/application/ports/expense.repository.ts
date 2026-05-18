@@ -1,5 +1,18 @@
 import type { Expense, TenantId } from '../../domain/index.js';
 
+export interface CurrencyTotalByPeriod {
+  periodKey: string;
+  currency: string;
+  total: number;
+}
+
+export interface CategoryTotalByPeriod {
+  categoryId: string;
+  subcategoryId?: string;
+  currency: string;
+  total: number;
+}
+
 export interface ExpenseRepository {
   create(input: Omit<Expense, 'id'>): Promise<Expense>;
   update(input: {
@@ -21,4 +34,8 @@ export interface ExpenseRepository {
   }): Promise<Expense[]>;
   listRecent(tenantId: TenantId, limit: number): Promise<Expense[]>;
   listByPeriod(tenantId: TenantId, from: string, to: string): Promise<Expense[]>;
+  yearlyMonthlyTotalsByTenant(tenantId: TenantId, year: number): Promise<CurrencyTotalByPeriod[]>;
+  monthlyDailyTotalsByTenant(tenantId: TenantId, month: string): Promise<CurrencyTotalByPeriod[]>;
+  weeklyDailyTotalsByTenant(tenantId: TenantId, weekStartIsoDate: string): Promise<CurrencyTotalByPeriod[]>;
+  periodCategoryTotalsByTenant(tenantId: TenantId, from: string, to: string): Promise<CategoryTotalByPeriod[]>;
 }

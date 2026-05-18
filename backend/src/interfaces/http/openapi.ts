@@ -173,6 +173,57 @@ export const openApiSpec = {
       }
     },
     '/reports': authenticatedGet('Generate report for query period'),
+    '/reports/expenses/yearly-monthly': {
+      get: {
+        summary: 'Yearly expenses grouped by month and currency',
+        security: [{ bearerAuth: [] }],
+        parameters: [queryParam('year', 'integer', 'Year in YYYY format')],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
+    '/reports/expenses/monthly-daily': {
+      get: {
+        summary: 'Monthly expenses grouped by day and currency',
+        security: [{ bearerAuth: [] }],
+        parameters: [queryParam('month', 'string', 'Month in YYYY-MM format')],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
+    '/reports/expenses/weekly-daily': {
+      get: {
+        summary: 'Weekly expenses grouped by day and currency',
+        security: [{ bearerAuth: [] }],
+        parameters: [queryParam('weekStart', 'string', 'Week start date in YYYY-MM-DD format (Monday recommended)')],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
+    '/reports/incomes/yearly-monthly': {
+      get: {
+        summary: 'Yearly incomes grouped by month and currency',
+        security: [{ bearerAuth: [] }],
+        parameters: [queryParam('year', 'integer', 'Year in YYYY format')],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
+    '/reports/incomes/monthly-daily': {
+      get: {
+        summary: 'Monthly incomes grouped by day and currency',
+        security: [{ bearerAuth: [] }],
+        parameters: [queryParam('month', 'string', 'Month in YYYY-MM format')],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
+    '/reports/expenses/category-totals': {
+      get: {
+        summary: 'Expense totals by category/subcategory and currency for a period',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          queryParam('from', 'string', 'ISO datetime lower bound'),
+          queryParam('to', 'string', 'ISO datetime upper bound')
+        ],
+        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+      }
+    },
     '/report-preferences': authenticatedPut('Update report preferences'),
     '/webhooks/whatsapp': {
       get: { summary: 'Verify WhatsApp webhook', responses: { '200': { description: 'Verified' }, '403': { description: 'Invalid token' } } },

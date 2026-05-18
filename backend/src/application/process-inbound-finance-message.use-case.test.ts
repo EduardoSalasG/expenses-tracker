@@ -87,7 +87,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(audits.messages[0].parsingStatus).toBe('saved');
   });
 
-  it('ignores recent duplicate text messages even with different provider ids', async () => {
+  it('asks before saving recent duplicate text messages with different provider ids', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
@@ -125,11 +125,18 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: '+56982439041',
       message: 'CLP 12500 groceries cash'
     });
+    const confirmed = await useCase.execute({
+      providerMessageId: 'wamid.recent-confirm',
+      fromPhoneNumber: '+56982439041',
+      message: 'guardar'
+    });
 
     expect(first.status).toBe('saved');
-    expect(second.status).toBe('duplicate_ignored');
-    expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(1);
-    expect(messaging.messages.at(-1)?.body).toContain('posible mensaje duplicado reciente');
+    expect(second.status).toBe('duplicate_needs_confirmation');
+    expect(confirmed.status).toBe('saved');
+    expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(2);
+    expect(messaging.messages.at(-2)?.body).toContain('posible movimiento duplicado reciente');
+    expect(messaging.messages.at(-1)?.body).toContain('Gasto guardado.');
   });
 
   it('saves income messages without creating expenses', async () => {

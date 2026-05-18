@@ -11,7 +11,26 @@ import { registerRoutes } from './routes/index.js';
 export function createApp(container: AppContainer) {
   const app = express();
   app.use(helmet());
-  app.use(cors({ origin: container.config.frontendOrigin }));
+  // In dev, when exposing the API via ngrok, the Origin will be the ngrok domain.
+  // Allow configuring multiple allowed origins via comma-separated FRONTEND_ORIGIN.
+  // Set FRONTEND_ORIGIN="*" to allow any origin (dev only).
+  const frontendOrigin = container.config.frontendOrigin?.trim();
+  const allowAll = frontendOrigin === '*';
+  const allowList = allowAll
+    ? []
+    : (frontendOrigin ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // same-origin/curl
+      if (allowAll) return callback(null, true);
+      if (allowList.length === 0) return callback(null, false);
+      return callback(null, allowList.includes(origin));
+    }
+  }));
   app.use(express.json({
     verify: (request: RequestWithRawBody, _response, buffer) => {
       request.rawBody = Buffer.from(buffer);

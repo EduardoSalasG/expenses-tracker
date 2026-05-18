@@ -13,12 +13,12 @@ import { AuthService } from '../core/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   template: `
-    <main class="app-surface min-h-screen grid place-items-center px-4 py-10">
-      <mat-card class="page-panel w-full max-w-md p-7">
+    <main class="app-surface grid min-h-screen place-items-center px-3 py-6 sm:px-4 sm:py-10">
+      <mat-card class="page-panel w-full max-w-md p-5 sm:p-7">
         <div class="mb-6">
-          <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-slate-950 text-sm font-semibold text-white">ET</div>
-          <h1 class="text-3xl font-semibold text-slate-950">Expenses Tracker</h1>
-          <p class="mt-2 text-sm leading-6 text-slate-600">
+          <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-brand-navy text-sm font-semibold text-white">ET</div>
+          <h1 class="text-2xl font-semibold text-brand-ink sm:text-3xl">Expenses Tracker</h1>
+          <p class="mt-2 text-sm leading-6 text-brand-muted">
             Sign in with the WhatsApp number you use to track expenses.
           </p>
         </div>
@@ -42,9 +42,9 @@ import { AuthService } from '../core/auth.service';
               </div>
             }
             @if (requiresRegistration()) {
-              <div class="rounded border border-slate-200 bg-white p-4">
-                <p class="text-sm font-medium text-slate-950">Create your profile</p>
-                <p class="mt-1 text-xs text-slate-500">This number is not registered yet.</p>
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <p class="text-sm font-medium text-brand-ink">Create your profile</p>
+                <p class="mt-1 text-xs text-brand-muted">This number is not registered yet.</p>
               </div>
               <mat-form-field appearance="outline">
                 <mat-label>Name</mat-label>
@@ -77,7 +77,7 @@ import { AuthService } from '../core/auth.service';
             </mat-form-field>
           }
 
-          <button mat-flat-button color="primary" type="submit" class="!h-11">
+          <button mat-flat-button color="primary" type="submit" class="!h-11 w-full">
             {{ otpSent() ? 'Verify and enter' : 'Send code' }}
           </button>
         </form>

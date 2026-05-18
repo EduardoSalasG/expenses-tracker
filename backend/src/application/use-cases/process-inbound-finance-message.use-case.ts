@@ -63,6 +63,12 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'ignored_unregistered_sender' as const };
     }
 
+    const categories = await this.categories.listByTenant(user.tenantId);
+    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
+    if (pendingDraft) {
+      return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
+    }
+
     const isRecentDuplicate = await this.messageAudits.existsRecentDuplicate({
       channel: input.channel,
       fromPhoneNumber: input.fromPhoneNumber,
@@ -71,16 +77,27 @@ export class ProcessInboundFinanceMessageUseCase {
       excludeProviderMessageId: input.providerMessageId
     });
     if (isRecentDuplicate) {
+      await this.pendingDrafts.upsert({
+        tenantId: user.tenantId,
+        userId: user.id,
+        originalMessage: input.message,
+        draft: {
+          kind: 'duplicate_confirmation',
+          originalMessage: input.message
+        },
+        missingFields: ['duplicate_confirmation'],
+        expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString(),
+        channel: input.channel
+      });
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
-        parsingStatus: 'failed'
+        parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, 'Detecté un posible mensaje duplicado reciente y no lo volví a guardar.');
-      return { status: 'duplicate_ignored' as const };
+      await this.reply(user, input.fromPhoneNumber, 'Detecté un posible movimiento duplicado reciente. Responde "guardar" para guardarlo igual o "descartar" para no registrarlo.');
+      return { status: 'duplicate_needs_confirmation' as const };
     }
 
-    const categories = await this.categories.listByTenant(user.tenantId);
     const interpreted = await this.interpreter.interpret(input.message, {
       user,
       categories,
@@ -89,11 +106,6 @@ export class ProcessInboundFinanceMessageUseCase {
 
     if (interpreted.intent === 'update_movement') {
       return this.updateMovement(input, user, categories, interpreted);
-    }
-
-    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
-    if (pendingDraft) {
-      return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
     }
 
     const saved = await this.trySaveInterpreted(input, user, categories, interpreted);
@@ -119,6 +131,48 @@ export class ProcessInboundFinanceMessageUseCase {
     originalMessage: string,
     draft: unknown
   ) {
+    if (isDuplicateConfirmationDraft(draft)) {
+      if (isCancelMessage(input.message)) {
+        await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
+        await this.auditMessage(input, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          parsingStatus: 'failed'
+        });
+        await this.reply(user, input.fromPhoneNumber, 'Ok, descarté el movimiento duplicado.');
+        return { status: 'duplicate_discarded' as const };
+      }
+
+      if (!isDuplicateSaveMessage(input.message)) {
+        await this.auditMessage(input, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          parsingStatus: 'needs_confirmation'
+        });
+        await this.reply(user, input.fromPhoneNumber, 'Responde "guardar" para registrarlo igual o "descartar" para no guardarlo.');
+        return { status: 'needs_confirmation' as const, missingFields: ['duplicate_confirmation'] };
+      }
+
+      const interpretedOriginal = await this.interpreter.interpret(draft.originalMessage, {
+        user,
+        categories,
+        now: this.clock.now()
+      });
+      const saved = await this.trySaveInterpreted({
+        ...input,
+        message: draft.originalMessage
+      }, user, categories, interpretedOriginal, { clearDraft: true });
+      if (saved) return saved;
+
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.fromPhoneNumber, 'No pude guardar el duplicado porque quedó incompleto. Reenvía el movimiento con monto, concepto y medio de pago.');
+      return { status: 'needs_confirmation' as const, missingFields: missingFieldsFor(interpretedOriginal) };
+    }
+
     if (isCancelMessage(input.message)) {
       await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
       await this.auditMessage(input, {
@@ -472,4 +526,19 @@ function movementScore(
 
 function normalize(value: string) {
   return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function isDuplicateConfirmationDraft(draft: unknown): draft is { kind: 'duplicate_confirmation'; originalMessage: string } {
+  return Boolean(
+    draft &&
+    typeof draft === 'object' &&
+    'kind' in draft &&
+    draft.kind === 'duplicate_confirmation' &&
+    'originalMessage' in draft &&
+    typeof draft.originalMessage === 'string'
+  );
+}
+
+function isDuplicateSaveMessage(message: string) {
+  return /^(guardar|guardalo|guárdalo|guardar igual|si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
 }

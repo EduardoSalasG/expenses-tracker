@@ -97,3 +97,15 @@ export const reportQuerySchema = z.object({
   from: z.string().datetime(),
   to: z.string().datetime()
 });
+
+export const reportYearQuerySchema = z.object({
+  year: z.coerce.number().int().min(1970).max(9999)
+});
+
+export const reportMonthQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/)
+});
+
+export const reportWeekStartQuerySchema = z.object({
+  weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+});

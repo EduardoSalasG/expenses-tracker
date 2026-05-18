@@ -41,7 +41,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <mat-label>Name</mat-label>
             <input matInput formControlName="name">
           </mat-form-field>
-          <div class="flex items-center">
+          <div class="mobile-stack-actions flex items-center">
             <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">Add</button>
           </div>
         </form>
@@ -68,7 +68,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <mat-label>Name</mat-label>
             <input matInput formControlName="name">
           </mat-form-field>
-          <div class="flex items-center">
+          <div class="mobile-stack-actions flex items-center">
             <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">Add</button>
           </div>
         </form>
@@ -104,7 +104,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
               @if (subcategories(category.id).length) {
                 <div class="mt-4 grid gap-2">
                   @for (subcategory of subcategories(category.id); track subcategory.id) {
-                    <div class="flex items-center justify-between rounded border border-slate-100 px-3 py-2 text-sm">
+                    <div class="grid gap-1 rounded border border-slate-100 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <span>{{ subcategory.name }}</span>
                       <span class="text-xs text-slate-500">{{ subcategory.isDefault ? 'Default' : 'Custom' }}</span>
                     </div>

@@ -158,6 +158,48 @@ export class ApiService {
     });
   }
 
+  yearlyExpensesMonthlyTotals(year: number) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/expenses/yearly-monthly`,
+      { params: new HttpParams().set('year', year) }
+    );
+  }
+
+  monthlyExpensesDailyTotals(month: string) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/expenses/monthly-daily`,
+      { params: new HttpParams().set('month', month) }
+    );
+  }
+
+  weeklyExpensesDailyTotals(weekStart: string) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/expenses/weekly-daily`,
+      { params: new HttpParams().set('weekStart', weekStart) }
+    );
+  }
+
+  yearlyIncomesMonthlyTotals(year: number) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/incomes/yearly-monthly`,
+      { params: new HttpParams().set('year', year) }
+    );
+  }
+
+  monthlyIncomesDailyTotals(month: string) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/incomes/monthly-daily`,
+      { params: new HttpParams().set('month', month) }
+    );
+  }
+
+  periodExpenseCategoryTotals(from: string, to: string) {
+    return this.http.get<Array<{ categoryId: string; subcategoryId?: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/expenses/category-totals`,
+      { params: new HttpParams().set('from', from).set('to', to) }
+    );
+  }
+
   updateReportPreferences(preferences: ReportFrequency[]) {
     return this.http.put(`${environment.apiBaseUrl}/report-preferences`, { preferences });
   }

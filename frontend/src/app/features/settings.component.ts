@@ -80,7 +80,7 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
               <input matInput formControlName="preferredCurrency" maxlength="3" />
             </mat-form-field>
 
-            <div class="flex items-center gap-3">
+            <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center">
               <button mat-flat-button color="primary" type="submit" [disabled]="profileForm.invalid || savingProfile()">Save profile</button>
               <app-feedback-banner [message]="profileMessage()" tone="success" />
             </div>
@@ -108,7 +108,7 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
             </label>
           }
 
-          <div class="mt-2 flex items-center gap-3">
+          <div class="mobile-stack-actions mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Save preferences</button>
             <app-feedback-banner [message]="message()" tone="success" />
           </div>

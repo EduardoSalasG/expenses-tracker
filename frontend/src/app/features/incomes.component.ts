@@ -51,7 +51,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           <input matInput type="date" formControlName="date">
         </mat-form-field>
 
-        <div class="flex items-center gap-3 lg:col-span-4">
+        <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-4">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
             {{ saving() ? 'Saving...' : 'Save income' }}
           </button>
@@ -81,7 +81,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           <mat-label>Currency</mat-label>
           <input matInput formControlName="currency" maxlength="3">
         </mat-form-field>
-        <div class="flex items-center gap-2 lg:col-span-2">
+        <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-2">
           <button mat-flat-button color="primary" type="submit">Apply</button>
           <button mat-button type="button" (click)="clearFilters()">Clear</button>
         </div>
@@ -99,8 +99,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <app-feedback-banner [message]="loading() ? 'Loading incomes...' : ''" tone="info" />
 
       @if (incomes().length) {
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[560px] border-collapse text-left">
+        <div class="responsive-table-wrapper overflow-x-auto">
+          <table class="responsive-table w-full min-w-[560px] border-collapse text-left">
             <thead>
               <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
                 <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
@@ -111,9 +111,9 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <tbody>
               @for (income of incomes(); track income.id) {
                 <tr class="border-b border-slate-100 last:border-0">
-                  <td class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(income.date) }}</td>
-                  <td class="py-3 pr-3 font-medium">{{ income.concept }}</td>
-                  <td class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
+                  <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(income.date) }}</td>
+                  <td data-label="Concept" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
+                  <td data-label="Amount" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                 </tr>
               }
             </tbody>

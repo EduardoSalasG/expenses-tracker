@@ -62,11 +62,12 @@ export class FinanceUseCases {
 
   async report(tenantId: string, from: string, to: string) {
     const { previousFrom, previousTo } = previousPeriod(from, to);
-    const [expenses, incomes, previousExpenses, categories] = await Promise.all([
+    const [expenses, incomes, categories, currentCategoryTotals, previousCategoryTotals] = await Promise.all([
       this.expenses.listByPeriod(tenantId, from, to),
       this.incomes.listByPeriod(tenantId, from, to),
-      this.expenses.listByPeriod(tenantId, previousFrom, previousTo),
-      this.categories.listByTenant(tenantId)
+      this.categories.listByTenant(tenantId),
+      this.expenses.periodCategoryTotalsByTenant(tenantId, from, to),
+      this.expenses.periodCategoryTotalsByTenant(tenantId, previousFrom, previousTo)
     ]);
 
     return {
@@ -76,8 +77,32 @@ export class FinanceUseCases {
       incomes,
       expenseTotalsByCurrency: totalsByCurrency(expenses),
       incomeTotalsByCurrency: totalsByCurrency(incomes),
-      expenseVariationByCategory: categoryExpenseVariation(expenses, previousExpenses, categories)
+      expenseVariationByCategory: categoryExpenseVariation(currentCategoryTotals, previousCategoryTotals, categories)
     };
+  }
+
+  yearlyExpensesMonthlyTotals(tenantId: string, year: number) {
+    return this.expenses.yearlyMonthlyTotalsByTenant(tenantId, year);
+  }
+
+  monthlyExpensesDailyTotals(tenantId: string, month: string) {
+    return this.expenses.monthlyDailyTotalsByTenant(tenantId, month);
+  }
+
+  weeklyExpensesDailyTotals(tenantId: string, weekStartIsoDate: string) {
+    return this.expenses.weeklyDailyTotalsByTenant(tenantId, weekStartIsoDate);
+  }
+
+  yearlyIncomesMonthlyTotals(tenantId: string, year: number) {
+    return this.incomes.yearlyMonthlyTotalsByTenant(tenantId, year);
+  }
+
+  monthlyIncomesDailyTotals(tenantId: string, month: string) {
+    return this.incomes.monthlyDailyTotalsByTenant(tenantId, month);
+  }
+
+  periodExpenseCategoryTotals(tenantId: string, from: string, to: string) {
+    return this.expenses.periodCategoryTotalsByTenant(tenantId, from, to);
   }
 }
 
@@ -94,12 +119,12 @@ function previousPeriod(from: string, to: string) {
 }
 
 function categoryExpenseVariation(
-  currentExpenses: Expense[],
-  previousExpenses: Expense[],
+  currentTotals: Array<{ categoryId: string; currency: string; total: number }>,
+  previousTotals: Array<{ categoryId: string; currency: string; total: number }>,
   categories: Category[]
 ) {
-  const current = aggregateCategoryCurrency(currentExpenses);
-  const previous = aggregateCategoryCurrency(previousExpenses);
+  const current = aggregateCategoryCurrency(currentTotals);
+  const previous = aggregateCategoryCurrency(previousTotals);
   const keys = new Set([...Object.keys(current), ...Object.keys(previous)]);
 
   return [...keys]
@@ -122,10 +147,10 @@ function categoryExpenseVariation(
     .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta));
 }
 
-function aggregateCategoryCurrency(expenses: Expense[]) {
-  return expenses.reduce<Record<string, number>>((acc, expense) => {
-    const key = `${expense.categoryId}__${expense.currency}`;
-    acc[key] = (acc[key] ?? 0) + Number(expense.amount);
+function aggregateCategoryCurrency(totals: Array<{ categoryId: string; currency: string; total: number }>) {
+  return totals.reduce<Record<string, number>>((acc, item) => {
+    const key = `${item.categoryId}__${item.currency}`;
+    acc[key] = (acc[key] ?? 0) + Number(item.total);
     return acc;
   }, {});
 }

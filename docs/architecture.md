@@ -82,6 +82,8 @@ Development and test environments must use Meta's verified recipient/test number
 
 Inbound provider messages reserve their external message id in `messaging_messages.provider_message_id` before parsing or creating an expense. The database unique partial index is scoped by `channel` and rejects repeated webhook deliveries for the same provider id, and the use case returns `duplicate_ignored` without creating another expense.
 
+If a new provider message has a different provider id but repeats the same text from the same sender/channel within two minutes, the backend treats it as a possible user-level duplicate. It stores a pending duplicate confirmation for 30 minutes, asks the user whether to `guardar` or `descartar`, and only creates the second movement after explicit confirmation.
+
 ## WhatsApp Clarifications
 
 When a registered user sends an incomplete finance message, the backend stores one active `messaging_pending_drafts` row for that tenant/user/channel. The next provider reply can add missing fields such as payment method, confirm the draft, or cancel it. Drafts expire after 30 minutes.

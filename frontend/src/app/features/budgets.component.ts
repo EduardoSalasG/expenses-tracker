@@ -39,8 +39,8 @@ interface BudgetRow {
   ],
   template: `
     <app-page-header title="Monthly budgets" eyebrow="Plan category limits and track the month">
-      <div class="flex items-center gap-2">
-        <mat-form-field appearance="outline" class="w-44">
+      <div class="w-full sm:w-auto">
+        <mat-form-field appearance="outline" class="w-full sm:w-44">
           <mat-label>Month</mat-label>
           <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)">
         </mat-form-field>
@@ -50,15 +50,15 @@ interface BudgetRow {
     <section class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Budgeted</div>
-        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalBudgetedLabel() }}</div>
+        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalBudgetedLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Spent</div>
-        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalSpentLabel() }}</div>
+        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalSpentLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-slate-500">Remaining</div>
-        <div class="mt-2 text-3xl font-semibold text-slate-950">{{ totalRemainingLabel() }}</div>
+        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalRemainingLabel() }}</div>
       </mat-card>
     </section>
 
@@ -94,7 +94,7 @@ interface BudgetRow {
           <mat-label>Currency</mat-label>
           <input matInput maxlength="3" formControlName="currency">
         </mat-form-field>
-        <div class="flex items-center gap-2">
+        <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
             {{ saving() ? 'Saving...' : editingBudgetId() ? 'Update' : 'Save' }}
           </button>
@@ -129,8 +129,8 @@ interface BudgetRow {
                     {{ formatMoney(row.budget.currency, row.spent) }} spent of {{ formatMoney(row.budget.currency, row.budget.amount) }}
                   </div>
                 </div>
-                <div class="flex items-center gap-3">
-                  <span class="whitespace-nowrap text-sm font-medium">{{ formatMoney(row.budget.currency, row.remaining) }} left</span>
+                <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <span class="text-sm font-medium sm:whitespace-nowrap">{{ formatMoney(row.budget.currency, row.remaining) }} left</span>
                   <button mat-button type="button" (click)="edit(row.budget)">Edit</button>
                 </div>
               </div>
