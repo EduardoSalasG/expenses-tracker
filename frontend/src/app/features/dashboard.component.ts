@@ -127,7 +127,7 @@ interface CategoryVariationRow {
       </section>
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <mat-card class="page-panel p-5">
+        <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold">Cash flow by currency</h2>
           </div>
@@ -136,7 +136,7 @@ interface CategoryVariationRow {
           </div>
         </mat-card>
 
-        <mat-card class="page-panel p-5">
+        <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">Expenses by category</h2>
           <div class="h-64 sm:h-72">
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
@@ -145,7 +145,7 @@ interface CategoryVariationRow {
       </section>
 
       <section class="mt-4">
-        <mat-card class="page-panel p-5">
+        <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">
             {{ viewMode() === 'monthly' ? 'This week expenses' : 'This year expenses by month' }}
           </h2>
@@ -394,6 +394,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderCharts() {
     if (!this.viewReady || this.loading() || this.error()) return;
+    this.applyChartDefaults();
     this.renderCurrencyChart();
     this.renderCategoryChart();
     this.renderWeeklyChart();
@@ -606,6 +607,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       surface: styles.getPropertyValue('--brand-surface').trim() || '#FFFFFF',
       surfaceMuted: styles.getPropertyValue('--brand-surface-muted').trim() || '#EEF3F8'
     };
+  }
+
+  private applyChartDefaults() {
+    const colors = this.chartColors();
+    Chart.defaults.color = colors.text;
+    Chart.defaults.borderColor = colors.grid;
+    Chart.defaults.font.family = 'Inter, Roboto, Arial, sans-serif';
+    Chart.defaults.font.weight = 600;
   }
 }
 

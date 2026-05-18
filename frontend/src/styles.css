@@ -16,6 +16,16 @@
   --brand-surface-muted: #eef3f8;
   --brand-border: #d6dee8;
   --brand-muted: #526173;
+  --brand-black-rgb: 7 11 18;
+  --brand-ink-rgb: 17 24 39;
+  --brand-navy-rgb: 11 31 58;
+  --brand-navy-700-rgb: 18 53 91;
+  --brand-blue-rgb: 29 78 216;
+  --brand-bg-rgb: 243 246 250;
+  --brand-surface-rgb: 255 255 255;
+  --brand-surface-muted-rgb: 238 243 248;
+  --brand-border-rgb: 214 222 232;
+  --brand-muted-rgb: 82 97 115;
   --brand-shadow: 0 10px 30px rgb(7 11 18 / 0.06);
   --semantic-danger-bg: #fef2f2;
   --semantic-danger-border: #fecaca;
@@ -41,6 +51,16 @@
     --brand-surface-muted: #111c33;
     --brand-border: #1e293b;
     --brand-muted: #94a3b8;
+    --brand-black-rgb: 2 6 23;
+    --brand-ink-rgb: 226 232 240;
+    --brand-navy-rgb: 29 78 216;
+    --brand-navy-700-rgb: 37 99 235;
+    --brand-blue-rgb: 59 130 246;
+    --brand-bg-rgb: 2 6 23;
+    --brand-surface-rgb: 15 23 42;
+    --brand-surface-muted-rgb: 17 28 51;
+    --brand-border-rgb: 30 41 59;
+    --brand-muted-rgb: 148 163 184;
     --brand-shadow: 0 10px 30px rgb(2 6 23 / 0.45);
     --semantic-danger-bg: #2b1117;
     --semantic-danger-border: #7f1d1d;
@@ -72,10 +92,14 @@ body {
 }
 
 .mat-mdc-card {
+  --mdc-elevated-card-container-color: var(--brand-surface);
+  --mdc-outlined-card-container-color: var(--brand-surface);
+  --mdc-outlined-card-outline-color: var(--brand-border);
   border-radius: 8px;
-  background: var(--brand-surface);
+  background: var(--brand-surface) !important;
   border: 1px solid var(--brand-border);
   box-shadow: var(--brand-shadow);
+  color: var(--brand-ink);
 }
 
 .mat-mdc-form-field {
@@ -96,7 +120,11 @@ body {
 }
 
 .mat-mdc-card.page-panel {
+  --mdc-elevated-card-container-color: var(--brand-surface);
+  --mdc-outlined-card-container-color: var(--brand-surface);
   border-color: var(--brand-border);
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink);
 }
 
 .mat-mdc-table,
@@ -111,6 +139,11 @@ table {
 }
 
 .mat-expansion-panel {
+  --mat-expansion-container-background-color: var(--brand-surface);
+  --mat-expansion-container-text-color: var(--brand-ink);
+  --mat-expansion-header-text-color: var(--brand-ink);
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink) !important;
   border-radius: 8px !important;
   border: 1px solid var(--brand-border);
   box-shadow: none !important;
@@ -167,6 +200,21 @@ table {
   background:
     linear-gradient(180deg, var(--brand-surface) 0, var(--brand-bg) 240px),
     var(--brand-bg);
+}
+
+.chart-panel {
+  background: var(--brand-surface-muted) !important;
+  color: var(--brand-ink);
+}
+
+.chart-panel canvas {
+  color: var(--brand-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-panel {
+    background: #0b1426 !important;
+  }
 }
 
 @media (max-width: 767px) {
