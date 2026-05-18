@@ -26,7 +26,7 @@ export class PostgresUserRepository implements UserRepository {
 
   async upsertByPhoneNumber(input: Omit<User, 'id' | 'tenantId' | 'role' | 'reportPreferences'>) {
     const result = await this.pool.query(
-      `select * from upsert_user_by_phone($1, $2, $3, $4, $5, $6, $7)`,
+      `select * from upsert_user_by_phone($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         input.phoneNumber,
         input.firstName,
@@ -34,13 +34,14 @@ export class PostgresUserRepository implements UserRepository {
         input.preferredName,
         input.email ?? null,
         input.countryOfResidence,
-        input.preferredCurrency
+        input.preferredCurrency,
+        input.preferredLanguage ?? 'es'
       ]
     );
     return mapUser(result.rows[0]);
   }
 
-  async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
+  async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>) {
     const result = await this.pool.query(
       `update users
        set first_name = $2,
@@ -49,6 +50,7 @@ export class PostgresUserRepository implements UserRepository {
            email = $5,
            country_of_residence = $6,
            preferred_currency = $7,
+           preferred_language = $8,
            updated_at = now()
        where id = $1
        returning *`,
@@ -59,7 +61,8 @@ export class PostgresUserRepository implements UserRepository {
         input.preferredName,
         input.email ?? null,
         input.countryOfResidence,
-        input.preferredCurrency
+        input.preferredCurrency,
+        input.preferredLanguage ?? 'es'
       ]
     );
     if (!result.rows[0]) throw new Error('User not found.');
@@ -613,6 +616,7 @@ function mapUser(row: QueryResultRow): User {
     role: row.role,
     countryOfResidence: row.country_of_residence,
     preferredCurrency: row.preferred_currency,
+    preferredLanguage: row.preferred_language ?? 'es',
     reportPreferences: row.report_preferences
   };
 }

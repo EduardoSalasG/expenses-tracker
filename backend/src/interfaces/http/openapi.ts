@@ -67,7 +67,8 @@ export const openApiSpec = {
           preferredName: { type: 'string' },
           email: { type: 'string' },
           countryOfResidence: { type: 'string' },
-          preferredCurrency: { type: 'string', example: 'CLP' }
+          preferredCurrency: { type: 'string', example: 'CLP' },
+          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' }
         }, ['phoneNumber', 'code']),
         responses: standardResponses({
           accessToken: { type: 'string' },
@@ -98,8 +99,9 @@ export const openApiSpec = {
           preferredName: { type: 'string' },
           email: { type: 'string' },
           countryOfResidence: { type: 'string' },
-          preferredCurrency: { type: 'string', example: 'CLP' }
-        }, ['firstName', 'lastName', 'preferredName', 'countryOfResidence', 'preferredCurrency']),
+          preferredCurrency: { type: 'string', example: 'CLP' },
+          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' }
+        }, ['firstName', 'lastName', 'preferredName', 'countryOfResidence', 'preferredCurrency', 'preferredLanguage']),
         responses: standardResponses({ data: { type: 'object' } })
       }
     },

@@ -14,7 +14,7 @@ export class RequestOtpUseCase {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
     await this.otps.create(phoneNumber, code, expiresAt);
-    await this.messaging.sendText(phoneNumber, `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`);
+    await this.messaging.sendText(phoneNumber, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code));
     return {
       sent: true,
       requiresRegistration: !existingUser,
@@ -33,7 +33,7 @@ export class VerifyOtpUseCase {
     private readonly messaging: MessagingProvider
   ) {}
 
-  async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string }) {
+  async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string; preferredLanguage?: 'es' | 'en' }) {
     const verified = await this.otps.verify(input.phoneNumber, input.code, this.clock.now());
     if (!verified) {
       throw new Error('Invalid or expired OTP.');
@@ -60,10 +60,11 @@ export class VerifyOtpUseCase {
       preferredName: input.preferredName,
       email: input.email,
       countryOfResidence: input.countryOfResidence,
-      preferredCurrency: input.preferredCurrency
+      preferredCurrency: input.preferredCurrency,
+      preferredLanguage: input.preferredLanguage ?? 'es'
     });
     await this.categories.ensureDefaults(user.tenantId);
-    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredName));
+    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName));
 
     return {
       user,
@@ -73,7 +74,32 @@ export class VerifyOtpUseCase {
   }
 }
 
-function buildRegistrationGreeting(preferredName: string) {
+function buildOtpMessage(language: 'es' | 'en', code: string) {
+  if (language === 'es') {
+    return `Tu codigo de verificacion de Expenses Tracker es ${code}. Expira en 10 minutos.`;
+  }
+
+  return `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`;
+}
+
+function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string) {
+  if (language === 'es') {
+    return [
+      `Hola ${preferredName}, bienvenido a Expenses Tracker.`,
+      '',
+      'Ya puedes enviar mensajes en lenguaje natural para registrar tus finanzas.',
+      '',
+      'Ejemplos:',
+      '- 20.000 clases en Bsoul, transferencia desde BCI',
+      '- 25.000 polera en Paris, tarjeta de credito BCI',
+      '- Ingreso de sueldo 1.200.000, transferencia',
+      '- Cuanto gaste este mes?',
+      '- Enviame mi reporte mensual',
+      '',
+      'Usaremos tu moneda preferida del perfil. No necesitas escribirla en cada mensaje.'
+    ].join('\n');
+  }
+
   return [
     `Hi ${preferredName}, welcome to Expenses Tracker.`,
     '',

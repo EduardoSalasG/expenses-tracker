@@ -8,8 +8,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
+import { I18nService } from '../core/i18n.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
@@ -32,11 +34,12 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
     MatInputModule,
     MatExpansionModule,
     MatIconModule,
+    MatSelectModule,
     FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Settings" eyebrow="Profile and WhatsApp report preferences"></app-page-header>
+    <app-page-header [title]="t('settings_title')" [eyebrow]="t('settings_subtitle')"></app-page-header>
     <app-feedback-banner [message]="loadError()" tone="error" />
     <app-feedback-banner [message]="loading() ? 'Loading settings...' : ''" tone="info" />
 
@@ -82,6 +85,14 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
             <mat-form-field appearance="outline">
               <mat-label>Preferred currency</mat-label>
               <input matInput formControlName="preferredCurrency" maxlength="3" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('settings_language') }}</mat-label>
+              <mat-select formControlName="preferredLanguage">
+                <mat-option value="es">{{ t('settings_language_es') }}</mat-option>
+                <mat-option value="en">{{ t('settings_language_en') }}</mat-option>
+              </mat-select>
             </mat-form-field>
 
             <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -152,7 +163,8 @@ export class SettingsComponent {
     preferredName: ['', Validators.required],
     email: [''],
     countryOfResidence: ['', Validators.required],
-    preferredCurrency: ['USD', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]]
+    preferredCurrency: ['USD', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]],
+    preferredLanguage: ['es' as 'es' | 'en', Validators.required]
   });
   readonly form = this.fb.nonNullable.group({
     daily: [false],
@@ -164,7 +176,8 @@ export class SettingsComponent {
   constructor(
     private readonly api: ApiService,
     private readonly auth: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly i18n: I18nService
   ) {
     this.load();
   }
@@ -175,13 +188,15 @@ export class SettingsComponent {
     this.api.me().subscribe({
       next: (user) => {
         this.user.set(user);
+        this.i18n.applyUserPreference(user.preferredLanguage ?? 'es');
         this.profileForm.setValue({
           firstName: user.firstName,
           lastName: user.lastName,
           preferredName: user.preferredName,
           email: user.email ?? '',
           countryOfResidence: user.countryOfResidence,
-          preferredCurrency: user.preferredCurrency
+          preferredCurrency: user.preferredCurrency,
+          preferredLanguage: user.preferredLanguage ?? 'es'
         });
         this.form.setValue({
           daily: user.reportPreferences.includes('daily'),
@@ -205,11 +220,13 @@ export class SettingsComponent {
     this.profileMessage.set('');
     this.api.updateMe({
       ...value,
-      preferredCurrency: value.preferredCurrency.toUpperCase()
+      preferredCurrency: value.preferredCurrency.toUpperCase(),
+      preferredLanguage: value.preferredLanguage
     }).subscribe({
       next: (user) => {
         this.savingProfile.set(false);
         this.user.set(user);
+        this.i18n.applyUserPreference(user.preferredLanguage ?? 'es');
         this.profileMessage.set('Profile saved.');
       },
       error: () => {
@@ -242,5 +259,9 @@ export class SettingsComponent {
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/login');
+  }
+
+  t(key: string) {
+    return this.i18n.t(key);
   }
 }

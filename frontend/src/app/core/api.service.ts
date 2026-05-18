@@ -44,6 +44,7 @@ export interface CurrentUser {
   role: 'consumer' | 'admin';
   countryOfResidence: string;
   preferredCurrency: string;
+  preferredLanguage?: 'es' | 'en';
   reportPreferences: ReportFrequency[];
 }
 
@@ -100,7 +101,7 @@ export class ApiService {
     return this.http.get<CurrentUser>(`${environment.apiBaseUrl}/me`);
   }
 
-  updateMe(payload: Pick<CurrentUser, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>) {
+  updateMe(payload: Pick<CurrentUser, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>) {
     return this.http.put<CurrentUser>(`${environment.apiBaseUrl}/me`, payload);
   }
 

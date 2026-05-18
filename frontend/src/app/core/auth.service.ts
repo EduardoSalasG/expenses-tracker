@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { I18nService } from './i18n.service';
 
 interface VerifyOtpResponse {
   accessToken: string;
@@ -12,6 +13,7 @@ interface VerifyOtpResponse {
     preferredName: string;
     phoneNumber: string;
     preferredCurrency: string;
+    preferredLanguage?: 'es' | 'en';
   };
 }
 
@@ -27,7 +29,10 @@ export class AuthService {
   private readonly refreshTokenKey = 'expenses_tracker_refresh_token';
   readonly user = signal<VerifyOtpResponse['user'] | null>(null);
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly i18n: I18nService
+  ) {}
 
   get accessToken() {
     return localStorage.getItem(this.tokenKey);
@@ -50,6 +55,7 @@ export class AuthService {
     email?: string;
     countryOfResidence?: string;
     preferredCurrency?: string;
+    preferredLanguage?: 'es' | 'en';
   }) {
     return this.http.post<VerifyOtpResponse>(`${environment.apiBaseUrl}/auth/otp/verify`, payload).pipe(
       tap((response) => {
@@ -78,5 +84,6 @@ export class AuthService {
     localStorage.setItem(this.tokenKey, response.accessToken);
     localStorage.setItem(this.refreshTokenKey, response.refreshToken);
     this.user.set(response.user);
+    this.i18n.applyUserPreference(response.user.preferredLanguage);
   }
 }

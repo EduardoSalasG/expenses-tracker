@@ -5,6 +5,6 @@ export interface UserRepository {
   findById(userId: string): Promise<User | undefined>;
   listByReportFrequency(frequency: ReportFrequency): Promise<User[]>;
   upsertByPhoneNumber(input: Omit<User, 'id' | 'tenantId' | 'role' | 'reportPreferences'>): Promise<User>;
-  updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency'>): Promise<User>;
+  updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>): Promise<User>;
   updateReportPreferences(userId: string, preferences: ReportFrequency[]): Promise<User>;
 }

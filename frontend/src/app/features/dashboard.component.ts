@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
+import { I18nService } from '../core/i18n.service';
 
 Chart.register(...registerables);
 
@@ -267,7 +268,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly periodLabel = computed(() => {
     if (this.viewMode() === 'monthly') {
       const [year, month] = this.selectedMonth().split('-').map(Number);
-      return new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
+      return new Intl.DateTimeFormat(this.locale(), { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
     }
     return `${this.selectedYear()}`;
   });
@@ -304,7 +305,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private viewReady = false;
   private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-  constructor(private readonly api: ApiService) {}
+  constructor(
+    private readonly api: ApiService,
+    private readonly i18n: I18nService
+  ) {}
 
   ngOnInit() {
     this.mediaQuery.addEventListener('change', this.handleThemeChange);
@@ -366,12 +370,15 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   formatDate(value: string) {
-    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
+    return new Intl.DateTimeFormat(this.locale(), { month: 'short', day: 'numeric' }).format(new Date(value));
   }
 
   formatMoney(currency: string, amount: number) {
-    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
+    const locale = this.locale();
+    if (currency.toUpperCase() === 'CLP') {
+      return `$${Number(amount).toLocaleString(locale === 'es-CL' ? 'es-CL' : 'en-US', { maximumFractionDigits: 0 })}`;
+    }
+    return new Intl.NumberFormat(locale === 'es-CL' ? 'es-CL' : 'en-US', { style: 'currency', currency }).format(Number(amount));
   }
 
   abs(value: number) {
@@ -513,8 +520,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const rows = this.periodTotals();
     if (!canvas) return;
     const labels = this.viewMode() === 'monthly'
-      ? buildWeekLabels(weekStartIsoDate())
-      : buildYearMonthLabels(this.selectedYear());
+      ? buildWeekLabels(weekStartIsoDate(), this.locale())
+      : buildYearMonthLabels(this.selectedYear(), this.locale());
     const currencyBuckets = rows.reduce<Record<string, Record<string, number>>>((acc, row) => {
       if (!acc[row.currency]) acc[row.currency] = {};
       acc[row.currency][row.periodKey] = Number(row.total);
@@ -644,6 +651,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     Chart.defaults.font.family = 'Inter, Roboto, Arial, sans-serif';
     Chart.defaults.font.weight = 600;
   }
+
+  private locale() {
+    return this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+  }
 }
 
 function rangeFromMonth(month: string) {
@@ -678,14 +689,14 @@ function weekStartIsoDate() {
   return `${monday.getUTCFullYear()}-${String(monday.getUTCMonth() + 1).padStart(2, '0')}-${String(monday.getUTCDate()).padStart(2, '0')}`;
 }
 
-function buildWeekLabels(weekStartIso: string) {
+function buildWeekLabels(weekStartIso: string, locale: string) {
   const [year, month, day] = weekStartIso.split('-').map(Number);
   const monday = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
   const labels: Array<{ display: string; isoDate: string; indexToken: string }> = [];
   for (let i = 0; i < 7; i += 1) {
     const start = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + i, 0, 0, 0));
     labels.push({
-      display: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(start),
+      display: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(start),
       isoDate: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`,
       indexToken: ''
     });
@@ -693,9 +704,9 @@ function buildWeekLabels(weekStartIso: string) {
   return labels;
 }
 
-function buildYearMonthLabels(year: number) {
+function buildYearMonthLabels(year: number, locale: string) {
   return Array.from({ length: 12 }, (_, index) => ({
-    display: new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(Date.UTC(year, index, 1))),
+    display: new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(Date.UTC(year, index, 1))),
     isoDate: '',
     indexToken: String(index + 1).padStart(2, '0')
   }));

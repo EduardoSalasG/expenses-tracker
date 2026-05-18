@@ -2,6 +2,7 @@ import type { CurrencyCode, ReportFrequency } from '../finance/index.js';
 import type { TenantId } from '../tenancy/index.js';
 
 export type UserId = string;
+export type LanguageCode = 'es' | 'en';
 
 export interface User {
   id: UserId;
@@ -14,5 +15,6 @@ export interface User {
   role: 'consumer' | 'admin';
   countryOfResidence: string;
   preferredCurrency: CurrencyCode;
+  preferredLanguage?: LanguageCode;
   reportPreferences: ReportFrequency[];
 }

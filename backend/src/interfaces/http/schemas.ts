@@ -14,7 +14,8 @@ export const verifyOtpSchema = z.object({
   preferredName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   countryOfResidence: z.string().min(2).optional(),
-  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()).optional()
+  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()).optional(),
+  preferredLanguage: z.enum(['es', 'en']).optional()
 });
 
 export const refreshTokenSchema = z.object({
@@ -27,7 +28,8 @@ export const updateProfileSchema = z.object({
   preferredName: z.string().min(1),
   email: z.union([z.string().email(), z.literal('')]).optional().transform((value) => value || undefined),
   countryOfResidence: z.string().min(2),
-  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase())
+  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()),
+  preferredLanguage: z.enum(['es', 'en']).default('es')
 });
 
 export const paymentMethodSchema = z.discriminatedUnion('kind', [

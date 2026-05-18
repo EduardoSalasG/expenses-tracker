@@ -12,7 +12,15 @@ export class UpdateReportPreferencesUseCase {
 export class UpdateProfileUseCase {
   constructor(private readonly users: UserRepository) {}
 
-  execute(userId: string, input: { firstName: string; lastName: string; preferredName: string; email?: string; countryOfResidence: string; preferredCurrency: string }) {
+  execute(userId: string, input: {
+    firstName: string;
+    lastName: string;
+    preferredName: string;
+    email?: string;
+    countryOfResidence: string;
+    preferredCurrency: string;
+    preferredLanguage?: 'es' | 'en';
+  }) {
     return this.users.updateProfile(userId, input);
   }
 }

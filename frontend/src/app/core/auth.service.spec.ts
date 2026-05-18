@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
+import { I18nService } from './i18n.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -11,7 +12,11 @@ describe('AuthService', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: I18nService, useValue: { applyUserPreference: () => {}, language: () => 'es', setLanguage: () => {}, t: (key: string) => key } }
+      ]
     });
     service = TestBed.inject(AuthService);
     http = TestBed.inject(HttpTestingController);

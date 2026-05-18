@@ -6,20 +6,22 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { AuthService } from '../core/auth.service';
+import { I18nService } from '../core/i18n.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   template: `
     <main class="app-surface grid min-h-screen place-items-center px-3 py-6 sm:px-4 sm:py-10">
       <mat-card class="page-panel w-full max-w-md p-5 sm:p-7">
         <div class="mb-6">
           <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-brand-navy text-sm font-semibold text-white">ET</div>
-          <h1 class="text-2xl font-semibold text-brand-ink sm:text-3xl">Expenses Tracker</h1>
+          <h1 class="text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('login_title') }}</h1>
           <p class="mt-2 text-sm leading-6 text-brand-muted">
-            Sign in with the WhatsApp number you use to track expenses.
+            {{ t('login_subtitle') }}
           </p>
         </div>
 
@@ -31,7 +33,7 @@ import { AuthService } from '../core/auth.service';
           }
 
           <mat-form-field appearance="outline">
-            <mat-label>WhatsApp phone number</mat-label>
+            <mat-label>{{ t('login_phone') }}</mat-label>
             <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel">
             @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
               <mat-error>Enter a valid WhatsApp number.</mat-error>
@@ -91,6 +93,13 @@ import { AuthService } from '../core/auth.service';
                   <mat-error>Preferred name is required.</mat-error>
                 }
               </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('settings_language') }}</mat-label>
+                <mat-select formControlName="preferredLanguage">
+                  <mat-option value="es">{{ t('settings_language_es') }}</mat-option>
+                  <mat-option value="en">{{ t('settings_language_en') }}</mat-option>
+                </mat-select>
+              </mat-form-field>
             }
             <mat-form-field appearance="outline">
               <mat-label>Verification code</mat-label>
@@ -102,7 +111,7 @@ import { AuthService } from '../core/auth.service';
           }
 
           <button mat-flat-button color="primary" type="submit" class="!h-11 w-full">
-            {{ otpSent() ? 'Verify and enter' : 'Send code' }}
+            {{ otpSent() ? t('login_verify_enter') : t('login_send_code') }}
           </button>
         </form>
       </mat-card>
@@ -123,13 +132,17 @@ export class LoginComponent {
     preferredName: [''],
     email: [''],
     countryOfResidence: [''],
-    preferredCurrency: ['CLP']
+    preferredCurrency: ['CLP'],
+    preferredLanguage: ['es' as 'es' | 'en']
   });
 
   constructor(
     private readonly auth: AuthService,
-    private readonly router: Router
-  ) {}
+    private readonly router: Router,
+    private readonly i18n: I18nService
+  ) {
+    this.form.controls.preferredLanguage.setValue(this.i18n.language());
+  }
 
   submit() {
     if (this.form.invalid) {
@@ -164,7 +177,8 @@ export class LoginComponent {
         preferredName: value.preferredName || value.firstName,
         email: value.email,
         countryOfResidence: value.countryOfResidence,
-        preferredCurrency: value.preferredCurrency.toUpperCase()
+        preferredCurrency: value.preferredCurrency.toUpperCase(),
+        preferredLanguage: value.preferredLanguage
       }
       : {
         phoneNumber: value.phoneNumber,
@@ -216,5 +230,9 @@ export class LoginComponent {
   showControlError(controlName: 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency') {
     const control = this.form.controls[controlName];
     return control.touched && control.invalid;
+  }
+
+  t(key: string) {
+    return this.i18n.t(key);
   }
 }

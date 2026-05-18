@@ -1,8 +1,11 @@
 import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { Router } from '@angular/router';
 import { SettingsComponent } from './settings.component';
 import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
+import { AuthService } from '../core/auth.service';
+import { I18nService } from '../core/i18n.service';
 
 describe('SettingsComponent', () => {
   let fixture: ComponentFixture<SettingsComponent>;
@@ -17,6 +20,7 @@ describe('SettingsComponent', () => {
     role: 'consumer',
     countryOfResidence: 'Chile',
     preferredCurrency: 'CLP',
+    preferredLanguage: 'es',
     reportPreferences: ['monthly']
   };
 
@@ -28,7 +32,12 @@ describe('SettingsComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [SettingsComponent, NoopAnimationsModule],
-      providers: [{ provide: ApiService, useValue: api }]
+      providers: [
+        { provide: ApiService, useValue: api },
+        { provide: AuthService, useValue: jasmine.createSpyObj<AuthService>('AuthService', ['logout']) },
+        { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigateByUrl']) },
+        { provide: I18nService, useValue: { t: (key: string) => key, applyUserPreference: () => {}, language: () => 'es' } }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(SettingsComponent);
