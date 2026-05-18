@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category } from '../core/api.service';
+import { I18nService } from '../core/i18n.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -27,22 +28,22 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Categories" eyebrow="Organize expenses with main categories and subcategories"></app-page-header>
+    <app-page-header [title]="t('categories_title')" [eyebrow]="t('categories_subtitle')"></app-page-header>
 
     <section class="grid gap-4 lg:grid-cols-2">
       <mat-card class="page-panel p-2">
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
-              <mat-panel-title>Create main category</mat-panel-title>
+              <mat-panel-title>{{ t('categories_create_main') }}</mat-panel-title>
             </mat-expansion-panel-header>
         <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
-            <mat-label>Name</mat-label>
+            <mat-label>{{ t('categories_name') }}</mat-label>
             <input matInput formControlName="name">
           </mat-form-field>
           <div class="mobile-stack-actions flex items-center">
-            <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">Add</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">{{ t('categories_add') }}</button>
           </div>
         </form>
           </mat-expansion-panel>
@@ -53,11 +54,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
-              <mat-panel-title>Create subcategory</mat-panel-title>
+              <mat-panel-title>{{ t('categories_create_sub') }}</mat-panel-title>
             </mat-expansion-panel-header>
         <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
-            <mat-label>Parent</mat-label>
+            <mat-label>{{ t('categories_parent') }}</mat-label>
             <mat-select formControlName="parentId">
               @for (category of rootCategories(); track category.id) {
                 <mat-option [value]="category.id">{{ category.name }}</mat-option>
@@ -65,11 +66,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Name</mat-label>
+            <mat-label>{{ t('categories_name') }}</mat-label>
             <input matInput formControlName="name">
           </mat-form-field>
           <div class="mobile-stack-actions flex items-center">
-            <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">Add</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">{{ t('categories_add') }}</button>
           </div>
         </form>
           </mat-expansion-panel>
@@ -83,11 +84,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">Category library</h2>
-        <span class="text-sm text-brand-muted">{{ categories().length }} categories</span>
+        <h2 class="text-lg font-semibold">{{ t('categories_library') }}</h2>
+        <span class="text-sm text-brand-muted">{{ categories().length }} {{ t('categories_count') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
-      <app-feedback-banner [message]="loading() ? 'Loading categories...' : ''" tone="info" />
+      <app-feedback-banner [message]="loading() ? t('categories_loading') : ''" tone="info" />
 
       @if (rootCategories().length) {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -96,9 +97,9 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <h3 class="font-semibold">{{ category.name }}</h3>
-                  <div class="mt-1 text-xs text-brand-muted">{{ category.isDefault ? 'Default' : 'Custom' }}</div>
+                  <div class="mt-1 text-xs text-brand-muted">{{ category.isDefault ? t('categories_default') : t('categories_custom') }}</div>
                 </div>
-                <span class="rounded bg-brand-surface-muted px-2 py-1 text-xs text-brand-muted">{{ subcategories(category.id).length }} sub</span>
+                <span class="rounded bg-brand-surface-muted px-2 py-1 text-xs text-brand-muted">{{ subcategories(category.id).length }} {{ t('categories_sub_count') }}</span>
               </div>
 
               @if (subcategories(category.id).length) {
@@ -106,24 +107,26 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                   @for (subcategory of subcategories(category.id); track subcategory.id) {
                     <div class="grid gap-1 rounded border border-brand-border/70 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <span>{{ subcategory.name }}</span>
-                      <span class="text-xs text-brand-muted">{{ subcategory.isDefault ? 'Default' : 'Custom' }}</span>
+                      <span class="text-xs text-brand-muted">{{ subcategory.isDefault ? t('categories_default') : t('categories_custom') }}</span>
                     </div>
                   }
                 </div>
               } @else {
-                <p class="mt-4 text-sm text-brand-muted">No subcategories yet.</p>
+                <p class="mt-4 text-sm text-brand-muted">{{ t('categories_no_sub') }}</p>
               }
             </div>
           }
         </div>
       } @else {
-        <app-empty-state message="No categories found. Create a main category to get started." />
+        <app-empty-state [message]="t('categories_empty')" />
       }
     </mat-card>
   `
 })
 export class CategoriesComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -154,14 +157,14 @@ export class CategoriesComponent {
       },
       error: () => {
         this.loading.set(false);
-        this.error.set('Could not load categories.');
+        this.error.set(this.t('categories_load_error'));
       }
     });
   }
 
   saveMain() {
     const value = this.mainForm.getRawValue();
-    this.createCategory({ name: value.name }, () => this.mainForm.reset({ name: '' }), 'Main category created.');
+    this.createCategory({ name: value.name }, () => this.mainForm.reset({ name: '' }), this.t('categories_created_main'));
   }
 
   saveSubcategory() {
@@ -169,7 +172,7 @@ export class CategoriesComponent {
     this.createCategory(
       { name: value.name, parentId: value.parentId },
       () => this.subForm.patchValue({ name: '' }),
-      'Subcategory created.'
+      this.t('categories_created_sub')
     );
   }
 
@@ -189,7 +192,7 @@ export class CategoriesComponent {
       },
       error: () => {
         this.saving.set(false);
-        this.message.set('Could not create category.');
+        this.message.set(this.t('categories_create_error'));
       }
     });
   }

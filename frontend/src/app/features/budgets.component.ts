@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
+import { I18nService } from '../core/i18n.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -38,10 +39,10 @@ interface BudgetRow {
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Monthly budgets" eyebrow="Plan category limits and track the month">
+    <app-page-header [title]="t('budgets_title')" [eyebrow]="t('budgets_subtitle')">
       <div class="w-full sm:w-auto">
         <mat-form-field appearance="outline" class="w-full sm:w-44">
-          <mat-label>Month</mat-label>
+          <mat-label>{{ t('budgets_month') }}</mat-label>
           <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)">
         </mat-form-field>
       </div>
@@ -49,15 +50,15 @@ interface BudgetRow {
 
     <section class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-brand-muted">Budgeted</div>
+        <div class="text-sm font-medium text-brand-muted">{{ t('budgets_budgeted') }}</div>
         <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalBudgetedLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-brand-muted">Spent</div>
+        <div class="text-sm font-medium text-brand-muted">{{ t('budgets_spent') }}</div>
         <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalSpentLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-brand-muted">Remaining</div>
+        <div class="text-sm font-medium text-brand-muted">{{ t('budgets_remaining') }}</div>
         <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalRemainingLabel() }}</div>
       </mat-card>
     </section>
@@ -66,11 +67,11 @@ interface BudgetRow {
       <mat-accordion>
         <mat-expansion-panel [expanded]="!!editingBudgetId()">
           <mat-expansion-panel-header>
-            <mat-panel-title>{{ editingBudgetId() ? 'Update budget' : 'Create budget' }}</mat-panel-title>
+            <mat-panel-title>{{ editingBudgetId() ? t('budgets_update') : t('budgets_create') }}</mat-panel-title>
           </mat-expansion-panel-header>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
-          <mat-label>Category</mat-label>
+          <mat-label>{{ t('expenses_category') }}</mat-label>
           <mat-select formControlName="categoryId">
             @for (category of rootCategories(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
@@ -78,28 +79,28 @@ interface BudgetRow {
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Subcategory</mat-label>
+          <mat-label>{{ t('expenses_subcategory') }}</mat-label>
           <mat-select formControlName="subcategoryId">
-            <mat-option value="">Whole category</mat-option>
+            <mat-option value="">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Amount</mat-label>
+          <mat-label>{{ t('expenses_amount') }}</mat-label>
           <input matInput type="number" formControlName="amount">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ t('expenses_currency') }}</mat-label>
           <input matInput maxlength="3" formControlName="currency">
         </mat-form-field>
         <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
-            {{ saving() ? 'Saving...' : editingBudgetId() ? 'Update' : 'Save' }}
+            {{ saving() ? t('incomes_saving') : editingBudgetId() ? t('common_update') : t('common_save') }}
           </button>
           @if (editingBudgetId()) {
-            <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
+            <button mat-button type="button" (click)="cancelEdit()">{{ t('common_cancel') }}</button>
           }
         </div>
         <div class="lg:col-span-5">
@@ -112,11 +113,11 @@ interface BudgetRow {
 
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">Budget progress</h2>
-        <span class="text-sm text-brand-muted">{{ budgetRows().length }} active budgets</span>
+        <h2 class="text-lg font-semibold">{{ t('budgets_progress') }}</h2>
+        <span class="text-sm text-brand-muted">{{ budgetRows().length }} {{ t('budgets_active') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
-      <app-feedback-banner [message]="loading() ? 'Loading budgets...' : ''" tone="info" />
+      <app-feedback-banner [message]="loading() ? t('budgets_loading') : ''" tone="info" />
 
       @if (budgetRows().length) {
         <div class="grid gap-5">
@@ -126,27 +127,29 @@ interface BudgetRow {
                 <div class="min-w-0">
                   <div class="font-medium">{{ row.label }}</div>
                   <div class="mt-1 text-sm text-brand-muted">
-                    {{ formatMoney(row.budget.currency, row.spent) }} spent of {{ formatMoney(row.budget.currency, row.budget.amount) }}
+                    {{ formatMoney(row.budget.currency, row.spent) }} {{ t('dashboard_spent_of') }} {{ formatMoney(row.budget.currency, row.budget.amount) }}
                   </div>
                 </div>
                 <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <span class="text-sm font-medium sm:whitespace-nowrap">{{ formatMoney(row.budget.currency, row.remaining) }} left</span>
-                  <button mat-button type="button" (click)="edit(row.budget)">Edit</button>
+                  <span class="text-sm font-medium sm:whitespace-nowrap">{{ formatMoney(row.budget.currency, row.remaining) }} {{ t('dashboard_left') }}</span>
+                  <button mat-button type="button" (click)="edit(row.budget)">{{ t('common_edit') }}</button>
                 </div>
               </div>
               <mat-progress-bar mode="determinate" [value]="row.progress" />
-              <div class="mt-1 text-xs text-brand-muted">{{ row.progress }}% used</div>
+              <div class="mt-1 text-xs text-brand-muted">{{ row.progress }}% {{ t('dashboard_used') }}</div>
             </div>
           }
         </div>
       } @else {
-        <app-empty-state message="No budgets configured for this month." />
+        <app-empty-state [message]="t('budgets_no_month')" />
       }
     </mat-card>
   `
 })
 export class BudgetsComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
   readonly selectedMonth = signal(currentMonth());
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
@@ -205,7 +208,7 @@ export class BudgetsComponent {
       },
       error: () => {
         this.loading.set(false);
-        this.error.set('Could not load budgets.');
+        this.error.set(this.t('budgets_load_error'));
       }
     });
   }
@@ -223,13 +226,13 @@ export class BudgetsComponent {
     }).subscribe({
       next: () => {
         this.saving.set(false);
-        this.saveMessage.set(this.editingBudgetId() ? 'Budget updated.' : 'Budget saved.');
+        this.saveMessage.set(this.editingBudgetId() ? this.t('budgets_updated') : this.t('budgets_saved'));
         this.cancelEdit();
         this.loadMonth();
       },
       error: () => {
         this.saving.set(false);
-        this.saveMessage.set('Could not save budget.');
+        this.saveMessage.set(this.t('budgets_save_error'));
       }
     });
   }
@@ -250,8 +253,9 @@ export class BudgetsComponent {
   }
 
   formatMoney(currency: string, amount: number) {
-    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
   }
 
   private buildBudgetRows(): BudgetRow[] {
@@ -277,7 +281,7 @@ export class BudgetsComponent {
 
   private categoryLabel(categoryId: string): string {
     const category = this.categories().find((item) => item.id === categoryId);
-    if (!category) return 'Uncategorized';
+    if (!category) return this.t('expenses_uncategorized');
     if (!category.parentId) return category.name;
     return `${this.categoryLabel(category.parentId)} / ${category.name}`;
   }
@@ -300,7 +304,7 @@ export class BudgetsComponent {
 
   private formatCurrencyMap(totals: Record<string, number>) {
     const entries = Object.entries(totals);
-    if (!entries.length) return 'No budget';
+    if (!entries.length) return this.t('budgets_no_budget');
     return entries
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([currency, amount]) => this.formatMoney(currency, amount))

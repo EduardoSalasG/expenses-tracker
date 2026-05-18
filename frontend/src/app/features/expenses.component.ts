@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category, type Expense } from '../core/api.service';
+import { I18nService } from '../core/i18n.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
@@ -15,34 +16,34 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatExpansionModule, FeedbackBannerComponent, PageHeaderComponent],
   template: `
-    <app-page-header title="Expenses" eyebrow="Manual capture and history"></app-page-header>
+    <app-page-header [title]="t('expenses_title')" [eyebrow]="t('expenses_subtitle')"></app-page-header>
 
     <mat-card class="page-panel p-2">
       <mat-accordion>
         <mat-expansion-panel>
           <mat-expansion-panel-header>
-            <mat-panel-title>New expense</mat-panel-title>
+            <mat-panel-title>{{ t('expenses_new') }}</mat-panel-title>
           </mat-expansion-panel-header>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-4">
         <mat-form-field appearance="outline">
-          <mat-label>Concept</mat-label>
+          <mat-label>{{ t('expenses_concept') }}</mat-label>
           <input matInput formControlName="concept">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Amount</mat-label>
+          <mat-label>{{ t('expenses_amount') }}</mat-label>
           <input matInput type="number" formControlName="amount">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ t('expenses_currency') }}</mat-label>
           <input matInput formControlName="currency" maxlength="3">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Date</mat-label>
+          <mat-label>{{ t('expenses_date') }}</mat-label>
           <input matInput type="date" formControlName="date">
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Category</mat-label>
+          <mat-label>{{ t('expenses_category') }}</mat-label>
           <mat-select formControlName="categoryId">
             @for (category of rootCategories(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
@@ -50,41 +51,41 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Subcategory</mat-label>
+          <mat-label>{{ t('expenses_subcategory') }}</mat-label>
           <mat-select formControlName="subcategoryId">
-            <mat-option value="">None</mat-option>
+            <mat-option value="">{{ t('expenses_none') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Payment method</mat-label>
+          <mat-label>{{ t('expenses_payment_method') }}</mat-label>
           <mat-select formControlName="paymentKind">
-            <mat-option value="cash">Cash</mat-option>
-            <mat-option value="transfer">Transfer</mat-option>
-            <mat-option value="card">Card</mat-option>
+            <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
+            <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
+            <mat-option value="card">{{ t('expenses_card') }}</mat-option>
           </mat-select>
         </mat-form-field>
         @if (form.controls.paymentKind.value === 'card' || form.controls.paymentKind.value === 'transfer') {
           <mat-form-field appearance="outline">
-            <mat-label>Bank</mat-label>
+            <mat-label>{{ t('expenses_bank') }}</mat-label>
             <input matInput formControlName="bank">
           </mat-form-field>
         }
         @if (form.controls.paymentKind.value === 'card') {
           <mat-form-field appearance="outline">
-            <mat-label>Card type</mat-label>
+            <mat-label>{{ t('expenses_card_type') }}</mat-label>
             <mat-select formControlName="cardType">
-              <mat-option value="debit">Debit</mat-option>
-              <mat-option value="credit">Credit</mat-option>
+              <mat-option value="debit">{{ t('expenses_debit') }}</mat-option>
+              <mat-option value="credit">{{ t('expenses_credit') }}</mat-option>
             </mat-select>
           </mat-form-field>
         }
 
         <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-4">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
-            {{ saving() ? 'Saving...' : 'Save expense' }}
+            {{ saving() ? t('expenses_saving') : t('expenses_save') }}
           </button>
           <app-feedback-banner [message]="saveMessage()" tone="success" />
         </div>
@@ -97,42 +98,42 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <mat-accordion>
         <mat-expansion-panel>
           <mat-expansion-panel-header>
-            <mat-panel-title>Filters</mat-panel-title>
+            <mat-panel-title>{{ t('expenses_filters') }}</mat-panel-title>
           </mat-expansion-panel-header>
       <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="grid gap-4 p-3 lg:grid-cols-6">
         <mat-form-field appearance="outline">
-          <mat-label>From</mat-label>
+          <mat-label>{{ t('expenses_from') }}</mat-label>
           <input matInput type="date" formControlName="from">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>To</mat-label>
+          <mat-label>{{ t('expenses_to') }}</mat-label>
           <input matInput type="date" formControlName="to">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Category</mat-label>
+          <mat-label>{{ t('expenses_category') }}</mat-label>
           <mat-select formControlName="categoryId">
-            <mat-option value="">All</mat-option>
+            <mat-option value="">{{ t('expenses_all') }}</mat-option>
             @for (category of categories(); track category.id) {
               <mat-option [value]="category.id">{{ categoryLabel(category) }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ t('expenses_currency') }}</mat-label>
           <input matInput formControlName="currency" maxlength="3">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Payment</mat-label>
+          <mat-label>{{ t('expenses_payment_method') }}</mat-label>
           <mat-select formControlName="paymentMethodKind">
-            <mat-option value="">All</mat-option>
-            <mat-option value="cash">Cash</mat-option>
-            <mat-option value="transfer">Transfer</mat-option>
-            <mat-option value="card">Card</mat-option>
+            <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
+            <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
+            <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
+            <mat-option value="card">{{ t('expenses_card') }}</mat-option>
           </mat-select>
         </mat-form-field>
         <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center">
-          <button mat-flat-button color="primary" type="submit">Apply</button>
-          <button mat-button type="button" (click)="clearFilters()">Clear</button>
+          <button mat-flat-button color="primary" type="submit">{{ t('expenses_apply') }}</button>
+          <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
         </div>
       </form>
         </mat-expansion-panel>
@@ -141,35 +142,35 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">Expense history</h2>
-        <span class="text-sm text-brand-muted">{{ expenses().length }} records</span>
+        <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
+        <span class="text-sm text-brand-muted">{{ expenses().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
-      <app-feedback-banner [message]="loading() ? 'Loading expenses...' : ''" tone="info" />
+      <app-feedback-banner [message]="loading() ? t('expenses_loading') : ''" tone="info" />
 
       <div class="responsive-table-wrapper overflow-x-auto">
         <table class="responsive-table w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
-              <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
-              <th class="py-2.5 pr-3 font-medium">Concept</th>
-              <th class="py-2.5 pr-3 font-medium">Category</th>
-              <th class="py-2.5 pr-3 font-medium">Payment</th>
-              <th class="py-2.5 pr-3 text-right font-medium">Amount</th>
+              <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
+              <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
+              <th class="py-2.5 pr-3 font-medium">{{ t('expenses_category') }}</th>
+              <th class="py-2.5 pr-3 font-medium">{{ t('expenses_payment_method') }}</th>
+              <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
             </tr>
           </thead>
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-brand-border/60 last:border-0">
-                <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
-                <td data-label="Concept" class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
-                <td data-label="Category" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td data-label="Payment" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
-                <td data-label="Amount" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
+                <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
+                <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
+                <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
+                <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
               </tr>
             } @empty {
               <tr>
-                <td class="py-6 text-brand-muted" colspan="5">No expenses match the selected filters.</td>
+                <td class="py-6 text-brand-muted" colspan="5">{{ t('expenses_empty_filters') }}</td>
               </tr>
             }
           </tbody>
@@ -180,6 +181,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 })
 export class ExpensesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly expenses = signal<Expense[]>([]);
   readonly loading = signal(false);
@@ -241,7 +244,7 @@ export class ExpensesComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        this.error.set('Could not load expenses.');
+        this.error.set(this.t('expenses_load_error'));
       }
     });
   }
@@ -266,19 +269,19 @@ export class ExpensesComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.saving.set(false);
-        this.saveMessage.set('Expense saved.');
+        this.saveMessage.set(this.t('expenses_saved'));
         this.form.patchValue({ concept: '', amount: 0, subcategoryId: '', bank: '' });
         this.loadExpenses();
       },
       error: () => {
         this.saving.set(false);
-        this.saveMessage.set('Could not save expense.');
+        this.saveMessage.set(this.t('expenses_save_error'));
       }
     });
   }
 
   categoryName(categoryId: string) {
-    return this.categories().find((category) => category.id === categoryId)?.name ?? 'Uncategorized';
+    return this.categories().find((category) => category.id === categoryId)?.name ?? this.t('expenses_uncategorized');
   }
 
   categoryLabel(category: Category) {
@@ -287,21 +290,25 @@ export class ExpensesComponent implements OnInit {
   }
 
   paymentLabel(expense: Expense) {
-    if (expense.paymentMethod.kind === 'cash') return 'Cash';
+    if (expense.paymentMethod.kind === 'cash') return this.t('expenses_cash');
     if (expense.paymentMethod.kind === 'transfer') {
-      return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} transfer` : 'Transfer';
+      return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${this.t('expenses_transfer')}` : this.t('expenses_transfer');
     }
-    const cardType = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType} card` : 'Card';
+    const cardType = expense.paymentMethod.cardType
+      ? `${expense.paymentMethod.cardType === 'debit' ? this.t('expenses_debit') : this.t('expenses_credit')} ${this.t('expenses_card')}`
+      : this.t('expenses_card');
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${cardType}` : cardType;
   }
 
   formatDate(value: string) {
-    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
   }
 
   formatMoney(currency: string, amount: number) {
-    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
   }
 
   private paymentMethodPayload(kind: string, bank: string, cardType: string) {

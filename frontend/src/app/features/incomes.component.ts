@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Income } from '../core/api.service';
+import { I18nService } from '../core/i18n.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -25,35 +26,35 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     PageHeaderComponent
   ],
   template: `
-    <app-page-header title="Incomes" eyebrow="Capture salary, refunds, and other money in"></app-page-header>
+    <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
 
     <mat-card class="page-panel p-2">
       <mat-accordion>
         <mat-expansion-panel>
           <mat-expansion-panel-header>
-            <mat-panel-title>New income</mat-panel-title>
+            <mat-panel-title>{{ t('incomes_new') }}</mat-panel-title>
           </mat-expansion-panel-header>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-4">
         <mat-form-field appearance="outline">
-          <mat-label>Concept</mat-label>
+          <mat-label>{{ t('expenses_concept') }}</mat-label>
           <input matInput formControlName="concept">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Amount</mat-label>
+          <mat-label>{{ t('expenses_amount') }}</mat-label>
           <input matInput type="number" formControlName="amount">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ t('expenses_currency') }}</mat-label>
           <input matInput maxlength="3" formControlName="currency">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Date</mat-label>
+          <mat-label>{{ t('expenses_date') }}</mat-label>
           <input matInput type="date" formControlName="date">
         </mat-form-field>
 
         <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-4">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
-            {{ saving() ? 'Saving...' : 'Save income' }}
+            {{ saving() ? t('incomes_saving') : t('incomes_save') }}
           </button>
           <app-feedback-banner [message]="saveMessage()" tone="success" />
         </div>
@@ -66,24 +67,24 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <mat-accordion>
         <mat-expansion-panel>
           <mat-expansion-panel-header>
-            <mat-panel-title>Filters</mat-panel-title>
+            <mat-panel-title>{{ t('incomes_filters') }}</mat-panel-title>
           </mat-expansion-panel-header>
       <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
-          <mat-label>From</mat-label>
+          <mat-label>{{ t('expenses_from') }}</mat-label>
           <input matInput type="date" formControlName="from">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>To</mat-label>
+          <mat-label>{{ t('expenses_to') }}</mat-label>
           <input matInput type="date" formControlName="to">
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ t('expenses_currency') }}</mat-label>
           <input matInput formControlName="currency" maxlength="3">
         </mat-form-field>
         <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-2">
-          <button mat-flat-button color="primary" type="submit">Apply</button>
-          <button mat-button type="button" (click)="clearFilters()">Clear</button>
+          <button mat-flat-button color="primary" type="submit">{{ t('expenses_apply') }}</button>
+          <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
         </div>
       </form>
         </mat-expansion-panel>
@@ -92,48 +93,50 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">Income history</h2>
-        <span class="text-sm text-brand-muted">{{ totalLabel() }} across {{ incomes().length }} records</span>
+        <h2 class="text-lg font-semibold">{{ t('incomes_history') }}</h2>
+        <span class="text-sm text-brand-muted">{{ totalLabel() }} {{ t('incomes_total_across') }} {{ incomes().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
-      <app-feedback-banner [message]="loading() ? 'Loading incomes...' : ''" tone="info" />
+      <app-feedback-banner [message]="loading() ? t('incomes_loading') : ''" tone="info" />
 
       @if (incomes().length) {
         <div class="responsive-table-wrapper overflow-x-auto">
           <table class="responsive-table w-full min-w-[560px] border-collapse text-left">
             <thead>
               <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
-                <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
-                <th class="py-2.5 pr-3 font-medium">Concept</th>
-                <th class="py-2.5 pr-3 text-right font-medium">Amount</th>
+                <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
+                <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
+                <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
               </tr>
             </thead>
             <tbody>
               @for (income of incomes(); track income.id) {
                 <tr class="border-b border-brand-border/60 last:border-0">
-                  <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
-                  <td data-label="Concept" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
-                  <td data-label="Amount" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
+                  <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
+                  <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
+                  <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
       } @else {
-        <app-empty-state message="No incomes match the selected filters." />
+        <app-empty-state [message]="t('incomes_empty_filters')" />
       }
     </mat-card>
   `
 })
 export class IncomesComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
   readonly incomes = signal<Income[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly form = this.fb.nonNullable.group({
-    concept: ['Monthly salary', Validators.required],
+    concept: [this.t('incomes_default_concept'), Validators.required],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]],
     date: [toDateInputValue(new Date()), Validators.required]
@@ -164,7 +167,7 @@ export class IncomesComponent {
       },
       error: () => {
         this.loading.set(false);
-        this.error.set('Could not load incomes.');
+        this.error.set(this.t('incomes_load_error'));
       }
     });
   }
@@ -186,13 +189,13 @@ export class IncomesComponent {
     }).subscribe({
       next: () => {
         this.saving.set(false);
-        this.saveMessage.set('Income saved.');
+        this.saveMessage.set(this.t('incomes_saved'));
         this.form.patchValue({ concept: '', amount: 0 });
         this.loadIncomes();
       },
       error: () => {
         this.saving.set(false);
-        this.saveMessage.set('Could not save income.');
+        this.saveMessage.set(this.t('incomes_save_error'));
       }
     });
   }
@@ -211,12 +214,14 @@ export class IncomesComponent {
   }
 
   formatDate(value: string) {
-    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
   }
 
   formatMoney(currency: string, amount: number) {
-    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(Number(amount));
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
   }
 }
 
