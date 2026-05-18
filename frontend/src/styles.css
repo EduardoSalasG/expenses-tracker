@@ -17,6 +17,15 @@
   --brand-border: #d6dee8;
   --brand-muted: #526173;
   --brand-shadow: 0 10px 30px rgb(7 11 18 / 0.06);
+  --semantic-danger-bg: #fef2f2;
+  --semantic-danger-border: #fecaca;
+  --semantic-danger-text: #b91c1c;
+  --semantic-success-bg: #ecfdf5;
+  --semantic-success-border: #a7f3d0;
+  --semantic-success-text: #047857;
+  --semantic-warning-bg: #fffbeb;
+  --semantic-warning-border: #fde68a;
+  --semantic-warning-text: #92400e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +42,15 @@
     --brand-border: #1e293b;
     --brand-muted: #94a3b8;
     --brand-shadow: 0 10px 30px rgb(2 6 23 / 0.45);
+    --semantic-danger-bg: #2b1117;
+    --semantic-danger-border: #7f1d1d;
+    --semantic-danger-text: #fca5a5;
+    --semantic-success-bg: #0c2a1f;
+    --semantic-success-border: #065f46;
+    --semantic-success-text: #6ee7b7;
+    --semantic-warning-bg: #2a2210;
+    --semantic-warning-border: #92400e;
+    --semantic-warning-text: #fcd34d;
   }
 }
 
@@ -62,6 +80,19 @@ body {
 
 .mat-mdc-form-field {
   width: 100%;
+  --mdc-filled-text-field-container-color: var(--brand-surface);
+  --mdc-outlined-text-field-container-color: var(--brand-surface);
+  --mdc-outlined-text-field-outline-color: var(--brand-border);
+  --mdc-outlined-text-field-focus-outline-color: var(--brand-blue);
+  --mdc-outlined-text-field-hover-outline-color: var(--brand-blue);
+  --mdc-outlined-text-field-input-text-color: var(--brand-ink);
+  --mdc-filled-text-field-input-text-color: var(--brand-ink);
+  --mdc-outlined-text-field-label-text-color: var(--brand-muted);
+  --mdc-filled-text-field-label-text-color: var(--brand-muted);
+  --mat-form-field-focus-select-arrow-color: var(--brand-blue);
+  --mat-select-enabled-arrow-color: var(--brand-muted);
+  --mdc-outlined-text-field-caret-color: var(--brand-blue);
+  --mdc-theme-text-primary-on-background: var(--brand-ink);
 }
 
 .mat-mdc-card.page-panel {
@@ -110,7 +141,26 @@ table {
 
 .mat-mdc-progress-bar {
   --mdc-linear-progress-active-indicator-color: var(--brand-blue);
-  --mdc-linear-progress-track-color: #dbe4ef;
+  --mdc-linear-progress-track-color: color-mix(in srgb, var(--brand-blue) 20%, var(--brand-surface) 80%);
+}
+
+.mat-mdc-option .mdc-list-item__primary-text,
+.mat-mdc-select-value-text,
+.mat-mdc-select-min-line,
+.mat-mdc-form-field .mat-mdc-form-field-infix,
+.mdc-text-field__input {
+  color: var(--brand-ink) !important;
+}
+
+.mat-mdc-select-panel,
+.mat-mdc-autocomplete-panel {
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink) !important;
+  border: 1px solid var(--brand-border);
+}
+
+.mat-mdc-form-field-error {
+  color: var(--semantic-danger-text) !important;
 }
 
 .app-surface {

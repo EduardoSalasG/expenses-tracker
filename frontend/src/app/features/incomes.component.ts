@@ -93,7 +93,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Income history</h2>
-        <span class="text-sm text-slate-500">{{ totalLabel() }} across {{ incomes().length }} records</span>
+        <span class="text-sm text-brand-muted">{{ totalLabel() }} across {{ incomes().length }} records</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? 'Loading incomes...' : ''" tone="info" />
@@ -102,7 +102,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <div class="responsive-table-wrapper overflow-x-auto">
           <table class="responsive-table w-full min-w-[560px] border-collapse text-left">
             <thead>
-              <tr class="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
+              <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
                 <th class="py-2.5 pl-3 pr-3 font-medium">Date</th>
                 <th class="py-2.5 pr-3 font-medium">Concept</th>
                 <th class="py-2.5 pr-3 text-right font-medium">Amount</th>
@@ -110,8 +110,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             </thead>
             <tbody>
               @for (income of incomes(); track income.id) {
-                <tr class="border-b border-slate-100 last:border-0">
-                  <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-slate-500">{{ formatDate(income.date) }}</td>
+                <tr class="border-b border-brand-border/60 last:border-0">
+                  <td data-label="Date" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
                   <td data-label="Concept" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
                   <td data-label="Amount" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                 </tr>

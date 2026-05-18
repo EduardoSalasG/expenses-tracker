@@ -86,7 +86,7 @@ interface CategoryVariationRow {
         <mat-card class="p-4"><div class="h-24 animate-pulse rounded bg-brand-bg"></div></mat-card>
       </section>
     } @else if (error()) {
-      <mat-card class="border border-red-100 p-4 text-red-700">{{ error() }}</mat-card>
+      <mat-card class="border p-4 text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)] bg-[var(--semantic-danger-bg)]">{{ error() }}</mat-card>
     } @else {
       <section class="grid gap-4 lg:grid-cols-3">
         <mat-card class="page-panel p-5">
@@ -196,7 +196,10 @@ interface CategoryVariationRow {
                     Current {{ formatMoney(row.currency, row.currentTotal) }} vs previous {{ formatMoney(row.currency, row.previousTotal) }}
                   </div>
                 </div>
-                <div class="text-left sm:text-right" [class.text-red-700]="row.delta > 0" [class.text-emerald-700]="row.delta < 0" [class.text-brand-muted]="row.delta === 0">
+                <div
+                  class="text-left sm:text-right"
+                  [style.color]="row.delta > 0 ? 'var(--semantic-danger-text)' : row.delta < 0 ? 'var(--semantic-success-text)' : 'var(--brand-muted)'"
+                >
                   <div class="font-semibold">
                     {{ row.delta > 0 ? '+' : row.delta < 0 ? '-' : '' }}{{ formatMoney(row.currency, abs(row.delta)) }}
                   </div>
@@ -269,10 +272,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private categoryChart?: Chart;
   private weeklyChart?: Chart;
   private viewReady = false;
+  private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
   constructor(private readonly api: ApiService) {}
 
   ngOnInit() {
+    this.mediaQuery.addEventListener('change', this.handleThemeChange);
     this.loadDashboard();
   }
 
@@ -282,6 +287,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.mediaQuery.removeEventListener('change', this.handleThemeChange);
     this.currencyChart?.destroy();
     this.categoryChart?.destroy();
     this.weeklyChart?.destroy();
@@ -392,20 +398,30 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
           {
             label: 'Income',
             data: currencies.map((currency) => report.incomeTotalsByCurrency[currency] ?? 0),
-            backgroundColor: '#1D4ED8'
+            backgroundColor: this.chartColors().income
           },
           {
             label: 'Expenses',
             data: currencies.map((currency) => report.expenseTotalsByCurrency[currency] ?? 0),
-            backgroundColor: '#0B1F3A'
+            backgroundColor: this.chartColors().expense
           }
         ]
       },
       options: {
         maintainAspectRatio: false,
         responsive: true,
-        plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: true } }
+        plugins: { legend: { position: 'bottom', labels: { color: this.chartColors().text } } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { color: this.chartColors().text },
+            grid: { color: this.chartColors().grid }
+          },
+          x: {
+            ticks: { color: this.chartColors().text },
+            grid: { color: this.chartColors().grid }
+          }
+        }
       }
     };
     this.currencyChart?.destroy();
@@ -431,14 +447,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
           backgroundColor: labels.length
             ? labels.map((_, index) => CATEGORY_CHART_COLORS[index % CATEGORY_CHART_COLORS.length])
             : ['#94A3B8'],
-          borderColor: '#FFFFFF',
+          borderColor: this.chartColors().surface,
           borderWidth: 2
         }]
       },
       options: {
         maintainAspectRatio: false,
         responsive: true,
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { legend: { position: 'bottom', labels: { color: this.chartColors().text } } }
       }
     };
     this.categoryChart?.destroy();
@@ -482,8 +498,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         responsive: true,
         plugins: {
-          legend: { display: true, position: 'bottom' },
+          legend: { display: true, position: 'bottom', labels: { color: this.chartColors().text } },
           tooltip: {
+            backgroundColor: this.chartColors().surface,
+            titleColor: this.chartColors().text,
+            bodyColor: this.chartColors().text,
+            borderColor: this.chartColors().grid,
+            borderWidth: 1,
             callbacks: {
               label: (context) => {
                 const value = Number(context.parsed.y ?? 0);
@@ -494,7 +515,17 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             }
           }
         },
-        scales: { y: { beginAtZero: true } }
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { color: this.chartColors().text },
+            grid: { color: this.chartColors().grid }
+          },
+          x: {
+            ticks: { color: this.chartColors().text },
+            grid: { color: this.chartColors().grid }
+          }
+        }
       }
     };
     this.weeklyChart?.destroy();
@@ -534,6 +565,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loading.set(false);
       }
     });
+  }
+
+  private readonly handleThemeChange = () => {
+    this.renderCharts();
+  };
+
+  private chartColors() {
+    const styles = getComputedStyle(document.documentElement);
+    return {
+      income: styles.getPropertyValue('--brand-blue').trim() || '#1D4ED8',
+      expense: styles.getPropertyValue('--brand-navy').trim() || '#0B1F3A',
+      text: styles.getPropertyValue('--brand-ink').trim() || '#111827',
+      grid: styles.getPropertyValue('--brand-border').trim() || '#D6DEE8',
+      surface: styles.getPropertyValue('--brand-surface').trim() || '#FFFFFF'
+    };
   }
 }
 

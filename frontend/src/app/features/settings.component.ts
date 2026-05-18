@@ -86,7 +86,7 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
             </div>
           </form>
         } @else {
-          <p class="p-3 text-sm text-slate-500">Loading profile...</p>
+          <p class="p-3 text-sm text-brand-muted">Loading profile...</p>
         }
           </mat-expansion-panel>
         </mat-accordion>
@@ -98,13 +98,13 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
             <mat-expansion-panel-header>
               <mat-panel-title>Report delivery</mat-panel-title>
             </mat-expansion-panel-header>
-        <p class="mb-4 p-3 pb-0 text-sm text-slate-500">Choose which dashboard reports should be delivered through WhatsApp.</p>
+        <p class="mb-4 p-3 pb-0 text-sm text-brand-muted">Choose which dashboard reports should be delivered through WhatsApp.</p>
 
         <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-3 p-3 pt-0">
           @for (frequency of frequencies; track frequency.key) {
-            <label class="rounded border border-slate-200 bg-white p-3 shadow-sm">
+            <label class="rounded border border-brand-border bg-brand-surface p-3 shadow-sm">
               <mat-checkbox [formControlName]="frequency.key">{{ frequency.label }}</mat-checkbox>
-              <div class="ml-10 text-sm text-slate-500">{{ frequency.description }}</div>
+              <div class="ml-10 text-sm text-brand-muted">{{ frequency.description }}</div>
             </label>
           }
 

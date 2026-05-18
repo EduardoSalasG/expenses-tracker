@@ -34,6 +34,7 @@ const links = [
           <a
             mat-button
             [routerLink]="link[0]"
+            [attr.aria-label]="link[1]"
             routerLinkActive="!bg-brand-navy/10 !text-brand-navy"
             class="!h-12 !min-w-0 !flex-1 !flex-col !px-1 !text-brand-muted md:!h-11 md:!w-full md:!flex-row md:!justify-start md:!px-4"
           >

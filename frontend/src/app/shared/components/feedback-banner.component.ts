@@ -5,7 +5,12 @@ import { Component, input } from '@angular/core';
   standalone: true,
   template: `
     @if (message()) {
-      <div class="mb-3 rounded px-3 py-2 text-sm" [class]="classes()">
+      <div
+        class="mb-3 rounded px-3 py-2 text-sm"
+        [class]="classes()"
+        [attr.role]="tone() === 'error' ? 'alert' : 'status'"
+        [attr.aria-live]="tone() === 'error' ? 'assertive' : 'polite'"
+      >
         {{ message() }}
       </div>
     }
@@ -16,8 +21,8 @@ export class FeedbackBannerComponent {
   readonly tone = input<'info' | 'success' | 'error'>('info');
 
   classes() {
-    if (this.tone() === 'error') return 'border border-red-200 bg-red-50 text-red-700';
-    if (this.tone() === 'success') return 'border border-emerald-200 bg-emerald-50 text-emerald-700';
+    if (this.tone() === 'error') return 'border bg-[var(--semantic-danger-bg)] text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)]';
+    if (this.tone() === 'success') return 'border bg-[var(--semantic-success-bg)] text-[var(--semantic-success-text)] border-[var(--semantic-success-border)]';
     return 'border border-brand-border bg-brand-bg text-brand-ink';
   }
 }

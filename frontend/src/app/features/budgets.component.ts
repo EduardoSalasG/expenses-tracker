@@ -49,16 +49,16 @@ interface BudgetRow {
 
     <section class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-slate-500">Budgeted</div>
-        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalBudgetedLabel() }}</div>
+        <div class="text-sm font-medium text-brand-muted">Budgeted</div>
+        <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalBudgetedLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-slate-500">Spent</div>
-        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalSpentLabel() }}</div>
+        <div class="text-sm font-medium text-brand-muted">Spent</div>
+        <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalSpentLabel() }}</div>
       </mat-card>
       <mat-card class="page-panel p-5">
-        <div class="text-sm font-medium text-slate-500">Remaining</div>
-        <div class="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">{{ totalRemainingLabel() }}</div>
+        <div class="text-sm font-medium text-brand-muted">Remaining</div>
+        <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalRemainingLabel() }}</div>
       </mat-card>
     </section>
 
@@ -113,7 +113,7 @@ interface BudgetRow {
     <mat-card class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">Budget progress</h2>
-        <span class="text-sm text-slate-500">{{ budgetRows().length }} active budgets</span>
+        <span class="text-sm text-brand-muted">{{ budgetRows().length }} active budgets</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? 'Loading budgets...' : ''" tone="info" />
@@ -121,11 +121,11 @@ interface BudgetRow {
       @if (budgetRows().length) {
         <div class="grid gap-5">
           @for (row of budgetRows(); track row.budget.id) {
-            <div class="rounded border border-slate-200 p-4">
+            <div class="rounded border border-brand-border p-4">
               <div class="mb-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                 <div class="min-w-0">
                   <div class="font-medium">{{ row.label }}</div>
-                  <div class="mt-1 text-sm text-slate-500">
+                  <div class="mt-1 text-sm text-brand-muted">
                     {{ formatMoney(row.budget.currency, row.spent) }} spent of {{ formatMoney(row.budget.currency, row.budget.amount) }}
                   </div>
                 </div>
@@ -135,7 +135,7 @@ interface BudgetRow {
                 </div>
               </div>
               <mat-progress-bar mode="determinate" [value]="row.progress" />
-              <div class="mt-1 text-xs text-slate-500">{{ row.progress }}% used</div>
+              <div class="mt-1 text-xs text-brand-muted">{{ row.progress }}% used</div>
             </div>
           }
         </div>

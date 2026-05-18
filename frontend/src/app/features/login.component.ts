@@ -25,19 +25,22 @@ import { AuthService } from '../core/auth.service';
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
           @if (errorMessage()) {
-            <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div class="rounded border bg-[var(--semantic-danger-bg)] p-3 text-sm text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)]" role="alert" aria-live="assertive">
               {{ errorMessage() }}
             </div>
           }
 
           <mat-form-field appearance="outline">
             <mat-label>WhatsApp phone number</mat-label>
-            <input matInput formControlName="phoneNumber" placeholder="+56912345678">
+            <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel">
+            @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
+              <mat-error>Enter a valid WhatsApp number.</mat-error>
+            }
           </mat-form-field>
 
           @if (otpSent()) {
             @if (debugCode()) {
-              <div class="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div class="rounded border bg-[var(--semantic-warning-bg)] p-3 text-sm text-[var(--semantic-warning-text)] border-[var(--semantic-warning-border)]">
                 Local OTP code: <strong>{{ debugCode() }}</strong>
               </div>
             }
@@ -48,32 +51,53 @@ import { AuthService } from '../core/auth.service';
               </div>
               <mat-form-field appearance="outline">
                 <mat-label>Name</mat-label>
-                <input matInput formControlName="firstName">
+                <input matInput formControlName="firstName" autocomplete="given-name">
+                @if (showControlError('firstName')) {
+                  <mat-error>Name is required.</mat-error>
+                }
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Last name</mat-label>
-                <input matInput formControlName="lastName">
+                <input matInput formControlName="lastName" autocomplete="family-name">
+                @if (showControlError('lastName')) {
+                  <mat-error>Last name is required.</mat-error>
+                }
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
-                <input matInput formControlName="email" type="email">
+                <input matInput formControlName="email" type="email" autocomplete="email">
+                @if (showControlError('email')) {
+                  <mat-error>Enter a valid email.</mat-error>
+                }
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Country</mat-label>
-                <input matInput formControlName="countryOfResidence" placeholder="Chile">
+                <input matInput formControlName="countryOfResidence" placeholder="Chile" autocomplete="country-name">
+                @if (showControlError('countryOfResidence')) {
+                  <mat-error>Country is required.</mat-error>
+                }
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Preferred currency</mat-label>
-                <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP">
+                <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP" autocomplete="off">
+                @if (showControlError('preferredCurrency')) {
+                  <mat-error>Use a 3-letter currency code.</mat-error>
+                }
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Preferred name</mat-label>
-                <input matInput formControlName="preferredName" placeholder="How should we call you?">
+                <input matInput formControlName="preferredName" placeholder="How should we call you?" autocomplete="nickname">
+                @if (showControlError('preferredName')) {
+                  <mat-error>Preferred name is required.</mat-error>
+                }
               </mat-form-field>
             }
             <mat-form-field appearance="outline">
               <mat-label>Verification code</mat-label>
-              <input matInput formControlName="code" placeholder="123456">
+              <input matInput formControlName="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+              @if (form.controls.code.touched && form.controls.code.invalid) {
+                <mat-error>Enter the 6-digit code.</mat-error>
+              }
             </mat-form-field>
           }
 
@@ -187,5 +211,10 @@ export class LoginComponent {
     }
 
     return fallback;
+  }
+
+  showControlError(controlName: 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency') {
+    const control = this.form.controls[controlName];
+    return control.touched && control.invalid;
   }
 }
