@@ -298,3 +298,10 @@ Use the shared Winston logger adapter. Do not log OTP values, JWTs, WhatsApp acc
 ```bash
 pnpm --filter @expenses-tracker/backend test
 ```
+
+PostgreSQL integration repository tests (requires a migrated local DB and `DATABASE_URL`):
+
+```powershell
+$env:RUN_DB_INTEGRATION_TESTS='true'
+pnpm --filter @expenses-tracker/backend test
+```
