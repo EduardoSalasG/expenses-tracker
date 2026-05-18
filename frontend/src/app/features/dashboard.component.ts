@@ -65,9 +65,25 @@ interface CategoryVariationRow {
         <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">Dashboard</h1>
       </div>
       <div class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
-        <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid">
-          <button mat-button type="button" class="!min-w-0" (click)="setViewMode('monthly')" [disabled]="viewMode() === 'monthly'">Monthly</button>
-          <button mat-button type="button" class="!min-w-0" (click)="setViewMode('yearly')" [disabled]="viewMode() === 'yearly'">Annual</button>
+        <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
+          <button
+            mat-button
+            type="button"
+            [class]="periodButtonClasses('monthly')"
+            [attr.aria-pressed]="viewMode() === 'monthly'"
+            (click)="setViewMode('monthly')"
+          >
+            Monthly
+          </button>
+          <button
+            mat-button
+            type="button"
+            [class]="periodButtonClasses('yearly')"
+            [attr.aria-pressed]="viewMode() === 'yearly'"
+            (click)="setViewMode('yearly')"
+          >
+            Annual
+          </button>
         </div>
         @if (viewMode() === 'monthly') {
           <input
@@ -311,6 +327,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.viewMode() === mode) return;
     this.viewMode.set(mode);
     this.loadDashboard();
+  }
+
+  periodButtonClasses(mode: 'monthly' | 'yearly') {
+    const base = '!min-w-0 !rounded-none !border-0';
+    if (this.viewMode() === mode) {
+      return `${base} !bg-brand-blue !text-white`;
+    }
+    return `${base} !text-brand-ink hover:!bg-brand-surface-muted`;
   }
 
   changeMonth(event: Event) {

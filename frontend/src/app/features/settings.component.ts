@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -6,7 +7,9 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIconModule } from '@angular/material/icon';
 import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
+import { AuthService } from '../core/auth.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
@@ -28,6 +31,7 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
     MatFormFieldModule,
     MatInputModule,
     MatExpansionModule,
+    MatIconModule,
     FeedbackBannerComponent,
     PageHeaderComponent
   ],
@@ -116,6 +120,19 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
           </mat-expansion-panel>
         </mat-accordion>
       </mat-card>
+
+      <mat-card class="page-panel p-5 xl:col-span-2">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-brand-ink">Session</h2>
+            <p class="mt-1 text-sm text-brand-muted">End the current browser session on this device.</p>
+          </div>
+          <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="logout()">
+            <mat-icon>logout</mat-icon>
+            <span class="ml-2">Logout</span>
+          </button>
+        </div>
+      </mat-card>
     </section>
   `
 })
@@ -144,7 +161,11 @@ export class SettingsComponent {
     yearly: [false]
   });
 
-  constructor(private readonly api: ApiService) {
+  constructor(
+    private readonly api: ApiService,
+    private readonly auth: AuthService,
+    private readonly router: Router
+  ) {
     this.load();
   }
 
@@ -216,5 +237,10 @@ export class SettingsComponent {
         this.message.set('Could not save report preferences.');
       }
     });
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigateByUrl('/login');
   }
 }
