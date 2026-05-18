@@ -23,7 +23,7 @@ const links = [
       <span class="ml-3 truncate font-semibold">Expenses Tracker</span>
     </mat-toolbar>
     <div class="app-surface grid min-h-[calc(100vh-64px)] md:grid-cols-[260px_1fr]">
-      <nav class="fixed bottom-0 left-0 right-0 z-20 flex border-t border-brand-border bg-brand-surface/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(7_11_18_/_0.10)] md:static md:block md:border-r md:border-t-0 md:bg-brand-surface/90 md:p-3 md:shadow-none">
+      <nav class="fixed bottom-0 left-0 right-0 z-20 flex border-t border-brand-border bg-brand-surface/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(7_11_18_/_0.10)] md:sticky md:top-16 md:block md:h-[calc(100vh-64px)] md:self-start md:overflow-y-auto md:border-r md:border-t-0 md:bg-brand-surface/90 md:p-3 md:shadow-none">
         @for (link of links; track link[0]) {
           <a
             mat-button
