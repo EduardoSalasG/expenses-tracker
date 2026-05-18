@@ -2,11 +2,25 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, com
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
-import { Chart, type ChartConfiguration, registerables } from 'chart.js';
+import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
 
 Chart.register(...registerables);
+
+const chartAreaBackgroundPlugin = {
+  id: 'chartAreaBackground',
+  beforeDraw: (chart: Chart, _args: unknown, pluginOptions: unknown) => {
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
+    const color = (pluginOptions as { color?: string } | undefined)?.color;
+    if (!color) return;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+    ctx.restore();
+  }
+};
 
 interface BudgetProgressRow {
   label: string;
@@ -392,6 +406,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const currencies = [...new Set([...Object.keys(report.expenseTotalsByCurrency), ...Object.keys(report.incomeTotalsByCurrency)])].sort();
     const config: ChartConfiguration<'bar'> = {
       type: 'bar',
+      plugins: [chartAreaBackgroundPlugin],
       data: {
         labels: currencies.length ? currencies : ['No data'],
         datasets: [
@@ -410,15 +425,18 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       options: {
         maintainAspectRatio: false,
         responsive: true,
-        plugins: { legend: { position: 'bottom', labels: { color: this.chartColors().text } } },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 14, usePointStyle: true } },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted }
+        } as never,
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { color: this.chartColors().text },
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
             grid: { color: this.chartColors().grid }
           },
           x: {
-            ticks: { color: this.chartColors().text },
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
             grid: { color: this.chartColors().grid }
           }
         }
@@ -440,6 +458,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const labels = Object.keys(totals);
     const config: ChartConfiguration<'doughnut'> = {
       type: 'doughnut',
+      plugins: [chartAreaBackgroundPlugin],
       data: {
         labels: labels.length ? labels : ['No expenses'],
         datasets: [{
@@ -454,7 +473,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       options: {
         maintainAspectRatio: false,
         responsive: true,
-        plugins: { legend: { position: 'bottom', labels: { color: this.chartColors().text } } }
+        plugins: {
+          legend: { position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 14, usePointStyle: true } },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted }
+        } as never
       }
     };
     this.categoryChart?.destroy();
@@ -486,6 +508,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }));
     const config: ChartConfiguration<'bar'> = {
       type: 'bar',
+      plugins: [chartAreaBackgroundPlugin],
       data: {
         labels: labels.map((label) => label.display),
         datasets: datasets.length ? datasets : [{
@@ -498,7 +521,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         responsive: true,
         plugins: {
-          legend: { display: true, position: 'bottom', labels: { color: this.chartColors().text } },
+          legend: { display: true, position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 14, usePointStyle: true } },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted },
           tooltip: {
             backgroundColor: this.chartColors().surface,
             titleColor: this.chartColors().text,
@@ -506,7 +530,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             borderColor: this.chartColors().grid,
             borderWidth: 1,
             callbacks: {
-              label: (context) => {
+              label: (context: TooltipItem<'bar'>) => {
                 const value = Number(context.parsed.y ?? 0);
                 const currency = String(context.dataset.label ?? '');
                 if (currency && currency !== 'No data') return `Total: ${this.formatMoney(currency, value)}`;
@@ -514,15 +538,15 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
               }
             }
           }
-        },
+        } as never,
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { color: this.chartColors().text },
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
             grid: { color: this.chartColors().grid }
           },
           x: {
-            ticks: { color: this.chartColors().text },
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
             grid: { color: this.chartColors().grid }
           }
         }
@@ -573,12 +597,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private chartColors() {
     const styles = getComputedStyle(document.documentElement);
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return {
       income: styles.getPropertyValue('--brand-blue').trim() || '#1D4ED8',
       expense: styles.getPropertyValue('--brand-navy').trim() || '#0B1F3A',
-      text: styles.getPropertyValue('--brand-ink').trim() || '#111827',
-      grid: styles.getPropertyValue('--brand-border').trim() || '#D6DEE8',
-      surface: styles.getPropertyValue('--brand-surface').trim() || '#FFFFFF'
+      text: isDark ? '#E2E8F0' : '#0B1F3A',
+      grid: isDark ? '#334155' : '#CBD5E1',
+      surface: styles.getPropertyValue('--brand-surface').trim() || '#FFFFFF',
+      surfaceMuted: styles.getPropertyValue('--brand-surface-muted').trim() || '#EEF3F8'
     };
   }
 }
