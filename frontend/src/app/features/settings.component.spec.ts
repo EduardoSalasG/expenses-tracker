@@ -64,7 +64,7 @@ describe('SettingsComponent', () => {
       preferredName: 'Updated',
       preferredCurrency: 'USD'
     }));
-    expect(component.profileMessage()).toBe('Profile saved.');
+    expect(component.profileMessage()).toBe('settings_profile_saved');
   });
 
   it('saves selected report preferences', () => {
@@ -74,6 +74,6 @@ describe('SettingsComponent', () => {
     component.save();
 
     expect(api.updateReportPreferences).toHaveBeenCalledWith(['weekly', 'monthly'] as ReportFrequency[]);
-    expect(component.message()).toBe('Report preferences saved.');
+    expect(component.message()).toBe('settings_preferences_saved');
   });
 });

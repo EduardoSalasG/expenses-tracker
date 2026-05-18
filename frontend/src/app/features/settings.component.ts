@@ -15,11 +15,11 @@ import { I18nService } from '../core/i18n.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
-const frequencies: Array<{ key: ReportFrequency; label: string; description: string }> = [
-  { key: 'daily', label: 'Daily', description: 'A compact daily WhatsApp summary.' },
-  { key: 'weekly', label: 'Weekly', description: 'A weekly rhythm for category trends.' },
-  { key: 'monthly', label: 'Monthly', description: 'A month-end budget and cash-flow summary.' },
-  { key: 'yearly', label: 'Yearly', description: 'A long-range yearly recap.' }
+const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKey: string }> = [
+  { key: 'daily', labelKey: 'settings_frequency_daily', descriptionKey: 'settings_frequency_daily_desc' },
+  { key: 'weekly', labelKey: 'settings_frequency_weekly', descriptionKey: 'settings_frequency_weekly_desc' },
+  { key: 'monthly', labelKey: 'settings_frequency_monthly', descriptionKey: 'settings_frequency_monthly_desc' },
+  { key: 'yearly', labelKey: 'settings_frequency_yearly', descriptionKey: 'settings_frequency_yearly_desc' }
 ];
 
 @Component({
@@ -41,49 +41,49 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
   template: `
     <app-page-header [title]="t('settings_title')" [eyebrow]="t('settings_subtitle')"></app-page-header>
     <app-feedback-banner [message]="loadError()" tone="error" />
-    <app-feedback-banner [message]="loading() ? 'Loading settings...' : ''" tone="info" />
+    <app-feedback-banner [message]="loading() ? t('settings_loading') : ''" tone="info" />
 
     <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
       <mat-card class="page-panel p-2">
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
-              <mat-panel-title>Profile</mat-panel-title>
+              <mat-panel-title>{{ t('settings_profile_panel') }}</mat-panel-title>
             </mat-expansion-panel-header>
         @if (user()) {
           <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3 p-3">
             <mat-form-field appearance="outline">
-              <mat-label>Name</mat-label>
+              <mat-label>{{ t('settings_first_name') }}</mat-label>
               <input matInput formControlName="firstName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Last name</mat-label>
+              <mat-label>{{ t('settings_last_name') }}</mat-label>
               <input matInput formControlName="lastName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Preferred name</mat-label>
+              <mat-label>{{ t('settings_preferred_name') }}</mat-label>
               <input matInput formControlName="preferredName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Phone</mat-label>
+              <mat-label>{{ t('settings_phone') }}</mat-label>
               <input matInput [value]="user()?.phoneNumber" disabled />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Email</mat-label>
+              <mat-label>{{ t('settings_email') }}</mat-label>
               <input matInput formControlName="email" type="email" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Country of residence</mat-label>
+              <mat-label>{{ t('settings_country') }}</mat-label>
               <input matInput formControlName="countryOfResidence" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
-              <mat-label>Preferred currency</mat-label>
+              <mat-label>{{ t('settings_currency') }}</mat-label>
               <input matInput formControlName="preferredCurrency" maxlength="3" />
             </mat-form-field>
 
@@ -96,12 +96,12 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
             </mat-form-field>
 
             <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button mat-flat-button color="primary" type="submit" [disabled]="profileForm.invalid || savingProfile()">Save profile</button>
+              <button mat-flat-button color="primary" type="submit" [disabled]="profileForm.invalid || savingProfile()">{{ t('settings_save_profile') }}</button>
               <app-feedback-banner [message]="profileMessage()" tone="success" />
             </div>
           </form>
         } @else {
-          <p class="p-3 text-sm text-brand-muted">Loading profile...</p>
+          <p class="p-3 text-sm text-brand-muted">{{ t('settings_loading_profile') }}</p>
         }
           </mat-expansion-panel>
         </mat-accordion>
@@ -111,20 +111,20 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
-              <mat-panel-title>Report delivery</mat-panel-title>
+              <mat-panel-title>{{ t('settings_report_delivery') }}</mat-panel-title>
             </mat-expansion-panel-header>
-        <p class="mb-4 p-3 pb-0 text-sm text-brand-muted">Choose which dashboard reports should be delivered through WhatsApp.</p>
+        <p class="mb-4 p-3 pb-0 text-sm text-brand-muted">{{ t('settings_report_delivery_hint') }}</p>
 
         <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-3 p-3 pt-0">
           @for (frequency of frequencies; track frequency.key) {
             <label class="rounded border border-brand-border bg-brand-surface p-3 shadow-sm">
-              <mat-checkbox [formControlName]="frequency.key">{{ frequency.label }}</mat-checkbox>
-              <div class="ml-10 text-sm text-brand-muted">{{ frequency.description }}</div>
+              <mat-checkbox [formControlName]="frequency.key">{{ t(frequency.labelKey) }}</mat-checkbox>
+              <div class="ml-10 text-sm text-brand-muted">{{ t(frequency.descriptionKey) }}</div>
             </label>
           }
 
           <div class="mobile-stack-actions mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Save preferences</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="saving()">{{ t('settings_save_preferences') }}</button>
             <app-feedback-banner [message]="message()" tone="success" />
           </div>
         </form>
@@ -135,12 +135,12 @@ const frequencies: Array<{ key: ReportFrequency; label: string; description: str
       <mat-card class="page-panel p-5 xl:col-span-2">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-brand-ink">Session</h2>
-            <p class="mt-1 text-sm text-brand-muted">End the current browser session on this device.</p>
+            <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_session') }}</h2>
+            <p class="mt-1 text-sm text-brand-muted">{{ t('settings_session_hint') }}</p>
           </div>
           <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="logout()">
             <mat-icon>logout</mat-icon>
-            <span class="ml-2">Logout</span>
+            <span class="ml-2">{{ t('settings_logout') }}</span>
           </button>
         </div>
       </mat-card>
@@ -208,7 +208,7 @@ export class SettingsComponent {
       },
       error: () => {
         this.loading.set(false);
-        this.loadError.set('Could not load settings.');
+        this.loadError.set(this.t('settings_load_error'));
       }
     });
   }
@@ -227,11 +227,11 @@ export class SettingsComponent {
         this.savingProfile.set(false);
         this.user.set(user);
         this.i18n.applyUserPreference(user.preferredLanguage ?? 'es');
-        this.profileMessage.set('Profile saved.');
+        this.profileMessage.set(this.t('settings_profile_saved'));
       },
       error: () => {
         this.savingProfile.set(false);
-        this.profileMessage.set('Could not save profile.');
+        this.profileMessage.set(this.t('settings_profile_save_error'));
       }
     });
   }
@@ -246,12 +246,12 @@ export class SettingsComponent {
     this.api.updateReportPreferences(preferences).subscribe({
       next: () => {
         this.saving.set(false);
-        this.message.set('Report preferences saved.');
+        this.message.set(this.t('settings_preferences_saved'));
         this.load();
       },
       error: () => {
         this.saving.set(false);
-        this.message.set('Could not save report preferences.');
+        this.message.set(this.t('settings_preferences_error'));
       }
     });
   }

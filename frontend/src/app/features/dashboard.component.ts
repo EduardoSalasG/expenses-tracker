@@ -63,7 +63,7 @@ interface CategoryVariationRow {
     <div class="mb-5 flex flex-col gap-4 border-b border-brand-border pb-5 sm:mb-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ periodLabel() }}</p>
-        <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">Dashboard</h1>
+        <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_title') }}</h1>
       </div>
       <div class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
         <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
@@ -74,7 +74,7 @@ interface CategoryVariationRow {
             [attr.aria-pressed]="viewMode() === 'monthly'"
             (click)="setViewMode('monthly')"
           >
-            Monthly
+            {{ t('dashboard_monthly') }}
           </button>
           <button
             mat-button
@@ -83,7 +83,7 @@ interface CategoryVariationRow {
             [attr.aria-pressed]="viewMode() === 'yearly'"
             (click)="setViewMode('yearly')"
           >
-            Annual
+            {{ t('dashboard_annual') }}
           </button>
         </div>
         @if (viewMode() === 'monthly') {
@@ -105,7 +105,7 @@ interface CategoryVariationRow {
           </select>
         }
         <div class="sm:col-span-2 rounded border border-brand-border bg-brand-surface px-4 py-3 text-sm text-brand-muted shadow-sm lg:col-span-1">
-          Net balance <strong class="ml-2 text-brand-ink">{{ netBalanceLabel() }}</strong>
+          {{ t('dashboard_net_balance') }} <strong class="ml-2 text-brand-ink">{{ netBalanceLabel() }}</strong>
         </div>
       </div>
     </div>
@@ -121,24 +121,24 @@ interface CategoryVariationRow {
     } @else {
       <section class="grid gap-4 lg:grid-cols-3">
         <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? 'This month expenses' : 'This year expenses' }}</div>
+          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? t('dashboard_this_month_expenses') : t('dashboard_this_year_expenses') }}</div>
           <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ expenseTotalLabel() }}</div>
-          <div class="mt-3 text-sm text-brand-muted">{{ report()?.expenses?.length ?? 0 }} expense records</div>
+          <div class="mt-3 text-sm text-brand-muted">{{ report()?.expenses?.length ?? 0 }} {{ t('dashboard_expense_records') }}</div>
         </mat-card>
         <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? 'This month income' : 'This year income' }}</div>
+          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? t('dashboard_this_month_income') : t('dashboard_this_year_income') }}</div>
           <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ incomeTotalLabel() }}</div>
-          <div class="mt-3 text-sm text-brand-muted">{{ report()?.incomes?.length ?? 0 }} income records</div>
+          <div class="mt-3 text-sm text-brand-muted">{{ report()?.incomes?.length ?? 0 }} {{ t('dashboard_income_records') }}</div>
         </mat-card>
         <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">Budget progress</div>
+          <div class="text-sm font-medium text-brand-muted">{{ t('dashboard_budget_progress') }}</div>
           @if (overallBudget()) {
             <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ overallBudget()?.progress }}%</div>
             <mat-progress-bar class="mt-4" mode="determinate" [value]="overallBudget()?.progress ?? 0" />
-            <div class="mt-3 text-sm text-brand-muted">{{ overallBudget()?.spentLabel }} spent of {{ overallBudget()?.amountLabel }}</div>
+            <div class="mt-3 text-sm text-brand-muted">{{ overallBudget()?.spentLabel }} {{ t('dashboard_spent_of') }} {{ overallBudget()?.amountLabel }}</div>
           } @else {
-            <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">No budget</div>
-            <div class="mt-3 text-sm text-brand-muted">Create monthly budgets to track progress.</div>
+            <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_no_budget') }}</div>
+            <div class="mt-3 text-sm text-brand-muted">{{ t('dashboard_create_budgets_hint') }}</div>
           }
         </mat-card>
       </section>
@@ -146,7 +146,7 @@ interface CategoryVariationRow {
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-lg font-semibold">Cash flow by currency</h2>
+            <h2 class="text-lg font-semibold">{{ t('dashboard_cash_flow_currency') }}</h2>
           </div>
           <div class="h-64 sm:h-72">
             <canvas #currencyChart aria-label="Cash flow by currency chart"></canvas>
@@ -154,7 +154,7 @@ interface CategoryVariationRow {
         </mat-card>
 
         <mat-card class="page-panel chart-panel p-5">
-          <h2 class="mb-3 text-lg font-semibold">Expenses by category</h2>
+          <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_expenses_by_category') }}</h2>
           <div class="h-64 sm:h-72">
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
           </div>
@@ -164,7 +164,7 @@ interface CategoryVariationRow {
       <section class="mt-4">
         <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">
-            {{ viewMode() === 'monthly' ? 'This week expenses' : 'This year expenses by month' }}
+            {{ viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month') }}
           </h2>
           <div class="h-64 sm:h-72">
             <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
@@ -174,7 +174,7 @@ interface CategoryVariationRow {
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <mat-card class="page-panel p-5">
-          <h2 class="mb-3 text-lg font-semibold">Recent expenses</h2>
+          <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_recent_expenses') }}</h2>
           <div class="grid gap-1">
             @for (expense of recentExpenses(); track expense.id) {
               <div class="grid gap-2 border-b border-brand-border/70 py-3 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
@@ -189,27 +189,27 @@ interface CategoryVariationRow {
                 <strong class="whitespace-nowrap text-left sm:text-right">{{ formatMoney(expense.currency, expense.amount) }}</strong>
               </div>
             } @empty {
-              <p class="text-brand-muted">No expenses yet.</p>
+              <p class="text-brand-muted">{{ t('dashboard_no_expenses') }}</p>
             }
           </div>
         </mat-card>
 
         <mat-card class="page-panel p-5">
-          <h2 class="mb-3 text-lg font-semibold">Monthly budgets</h2>
+          <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_monthly_budgets') }}</h2>
           <div class="grid gap-4">
             @for (budget of budgetProgress(); track budget.label + budget.currency) {
               <div>
                 <div class="mb-2 flex items-center justify-between gap-3 text-sm">
                   <span class="font-medium">{{ budget.label }}</span>
-                  <span class="text-brand-muted">{{ formatMoney(budget.currency, budget.remaining) }} left</span>
+                  <span class="text-brand-muted">{{ formatMoney(budget.currency, budget.remaining) }} {{ t('dashboard_left') }}</span>
                 </div>
                 <mat-progress-bar mode="determinate" [value]="budget.progress" />
                 <div class="mt-1 text-xs text-brand-muted">
-                  {{ formatMoney(budget.currency, budget.spent) }} of {{ formatMoney(budget.currency, budget.amount) }}
+                  {{ formatMoney(budget.currency, budget.spent) }} {{ t('dashboard_spent_of') }} {{ formatMoney(budget.currency, budget.amount) }}
                 </div>
               </div>
             } @empty {
-              <p class="text-brand-muted">No budgets configured for this month.</p>
+              <p class="text-brand-muted">{{ t('dashboard_no_budgets_month') }}</p>
             }
           </div>
         </mat-card>
@@ -217,14 +217,14 @@ interface CategoryVariationRow {
 
       <section class="mt-4">
         <mat-card class="page-panel p-5">
-          <h2 class="mb-3 text-lg font-semibold">Category variation vs previous period</h2>
+          <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_category_variation_prev') }}</h2>
           <div class="grid gap-2">
             @for (row of categoryVariation(); track row.categoryId + row.currency) {
               <div class="grid gap-2 border-b border-brand-border/70 py-2 last:border-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div class="min-w-0">
                   <div class="truncate font-medium">{{ row.categoryName }} ({{ row.currency }})</div>
                   <div class="mt-1 text-sm text-brand-muted">
-                    Current {{ formatMoney(row.currency, row.currentTotal) }} vs previous {{ formatMoney(row.currency, row.previousTotal) }}
+                    {{ t('dashboard_current_vs_previous') }} {{ formatMoney(row.currency, row.currentTotal) }} {{ t('dashboard_vs_previous') }} {{ formatMoney(row.currency, row.previousTotal) }}
                   </div>
                 </div>
                 <div
@@ -235,12 +235,12 @@ interface CategoryVariationRow {
                     {{ row.delta > 0 ? '+' : row.delta < 0 ? '-' : '' }}{{ formatMoney(row.currency, abs(row.delta)) }}
                   </div>
                   <div class="text-xs">
-                    {{ row.deltaPercent === null ? 'n/a' : (abs(row.deltaPercent).toFixed(2) + '%') }}
+                    {{ row.deltaPercent === null ? t('dashboard_na') : (abs(row.deltaPercent).toFixed(2) + '%') }}
                   </div>
                 </div>
               </div>
             } @empty {
-              <p class="text-brand-muted">No variation data for this period.</p>
+              <p class="text-brand-muted">{{ t('dashboard_no_variation') }}</p>
             }
           </div>
         </mat-card>
@@ -278,7 +278,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const report = this.report();
     if (!report) return '-';
     const currencies = new Set([...Object.keys(report.expenseTotalsByCurrency), ...Object.keys(report.incomeTotalsByCurrency)]);
-    if (!currencies.size) return 'No movement';
+    if (!currencies.size) return this.t('dashboard_no_movement');
     return [...currencies]
       .sort()
       .map((currency) => this.formatMoney(currency, (report.incomeTotalsByCurrency[currency] ?? 0) - (report.expenseTotalsByCurrency[currency] ?? 0)))
@@ -386,7 +386,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private formatTotals(totals?: Record<string, number>) {
-    if (!totals || !Object.keys(totals).length) return 'No movement';
+    if (!totals || !Object.keys(totals).length) return this.t('dashboard_no_movement');
     return Object.entries(totals)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([currency, amount]) => this.formatMoney(currency, amount))
@@ -617,7 +617,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => this.renderCharts());
       },
       error: () => {
-        this.error.set('Dashboard data could not be loaded.');
+        this.error.set(this.t('dashboard_loading_error'));
         this.loading.set(false);
       }
     });
@@ -654,6 +654,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private locale() {
     return this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+  }
+
+  t(key: string) {
+    return this.i18n.t(key);
   }
 }
 
