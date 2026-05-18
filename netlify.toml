@@ -1,0 +1,15 @@
+[build]
+  base = "."
+  command = "pnpm install --frozen-lockfile && pnpm --filter @expenses-tracker/frontend build --configuration production"
+  publish = "frontend/dist/frontend/browser"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://expenses-tracker-api.onrender.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

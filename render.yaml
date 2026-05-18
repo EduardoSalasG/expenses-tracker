@@ -1,0 +1,123 @@
+databases:
+  - name: expenses-tracker-db
+    databaseName: expenses_tracker
+    user: expenses
+    plan: starter
+
+services:
+  - type: web
+    name: expenses-tracker-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expenses-tracker-db
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: OTP_DEBUG_RESPONSE_ENABLED
+        value: "false"
+      - key: MESSAGE_INTERPRETER_PROVIDER
+        value: deterministic
+      - key: MESSAGE_INTERPRETER_API_KEY
+        sync: false
+      - key: MESSAGE_INTERPRETER_BASE_URL
+        sync: false
+      - key: MESSAGE_INTERPRETER_MODEL
+        sync: false
+
+  - type: cron
+    name: expenses-tracker-report-daily
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    schedule: "5 8 * * *"
+    command: "node dist/infrastructure/send-due-reports.js daily"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expenses-tracker-db
+          property: connectionString
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+
+  - type: cron
+    name: expenses-tracker-report-weekly
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    schedule: "10 8 * * 1"
+    command: "node dist/infrastructure/send-due-reports.js weekly"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expenses-tracker-db
+          property: connectionString
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+
+  - type: cron
+    name: expenses-tracker-report-monthly
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    schedule: "15 8 1 * *"
+    command: "node dist/infrastructure/send-due-reports.js monthly"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expenses-tracker-db
+          property: connectionString
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+
+  - type: cron
+    name: expenses-tracker-report-yearly
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: starter
+    schedule: "20 8 1 1 *"
+    command: "node dist/infrastructure/send-due-reports.js yearly"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: expenses-tracker-db
+          property: connectionString
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false

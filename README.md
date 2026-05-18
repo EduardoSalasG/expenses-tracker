@@ -88,6 +88,23 @@ Services:
 If local backend scripts connect to the Docker database, make sure `backend/.env` uses that same `DATABASE_URL`.
 Docker Compose loads `backend/.env` for WhatsApp credentials, while overriding `DATABASE_URL` inside the container to use the internal `database:5432` host.
 
+## Production Deploy (Render + Netlify)
+
+Backend/API and scheduled workers are configured in `render.yaml`. Frontend static hosting and SPA/API redirects are configured in `netlify.toml`.
+
+Before going live:
+
+1. Create Render services from `render.yaml` and set secret env vars (`JWT_SECRET`, WhatsApp keys, interpreter keys if used).
+2. Point Netlify site to this repository and keep `netlify.toml` as build config.
+3. Update the `netlify.toml` `/api/*` redirect target to your real Render backend URL if it differs from `https://expenses-tracker-api.onrender.com`.
+4. Set `FRONTEND_ORIGIN` in Render backend to your Netlify domain.
+
+Release flow:
+
+1. Work on `dev`.
+2. Merge `dev` into `main` only when production-ready.
+3. Let Netlify and Render auto-deploy from `main`.
+
 ## WhatsApp Testing
 
 For Meta API Setup, map the values like this:
