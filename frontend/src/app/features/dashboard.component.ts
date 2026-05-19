@@ -268,7 +268,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly periodLabel = computed(() => {
     if (this.viewMode() === 'monthly') {
       const [year, month] = this.selectedMonth().split('-').map(Number);
-      return new Intl.DateTimeFormat(this.locale(), { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
+      return new Intl.DateTimeFormat(this.locale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
     }
     return `${this.selectedYear()}`;
   });
@@ -700,7 +700,7 @@ function buildWeekLabels(weekStartIso: string, locale: string) {
   for (let i = 0; i < 7; i += 1) {
     const start = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + i, 0, 0, 0));
     labels.push({
-      display: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(start),
+      display: new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(start),
       isoDate: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`,
       indexToken: ''
     });
@@ -710,7 +710,7 @@ function buildWeekLabels(weekStartIso: string, locale: string) {
 
 function buildYearMonthLabels(year: number, locale: string) {
   return Array.from({ length: 12 }, (_, index) => ({
-    display: new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(Date.UTC(year, index, 1))),
+    display: new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(year, index, 1))),
     isoDate: '',
     indexToken: String(index + 1).padStart(2, '0')
   }));
