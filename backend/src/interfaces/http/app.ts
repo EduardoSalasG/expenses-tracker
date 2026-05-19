@@ -38,6 +38,16 @@ export function createApp(container: AppContainer) {
   }));
 
   app.get('/health', (_request, response) => response.json({ status: 'ok' }));
+  app.get('/health/live', (_request, response) => response.json({ status: 'ok' }));
+  app.get('/health/ready', async (_request, response) => {
+    try {
+      const readiness = await container.readinessCheck();
+      response.json(readiness);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown readiness error';
+      response.status(503).json({ status: 'degraded', error: message });
+    }
+  });
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
   registerRoutes(app, container);

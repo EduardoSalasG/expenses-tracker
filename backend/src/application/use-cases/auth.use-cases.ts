@@ -14,7 +14,7 @@ export class RequestOtpUseCase {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
     await this.otps.create(phoneNumber, code, expiresAt);
-    await this.messaging.sendText(phoneNumber, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code));
+    await this.messaging.sendText(phoneNumber, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code), { channel: 'whatsapp' });
     return {
       sent: true,
       requiresRegistration: !existingUser,
@@ -64,7 +64,7 @@ export class VerifyOtpUseCase {
       preferredLanguage: input.preferredLanguage ?? 'es'
     });
     await this.categories.ensureDefaults(user.tenantId);
-    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName));
+    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName), { channel: 'whatsapp' });
 
     return {
       user,

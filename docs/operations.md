@@ -130,6 +130,8 @@ After starting services:
 
 ```bash
 curl http://localhost:3000/health
+curl http://localhost:3000/health/live
+curl http://localhost:3000/health/ready
 curl http://localhost:3000/api/docs
 ```
 
@@ -138,6 +140,12 @@ Frontend:
 ```text
 http://localhost:4200/login
 ```
+
+## Production Hardening Notes
+
+- Use `GET /health/live` for container liveness.
+- Use `GET /health/ready` for readiness; it verifies DB connectivity when PostgreSQL mode is enabled.
+- Report worker exits with `exitCode=1` when one or more deliveries fail. Configure scheduler/platform alerts on non-zero exit status.
 
 ## Bilingual QA (es/en)
 

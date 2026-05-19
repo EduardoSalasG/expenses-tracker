@@ -72,7 +72,14 @@ MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, an
 
 ## Messaging Providers
 
-Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. WhatsApp is the first adapter and owns WhatsApp-specific webhook extraction/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A Telegram skeleton is now present with its own extractor/controller/routes; it currently processes only text updates that include `message.contact.phone_number`, which preserves the existing phone-based user identity rule.
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure now composes concrete providers through `ChannelMessagingRouter`, so use cases can request outbound messaging by channel without knowing provider APIs. WhatsApp is the first adapter and owns WhatsApp-specific webhook extraction/signature verification. The WhatsApp HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. A Telegram skeleton is present with its own extractor/controller/routes; it currently processes only text updates that include `message.contact.phone_number`, which preserves the existing phone-based user identity rule.
+
+## Operational Hardening
+
+- Liveness probe: `GET /health/live`
+- Readiness probe: `GET /health/ready` (includes DB check for PostgreSQL mode)
+- Graceful shutdown: `SIGINT` and `SIGTERM` close HTTP server and database pool.
+- Scheduled report worker now logs batch duration and exits non-zero when there are failed deliveries, so schedulers can alert/retry.
 
 ## WhatsApp Sender Access
 

@@ -26,6 +26,7 @@ flowchart LR
   subgraph Infrastructure["Infrastructure"]
     Repositories["repositories/*<br/>PostgreSQL / in-memory"]
     Providers["adapters<br/>Messaging, JWT, LLM"]
+    Router["ChannelMessagingRouter<br/>channel -> provider"]
     Container["container.ts<br/>Dependency wiring"]
   end
 
@@ -42,6 +43,9 @@ flowchart LR
   Ports --> Domain
   Repositories -. implement .-> Ports
   Providers -. implement .-> Ports
+  Router -. implement .-> Ports
+  Router --> Providers
   Container --> Repositories
   Container --> Providers
+  Container --> Router
   Container --> UseCases

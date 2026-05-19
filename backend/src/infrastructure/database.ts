@@ -10,3 +10,7 @@ export function createPool(config: AppConfig) {
 }
 
 export type DatabasePool = pg.Pool;
+
+export async function pingDatabase(pool: DatabasePool) {
+  await pool.query('select 1');
+}

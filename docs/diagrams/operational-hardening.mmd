@@ -1,0 +1,24 @@
+sequenceDiagram
+  participant Orchestrator
+  participant API
+  participant DB
+  participant Worker
+
+  Orchestrator->>API: GET /health/live
+  API-->>Orchestrator: 200 {status: "ok"}
+
+  Orchestrator->>API: GET /health/ready
+  API->>DB: select 1 (when postgres mode)
+  DB-->>API: ok
+  API-->>Orchestrator: 200 {status: "ok", checks:{database:"ok"}}
+
+  Note over Worker: scheduled report batch
+  Orchestrator->>Worker: run report-worker (daily/weekly/monthly/yearly)
+  Worker->>API: execute SendDueReports
+  API-->>Worker: sent/skipped/failed
+  alt failed > 0
+    Worker-->>Orchestrator: exit code 1
+  else failed = 0
+    Worker-->>Orchestrator: exit code 0
+  end
+

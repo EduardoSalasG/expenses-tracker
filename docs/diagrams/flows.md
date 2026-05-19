@@ -18,6 +18,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Database and Report Query Flow](database-report-query-flow.mmd): Decision path for direct SQL vs PostgreSQL functions and query analysis updates.
 - [Domain Relationships](domain-relationships.mmd): Core tenant, user, category, expense, income, and budget relationships.
 - [Backend Architecture](backend-architecture.mmd): Clean/hexagonal backend dependency direction and module responsibilities.
+- [Operational Hardening](operational-hardening.mmd): Liveness/readiness probes, DB readiness check, and report-worker non-zero exit behavior on failed deliveries.
 
 ## Resume
 

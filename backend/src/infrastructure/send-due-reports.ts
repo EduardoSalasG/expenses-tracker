@@ -13,11 +13,14 @@ const config = loadConfig();
 const container = createContainer(config);
 
 try {
+  const startedAt = Date.now();
   const result = await container.useCases.sendDueReports.execute(frequency);
+  const durationMs = Date.now() - startedAt;
 
   container.logger.info('Due reports sent.', {
     frequency: result.frequency,
     period: result.period,
+    durationMs,
     sent: result.sent,
     skipped: result.skipped,
     failed: result.failed,
@@ -29,6 +32,15 @@ try {
     skippedRecipients: result.skippedRecipients,
     failedRecipients: result.failedRecipients
   });
+
+  if (result.failed > 0) {
+    container.logger.warn('Due reports completed with delivery failures.', {
+      frequency: result.frequency,
+      period: result.period,
+      failed: result.failed
+    });
+    process.exitCode = 1;
+  }
 } finally {
   await container.close();
 }

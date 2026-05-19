@@ -1,8 +1,10 @@
 import type { AppConfig } from './config.js';
-import { createPool } from './database.js';
+import { createPool, pingDatabase } from './database.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
 import { JwtTokenService } from './token.service.js';
+import { ChannelMessagingRouter } from './messaging-providers/channel-messaging-router.js';
+import { TelegramProvider } from './messaging-providers/telegram.provider.js';
 import { WhatsAppCloudProvider } from './messaging-providers/whatsapp.provider.js';
 import {
   InMemoryBudgetRepository,
@@ -51,7 +53,12 @@ export function createContainer(config: AppConfig) {
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const tokens = new JwtTokenService(config);
-  const messaging = new WhatsAppCloudProvider(config, logger);
+  const whatsappMessaging = new WhatsAppCloudProvider(config, logger);
+  const telegramMessaging = new TelegramProvider(logger);
+  const messaging = new ChannelMessagingRouter({
+    whatsapp: whatsappMessaging,
+    telegram: telegramMessaging
+  });
   const interpreter = createMessageInterpreter(config, logger);
   const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
   const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
@@ -73,6 +80,13 @@ export function createContainer(config: AppConfig) {
     users,
     tokens,
     close: () => pool?.end() ?? Promise.resolve(),
+    readinessCheck: async () => {
+      if (!pool) {
+        return { status: 'ok' as const, checks: { database: 'in-memory' } };
+      }
+      await pingDatabase(pool);
+      return { status: 'ok' as const, checks: { database: 'ok' } };
+    },
     useCases: {
       requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled

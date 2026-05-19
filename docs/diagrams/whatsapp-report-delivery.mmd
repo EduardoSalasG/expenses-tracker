@@ -14,5 +14,9 @@ sequenceDiagram
   API->>DB: Find users with matching preference
   API->>DB: Generate tenant report
   API->>WhatsApp: Send report summary
-  API-->>Worker: Sent count and recipients
-  Worker-->>Scheduler: Exit successfully
+  API-->>Worker: Sent/skipped/failed summary + duration
+  alt Failed recipients > 0
+    Worker-->>Scheduler: Exit code 1 (alert/retry path)
+  else No failed recipients
+    Worker-->>Scheduler: Exit successfully
+  end

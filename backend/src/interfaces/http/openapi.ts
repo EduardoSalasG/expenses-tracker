@@ -39,6 +39,61 @@ export const openApiSpec = {
     }
   },
   paths: {
+    '/health': {
+      get: {
+        summary: 'Legacy health endpoint',
+        responses: {
+          '200': { description: 'Service is running', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'ok' } } } } } }
+        }
+      }
+    },
+    '/health/live': {
+      get: {
+        summary: 'Liveness probe',
+        responses: {
+          '200': { description: 'Process is alive', content: { 'application/json': { schema: { type: 'object', properties: { status: { type: 'string', example: 'ok' } } } } } }
+        }
+      }
+    },
+    '/health/ready': {
+      get: {
+        summary: 'Readiness probe',
+        responses: {
+          '200': {
+            description: 'Dependencies are ready',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'ok' },
+                    checks: {
+                      type: 'object',
+                      additionalProperties: { type: 'string' },
+                      example: { database: 'ok' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '503': {
+            description: 'Dependencies are not ready',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'degraded' },
+                    error: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/otp/request': {
       post: {
         summary: 'Request WhatsApp OTP',
@@ -231,6 +286,7 @@ export const openApiSpec = {
       get: { summary: 'Verify WhatsApp webhook', responses: { '200': { description: 'Verified' }, '403': { description: 'Invalid token' } } },
       post: {
         summary: 'Receive WhatsApp webhook event',
+        description: 'Validates Meta signature when enabled, extracts inbound messages/statuses, and forwards provider-neutral inbound text to application use cases.',
         parameters: [
           {
             name: 'x-hub-signature-256',
@@ -241,7 +297,14 @@ export const openApiSpec = {
           }
         ],
         responses: {
-          '200': { description: 'Accepted' },
+          '200': {
+            description: 'Accepted',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { received: { type: 'boolean', example: true } } }
+              }
+            }
+          },
           '401': { description: 'Invalid or missing Meta signature' }
         }
       }
