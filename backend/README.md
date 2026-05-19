@@ -186,7 +186,7 @@ For WhatsApp-created movements, currency comes from `users.preferred_currency`. 
 
 Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic fallback matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, gifts, and dance classes.
 
-Successful WhatsApp replies always address the user by `preferredName`. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
+Successful WhatsApp replies always address the user by `preferredName`. Message language follows `users.preferred_language` (`es` or `en`) for OTP, onboarding greeting, save/update confirmations, duplicate confirmations, clarifications, budget status, and report summaries. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
 
 Users can also correct recent movements by chat. The correction message may reference a previous confirmation copied into the new message. The interpreter extracts the requested changes and the referenced movement, then the backend searches recent tenant-scoped expenses/incomes before applying changes. If the reference is not clear enough, the backend asks for more context instead of updating a guessed movement.
 

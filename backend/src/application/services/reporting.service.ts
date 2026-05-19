@@ -1,4 +1,4 @@
-import type { Category, Expense, MonthlyBudget, ReportFrequency } from '../../domain/index.js';
+import type { Category, Expense, LanguageCode, MonthlyBudget, ReportFrequency } from '../../domain/index.js';
 
 export function totalsByCurrency(items: Array<{ amount: number; currency: string }>) {
   return items.reduce<Record<string, number>>((totals, item) => {
@@ -78,11 +78,23 @@ export function formatReportMessage(
       delta: number;
       deltaPercent: number | null;
     }>;
-  }
+  },
+  language: LanguageCode = 'es'
 ) {
-  const variationLines = formatVariationLines(frequency, report.expenseVariationByCategory ?? []);
-  const expenseTotals = formatTotals(report.expenseTotalsByCurrency);
-  const incomeTotals = formatTotals(report.incomeTotalsByCurrency);
+  const variationLines = formatVariationLines(frequency, report.expenseVariationByCategory ?? [], language);
+  const expenseTotals = formatTotals(report.expenseTotalsByCurrency, language);
+  const incomeTotals = formatTotals(report.incomeTotalsByCurrency, language);
+  if (language === 'en') {
+    return [
+      `${reportFrequencyLabel(frequency, language)} report (${label})`,
+      `Income: ${incomeTotals}`,
+      `Expenses: ${expenseTotals}`,
+      `Income movements: ${report.incomes.length}`,
+      `Expense movements: ${report.expenses.length}`,
+      ...variationLines
+    ].join('\n');
+  }
+
   return [
     `Reporte ${reportFrequencyLabel(frequency)} (${label})`,
     `Ingresos: ${incomeTotals}`,
@@ -98,7 +110,8 @@ export function formatBudgetStatusMessage(
   budgets: MonthlyBudget[],
   expenses: Expense[],
   categories: Category[],
-  categoryName?: string
+  categoryName?: string,
+  language: LanguageCode = 'es'
 ) {
   const filteredBudgets = categoryName
     ? budgets.filter((budget) => {
@@ -108,7 +121,8 @@ export function formatBudgetStatusMessage(
     : budgets;
 
   if (!filteredBudgets.length) {
-    return `No budgets configured for ${categoryName ? `${categoryName} in ` : ''}${month}.`;
+    if (language === 'en') return `No budgets configured for ${categoryName ? `${categoryName} in ` : ''}${month}.`;
+    return `No hay presupuestos configurados para ${categoryName ? `${categoryName} en ` : ''}${month}.`;
   }
 
   const lines = filteredBudgets.map((budget) => {
@@ -121,35 +135,40 @@ export function formatBudgetStatusMessage(
       .reduce((total, expense) => total + expense.amount, 0);
     const remaining = Math.max(budget.amount - spent, 0);
     const label = categoryLabel(categories, budget.subcategoryId ?? budget.categoryId);
-    return `${label}: gastado ${formatMoney(budget.currency, spent)} de ${formatMoney(budget.currency, budget.amount)}. Disponible: ${formatMoney(budget.currency, remaining)}.`;
+    if (language === 'en') {
+      return `${label}: spent ${formatMoney(budget.currency, spent, language)} of ${formatMoney(budget.currency, budget.amount, language)}. Remaining: ${formatMoney(budget.currency, remaining, language)}.`;
+    }
+    return `${label}: gastado ${formatMoney(budget.currency, spent, language)} de ${formatMoney(budget.currency, budget.amount, language)}. Disponible: ${formatMoney(budget.currency, remaining, language)}.`;
   });
 
-  return [`Presupuesto ${month}`, ...lines].join('\n');
+  return [language === 'en' ? `Budget ${month}` : `Presupuesto ${month}`, ...lines].join('\n');
 }
 
-export function formatMoney(currency: string, amount: number) {
+export function formatMoney(currency: string, amount: number, language: LanguageCode = 'es') {
   const normalizedCurrency = currency.trim().toUpperCase();
+  const locale = language === 'es' ? 'es-CL' : 'en-US';
   if (normalizedCurrency === 'CLP') {
-    return `$${Math.round(amount).toLocaleString('es-CL')}`;
+    return `$${Math.round(amount).toLocaleString(locale)}`;
   }
 
-  return new Intl.NumberFormat('es-CL', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: normalizedCurrency,
     maximumFractionDigits: normalizedCurrency === 'USD' ? 2 : 0
   }).format(amount);
 }
 
-function formatTotals(totals: Record<string, number>) {
+function formatTotals(totals: Record<string, number>, language: LanguageCode) {
   const entries = Object.entries(totals);
-  if (!entries.length) return 'No movement';
+  if (!entries.length) return language === 'en' ? 'No movement' : 'Sin movimientos';
   return entries
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([currency, amount]) => formatMoney(currency, amount))
+    .map(([currency, amount]) => formatMoney(currency, amount, language))
     .join(' | ');
 }
 
-function reportFrequencyLabel(frequency: ReportFrequency) {
+function reportFrequencyLabel(frequency: ReportFrequency, language: LanguageCode = 'es') {
+  if (language === 'en') return frequency;
   const labels: Record<ReportFrequency, string> = {
     daily: 'diario',
     weekly: 'semanal',
@@ -168,23 +187,28 @@ function formatVariationLines(
     previousTotal: number;
     delta: number;
     deltaPercent: number | null;
-  }>
+  }>,
+  language: LanguageCode
 ) {
   if (frequency !== 'monthly' && frequency !== 'yearly') return [];
   const nonZeroRows = rows.filter((row) => Math.abs(row.delta) > 0);
-  if (!nonZeroRows.length) return ['Variación por categoría vs período anterior: sin cambios.'];
+  if (!nonZeroRows.length) {
+    return [language === 'en' ? 'Category variation vs previous period: no changes.' : 'Variación por categoría vs período anterior: sin cambios.'];
+  }
 
   const lines = nonZeroRows
     .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
     .slice(0, 5)
     .map((row) => {
-      const trend = row.delta > 0 ? 'sube' : 'baja';
-      const deltaLabel = formatMoney(row.currency, Math.abs(row.delta));
+      const trend = row.delta > 0 ? (language === 'en' ? 'up' : 'sube') : (language === 'en' ? 'down' : 'baja');
+      const deltaLabel = formatMoney(row.currency, Math.abs(row.delta), language);
       const percentLabel = row.deltaPercent === null ? 'n/a' : `${Math.abs(row.deltaPercent).toFixed(2)}%`;
-      return `- ${row.categoryName}: ${trend} ${deltaLabel} (${percentLabel}).`;
+      return language === 'en'
+        ? `- ${row.categoryName}: ${trend} ${deltaLabel} (${percentLabel}).`
+        : `- ${row.categoryName}: ${trend} ${deltaLabel} (${percentLabel}).`;
     });
 
-  return ['Variación por categoría vs período anterior:', ...lines];
+  return [language === 'en' ? 'Category variation vs previous period:' : 'Variación por categoría vs período anterior:', ...lines];
 }
 
 function categoryLabel(categories: Category[], categoryId: string): string {

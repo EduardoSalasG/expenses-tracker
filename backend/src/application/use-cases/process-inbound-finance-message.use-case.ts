@@ -94,7 +94,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, 'Detecté un posible movimiento duplicado reciente. Responde "guardar" para guardarlo igual o "descartar" para no registrarlo.');
+    await this.reply(user, input.fromPhoneNumber, duplicateDetectedMessage(user));
       return { status: 'duplicate_needs_confirmation' as const };
     }
 
@@ -120,7 +120,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields));
+    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage));
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
@@ -139,7 +139,7 @@ export class ProcessInboundFinanceMessageUseCase {
           userId: user.id,
           parsingStatus: 'failed'
         });
-        await this.reply(user, input.fromPhoneNumber, 'Ok, descarté el movimiento duplicado.');
+        await this.reply(user, input.fromPhoneNumber, duplicateDiscardedMessage(user));
         return { status: 'duplicate_discarded' as const };
       }
 
@@ -149,7 +149,7 @@ export class ProcessInboundFinanceMessageUseCase {
           userId: user.id,
           parsingStatus: 'needs_confirmation'
         });
-        await this.reply(user, input.fromPhoneNumber, 'Responde "guardar" para registrarlo igual o "descartar" para no guardarlo.');
+        await this.reply(user, input.fromPhoneNumber, duplicateConfirmReminderMessage(user));
         return { status: 'needs_confirmation' as const, missingFields: ['duplicate_confirmation'] };
       }
 
@@ -169,7 +169,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, 'No pude guardar el duplicado porque quedó incompleto. Reenvía el movimiento con monto, concepto y medio de pago.');
+      await this.reply(user, input.fromPhoneNumber, duplicateIncompleteMessage(user));
       return { status: 'needs_confirmation' as const, missingFields: missingFieldsFor(interpretedOriginal) };
     }
 
@@ -180,7 +180,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'failed'
       });
-      await this.reply(user, input.fromPhoneNumber, 'Ok, descarté el movimiento pendiente.');
+      await this.reply(user, input.fromPhoneNumber, pendingDiscardedMessage(user));
       return { status: 'draft_cancelled' as const };
     }
 
@@ -204,7 +204,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields));
+    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage));
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
@@ -232,7 +232,7 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved'
       });
       if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-      await this.reply(user, input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report));
+      await this.reply(user, input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report, user.preferredLanguage));
       return { status: 'report_sent' as const, report };
     }
 
@@ -243,7 +243,7 @@ export class ProcessInboundFinanceMessageUseCase {
         this.budgets.listMonthly(user.tenantId, month),
         this.report(user.tenantId, from, to)
       ]);
-      const budgetMessage = formatBudgetStatusMessage(month, budgets, report.expenses, categories, interpreted.categoryName);
+      const budgetMessage = formatBudgetStatusMessage(month, budgets, report.expenses, categories, interpreted.categoryName, user.preferredLanguage);
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
@@ -281,7 +281,7 @@ export class ProcessInboundFinanceMessageUseCase {
       parsingStatus: 'saved'
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.fromPhoneNumber, `Ingreso guardado: ${formatMoney(income.currency, income.amount)} por ${income.concept}.`);
+    await this.reply(user, input.fromPhoneNumber, incomeSavedMessage(user, income));
     return { status: 'income_saved' as const, income };
   }
 
@@ -297,7 +297,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, 'Necesito que indiques qué campo cambiar y a qué movimiento corresponde.');
+      await this.reply(user, input.fromPhoneNumber, updateNeedsReferenceMessage(user));
       return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
     }
 
@@ -312,7 +312,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, 'No encontré con suficiente certeza el movimiento a modificar. Reenvíame el monto y concepto exactos del movimiento original.');
+      await this.reply(user, input.fromPhoneNumber, updateTargetNotFoundMessage(user));
       return { status: 'needs_confirmation' as const, missingFields: ['reference'] };
     }
 
@@ -335,12 +335,7 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved',
         expenseId: updated.id
       });
-      await this.reply(user, input.fromPhoneNumber, [
-        'Gasto actualizado.',
-        `Monto: ${formatMoney(updated.currency, updated.amount)}.`,
-        `Concepto: ${updated.concept}.`,
-        `Categoría: ${preciseCategoryLabel(categories, updated.categoryId, updated.subcategoryId)}.`
-      ].join('\n'));
+      await this.reply(user, input.fromPhoneNumber, expenseUpdatedMessage(user, categories, updated));
       return { status: 'expense_updated' as const, expense: updated };
     }
 
@@ -356,11 +351,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'saved'
     });
-    await this.reply(user, input.fromPhoneNumber, [
-      'Ingreso actualizado.',
-      `Monto: ${formatMoney(updated.currency, updated.amount)}.`,
-      `Concepto: ${updated.concept}.`
-    ].join('\n'));
+    await this.reply(user, input.fromPhoneNumber, incomeUpdatedMessage(user, updated));
     return { status: 'income_updated' as const, income: updated };
   }
 
@@ -406,12 +397,7 @@ export class ProcessInboundFinanceMessageUseCase {
       expenseId: expense.id
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.fromPhoneNumber, [
-      'Gasto guardado.',
-      `Monto: ${formatMoney(expense.currency, expense.amount)}.`,
-      `Concepto: ${expense.concept}.`,
-      `Categoría: ${preciseCategoryLabel(categories, category.id, matchedCategory.subcategory?.id)}.`
-    ].join('\n'));
+    await this.reply(user, input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, matchedCategory.subcategory?.id));
     return { status: 'saved' as const, expense };
   }
 
@@ -483,6 +469,100 @@ function preciseCategoryLabel(categories: Category[], categoryId: string, subcat
   return category?.name ?? 'Uncategorized';
 }
 
+function duplicateDetectedMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'I detected a recent possible duplicate movement. Reply "save" to keep it anyway or "discard" to ignore it.'
+    : 'Detecté un posible movimiento duplicado reciente. Responde "guardar" para guardarlo igual o "descartar" para no registrarlo.';
+}
+
+function duplicateDiscardedMessage(user: User) {
+  return user.preferredLanguage === 'en' ? 'Done, I discarded the duplicate movement.' : 'Ok, descarté el movimiento duplicado.';
+}
+
+function duplicateConfirmReminderMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'Reply "save" to keep it anyway or "discard" to avoid saving it.'
+    : 'Responde "guardar" para registrarlo igual o "descartar" para no guardarlo.';
+}
+
+function duplicateIncompleteMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'I could not save the duplicate because it is still incomplete. Please resend it with amount, concept, and payment method.'
+    : 'No pude guardar el duplicado porque quedó incompleto. Reenvía el movimiento con monto, concepto y medio de pago.';
+}
+
+function pendingDiscardedMessage(user: User) {
+  return user.preferredLanguage === 'en' ? 'Done, I discarded the pending movement.' : 'Ok, descarté el movimiento pendiente.';
+}
+
+function updateNeedsReferenceMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'I need you to specify which field to change and which movement it refers to.'
+    : 'Necesito que indiques qué campo cambiar y a qué movimiento corresponde.';
+}
+
+function updateTargetNotFoundMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'I could not identify the movement to update with enough confidence. Please resend the exact amount and concept of the original movement.'
+    : 'No encontré con suficiente certeza el movimiento a modificar. Reenvíame el monto y concepto exactos del movimiento original.';
+}
+
+function incomeSavedMessage(user: User, income: Income) {
+  if (user.preferredLanguage === 'en') {
+    return `Income saved: ${formatMoney(income.currency, income.amount, 'en')} for ${income.concept}.`;
+  }
+  return `Ingreso guardado: ${formatMoney(income.currency, income.amount, 'es')} por ${income.concept}.`;
+}
+
+function incomeUpdatedMessage(user: User, income: Income) {
+  if (user.preferredLanguage === 'en') {
+    return [
+      'Income updated.',
+      `Amount: ${formatMoney(income.currency, income.amount, 'en')}.`,
+      `Concept: ${income.concept}.`
+    ].join('\n');
+  }
+  return [
+    'Ingreso actualizado.',
+    `Monto: ${formatMoney(income.currency, income.amount, 'es')}.`,
+    `Concepto: ${income.concept}.`
+  ].join('\n');
+}
+
+function expenseUpdatedMessage(user: User, categories: Category[], expense: Expense) {
+  if (user.preferredLanguage === 'en') {
+    return [
+      'Expense updated.',
+      `Amount: ${formatMoney(expense.currency, expense.amount, 'en')}.`,
+      `Concept: ${expense.concept}.`,
+      `Category: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId)}.`
+    ].join('\n');
+  }
+  return [
+    'Gasto actualizado.',
+    `Monto: ${formatMoney(expense.currency, expense.amount, 'es')}.`,
+    `Concepto: ${expense.concept}.`,
+    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId)}.`
+  ].join('\n');
+}
+
+function expenseSavedMessage(user: User, categories: Category[], expense: Expense, subcategoryId?: string) {
+  if (user.preferredLanguage === 'en') {
+    return [
+      'Expense saved.',
+      `Amount: ${formatMoney(expense.currency, expense.amount, 'en')}.`,
+      `Concept: ${expense.concept}.`,
+      `Category: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
+    ].join('\n');
+  }
+  return [
+    'Gasto guardado.',
+    `Monto: ${formatMoney(expense.currency, expense.amount, 'es')}.`,
+    `Concepto: ${expense.concept}.`,
+    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
+  ].join('\n');
+}
+
 function findReferencedMovement(
   expenses: Expense[],
   incomes: Income[],
@@ -540,5 +620,5 @@ function isDuplicateConfirmationDraft(draft: unknown): draft is { kind: 'duplica
 }
 
 function isDuplicateSaveMessage(message: string) {
-  return /^(guardar|guardalo|guárdalo|guardar igual|si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
+  return /^(guardar|guardalo|guárdalo|guardar igual|save|save it|save anyway|si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
 }

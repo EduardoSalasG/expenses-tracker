@@ -35,7 +35,7 @@ export class SendDueReportsUseCase {
 
       try {
         const report = await this.finance.report(user.tenantId, period.from, period.to);
-        const body = `${user.preferredName}, ${formatReportMessage(frequency, period.label, report)}`;
+        const body = `${user.preferredName}, ${formatReportMessage(frequency, period.label, report, user.preferredLanguage ?? 'es')}`;
         await this.messaging.sendText(user.phoneNumber, body);
         await this.dispatches.markSent({
           userId: user.id,

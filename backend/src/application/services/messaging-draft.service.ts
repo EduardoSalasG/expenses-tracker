@@ -1,4 +1,5 @@
 import type { InterpretedMessage } from '../message-interpreter.js';
+import type { LanguageCode } from '../../domain/index.js';
 
 export function canStoreDraft(interpreted: InterpretedMessage) {
   if (interpreted.intent === 'create_expense') {
@@ -73,7 +74,18 @@ export function missingFieldsFor(interpreted: InterpretedMessage) {
   return ['intent'];
 }
 
-export function clarificationMessage(missingFields: string[]) {
+export function clarificationMessage(missingFields: string[], language: LanguageCode = 'es') {
+  if (language === 'en') {
+    const labels: Record<string, string> = {
+      amount: 'amount',
+      concept: 'concept',
+      paymentMethod: 'payment method',
+      intent: 'whether it is an expense, income, report, or budget query'
+    };
+    const missing = missingFields.map((field) => labels[field] ?? field).join(', ');
+    return `I still need: ${missing}. You can reply with only the missing detail, for example "transfer from bci", "credit card bci", or "cash". Reply "cancel" to discard it.`;
+  }
+
   const labels: Record<string, string> = {
     amount: 'monto',
     concept: 'concepto',
@@ -85,7 +97,7 @@ export function clarificationMessage(missingFields: string[]) {
 }
 
 export function isCancelMessage(message: string) {
-  return /\b(cancelar|cancela|descartar|descarta|no|olvida|ignora)\b/i.test(message.trim());
+  return /\b(cancelar|cancela|descartar|descarta|no|olvida|ignora|cancel|discard|forget|ignore)\b/i.test(message.trim());
 }
 
 function isAffirmativeMessage(message: string) {

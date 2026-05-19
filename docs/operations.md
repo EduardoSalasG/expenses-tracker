@@ -138,3 +138,16 @@ Frontend:
 ```text
 http://localhost:4200/login
 ```
+
+## Bilingual QA (es/en)
+
+Run this checklist before promoting `dev` to `main`:
+
+- Set user language to `es` in settings and verify:
+  - OTP message in Spanish.
+  - Registration greeting in Spanish.
+  - WhatsApp expense/income save confirmations in Spanish.
+  - Duplicate detection confirmation flow in Spanish.
+  - Report and budget status responses in Spanish.
+- Set user language to `en` and repeat the same checks in English.
+- Verify frontend labels on `dashboard`, `expenses`, `incomes`, `budgets`, `categories`, and `settings` in both languages.

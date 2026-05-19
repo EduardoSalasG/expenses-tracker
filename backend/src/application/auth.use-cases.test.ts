@@ -117,7 +117,8 @@ describe('auth use cases', () => {
       preferredName: 'Edu',
       email: 'eduardo@example.com',
       countryOfResidence: 'Chile',
-      preferredCurrency: 'CLP'
+      preferredCurrency: 'CLP',
+      preferredLanguage: 'en'
     });
 
     expect(result.user.preferredName).toBe('Edu');
