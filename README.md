@@ -147,5 +147,6 @@ See:
 - [Database README](database/README.md)
 - [Architecture](docs/architecture.md)
 - [Operations](docs/operations.md)
+- [Release Checklist](docs/release-checklist.md)
 - [Flow Diagrams](docs/diagrams/flows.md)
 - [Database Query Analysis](database/query-analysis.md)

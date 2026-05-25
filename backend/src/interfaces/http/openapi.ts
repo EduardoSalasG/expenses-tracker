@@ -98,17 +98,25 @@ export const openApiSpec = {
       post: {
         summary: 'Request WhatsApp OTP',
         requestBody: jsonBody({ phoneNumber: { type: 'string', example: '+56912345678' } }, ['phoneNumber']),
-        responses: standardResponses({
-          sent: { type: 'boolean' },
-          requiresRegistration: {
-            type: 'boolean',
-            description: 'True when the phone number has no registered user profile yet.'
+        responses: {
+          '200': {
+            description: 'OTP request accepted',
+            content: {
+              'application/json': {
+                examples: {
+                  existingUser: {
+                    value: { sent: true, requiresRegistration: false }
+                  },
+                  newUser: {
+                    value: { sent: true, requiresRegistration: true }
+                  }
+                }
+              }
+            }
           },
-          debugCode: {
-            type: 'string',
-            description: 'Development-only OTP code returned only when OTP_DEBUG_RESPONSE_ENABLED=true outside production.'
-          }
-        })
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          '500': { description: 'Provider delivery failed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { whatsappWindowClosed: { value: { error: 'Unable to deliver OTP. Ensure the user has an open conversation window with the WhatsApp business number.' } } } } } }
+        }
       }
     },
     '/auth/otp/verify': {
@@ -301,20 +309,56 @@ export const openApiSpec = {
             description: 'Accepted',
             content: {
               'application/json': {
-                schema: { type: 'object', properties: { received: { type: 'boolean', example: true } } }
+                schema: { type: 'object', properties: { received: { type: 'boolean', example: true } } },
+                examples: {
+                  savedExpense: { value: { received: true } },
+                  ignoredUnknownUser: { value: { received: true } }
+                }
               }
             }
           },
-          '401': { description: 'Invalid or missing Meta signature' }
+          '401': {
+            description: 'Invalid or missing Meta signature',
+            content: { 'application/json': { examples: { invalidSignature: { value: { error: 'Invalid Meta webhook signature.' } } } } }
+          }
         }
       }
     },
     '/webhooks/telegram': {
       post: {
         summary: 'Receive Telegram webhook event',
-        description: 'Current skeleton accepts text messages only when the payload includes a contact phone number.',
+        description: 'Receives Telegram updates, supports account link with `/link +<phone>`, and forwards inbound text as provider-neutral messages.',
+        parameters: [
+          {
+            name: 'x-telegram-bot-api-secret-token',
+            in: 'header',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Required when TELEGRAM_WEBHOOK_SECRET_TOKEN is configured.'
+          }
+        ],
         responses: {
-          '200': { description: 'Accepted' }
+          '200': {
+            description: 'Accepted',
+            content: {
+              'application/json': {
+                examples: {
+                  linked: { value: { received: true } },
+                  ignoredNoText: { value: { received: true, ignored: true } }
+                }
+              }
+            }
+          },
+          '401': {
+            description: 'Invalid Telegram webhook secret',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidSecret: { value: { error: 'Invalid Telegram webhook secret token.' } }
+                }
+              }
+            }
+          }
         }
       }
     }

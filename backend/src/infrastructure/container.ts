@@ -54,7 +54,7 @@ export function createContainer(config: AppConfig) {
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const tokens = new JwtTokenService(config);
   const whatsappMessaging = new WhatsAppCloudProvider(config, logger);
-  const telegramMessaging = new TelegramProvider(logger);
+  const telegramMessaging = new TelegramProvider(config, logger);
   const messaging = new ChannelMessagingRouter({
     whatsapp: whatsappMessaging,
     telegram: telegramMessaging

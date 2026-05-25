@@ -125,32 +125,35 @@ describe('extractWhatsAppStatuses', () => {
   });
 });
 
-describe('Telegram webhook skeleton', () => {
-  it('extracts text messages when contact phone number is present', () => {
+describe('Telegram webhook', () => {
+  it('extracts text messages and provider ids without requiring contact payload', () => {
     const messages = extractTelegramMessages({
       message: {
         message_id: 42,
         text: '20000 bachata classes transfer from bci',
-        contact: { phone_number: '56982439041' }
+        from: { id: 987654, username: 'edu' },
+        chat: { id: 987654 }
       }
     });
 
     expect(messages).toEqual([{
       providerMessageId: '42',
       channel: 'telegram',
-      fromPhoneNumber: '+56982439041',
+      fromPhoneNumber: 'tg:987654',
+      providerUserId: '987654',
+      replyTo: '987654',
       message: '20000 bachata classes transfer from bci'
     }]);
   });
 
-  it('ignores updates without contact phone number', async () => {
+  it('ignores updates without text body', async () => {
     const app = createApp(createContainer(testConfig()));
     const response = await request(app)
       .post('/webhooks/telegram')
       .send({
         message: {
           message_id: 77,
-          text: '25000 shirt'
+          from: { id: 123 }
         }
       });
 
@@ -173,6 +176,9 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     whatsappPhoneNumberId: '',
     whatsappBusinessAccountId: '',
     whatsappTestRecipientPhone: '',
+    telegramBotToken: '',
+    telegramBotApiBaseUrl: 'https://api.telegram.org',
+    telegramWebhookSecretToken: '',
     messageInterpreterProvider: 'deterministic',
     messageInterpreterApiKey: '',
     messageInterpreterBaseUrl: 'https://api.deepseek.com',

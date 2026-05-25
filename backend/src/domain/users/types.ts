@@ -9,6 +9,8 @@ export interface User {
   tenantId: TenantId;
   email?: string;
   phoneNumber: string;
+  telegramChatId?: string;
+  telegramUsername?: string;
   firstName: string;
   lastName: string;
   preferredName: string;

@@ -6,6 +6,8 @@ export type MessagingChannel = 'whatsapp' | 'telegram';
 export interface InboundTextMessage {
   providerMessageId?: string;
   fromPhoneNumber: string;
+  providerUserId?: string;
+  replyTo?: string;
   message: string;
   channel?: MessagingChannel;
 }

@@ -21,6 +21,10 @@ export class InMemoryUserRepository implements UserRepository {
     return [...this.users.values()].find((user) => user.phoneNumber === phoneNumber);
   }
 
+  async findByTelegramChatId(chatId: string) {
+    return [...this.users.values()].find((user) => user.telegramChatId === chatId);
+  }
+
   async findById(userId: string) {
     return this.users.get(userId);
   }
@@ -46,6 +50,14 @@ export class InMemoryUserRepository implements UserRepository {
     };
     this.users.set(user.id, user);
     return user;
+  }
+
+  async linkTelegramChatByPhone(phoneNumber: string, chatId: string, username?: string) {
+    const user = await this.findByPhoneNumber(phoneNumber);
+    if (!user) return undefined;
+    const updated: User = { ...user, telegramChatId: chatId, telegramUsername: username ?? user.telegramUsername };
+    this.users.set(updated.id, updated);
+    return updated;
   }
 
   async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>) {

@@ -5,6 +5,9 @@ export interface TelegramWebhookEnvelope {
   message?: {
     message_id?: number;
     text?: string;
+    chat?: {
+      id?: number;
+    };
     contact?: {
       phone_number?: string;
     };
@@ -19,13 +22,16 @@ export function extractTelegramMessages(body: TelegramWebhookEnvelope): InboundT
   const text = body?.message?.text?.trim();
   if (!text) return [];
 
-  const phoneNumber = normalizePhoneNumber(body?.message?.contact?.phone_number);
+  const phoneNumber = normalizePhoneNumber(body?.message?.contact?.phone_number)
+    ?? (body?.message?.from?.id ? `tg:${body.message.from.id}` : undefined);
   if (!phoneNumber) return [];
 
   return [{
     providerMessageId: body?.message?.message_id ? String(body.message.message_id) : undefined,
     channel: 'telegram',
     fromPhoneNumber: phoneNumber,
+    providerUserId: body?.message?.from?.id ? String(body.message.from.id) : undefined,
+    replyTo: body?.message?.chat?.id ? String(body.message.chat.id) : undefined,
     message: text
   }];
 }
@@ -40,4 +46,3 @@ function normalizePhoneNumber(raw?: string): string | undefined {
   if (!raw) return undefined;
   return raw.startsWith('+') ? raw : `+${raw}`;
 }
-

@@ -44,6 +44,23 @@ export class ProcessInboundFinanceMessageUseCase {
   ) {}
 
   async execute(input: InboundTextMessage) {
+    if (input.channel === 'telegram' && input.providerUserId && isTelegramLinkCommand(input.message)) {
+      const phoneNumber = extractPhoneNumberFromLinkCommand(input.message);
+      if (!phoneNumber) {
+        await this.replyAnonymous(input, telegramLinkUsageMessage());
+        return { status: 'needs_confirmation' as const, missingFields: ['phone_number'] };
+      }
+
+      const linkedUser = await this.users.linkTelegramChatByPhone(phoneNumber, input.providerUserId, extractTelegramUsername(input.fromPhoneNumber));
+      if (!linkedUser) {
+        await this.replyAnonymous(input, telegramLinkNotFoundMessage());
+        return { status: 'ignored_unregistered_sender' as const };
+      }
+
+      await this.reply(linkedUser, input.replyTo ?? input.fromPhoneNumber, telegramLinkedMessage(linkedUser), input.channel);
+      return { status: 'telegram_linked' as const };
+    }
+
     const reserved = input.providerMessageId
       ? await this.messageAudits.reserve({
         providerMessageId: input.providerMessageId,
@@ -57,9 +74,14 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'duplicate_ignored' as const };
     }
 
-    const user = await this.users.findByPhoneNumber(input.fromPhoneNumber);
+    const user = input.channel === 'telegram' && input.providerUserId
+      ? await this.users.findByTelegramChatId(input.providerUserId)
+      : await this.users.findByPhoneNumber(input.fromPhoneNumber);
     if (!user) {
       await this.auditMessage(input, { parsingStatus: 'unknown_user' });
+      if (input.channel === 'telegram') {
+        await this.replyAnonymous(input, telegramUnlinkedMessage());
+      }
       return { status: 'ignored_unregistered_sender' as const };
     }
 
@@ -94,7 +116,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, duplicateDetectedMessage(user), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, duplicateDetectedMessage(user), input.channel);
       return { status: 'duplicate_needs_confirmation' as const };
     }
 
@@ -139,7 +161,7 @@ export class ProcessInboundFinanceMessageUseCase {
           userId: user.id,
           parsingStatus: 'failed'
         });
-        await this.reply(user, input.fromPhoneNumber, duplicateDiscardedMessage(user), input.channel);
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, duplicateDiscardedMessage(user), input.channel);
         return { status: 'duplicate_discarded' as const };
       }
 
@@ -149,7 +171,7 @@ export class ProcessInboundFinanceMessageUseCase {
           userId: user.id,
           parsingStatus: 'needs_confirmation'
         });
-        await this.reply(user, input.fromPhoneNumber, duplicateConfirmReminderMessage(user), input.channel);
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, duplicateConfirmReminderMessage(user), input.channel);
         return { status: 'needs_confirmation' as const, missingFields: ['duplicate_confirmation'] };
       }
 
@@ -169,7 +191,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, duplicateIncompleteMessage(user), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, duplicateIncompleteMessage(user), input.channel);
       return { status: 'needs_confirmation' as const, missingFields: missingFieldsFor(interpretedOriginal) };
     }
 
@@ -180,7 +202,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'failed'
       });
-      await this.reply(user, input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
       return { status: 'draft_cancelled' as const };
     }
 
@@ -204,7 +226,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
@@ -232,7 +254,7 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved'
       });
       if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-      await this.reply(user, input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report, user.preferredLanguage), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, formatReportMessage(interpreted.period, period.label, report, user.preferredLanguage), input.channel);
       return { status: 'report_sent' as const, report };
     }
 
@@ -250,7 +272,7 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved'
       });
       if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-      await this.reply(user, input.fromPhoneNumber, budgetMessage, input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, budgetMessage, input.channel);
       return { status: 'budget_status_sent' as const };
     }
 
@@ -281,7 +303,7 @@ export class ProcessInboundFinanceMessageUseCase {
       parsingStatus: 'saved'
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.fromPhoneNumber, incomeSavedMessage(user, income), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, incomeSavedMessage(user, income), input.channel);
     return { status: 'income_saved' as const, income };
   }
 
@@ -297,7 +319,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, updateNeedsReferenceMessage(user), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, updateNeedsReferenceMessage(user), input.channel);
       return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
     }
 
@@ -312,7 +334,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, updateTargetNotFoundMessage(user), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, updateTargetNotFoundMessage(user), input.channel);
       return { status: 'needs_confirmation' as const, missingFields: ['reference'] };
     }
 
@@ -335,7 +357,7 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved',
         expenseId: updated.id
       });
-      await this.reply(user, input.fromPhoneNumber, expenseUpdatedMessage(user, categories, updated), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseUpdatedMessage(user, categories, updated), input.channel);
       return { status: 'expense_updated' as const, expense: updated };
     }
 
@@ -351,7 +373,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'saved'
     });
-    await this.reply(user, input.fromPhoneNumber, incomeUpdatedMessage(user, updated), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, incomeUpdatedMessage(user, updated), input.channel);
     return { status: 'income_updated' as const, income: updated };
   }
 
@@ -397,7 +419,7 @@ export class ProcessInboundFinanceMessageUseCase {
       expenseId: expense.id
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, matchedCategory.subcategory?.id), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, matchedCategory.subcategory?.id), input.channel);
     return { status: 'saved' as const, expense };
   }
 
@@ -459,6 +481,12 @@ export class ProcessInboundFinanceMessageUseCase {
 
   private reply(user: User, toPhoneNumber: string, body: string, channel: InboundTextMessage['channel']) {
     return this.messaging.sendText(toPhoneNumber, `${user.preferredName}, ${body}`, { channel });
+  }
+
+  private async replyAnonymous(input: InboundTextMessage, body: string) {
+    const recipient = input.replyTo ?? input.fromPhoneNumber;
+    if (!recipient) return;
+    await this.messaging.sendText(recipient, body, { channel: input.channel });
   }
 }
 
@@ -621,4 +649,36 @@ function isDuplicateConfirmationDraft(draft: unknown): draft is { kind: 'duplica
 
 function isDuplicateSaveMessage(message: string) {
   return /^(guardar|guardalo|guárdalo|guardar igual|save|save it|save anyway|si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
+}
+
+function isTelegramLinkCommand(message: string) {
+  return /^\/(link|vincular)\b/i.test(message.trim());
+}
+
+function extractPhoneNumberFromLinkCommand(message: string) {
+  const match = message.match(/\+?\d{8,15}/);
+  if (!match) return undefined;
+  return match[0].startsWith('+') ? match[0] : `+${match[0]}`;
+}
+
+function extractTelegramUsername(senderRef: string) {
+  return senderRef.startsWith('@') ? senderRef.slice(1) : undefined;
+}
+
+function telegramLinkUsageMessage() {
+  return 'Para vincular tu cuenta escribe: /link +569XXXXXXXX';
+}
+
+function telegramLinkNotFoundMessage() {
+  return 'No encontre ese telefono registrado. Primero registrate en la web y luego vuelve a enviar /link.';
+}
+
+function telegramLinkedMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'Telegram linked successfully. You can now send expenses/incomes in natural language.'
+    : 'Telegram vinculado correctamente. Ya puedes enviar gastos/ingresos en lenguaje natural.';
+}
+
+function telegramUnlinkedMessage() {
+  return 'Tu Telegram aun no esta vinculado. Envia /link +569XXXXXXXX con tu telefono registrado.';
 }

@@ -32,6 +32,9 @@ pnpm --filter @expenses-tracker/backend dev
 - `WHATSAPP_PHONE_NUMBER_ID`: Meta sender phone number id.
 - `WHATSAPP_BUSINESS_ACCOUNT_ID`: WhatsApp Business Account id from API Setup.
 - `WHATSAPP_TEST_RECIPIENT_PHONE`: approved recipient number for local send tests.
+- `TELEGRAM_BOT_TOKEN`: Telegram bot HTTP API token.
+- `TELEGRAM_BOT_API_BASE_URL`: Telegram API base URL (`https://api.telegram.org`).
+- `TELEGRAM_WEBHOOK_SECRET_TOKEN`: optional secret expected in `x-telegram-bot-api-secret-token` for webhook hardening.
 - `MESSAGE_INTERPRETER_PROVIDER`: `deterministic`, `github-models`, or `openai-compatible`.
 - `MESSAGE_INTERPRETER_API_KEY`: API key for the selected LLM provider. For GitHub Models, use a GitHub token with Models access. Leave empty to fall back to deterministic parsing.
 - `MESSAGE_INTERPRETER_BASE_URL`: chat completions base URL. GitHub Models uses `https://models.github.ai/inference`.
@@ -80,8 +83,13 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, WhatsApp configuration, and 
 
 `interfaces/http/app.ts` is intentionally only the Express composition root for middleware, Swagger, health checks, and route registration.
 
-Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure composes concrete adapters through `ChannelMessagingRouter`, so use cases route outbound messages by channel without coupling to WhatsApp or Telegram APIs. WhatsApp-specific webhook extraction and Meta signature verification stay in the HTTP adapter, then the adapter forwards provider-neutral messages to `InboundMessagingService`. Future providers such as Telegram should add their own extractor/controller/routes, translate inbound events into the same `InboundTextMessage` shape, and implement the same outbound messaging provider contract.
-Telegram skeleton routes are available at `POST /webhooks/telegram`. The current extractor accepts text updates only when `message.contact.phone_number` is present, so identity stays aligned with the existing phone-number model.
+Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure composes concrete adapters through `ChannelMessagingRouter`, so use cases route outbound messages by channel without coupling to WhatsApp or Telegram APIs. Provider-specific webhook extraction/signature verification stays in HTTP adapters, then adapters forward provider-neutral `InboundTextMessage` events to `InboundMessagingService`.
+
+Telegram routes are available at `POST /webhooks/telegram` and support:
+
+- Normal text updates as primary inbound input.
+- Account linking command: `/link +569XXXXXXXX` (or `/vincular +569XXXXXXXX`) to bind a Telegram chat id to a previously registered user phone.
+- Optional webhook secret verification via `x-telegram-bot-api-secret-token` when `TELEGRAM_WEBHOOK_SECRET_TOKEN` is configured.
 
 ## Health Endpoints
 
@@ -233,6 +241,24 @@ When `WHATSAPP_APP_SECRET` is configured, inbound webhook requests must include 
 Inbound messages use the Meta `messages[].id` value as an idempotency key. The backend reserves that id before creating an expense, so Meta retries or duplicate webhook deliveries return `duplicate_ignored` and do not create a second expense.
 
 If the user sends the same text again with a different provider message id within two minutes, the backend does not reject it permanently. It asks whether the movement should be saved anyway or discarded. Reply `guardar` to create the second movement, or `descartar`/`cancelar` to discard it. This protects against accidental double taps while still allowing legitimate repeated expenses.
+
+## Telegram Webhook
+
+Configure Telegram webhook callback URL:
+
+```text
+POST /webhooks/telegram
+```
+
+Recommended setup uses `setWebhook` with `secret_token` matching `TELEGRAM_WEBHOOK_SECRET_TOKEN`.
+
+Linking flow example:
+
+```text
+/link +56982439041
+```
+
+After linking, Telegram messages are processed like WhatsApp messages (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 
 ## WhatsApp Test Send
 

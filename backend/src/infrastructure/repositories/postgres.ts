@@ -11,6 +11,11 @@ export class PostgresUserRepository implements UserRepository {
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
   }
 
+  async findByTelegramChatId(chatId: string) {
+    const result = await this.pool.query('select * from users where telegram_chat_id = $1', [chatId]);
+    return result.rows[0] ? mapUser(result.rows[0]) : undefined;
+  }
+
   async findById(userId: string) {
     const result = await this.pool.query('select * from users where id = $1', [userId]);
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
@@ -39,6 +44,19 @@ export class PostgresUserRepository implements UserRepository {
       ]
     );
     return mapUser(result.rows[0]);
+  }
+
+  async linkTelegramChatByPhone(phoneNumber: string, chatId: string, username?: string) {
+    const result = await this.pool.query(
+      `update users
+       set telegram_chat_id = $2,
+           telegram_username = coalesce($3, telegram_username),
+           updated_at = now()
+       where phone_number = $1
+       returning *`,
+      [phoneNumber, chatId, username ?? null]
+    );
+    return result.rows[0] ? mapUser(result.rows[0]) : undefined;
   }
 
   async updateProfile(userId: string, input: Pick<User, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>) {
@@ -610,6 +628,8 @@ function mapUser(row: QueryResultRow): User {
     tenantId: row.tenant_id,
     email: row.email ?? undefined,
     phoneNumber: row.phone_number,
+    telegramChatId: row.telegram_chat_id ?? undefined,
+    telegramUsername: row.telegram_username ?? undefined,
     firstName: row.first_name,
     lastName: row.last_name,
     preferredName: row.preferred_name,
