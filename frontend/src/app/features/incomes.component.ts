@@ -1,12 +1,15 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatExpansionModule } from '@angular/material/expansion';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ApiService, type Income } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -15,12 +18,14 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
   selector: 'app-incomes',
   standalone: true,
   imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
     MatCardModule,
+    MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatExpansionModule,
+    MatIconModule,
+    MatDialogModule,
+    MatSnackBarModule,
+    ReactiveFormsModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
     PageHeaderComponent
@@ -28,77 +33,54 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
 
-    <mat-card class="page-panel p-2">
-      <mat-accordion>
-        <mat-expansion-panel>
-          <mat-expansion-panel-header>
-            <mat-panel-title>{{ t('incomes_new') }}</mat-panel-title>
-          </mat-expansion-panel-header>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-4">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_concept') }}</mat-label>
-          <input matInput formControlName="concept">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_amount') }}</mat-label>
-          <input matInput type="number" formControlName="amount">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_currency') }}</mat-label>
-          <input matInput maxlength="3" formControlName="currency">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_date') }}</mat-label>
-          <input matInput type="date" formControlName="date">
-        </mat-form-field>
-
-        <div class="mobile-stack-actions flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-4">
-          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
-            {{ saving() ? t('incomes_saving') : t('incomes_save') }}
+    <mat-card class="page-panel mb-4 p-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <input
+          type="month"
+          class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
+          [value]="selectedMonth()"
+          (change)="changeMonth($event)"
+        >
+        <div class="flex items-center gap-2">
+          <button mat-stroked-button type="button" (click)="toggleFilters()">
+            <mat-icon>tune</mat-icon>
+            {{ t('expenses_filters_more') }}
           </button>
-          <app-feedback-banner [message]="saveMessage()" tone="success" />
+          <button mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
+            <mat-icon>add</mat-icon>
+            {{ t('incomes_new') }}
+          </button>
         </div>
-      </form>
-        </mat-expansion-panel>
-      </mat-accordion>
+      </div>
+      @if (filtersOpen()) {
+        <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="mt-4 grid gap-4 lg:grid-cols-5">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_from') }}</mat-label>
+            <input matInput type="date" formControlName="from">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_to') }}</mat-label>
+            <input matInput type="date" formControlName="to">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_currency') }}</mat-label>
+            <input matInput formControlName="currency" maxlength="3">
+          </mat-form-field>
+          <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-2">
+            <button mat-flat-button color="primary" type="submit">{{ t('expenses_apply') }}</button>
+            <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
+          </div>
+        </form>
+      }
     </mat-card>
 
-    <mat-card class="page-panel mt-4 p-2">
-      <mat-accordion>
-        <mat-expansion-panel>
-          <mat-expansion-panel-header>
-            <mat-panel-title>{{ t('incomes_filters') }}</mat-panel-title>
-          </mat-expansion-panel-header>
-      <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="grid gap-4 p-3 lg:grid-cols-5">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_from') }}</mat-label>
-          <input matInput type="date" formControlName="from">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_to') }}</mat-label>
-          <input matInput type="date" formControlName="to">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>{{ t('expenses_currency') }}</mat-label>
-          <input matInput formControlName="currency" maxlength="3">
-        </mat-form-field>
-        <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-2">
-          <button mat-flat-button color="primary" type="submit">{{ t('expenses_apply') }}</button>
-          <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
-        </div>
-      </form>
-        </mat-expansion-panel>
-      </mat-accordion>
-    </mat-card>
-
-    <mat-card class="page-panel mt-4 p-5">
+    <mat-card class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">{{ t('incomes_history') }}</h2>
         <span class="text-sm text-brand-muted">{{ totalLabel() }} {{ t('incomes_total_across') }} {{ incomes().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? t('incomes_loading') : ''" tone="info" />
-
       @if (incomes().length) {
         <div class="responsive-table-wrapper overflow-x-auto">
           <table class="responsive-table w-full min-w-[560px] border-collapse text-left">
@@ -126,39 +108,64 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     </mat-card>
   `
 })
-export class IncomesComponent {
-  private readonly fb = inject(FormBuilder);
+export class IncomesComponent implements OnInit {
   private readonly i18n = inject(I18nService);
+  private readonly periodState = inject(PeriodStateService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   readonly t = (key: string) => this.i18n.t(key);
   readonly incomes = signal<Income[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly saving = signal(false);
-  readonly saveMessage = signal('');
-  readonly form = this.fb.nonNullable.group({
-    concept: [this.t('incomes_default_concept'), Validators.required],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]],
-    date: [toDateInputValue(new Date()), Validators.required]
-  });
-  readonly filters = this.fb.nonNullable.group({
+  readonly filtersOpen = signal(false);
+  readonly selectedMonth = signal(this.periodState.selectedMonth());
+  readonly filters = inject(FormBuilder).nonNullable.group({
     from: [''],
     to: [''],
     currency: ['']
   });
+  readonly range = computed(() => rangeFromMonth(this.selectedMonth()));
 
-  constructor(private readonly api: ApiService) {
+  constructor(private readonly api: ApiService) {}
+
+  ngOnInit() {
+    const monthRange = this.range();
+    this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
     this.loadIncomes();
+  }
+
+  changeMonth(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (!value || value === this.selectedMonth()) return;
+    this.selectedMonth.set(value);
+    this.periodState.setSelectedMonth(value);
+    const monthRange = rangeFromMonth(value);
+    this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
+    this.loadIncomes();
+  }
+
+  toggleFilters() {
+    this.filtersOpen.set(!this.filtersOpen());
+  }
+
+  openNewIncomeDialog() {
+    const ref = this.dialog.open(IncomeCreateDialogComponent, { width: '720px', maxWidth: '96vw' });
+    ref.afterClosed().subscribe((saved: boolean) => {
+      if (saved) {
+        this.snackBar.open(this.t('incomes_saved'), undefined, { duration: 2400 });
+        this.loadIncomes();
+      }
+    });
   }
 
   loadIncomes() {
     this.loading.set(true);
     this.error.set('');
-    const filters = this.filters.getRawValue();
+    const f = this.filters.getRawValue();
     this.api.incomes({
-      from: filters.from ? startOfDay(filters.from) : undefined,
-      to: filters.to ? endOfDay(filters.to) : undefined,
-      currency: filters.currency ? filters.currency.toUpperCase() : undefined,
+      from: f.from ? startOfDay(f.from) : undefined,
+      to: f.to ? endOfDay(f.to) : undefined,
+      currency: f.currency ? f.currency.toUpperCase() : undefined,
       limit: 100
     }).subscribe({
       next: (incomes) => {
@@ -173,31 +180,9 @@ export class IncomesComponent {
   }
 
   clearFilters() {
-    this.filters.reset({ from: '', to: '', currency: '' });
+    const monthRange = this.range();
+    this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, currency: '' });
     this.loadIncomes();
-  }
-
-  save() {
-    const value = this.form.getRawValue();
-    this.saving.set(true);
-    this.saveMessage.set('');
-    this.api.createIncome({
-      concept: value.concept,
-      amount: Number(value.amount),
-      currency: value.currency.toUpperCase(),
-      date: startOfDay(value.date)
-    }).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.saveMessage.set(this.t('incomes_saved'));
-        this.form.patchValue({ concept: '', amount: 0 });
-        this.loadIncomes();
-      },
-      error: () => {
-        this.saving.set(false);
-        this.saveMessage.set(this.t('incomes_save_error'));
-      }
-    });
   }
 
   totalLabel() {
@@ -206,11 +191,8 @@ export class IncomesComponent {
       return grouped;
     }, {});
     const entries = Object.entries(totals);
-    if (!entries.length) return 'No movement';
-    return entries
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([currency, amount]) => this.formatMoney(currency, amount))
-      .join(' | ');
+    if (!entries.length) return this.t('dashboard_no_movement');
+    return entries.sort(([l], [r]) => l.localeCompare(r)).map(([currency, amount]) => this.formatMoney(currency, amount)).join(' | ');
   }
 
   formatDate(value: string) {
@@ -225,14 +207,67 @@ export class IncomesComponent {
   }
 }
 
+@Component({
+  selector: 'app-income-create-dialog',
+  standalone: true,
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  template: `
+    <h2 class="mb-4 text-xl font-semibold">{{ t('incomes_new') }}</h2>
+    <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
+      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+      <div class="flex justify-end gap-2 lg:col-span-2">
+        <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : t('incomes_save') }}</button>
+      </div>
+    </form>
+  `
+})
+export class IncomeCreateDialogComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly api = inject(ApiService);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
+  readonly saving = signal(false);
+  readonly form = this.fb.nonNullable.group({
+    concept: [this.t('incomes_default_concept'), Validators.required],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]],
+    date: [toDateInputValue(new Date()), Validators.required]
+  });
+
+  constructor(readonly dialogRef: MatDialogRef<IncomeCreateDialogComponent>) {}
+
+  save() {
+    const value = this.form.getRawValue();
+    this.saving.set(true);
+    this.api.createIncome({
+      concept: value.concept,
+      amount: Number(value.amount),
+      currency: value.currency.toUpperCase(),
+      date: startOfDay(value.date)
+    }).subscribe({
+      next: () => this.dialogRef.close(true),
+      error: () => this.saving.set(false)
+    });
+  }
+}
+
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
-
 function startOfDay(date: string) {
   return new Date(`${date}T00:00:00.000`).toISOString();
 }
-
 function endOfDay(date: string) {
   return new Date(`${date}T23:59:59.999`).toISOString();
+}
+function rangeFromMonth(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const fromInput = `${year}-${String(monthNumber).padStart(2, '0')}-01`;
+  const toDate = new Date(Date.UTC(year, monthNumber, 0));
+  const toInput = `${toDate.getUTCFullYear()}-${String(toDate.getUTCMonth() + 1).padStart(2, '0')}-${String(toDate.getUTCDate()).padStart(2, '0')}`;
+  return { fromInput, toInput };
 }

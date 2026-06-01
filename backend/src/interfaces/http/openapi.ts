@@ -249,7 +249,52 @@ export const openApiSpec = {
         ],
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
-      post: authenticatedPost('Create manual expense').post
+      post: {
+        summary: 'Create manual expense',
+        description: 'Creates a tenant-scoped expense. Backend normalizes category persistence to root category + optional subcategory.',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          date: { type: 'string', format: 'date-time' },
+          amount: { type: 'number', example: 33000 },
+          currency: { type: 'string', example: 'CLP' },
+          concept: { type: 'string', example: 'Natacion' },
+          categoryId: { type: 'string', format: 'uuid' },
+          subcategoryId: { type: 'string', format: 'uuid' },
+          paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
+        responses: {
+          ...withUnauthorized({
+            '201': {
+              description: 'Expense created',
+              content: {
+                'application/json': {
+                  examples: {
+                    created: {
+                      value: {
+                        id: '2e0ddc9e-5dbd-4f84-8df2-7f77f0c0f2d7',
+                        concept: 'Natacion',
+                        amount: 33000,
+                        currency: 'CLP'
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': {
+              description: 'Validation error',
+              content: {
+                'application/json': {
+                  examples: {
+                    invalidPayload: { value: { error: 'Validation failed.' } },
+                    invalidCategory: { value: { error: 'No category is available for this tenant.' } }
+                  }
+                }
+              }
+            }
+          })
+        }
+      }
     },
     '/expenses/recent': authenticatedGet('List recent expenses'),
     '/incomes': {
@@ -304,12 +349,14 @@ export const openApiSpec = {
       get: {
         deprecated: true,
         summary: 'Legacy alias of GET /budgets',
+        description: 'Deprecated compatibility route. Use GET /budgets.',
         security: [{ bearerAuth: [] }],
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       put: {
         deprecated: true,
         summary: 'Legacy alias of PUT /budgets',
+        description: 'Deprecated compatibility route. Use PUT /budgets.',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
           categoryId: { type: 'string' },

@@ -1,5 +1,6 @@
 import type { Category, Expense, Income, MonthlyBudget } from '../../domain/index.js';
 import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository } from '../ports.js';
+import { normalizeCategorySelection } from '../services/category-normalization.service.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
 
 export class FinanceUseCases {
@@ -10,8 +11,14 @@ export class FinanceUseCases {
     private readonly categories: CategoryRepository
   ) {}
 
-  createExpense(input: Omit<Expense, 'id'>) {
-    return this.expenses.create(input);
+  async createExpense(input: Omit<Expense, 'id'>) {
+    const categories = await this.categories.listByTenant(input.tenantId);
+    const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
+    return this.expenses.create({
+      ...input,
+      categoryId: normalized.categoryId,
+      subcategoryId: normalized.subcategoryId
+    });
   }
 
   listExpenses(input: {

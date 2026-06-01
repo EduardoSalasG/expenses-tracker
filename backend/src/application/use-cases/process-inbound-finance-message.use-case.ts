@@ -28,6 +28,7 @@ import {
   reportPeriod,
   totalsByCurrency
 } from '../services/reporting.service.js';
+import { normalizeCategorySelection } from '../services/category-normalization.service.js';
 
 export class ProcessInboundFinanceMessageUseCase {
   constructor(
@@ -399,6 +400,8 @@ export class ProcessInboundFinanceMessageUseCase {
       throw new Error('No category is available for this tenant.');
     }
 
+    const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
+
     const expense = await this.expenses.create({
       tenantId: user.tenantId,
       userId: user.id,
@@ -406,8 +409,8 @@ export class ProcessInboundFinanceMessageUseCase {
       amount: interpreted.amount,
       currency: user.preferredCurrency,
       concept: interpreted.concept,
-      categoryId: category.id,
-      subcategoryId: matchedCategory.subcategory?.id,
+      categoryId: normalized.categoryId,
+      subcategoryId: normalized.subcategoryId,
       paymentMethod: interpreted.paymentMethod,
       originalMessage: input.message
     });
@@ -419,7 +422,7 @@ export class ProcessInboundFinanceMessageUseCase {
       expenseId: expense.id
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, matchedCategory.subcategory?.id), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, normalized.subcategoryId), input.channel);
     return { status: 'saved' as const, expense };
   }
 

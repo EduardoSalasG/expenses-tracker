@@ -6,6 +6,7 @@ import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { PeriodStateService } from '../core/period-state.service';
 
 Chart.register(...registerables);
 
@@ -307,10 +308,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private readonly api: ApiService,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    private readonly periodState: PeriodStateService
   ) {}
 
   ngOnInit() {
+    this.selectedMonth.set(this.periodState.selectedMonth());
+    this.selectedYear.set(Number(this.selectedMonth().slice(0, 4)));
     this.mediaQuery.addEventListener('change', this.handleThemeChange);
     this.loadDashboard();
   }
@@ -345,6 +349,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const value = (event.target as HTMLInputElement).value;
     if (!value || value === this.selectedMonth()) return;
     this.selectedMonth.set(value);
+    this.periodState.setSelectedMonth(value);
     this.selectedYear.set(Number(value.slice(0, 4)));
     this.loadDashboard();
   }
@@ -397,11 +402,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const expenses = this.report()?.expenses ?? [];
     return this.budgets().map((budget) => {
       const spent = expenses
-        .filter((expense) =>
-          expense.currency === budget.currency &&
-          expense.categoryId === budget.categoryId &&
-          (!budget.subcategoryId || expense.subcategoryId === budget.subcategoryId)
-        )
+        .filter((expense) => this.matchesBudget(expense, budget))
         .reduce((total, expense) => total + Number(expense.amount), 0);
       const progress = Math.min(Math.round((spent / budget.amount) * 100), 100);
       return {
@@ -413,6 +414,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         remaining: Math.max(Number(budget.amount) - spent, 0)
       };
     });
+  }
+
+  private matchesBudget(expense: Expense, budget: MonthlyBudget) {
+    if (expense.currency !== budget.currency) return false;
+
+    if (budget.subcategoryId) {
+      return expense.subcategoryId === budget.subcategoryId || expense.categoryId === budget.subcategoryId;
+    }
+
+    if (expense.categoryId === budget.categoryId || expense.subcategoryId === budget.categoryId) {
+      return true;
+    }
+
+    const category = this.categories().find((item) => item.id === expense.categoryId);
+    return category?.parentId === budget.categoryId;
   }
 
   private buildCategoryVariation(): CategoryVariationRow[] {

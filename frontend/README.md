@@ -57,7 +57,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.
-- `/budgets`: monthly budget planner with category/subcategory limits, spending progress, remaining amounts, and inline updates.
+- `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, and inline updates.
 - `/categories`: main category and subcategory management with default/custom labels.
 - `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, and session logout.
 

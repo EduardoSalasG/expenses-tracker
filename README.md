@@ -123,12 +123,6 @@ pnpm reports:docker:monthly
 
 The report worker is one-shot by design. Use cron or a platform scheduler to invoke the daily, weekly, monthly, or yearly command at the desired time.
 
-Meta's test number is not a visible inbox. Messages sent to it arrive at the webhook URL configured in Meta. Before inbound testing, register the approved recipient number locally:
-
-```bash
-pnpm --filter @expenses-tracker/backend db:register-test-user
-```
-
 See:
 
 - [Backend README](backend/README.md)
@@ -137,5 +131,6 @@ See:
 - [Architecture](docs/architecture.md)
 - [Operations](docs/operations.md)
 - [Release Checklist](docs/release-checklist.md)
+- [QA Evidence 2026-06-01](docs/qa-evidence-2026-06-01.md)
 - [Flow Diagrams](docs/diagrams/flows.md)
 - [Database Query Analysis](database/query-analysis.md)

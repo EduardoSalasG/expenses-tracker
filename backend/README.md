@@ -119,7 +119,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `PUT /budgets` creates or updates a permanent category budget. Budgets can target a whole category or an optional subcategory.
 
-Legacy compatibility: `GET/PUT /budgets/monthly` remain available as aliases.
+Canonical endpoint is `/budgets`. Legacy compatibility aliases `GET/PUT /budgets/monthly` remain available as deprecated routes and should be removed from clients.
 
 ## Report API
 
@@ -190,6 +190,11 @@ Ingreso de sueldo 1200000 Bci transferencia
 For Telegram-created movements, currency comes from `users.preferred_currency`. The backend ignores hallucinated or ambiguous currency values returned by the interpreter and formats CLP replies as `$20.000`.
 
 Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic fallback matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, gifts, and dance classes.
+
+Category persistence is normalized server-side:
+- `categoryId` is always stored as the root category id.
+- `subcategoryId` is stored only when applicable.
+- If an incoming request mistakenly sends a subcategory in `categoryId`, backend rewrites it to canonical root+subcategory format.
 
 Successful Telegram replies always address the user by `preferredName`. Message language follows `users.preferred_language` (`es` or `en`) for OTP, onboarding greeting, save/update confirmations, duplicate confirmations, clarifications, budget status, and report summaries. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
 

@@ -267,11 +267,7 @@ export class BudgetsComponent {
     const expenses = this.report()?.expenses ?? [];
     return this.budgets().map((budget) => {
       const spent = expenses
-        .filter((expense) =>
-          expense.currency === budget.currency &&
-          expense.categoryId === budget.categoryId &&
-          (!budget.subcategoryId || expense.subcategoryId === budget.subcategoryId)
-        )
+        .filter((expense) => this.matchesBudget(expense, budget))
         .reduce((total, expense) => total + Number(expense.amount), 0);
       const amount = Number(budget.amount);
       return {
@@ -282,6 +278,24 @@ export class BudgetsComponent {
         progress: Math.min(Math.round((spent / amount) * 100), 100)
       };
     });
+  }
+
+  private matchesBudget(expense: Report['expenses'][number], budget: MonthlyBudget) {
+    if (expense.currency !== budget.currency) return false;
+
+    if (budget.subcategoryId) {
+      // Accept both normalized shape (category + subcategory) and legacy/misaligned shape
+      // where the subcategory may have been stored directly as category_id.
+      return expense.subcategoryId === budget.subcategoryId || expense.categoryId === budget.subcategoryId;
+    }
+
+    if (expense.categoryId === budget.categoryId || expense.subcategoryId === budget.categoryId) {
+      return true;
+    }
+
+    // If expense points to a subcategory as categoryId, include it when parent matches budget category.
+    const category = this.categories().find((item) => item.id === expense.categoryId);
+    return category?.parentId === budget.categoryId;
   }
 
   private categoryLabel(categoryId: string): string {
