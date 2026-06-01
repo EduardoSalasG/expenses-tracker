@@ -37,6 +37,22 @@ export class InboundMessagingService {
     }
 
     for (const message of batch.messages) {
+      if (batch.channel === 'telegram' && isStartCommand(message.message) && message.replyTo) {
+        const { token } = await this.container.useCases.requestTelegramLinkToken.execute(message.replyTo);
+        const linkUrl = `${this.container.config.frontendOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
+        await this.container.messaging.sendText(
+          message.replyTo,
+          [
+            'Bienvenido a Expenses Tracker.',
+            'Para conectar tu cuenta, abre este enlace:',
+            linkUrl
+          ].join('\n'),
+          { channel: 'telegram' }
+        );
+        this.container.logger.info('Telegram start command processed.', { channel: batch.channel, replyTo: message.replyTo });
+        continue;
+      }
+
       const result = await this.container.useCases.processInboundFinanceMessage.execute({
         ...message,
         channel: message.channel ?? batch.channel
@@ -49,4 +65,8 @@ export class InboundMessagingService {
       });
     }
   }
+}
+
+function isStartCommand(message: string) {
+  return /^\/start\b/i.test(message.trim());
 }

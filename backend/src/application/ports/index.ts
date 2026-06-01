@@ -9,5 +9,6 @@ export type { MessagingPendingDraftRepository } from './messaging-pending-draft.
 export type { MessagingProvider } from './messaging.provider.js';
 export type { OtpRepository } from './otp.repository.js';
 export type { ReportDispatchRepository } from './report-dispatch.repository.js';
+export type { TelegramLinkTokenRecord, TelegramLinkTokenRepository } from './telegram-link-token.repository.js';
 export type { TokenService } from './token.service.js';
 export type { UserRepository } from './user.repository.js';

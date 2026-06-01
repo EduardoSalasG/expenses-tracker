@@ -1,4 +1,5 @@
-import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, TokenService, UserRepository } from '../ports.js';
+import { randomUUID } from 'node:crypto';
+import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -9,17 +10,56 @@ export class RequestOtpUseCase {
     private readonly options: { exposeOtpInResponse: boolean } = { exposeOtpInResponse: false }
   ) {}
 
-  async execute(phoneNumber: string) {
-    const existingUser = await this.users.findByPhoneNumber(phoneNumber);
+  async execute(input: { phoneNumber: string; telegramChatId?: string }) {
+    const existingUser = await this.users.findByPhoneNumber(input.phoneNumber);
+    if (existingUser && input.telegramChatId && input.telegramChatId !== existingUser.telegramChatId) {
+      await this.users.linkTelegramChatByPhone(existingUser.phoneNumber, input.telegramChatId);
+    }
+    const targetChatId = input.telegramChatId ?? existingUser?.telegramChatId;
+    if (!targetChatId) {
+      throw new Error('Telegram chat is not linked. Open the bot and send /link +<your-phone-number>, then request OTP again.');
+    }
+
+    if (!existingUser && !input.telegramChatId) {
+      throw new Error('Telegram chat id is required for new users.');
+    }
+
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
-    await this.otps.create(phoneNumber, code, expiresAt);
-    await this.messaging.sendText(phoneNumber, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code), { channel: 'whatsapp' });
+    await this.otps.create(input.phoneNumber, code, expiresAt);
+    await this.messaging.sendText(targetChatId, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code), { channel: 'telegram' });
     return {
       sent: true,
       requiresRegistration: !existingUser,
       ...(this.options.exposeOtpInResponse ? { debugCode: code } : {})
     };
+  }
+}
+
+export class RequestTelegramLinkTokenUseCase {
+  constructor(
+    private readonly telegramLinkTokens: TelegramLinkTokenRepository,
+    private readonly clock: Clock
+  ) {}
+
+  async execute(chatId: string) {
+    const token = randomUUID();
+    const expiresAt = new Date(this.clock.now().getTime() + 15 * 60 * 1000);
+    await this.telegramLinkTokens.create({ token, chatId, expiresAt });
+    return { token, expiresAt: expiresAt.toISOString() };
+  }
+}
+
+export class ConsumeTelegramLinkTokenUseCase {
+  constructor(
+    private readonly telegramLinkTokens: TelegramLinkTokenRepository,
+    private readonly clock: Clock
+  ) {}
+
+  async execute(token: string) {
+    const record = await this.telegramLinkTokens.consume(token, this.clock.now());
+    if (!record) throw new Error('Invalid or expired link token.');
+    return { telegramChatId: record.chatId };
   }
 }
 
@@ -33,7 +73,7 @@ export class VerifyOtpUseCase {
     private readonly messaging: MessagingProvider
   ) {}
 
-  async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string; preferredLanguage?: 'es' | 'en' }) {
+  async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string; preferredLanguage?: 'es' | 'en'; telegramChatId?: string }) {
     const verified = await this.otps.verify(input.phoneNumber, input.code, this.clock.now());
     if (!verified) {
       throw new Error('Invalid or expired OTP.');
@@ -41,6 +81,9 @@ export class VerifyOtpUseCase {
 
     const existingUser = await this.users.findByPhoneNumber(input.phoneNumber);
     if (existingUser) {
+      if (input.telegramChatId && input.telegramChatId !== existingUser.telegramChatId) {
+        await this.users.linkTelegramChatByPhone(existingUser.phoneNumber, input.telegramChatId);
+      }
       await this.categories.ensureDefaults(existingUser.tenantId);
       return {
         user: existingUser,
@@ -64,7 +107,10 @@ export class VerifyOtpUseCase {
       preferredLanguage: input.preferredLanguage ?? 'es'
     });
     await this.categories.ensureDefaults(user.tenantId);
-    await this.messaging.sendText(user.phoneNumber, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName), { channel: 'whatsapp' });
+    if (input.telegramChatId) {
+      await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
+      await this.messaging.sendText(input.telegramChatId, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName), { channel: 'telegram' });
+    }
 
     return {
       user,

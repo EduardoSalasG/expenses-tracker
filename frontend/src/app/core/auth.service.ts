@@ -42,8 +42,12 @@ export class AuthService {
     return localStorage.getItem(this.refreshTokenKey);
   }
 
-  requestOtp(phoneNumber: string) {
-    return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber });
+  requestOtpWithTelegram(phoneNumber: string, telegramChatId?: string) {
+    return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber, telegramChatId });
+  }
+
+  consumeTelegramLinkToken(token: string) {
+    return this.http.post<{ telegramChatId: string }>(`${environment.apiBaseUrl}/auth/telegram/consume-link-token`, { token });
   }
 
   verifyOtp(payload: {
@@ -56,6 +60,7 @@ export class AuthService {
     countryOfResidence?: string;
     preferredCurrency?: string;
     preferredLanguage?: 'es' | 'en';
+    telegramChatId?: string;
   }) {
     return this.http.post<VerifyOtpResponse>(`${environment.apiBaseUrl}/auth/otp/verify`, payload).pipe(
       tap((response) => {

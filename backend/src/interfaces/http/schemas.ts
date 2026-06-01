@@ -3,7 +3,8 @@ import { z } from 'zod';
 export const phoneNumberSchema = z.string().min(8).max(20);
 
 export const requestOtpSchema = z.object({
-  phoneNumber: phoneNumberSchema
+  phoneNumber: phoneNumberSchema,
+  telegramChatId: z.string().min(2).optional()
 });
 
 export const verifyOtpSchema = z.object({
@@ -15,11 +16,20 @@ export const verifyOtpSchema = z.object({
   email: z.string().email().optional(),
   countryOfResidence: z.string().min(2).optional(),
   preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()).optional(),
-  preferredLanguage: z.enum(['es', 'en']).optional()
+  preferredLanguage: z.enum(['es', 'en']).optional(),
+  telegramChatId: z.string().min(2).optional()
 });
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1)
+});
+
+export const createTelegramLinkTokenSchema = z.object({
+  chatId: z.string().min(2)
+});
+
+export const consumeTelegramLinkTokenSchema = z.object({
+  token: z.string().min(10)
 });
 
 export const updateProfileSchema = z.object({

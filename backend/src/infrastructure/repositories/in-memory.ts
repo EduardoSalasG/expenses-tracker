@@ -8,6 +8,7 @@ import type {
   MessagingPendingDraftRepository,
   OtpRepository,
   ReportDispatchRepository,
+  TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
@@ -549,5 +550,30 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
     if (!dispatch) return;
     dispatch.status = 'failed';
     dispatch.errorMessage = input.errorMessage;
+  }
+}
+
+export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRepository {
+  private readonly tokens = new Map<string, { chatId: string; expiresAt: string; consumed: boolean }>();
+
+  async create(input: { token: string; chatId: string; expiresAt: Date }) {
+    this.tokens.set(input.token, {
+      chatId: input.chatId,
+      expiresAt: input.expiresAt.toISOString(),
+      consumed: false
+    });
+  }
+
+  async consume(token: string, now: Date) {
+    const record = this.tokens.get(token);
+    if (!record) return undefined;
+    if (record.consumed) return undefined;
+    if (record.expiresAt < now.toISOString()) return undefined;
+    record.consumed = true;
+    return {
+      token,
+      chatId: record.chatId,
+      expiresAt: record.expiresAt
+    };
   }
 }

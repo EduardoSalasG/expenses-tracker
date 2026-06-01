@@ -96,8 +96,11 @@ export const openApiSpec = {
     },
     '/auth/otp/request': {
       post: {
-        summary: 'Request WhatsApp OTP',
-        requestBody: jsonBody({ phoneNumber: { type: 'string', example: '+56912345678' } }, ['phoneNumber']),
+        summary: 'Request Telegram OTP',
+        requestBody: jsonBody({
+          phoneNumber: { type: 'string', example: '+56912345678' },
+          telegramChatId: { type: 'string', example: '123456789' }
+        }, ['phoneNumber']),
         responses: {
           '200': {
             description: 'OTP request accepted',
@@ -115,13 +118,13 @@ export const openApiSpec = {
             }
           },
           '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
-          '500': { description: 'Provider delivery failed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { whatsappWindowClosed: { value: { error: 'Unable to deliver OTP. Ensure the user has an open conversation window with the WhatsApp business number.' } } } } } }
+          '500': { description: 'Provider delivery failed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { telegramNotLinked: { value: { error: 'Telegram chat is not linked. Open the bot and send /link +<your-phone-number>, then request OTP again.' } } } } } }
         }
       }
     },
     '/auth/otp/verify': {
       post: {
-        summary: 'Verify WhatsApp OTP and receive tokens',
+        summary: 'Verify Telegram OTP and receive tokens',
         requestBody: jsonBody({
           phoneNumber: { type: 'string' },
           code: { type: 'string' },
@@ -131,13 +134,38 @@ export const openApiSpec = {
           email: { type: 'string' },
           countryOfResidence: { type: 'string' },
           preferredCurrency: { type: 'string', example: 'CLP' },
-          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' }
+          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' },
+          telegramChatId: { type: 'string', example: '123456789' }
         }, ['phoneNumber', 'code']),
-        responses: standardResponses({
-          accessToken: { type: 'string' },
-          refreshToken: { type: 'string' },
-          user: { type: 'object' }
-        })
+        responses: {
+          '200': {
+            description: 'OTP verified',
+            content: {
+              'application/json': {
+                examples: {
+                  verified: {
+                    value: {
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: { id: 'user-id', phoneNumber: '+56912345678' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or OTP verification error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidCode: { value: { error: 'Invalid verification code.' } },
+                  expiredCode: { value: { error: 'Verification code expired.' } }
+                }
+              }
+            }
+          }
+        }
       }
     },
     '/auth/refresh': {
@@ -149,6 +177,44 @@ export const openApiSpec = {
           refreshToken: { type: 'string' },
           user: { type: 'object' }
         })
+      }
+    },
+    '/auth/telegram/link-token': {
+      post: {
+        summary: 'Create one-time Telegram link token',
+        requestBody: jsonBody({ chatId: { type: 'string', example: '123456789' } }, ['chatId']),
+        responses: standardResponses({
+          token: { type: 'string' },
+          expiresAt: { type: 'string', format: 'date-time' }
+        })
+      }
+    },
+    '/auth/telegram/consume-link-token': {
+      post: {
+        summary: 'Consume Telegram link token and return chat id',
+        requestBody: jsonBody({ token: { type: 'string' } }, ['token']),
+        responses: {
+          '200': {
+            description: 'Link token consumed',
+            content: {
+              'application/json': {
+                examples: {
+                  linked: { value: { telegramChatId: '123456789' } }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid or expired token',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidToken: { value: { error: 'Invalid or expired link token.' } }
+                }
+              }
+            }
+          }
+        }
       }
     },
     '/me': {
@@ -290,44 +356,10 @@ export const openApiSpec = {
       }
     },
     '/report-preferences': authenticatedPut('Update report preferences'),
-    '/webhooks/whatsapp': {
-      get: { summary: 'Verify WhatsApp webhook', responses: { '200': { description: 'Verified' }, '403': { description: 'Invalid token' } } },
-      post: {
-        summary: 'Receive WhatsApp webhook event',
-        description: 'Validates Meta signature when enabled, extracts inbound messages/statuses, and forwards provider-neutral inbound text to application use cases.',
-        parameters: [
-          {
-            name: 'x-hub-signature-256',
-            in: 'header',
-            required: false,
-            schema: { type: 'string', example: 'sha256=...' },
-            description: 'Required when WHATSAPP_APP_SECRET is configured.'
-          }
-        ],
-        responses: {
-          '200': {
-            description: 'Accepted',
-            content: {
-              'application/json': {
-                schema: { type: 'object', properties: { received: { type: 'boolean', example: true } } },
-                examples: {
-                  savedExpense: { value: { received: true } },
-                  ignoredUnknownUser: { value: { received: true } }
-                }
-              }
-            }
-          },
-          '401': {
-            description: 'Invalid or missing Meta signature',
-            content: { 'application/json': { examples: { invalidSignature: { value: { error: 'Invalid Meta webhook signature.' } } } } }
-          }
-        }
-      }
-    },
     '/webhooks/telegram': {
       post: {
         summary: 'Receive Telegram webhook event',
-        description: 'Receives Telegram updates, supports account link with `/link +<phone>`, and forwards inbound text as provider-neutral messages.',
+        description: 'Receives Telegram updates, supports account link with `/link +<phone>`, and forwards inbound text as provider-neutral messages (including create/edit intents interpreted by backend).',
         parameters: [
           {
             name: 'x-telegram-bot-api-secret-token',
@@ -344,7 +376,8 @@ export const openApiSpec = {
               'application/json': {
                 examples: {
                   linked: { value: { received: true } },
-                  ignoredNoText: { value: { received: true, ignored: true } }
+                  ignoredNoText: { value: { received: true, ignored: true } },
+                  processedCreateOrEdit: { value: { received: true } }
                 }
               }
             }

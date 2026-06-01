@@ -15,6 +15,7 @@ import {
   InMemoryMessagingPendingDraftRepository,
   InMemoryOtpRepository,
   InMemoryReportDispatchRepository,
+  InMemoryTelegramLinkTokenRepository,
   InMemoryUserRepository
 } from './repositories/in-memory.js';
 import {
@@ -26,12 +27,15 @@ import {
   PostgresMessagingPendingDraftRepository,
   PostgresOtpRepository,
   PostgresReportDispatchRepository,
+  PostgresTelegramLinkTokenRepository,
   PostgresUserRepository
 } from './repositories/postgres.js';
 import {
+  ConsumeTelegramLinkTokenUseCase,
   FinanceUseCases,
   ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
+  RequestTelegramLinkTokenUseCase,
   RequestOtpUseCase,
   SendDueReportsUseCase,
   UpdateProfileUseCase,
@@ -52,6 +56,7 @@ export function createContainer(config: AppConfig) {
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
+  const telegramLinkTokens = pool ? new PostgresTelegramLinkTokenRepository(pool) : new InMemoryTelegramLinkTokenRepository();
   const tokens = new JwtTokenService(config);
   const whatsappMessaging = new WhatsAppCloudProvider(config, logger);
   const telegramMessaging = new TelegramProvider(config, logger);
@@ -79,6 +84,7 @@ export function createContainer(config: AppConfig) {
     logger,
     users,
     tokens,
+    messaging,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {
       if (!pool) {
@@ -91,6 +97,8 @@ export function createContainer(config: AppConfig) {
       requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
+      requestTelegramLinkToken: new RequestTelegramLinkTokenUseCase(telegramLinkTokens, clock),
+      consumeTelegramLinkToken: new ConsumeTelegramLinkTokenUseCase(telegramLinkTokens, clock),
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging),
       refreshSession: new RefreshSessionUseCase(users, tokens),
       processInboundFinanceMessage,

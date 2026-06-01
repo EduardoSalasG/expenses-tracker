@@ -125,7 +125,7 @@ Interpreter smoke check:
 pnpm --filter @expenses-tracker/backend interpreter:smoke --allow-smoke "20.000 clases de bachata, transferencia bci"
 ```
 
-This command is local-only and does not touch the webhook, database, or WhatsApp provider. It requires `--allow-smoke` so it cannot run accidentally from copied commands or automation.
+This command is local-only and does not touch the webhook, database, or Telegram provider. It requires `--allow-smoke` so it cannot run accidentally from copied commands or automation.
 
 ## Smoke Checks
 
@@ -157,7 +157,7 @@ Run this checklist before promoting `dev` to `main`:
 - Set user language to `es` in settings and verify:
   - OTP message in Spanish.
   - Registration greeting in Spanish.
-  - WhatsApp expense/income save confirmations in Spanish.
+  - Telegram expense/income save confirmations in Spanish.
   - Duplicate detection confirmation flow in Spanish.
   - Report and budget status responses in Spanish.
 - Set user language to `en` and repeat the same checks in English.

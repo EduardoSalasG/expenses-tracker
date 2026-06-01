@@ -1,7 +1,7 @@
 [build]
   base = "."
   command = "pnpm install --frozen-lockfile && pnpm --filter @expenses-tracker/frontend build --configuration production"
-  publish = "frontend/dist/frontend/browser"
+  publish = "dist/frontend/browser"
 
 [[redirects]]
   from = "/api/*"

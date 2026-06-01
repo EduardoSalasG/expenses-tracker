@@ -14,7 +14,7 @@ describe('auth use cases', () => {
     const otps = new InMemoryOtpRepository();
     const useCase = new RequestOtpUseCase(users, otps, new CapturingMessagingProvider(), fixedClock());
 
-    const result = await useCase.execute('+56982439041');
+    const result = await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
 
     expect(result).toEqual({ sent: true, requiresRegistration: true });
   });
@@ -32,7 +32,7 @@ describe('auth use cases', () => {
     });
     const useCase = new RequestOtpUseCase(users, new InMemoryOtpRepository(), new CapturingMessagingProvider(), fixedClock());
 
-    const result = await useCase.execute('+56982439041');
+    const result = await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
 
     expect(result).toEqual({ sent: true, requiresRegistration: false });
   });
@@ -46,7 +46,7 @@ describe('auth use cases', () => {
       { exposeOtpInResponse: true }
     );
 
-    const result = await useCase.execute('+56982439041');
+    const result = await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
 
     expect(result.sent).toBe(true);
     expect(result.debugCode).toMatch(/^\d{6}$/);
@@ -95,7 +95,7 @@ describe('auth use cases', () => {
       .rejects.toThrow('Registration details are required for new users.');
   });
 
-  it('sends a registration greeting with WhatsApp usage examples for new users', async () => {
+  it('sends a registration greeting with Telegram usage examples for new users', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
     const messaging = new CapturingMessagingProvider();
@@ -118,13 +118,14 @@ describe('auth use cases', () => {
       email: 'eduardo@example.com',
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP',
-      preferredLanguage: 'en'
+      preferredLanguage: 'en',
+      telegramChatId: '12345'
     });
 
     expect(result.user.preferredName).toBe('Edu');
     expect(messaging.messages).toHaveLength(1);
     expect(messaging.messages[0]).toEqual({
-      toPhoneNumber: '+56982439041',
+      toPhoneNumber: '12345',
       body: expect.stringContaining('Hi Edu, welcome to Expenses Tracker.')
     });
     expect(messaging.messages[0].body).toContain('20.000 classes at Bsoul');

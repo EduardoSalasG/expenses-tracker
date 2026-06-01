@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
@@ -7,30 +6,11 @@ import { extractTelegramMessages } from './messaging-providers/telegram.extracto
 import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
 
-describe('WhatsApp webhook security', () => {
-  it('rejects webhook posts when an app secret is configured and signature is missing', async () => {
-    const app = createApp(createContainer(testConfig({ whatsappAppSecret: 'secret-for-tests' })));
-
-    const response = await request(app)
-      .post('/webhooks/whatsapp')
-      .send({ entry: [] });
-
-    expect(response.status).toBe(401);
-  });
-
-  it('accepts webhook posts with a valid Meta signature', async () => {
-    const body = JSON.stringify({ entry: [] });
-    const signature = createHmac('sha256', 'secret-for-tests').update(Buffer.from(body)).digest('hex');
-    const app = createApp(createContainer(testConfig({ whatsappAppSecret: 'secret-for-tests' })));
-
-    const response = await request(app)
-      .post('/webhooks/whatsapp')
-      .set('content-type', 'application/json')
-      .set('x-hub-signature-256', `sha256=${signature}`)
-      .send(body);
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ received: true });
+describe('Messaging routes', () => {
+  it('does not expose WhatsApp webhook route in telegram-only mode', async () => {
+    const app = createApp(createContainer(testConfig()));
+    const response = await request(app).post('/webhooks/whatsapp').send({ entry: [] });
+    expect(response.status).toBe(404);
   });
 });
 

@@ -1,6 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -36,7 +36,14 @@ import { I18nService } from '../core/i18n.service';
             <mat-label>{{ t('login_phone') }}</mat-label>
             <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel">
             @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-              <mat-error>Enter a valid WhatsApp number.</mat-error>
+              <mat-error>Enter a valid phone number.</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('login_telegram_chat_id') }}</mat-label>
+            <input matInput formControlName="telegramChatId" placeholder="123456789" autocomplete="off">
+            @if (form.controls.telegramChatId.touched && form.controls.telegramChatId.invalid) {
+              <mat-error>{{ t('login_telegram_chat_id_error') }}</mat-error>
             }
           </mat-form-field>
 
@@ -118,7 +125,7 @@ import { I18nService } from '../core/i18n.service';
     </main>
   `
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly otpSent = signal(false);
   readonly requiresRegistration = signal(false);
@@ -133,15 +140,30 @@ export class LoginComponent {
     email: [''],
     countryOfResidence: [''],
     preferredCurrency: ['CLP'],
-    preferredLanguage: ['es' as 'es' | 'en']
+    preferredLanguage: ['es' as 'es' | 'en'],
+    telegramChatId: ['', [Validators.required, Validators.minLength(2)]]
   });
 
   constructor(
     private readonly auth: AuthService,
+    private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly i18n: I18nService
   ) {
     this.form.controls.preferredLanguage.setValue(this.i18n.language());
+  }
+
+  ngOnInit() {
+    const linkToken = this.route.snapshot.queryParamMap.get('linkToken');
+    if (!linkToken) return;
+    this.auth.consumeTelegramLinkToken(linkToken).subscribe({
+      next: (payload) => {
+        this.form.controls.telegramChatId.setValue(payload.telegramChatId);
+      },
+      error: () => {
+        this.errorMessage.set('Invalid or expired Telegram link token. Please return to Telegram and tap start again.');
+      }
+    });
   }
 
   submit() {
@@ -154,7 +176,7 @@ export class LoginComponent {
     this.errorMessage.set('');
 
     if (!this.otpSent()) {
-      this.auth.requestOtp(value.phoneNumber).subscribe({
+        this.auth.requestOtpWithTelegram(value.phoneNumber, value.telegramChatId || undefined).subscribe({
         next: (response) => {
           this.requiresRegistration.set(response.requiresRegistration);
           this.debugCode.set(response.debugCode ?? '');
@@ -178,11 +200,13 @@ export class LoginComponent {
         email: value.email,
         countryOfResidence: value.countryOfResidence,
         preferredCurrency: value.preferredCurrency.toUpperCase(),
-        preferredLanguage: value.preferredLanguage
+        preferredLanguage: value.preferredLanguage,
+        telegramChatId: value.telegramChatId || undefined
       }
       : {
         phoneNumber: value.phoneNumber,
-        code: value.code
+        code: value.code,
+        telegramChatId: value.telegramChatId || undefined
       };
 
     this.auth.verifyOtp(payload).subscribe({

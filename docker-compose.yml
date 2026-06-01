@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: expenses
       POSTGRES_PASSWORD: expenses
     ports:
-      - "5433:5432"
+      - "6433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

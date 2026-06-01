@@ -1,5 +1,5 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, UserRepository } from '../../application/ports.js';
+import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -619,6 +619,36 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
         input.errorMessage
       ]
     );
+  }
+}
+
+export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async create(input: { token: string; chatId: string; expiresAt: Date }) {
+    await this.pool.query(
+      `insert into telegram_link_tokens (token, chat_id, expires_at)
+       values ($1, $2, $3)`,
+      [input.token, input.chatId, input.expiresAt]
+    );
+  }
+
+  async consume(token: string, now: Date) {
+    const result = await this.pool.query(
+      `update telegram_link_tokens
+       set consumed_at = $2
+       where token = $1
+         and consumed_at is null
+         and expires_at >= $2
+       returning token, chat_id, expires_at`,
+      [token, now]
+    );
+    if (!result.rows[0]) return undefined;
+    return {
+      token: result.rows[0].token,
+      chatId: result.rows[0].chat_id,
+      expiresAt: result.rows[0].expires_at instanceof Date ? result.rows[0].expires_at.toISOString() : String(result.rows[0].expires_at)
+    };
   }
 }
 

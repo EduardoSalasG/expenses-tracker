@@ -81,7 +81,7 @@ interface BudgetRow {
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_subcategory') }}</mat-label>
           <mat-select formControlName="subcategoryId">
-            <mat-option value="">{{ t('budgets_whole_category') }}</mat-option>
+            <mat-option [value]="''">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
@@ -160,8 +160,9 @@ export class BudgetsComponent {
   readonly saveMessage = signal('');
   readonly editingBudgetId = signal<string | null>(null);
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
+  readonly selectedCategoryId = signal('');
   readonly subcategoriesForForm = computed(() =>
-    this.categories().filter((category) => category.parentId === this.form.controls.categoryId.value)
+    this.categories().filter((category) => category.parentId === this.selectedCategoryId())
   );
   readonly budgetRows = computed(() => this.buildBudgetRows());
   readonly totalBudgetedLabel = computed(() => this.formatTotalsByCurrency(this.budgets()));
@@ -175,7 +176,11 @@ export class BudgetsComponent {
   });
 
   constructor(private readonly api: ApiService) {
-    this.form.controls.categoryId.valueChanges.subscribe(() => this.form.controls.subcategoryId.setValue(''));
+    this.selectedCategoryId.set(this.form.controls.categoryId.value);
+    this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
+      this.selectedCategoryId.set(categoryId);
+      this.form.controls.subcategoryId.setValue('');
+    });
     this.loadMonth();
   }
 
@@ -203,6 +208,7 @@ export class BudgetsComponent {
         const firstRoot = categories.find((category) => !category.parentId);
         if (firstRoot && !this.form.controls.categoryId.value) {
           this.form.controls.categoryId.setValue(firstRoot.id);
+          this.selectedCategoryId.set(firstRoot.id);
         }
         this.loading.set(false);
       },

@@ -53,7 +53,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_subcategory') }}</mat-label>
           <mat-select formControlName="subcategoryId">
-            <mat-option value="">{{ t('expenses_none') }}</mat-option>
+            <mat-option [value]="''">{{ t('expenses_none') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
@@ -190,8 +190,9 @@ export class ExpensesComponent implements OnInit {
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
+  readonly selectedCategoryId = signal('');
   readonly subcategoriesForForm = computed(() =>
-    this.categories().filter((category) => category.parentId === this.form.controls.categoryId.value)
+    this.categories().filter((category) => category.parentId === this.selectedCategoryId())
   );
   readonly form = this.fb.nonNullable.group({
     concept: ['', Validators.required],
@@ -220,9 +221,14 @@ export class ExpensesComponent implements OnInit {
       const firstRoot = categories.find((category) => !category.parentId);
       if (firstRoot && !this.form.controls.categoryId.value) {
         this.form.controls.categoryId.setValue(firstRoot.id);
+        this.selectedCategoryId.set(firstRoot.id);
       }
     });
-    this.form.controls.categoryId.valueChanges.subscribe(() => this.form.controls.subcategoryId.setValue(''));
+    this.selectedCategoryId.set(this.form.controls.categoryId.value);
+    this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
+      this.selectedCategoryId.set(categoryId);
+      this.form.controls.subcategoryId.setValue('');
+    });
     this.loadExpenses();
   }
 
