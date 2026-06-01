@@ -80,8 +80,7 @@ export class FinanceController {
 
   monthlyBudgets = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
-    const month = String(request.query.month ?? new Date().toISOString().slice(0, 7));
-    response.json(await this.container.useCases.finance.monthlyBudgets(authRequest.auth.tenantId, month));
+    response.json(await this.container.useCases.finance.monthlyBudgets(authRequest.auth.tenantId));
   };
 
   upsertMonthlyBudget = async (request: Request, response: Response) => {

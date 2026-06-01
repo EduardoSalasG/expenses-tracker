@@ -198,7 +198,7 @@ export class BudgetsComponent {
     const { from, to } = monthRange(this.selectedMonth());
     forkJoin({
       categories: this.api.categories(),
-      budgets: this.api.monthlyBudgets(this.selectedMonth()),
+      budgets: this.api.monthlyBudgets(),
       report: this.api.report(from, to)
     }).subscribe({
       next: ({ categories, budgets, report }) => {
@@ -224,7 +224,6 @@ export class BudgetsComponent {
     this.saving.set(true);
     this.saveMessage.set('');
     this.api.upsertMonthlyBudget({
-      month: this.selectedMonth(),
       categoryId: value.categoryId,
       subcategoryId: value.subcategoryId || undefined,
       amount: Number(value.amount),

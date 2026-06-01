@@ -52,7 +52,6 @@ export type ReportFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface MonthlyBudget {
   id: string;
-  month: string;
   categoryId: string;
   subcategoryId?: string;
   amount: number;
@@ -143,10 +142,8 @@ export class ApiService {
     return this.http.post(`${environment.apiBaseUrl}/categories`, payload);
   }
 
-  monthlyBudgets(month: string) {
-    return this.http.get<MonthlyBudget[]>(`${environment.apiBaseUrl}/budgets/monthly`, {
-      params: new HttpParams().set('month', month)
-    });
+  monthlyBudgets() {
+    return this.http.get<MonthlyBudget[]>(`${environment.apiBaseUrl}/budgets/monthly`);
   }
 
   upsertMonthlyBudget(payload: unknown) {

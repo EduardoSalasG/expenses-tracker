@@ -262,7 +262,7 @@ export class ProcessInboundFinanceMessageUseCase {
       const month = interpreted.month ?? this.clock.now().toISOString().slice(0, 7);
       const { from, to } = monthPeriod(month);
       const [budgets, report] = await Promise.all([
-        this.budgets.listMonthly(user.tenantId, month),
+        this.budgets.listMonthly(user.tenantId),
         this.report(user.tenantId, from, to)
       ]);
       const budgetMessage = formatBudgetStatusMessage(month, budgets, report.expenses, categories, interpreted.categoryName, user.preferredLanguage);

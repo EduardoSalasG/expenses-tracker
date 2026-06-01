@@ -56,8 +56,8 @@ export class FinanceUseCases {
     return this.budgets.upsertMonthly(input);
   }
 
-  monthlyBudgets(tenantId: string, month: string) {
-    return this.budgets.listMonthly(tenantId, month);
+  monthlyBudgets(tenantId: string) {
+    return this.budgets.listMonthly(tenantId);
   }
 
   async report(tenantId: string, from: string, to: string) {

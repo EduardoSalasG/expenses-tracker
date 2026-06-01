@@ -362,7 +362,6 @@ export class InMemoryBudgetRepository implements BudgetRepository {
     const index = this.budgets.findIndex(
       (budget) =>
         budget.tenantId === input.tenantId &&
-        budget.month === input.month &&
         budget.categoryId === input.categoryId &&
         budget.subcategoryId === input.subcategoryId
     );
@@ -372,8 +371,8 @@ export class InMemoryBudgetRepository implements BudgetRepository {
     return budget;
   }
 
-  async listMonthly(tenantId: string, month: string) {
-    return this.budgets.filter((budget) => budget.tenantId === tenantId && budget.month === month);
+  async listMonthly(tenantId: string) {
+    return this.budgets.filter((budget) => budget.tenantId === tenantId);
   }
 }
 

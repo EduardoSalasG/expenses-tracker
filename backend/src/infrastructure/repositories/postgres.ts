@@ -3,6 +3,8 @@ import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRep
 import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
+const PERMANENT_BUDGET_MONTH = '2000-01-01';
+
 export class PostgresUserRepository implements UserRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -381,15 +383,15 @@ export class PostgresBudgetRepository implements BudgetRepository {
        on conflict (tenant_id, budget_month, category_id, subcategory_key)
        do update set amount = excluded.amount, currency = excluded.currency, updated_at = now()
        returning *`,
-      [input.tenantId, `${input.month}-01`, input.categoryId, input.subcategoryId ?? null, input.amount, input.currency]
+      [input.tenantId, PERMANENT_BUDGET_MONTH, input.categoryId, input.subcategoryId ?? null, input.amount, input.currency]
     );
     return mapBudget(result.rows[0]);
   }
 
-  async listMonthly(tenantId: string, month: string) {
+  async listMonthly(tenantId: string) {
     const result = await this.pool.query(
       `select * from monthly_budgets where tenant_id = $1 and budget_month = $2 order by created_at`,
-      [tenantId, `${month}-01`]
+      [tenantId, PERMANENT_BUDGET_MONTH]
     );
     return result.rows.map(mapBudget);
   }
@@ -714,11 +716,9 @@ function mapIncome(row: QueryResultRow): Income {
 }
 
 function mapBudget(row: QueryResultRow): MonthlyBudget {
-  const date = row.budget_month instanceof Date ? row.budget_month.toISOString() : String(row.budget_month);
   return {
     id: row.id,
     tenantId: row.tenant_id,
-    month: date.slice(0, 7),
     categoryId: row.category_id,
     subcategoryId: row.subcategory_id ?? undefined,
     amount: Number(row.amount),

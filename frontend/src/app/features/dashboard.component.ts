@@ -594,7 +594,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const range = this.viewMode() === 'monthly'
       ? rangeFromMonth(this.selectedMonth())
       : rangeFromYear(this.selectedYear());
-    const monthForBudget = this.selectedMonth();
     const seriesRequest = this.viewMode() === 'monthly'
       ? this.api.weeklyExpensesDailyTotals(weekStartIsoDate())
       : this.api.yearlyExpensesMonthlyTotals(this.selectedYear());
@@ -602,7 +601,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       recentExpenses: this.api.recentExpenses(5),
       report: this.api.report(range.from, range.to),
       categories: this.api.categories(),
-      budgets: this.api.monthlyBudgets(monthForBudget),
+      budgets: this.api.monthlyBudgets(),
       periodTotals: seriesRequest,
       categoryTotals: this.api.periodExpenseCategoryTotals(range.from, range.to)
     }).subscribe({

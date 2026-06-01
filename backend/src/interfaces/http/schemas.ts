@@ -94,7 +94,6 @@ export const createCategorySchema = z.object({
 });
 
 export const monthlyBudgetSchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/),
   categoryId: z.string().uuid(),
   subcategoryId: z.string().uuid().optional(),
   amount: z.number().positive(),

@@ -41,7 +41,6 @@ export interface Income {
 export interface MonthlyBudget {
   id: string;
   tenantId: TenantId;
-  month: string;
   categoryId: CategoryId;
   subcategoryId?: CategoryId;
   amount: number;

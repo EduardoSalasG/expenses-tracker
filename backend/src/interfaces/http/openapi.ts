@@ -284,23 +284,19 @@ export const openApiSpec = {
     },
     '/budgets/monthly': {
       get: {
-        summary: 'List monthly budgets',
+        summary: 'List permanent budgets (applied every month)',
         security: [{ bearerAuth: [] }],
-        parameters: [
-          queryParam('month', 'string', 'Budget month in YYYY-MM format')
-        ],
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       put: {
-        summary: 'Create or update monthly budget',
+        summary: 'Create or update permanent budget',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
-          month: { type: 'string', example: '2026-05' },
           categoryId: { type: 'string' },
           subcategoryId: { type: 'string' },
           amount: { type: 'number' },
           currency: { type: 'string', example: 'CLP' }
-        }, ['month', 'categoryId', 'amount', 'currency']),
+        }, ['categoryId', 'amount', 'currency']),
         responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
       }
     },
