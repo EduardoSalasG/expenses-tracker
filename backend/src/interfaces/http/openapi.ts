@@ -282,7 +282,7 @@ export const openApiSpec = {
         responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
       }
     },
-    '/budgets/monthly': {
+    '/budgets': {
       get: {
         summary: 'List permanent budgets (applied every month)',
         security: [{ bearerAuth: [] }],
@@ -290,6 +290,26 @@ export const openApiSpec = {
       },
       put: {
         summary: 'Create or update permanent budget',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          categoryId: { type: 'string' },
+          subcategoryId: { type: 'string' },
+          amount: { type: 'number' },
+          currency: { type: 'string', example: 'CLP' }
+        }, ['categoryId', 'amount', 'currency']),
+        responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+      }
+    },
+    '/budgets/monthly': {
+      get: {
+        deprecated: true,
+        summary: 'Legacy alias of GET /budgets',
+        security: [{ bearerAuth: [] }],
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
+      },
+      put: {
+        deprecated: true,
+        summary: 'Legacy alias of PUT /budgets',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
           categoryId: { type: 'string' },

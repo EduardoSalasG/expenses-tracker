@@ -143,11 +143,11 @@ export class ApiService {
   }
 
   monthlyBudgets() {
-    return this.http.get<MonthlyBudget[]>(`${environment.apiBaseUrl}/budgets/monthly`);
+    return this.http.get<MonthlyBudget[]>(`${environment.apiBaseUrl}/budgets`);
   }
 
   upsertMonthlyBudget(payload: unknown) {
-    return this.http.put(`${environment.apiBaseUrl}/budgets/monthly`, payload);
+    return this.http.put(`${environment.apiBaseUrl}/budgets`, payload);
   }
 
   report(from: string, to: string) {

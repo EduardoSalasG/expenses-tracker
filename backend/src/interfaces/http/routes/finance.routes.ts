@@ -15,6 +15,9 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   app.get('/incomes', auth, asyncHandler(controller.listIncomes));
   app.get('/categories', auth, asyncHandler(controller.listCategories));
   app.post('/categories', auth, asyncHandler(controller.createCategory));
+  app.get('/budgets', auth, asyncHandler(controller.monthlyBudgets));
+  app.put('/budgets', auth, asyncHandler(controller.upsertMonthlyBudget));
+  // Backward compatibility (legacy clients)
   app.get('/budgets/monthly', auth, asyncHandler(controller.monthlyBudgets));
   app.put('/budgets/monthly', auth, asyncHandler(controller.upsertMonthlyBudget));
   app.get('/reports', auth, asyncHandler(controller.report));

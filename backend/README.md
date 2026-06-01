@@ -115,9 +115,11 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 ## Budget API
 
-`GET /budgets/monthly?month=YYYY-MM` lists tenant-scoped budgets for a month.
+`GET /budgets` lists tenant-scoped permanent budgets (reused every month).
 
-`PUT /budgets/monthly` creates or updates a monthly category budget. Budgets can target a whole category or an optional subcategory.
+`PUT /budgets` creates or updates a permanent category budget. Budgets can target a whole category or an optional subcategory.
+
+Legacy compatibility: `GET/PUT /budgets/monthly` remain available as aliases.
 
 ## Report API
 
