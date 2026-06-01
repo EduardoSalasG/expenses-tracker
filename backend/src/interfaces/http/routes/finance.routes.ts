@@ -17,9 +17,11 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   app.post('/categories', auth, asyncHandler(controller.createCategory));
   app.get('/budgets', auth, asyncHandler(controller.monthlyBudgets));
   app.put('/budgets', auth, asyncHandler(controller.upsertMonthlyBudget));
-  // Backward compatibility (legacy clients)
-  app.get('/budgets/monthly', auth, asyncHandler(controller.monthlyBudgets));
-  app.put('/budgets/monthly', auth, asyncHandler(controller.upsertMonthlyBudget));
+  // Backward compatibility (legacy clients). Can be disabled by env flag.
+  if (container.config.legacyBudgetsEndpointsEnabled) {
+    app.get('/budgets/monthly', auth, asyncHandler(controller.monthlyBudgets));
+    app.put('/budgets/monthly', auth, asyncHandler(controller.upsertMonthlyBudget));
+  }
   app.get('/reports', auth, asyncHandler(controller.report));
   app.get('/reports/expenses/yearly-monthly', auth, asyncHandler(controller.yearlyExpensesMonthlyTotals));
   app.get('/reports/expenses/monthly-daily', auth, asyncHandler(controller.monthlyExpensesDailyTotals));

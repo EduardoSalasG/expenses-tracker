@@ -64,3 +64,4 @@ Use this checklist for every production promotion from `dev` to `main`.
   - login OTP
   - one expense save from messaging channel
   - dashboard loads with current month/year view
+- Save evidence in `docs/post-deploy-qa-template.md` (one file per release run or copied section).

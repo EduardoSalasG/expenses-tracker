@@ -349,14 +349,14 @@ export const openApiSpec = {
       get: {
         deprecated: true,
         summary: 'Legacy alias of GET /budgets',
-        description: 'Deprecated compatibility route. Use GET /budgets.',
+        description: 'Deprecated compatibility route. Use GET /budgets. Route may be disabled when LEGACY_BUDGETS_ENDPOINTS_ENABLED=false.',
         security: [{ bearerAuth: [] }],
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       put: {
         deprecated: true,
         summary: 'Legacy alias of PUT /budgets',
-        description: 'Deprecated compatibility route. Use PUT /budgets.',
+        description: 'Deprecated compatibility route. Use PUT /budgets. Route may be disabled when LEGACY_BUDGETS_ENDPOINTS_ENABLED=false.',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
           categoryId: { type: 'string' },

@@ -36,6 +36,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_TEMPERATURE`: low value recommended for structured financial extraction.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
 - `FRONTEND_ORIGIN`: allowed CORS origin.
+- `LEGACY_BUDGETS_ENDPOINTS_ENABLED`: keeps deprecated `GET/PUT /budgets/monthly` aliases enabled (`true` by default). Set to `false` to enforce `/budgets` only.
 
 ## Database
 
@@ -119,7 +120,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `PUT /budgets` creates or updates a permanent category budget. Budgets can target a whole category or an optional subcategory.
 
-Canonical endpoint is `/budgets`. Legacy compatibility aliases `GET/PUT /budgets/monthly` remain available as deprecated routes and should be removed from clients.
+Canonical endpoint is `/budgets`. Legacy compatibility aliases `GET/PUT /budgets/monthly` are deprecated and controlled by `LEGACY_BUDGETS_ENDPOINTS_ENABLED`.
 
 ## Report API
 

@@ -37,7 +37,8 @@ const envSchema = z.object({
   MESSAGE_INTERPRETER_TEMPERATURE: optionalNumberEnvSchema(0.1).pipe(z.number().min(0).max(2)),
   OTP_DEBUG_RESPONSE_ENABLED: booleanEnvSchema.default(false),
   FRONTEND_ORIGIN: z.string().default('http://localhost:4200'),
-  USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false)
+  USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false),
+  LEGACY_BUDGETS_ENDPOINTS_ENABLED: booleanEnvSchema.default(true)
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -68,6 +69,7 @@ export function loadConfig() {
     messageInterpreterTemperature: env.MESSAGE_INTERPRETER_TEMPERATURE,
     otpDebugResponseEnabled: env.OTP_DEBUG_RESPONSE_ENABLED,
     frontendOrigin: env.FRONTEND_ORIGIN,
-    useInMemoryRepositories: env.USE_IN_MEMORY_REPOSITORIES
+    useInMemoryRepositories: env.USE_IN_MEMORY_REPOSITORIES,
+    legacyBudgetsEndpointsEnabled: env.LEGACY_BUDGETS_ENDPOINTS_ENABLED
   };
 }

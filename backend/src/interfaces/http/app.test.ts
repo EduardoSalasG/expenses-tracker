@@ -167,6 +167,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     otpDebugResponseEnabled: false,
     frontendOrigin: 'http://localhost:4200',
     useInMemoryRepositories: true,
+    legacyBudgetsEndpointsEnabled: true,
     ...overrides
   };
 }

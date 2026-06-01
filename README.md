@@ -132,5 +132,6 @@ See:
 - [Operations](docs/operations.md)
 - [Release Checklist](docs/release-checklist.md)
 - [QA Evidence 2026-06-01](docs/qa-evidence-2026-06-01.md)
+- [Post-Deploy QA Template](docs/post-deploy-qa-template.md)
 - [Flow Diagrams](docs/diagrams/flows.md)
 - [Database Query Analysis](database/query-analysis.md)
