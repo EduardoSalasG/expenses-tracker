@@ -232,6 +232,7 @@ export const openApiSpec = {
           preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' }
         }, ['firstName', 'lastName', 'preferredName', 'countryOfResidence', 'preferredCurrency', 'preferredLanguage']),
         responses: standardResponses({ data: { type: 'object' } })
+        
       }
     },
     '/expenses': {
@@ -246,7 +247,7 @@ export const openApiSpec = {
           queryParam('paymentMethodKind', 'string', 'cash, transfer, or card'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       post: authenticatedPost('Create manual expense').post
     },
@@ -261,7 +262,7 @@ export const openApiSpec = {
           queryParam('currency', 'string', 'Currency code such as CLP'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       post: authenticatedPost('Create income').post
     },
@@ -269,7 +270,7 @@ export const openApiSpec = {
       get: {
         summary: 'List categories and subcategories',
         security: [{ bearerAuth: [] }],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       post: {
         summary: 'Create category or subcategory',
@@ -278,7 +279,7 @@ export const openApiSpec = {
           name: { type: 'string' },
           parentId: { type: 'string', description: 'Optional parent category UUID for subcategories.' }
         }, ['name']),
-        responses: standardResponses({ data: { type: 'object' } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
       }
     },
     '/budgets/monthly': {
@@ -288,7 +289,7 @@ export const openApiSpec = {
         parameters: [
           queryParam('month', 'string', 'Budget month in YYYY-MM format')
         ],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       },
       put: {
         summary: 'Create or update monthly budget',
@@ -300,7 +301,7 @@ export const openApiSpec = {
           amount: { type: 'number' },
           currency: { type: 'string', example: 'CLP' }
         }, ['month', 'categoryId', 'amount', 'currency']),
-        responses: standardResponses({ data: { type: 'object' } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
       }
     },
     '/reports': authenticatedGet('Generate report for query period'),
@@ -309,7 +310,7 @@ export const openApiSpec = {
         summary: 'Yearly expenses grouped by month and currency',
         security: [{ bearerAuth: [] }],
         parameters: [queryParam('year', 'integer', 'Year in YYYY format')],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/reports/expenses/monthly-daily': {
@@ -317,7 +318,7 @@ export const openApiSpec = {
         summary: 'Monthly expenses grouped by day and currency',
         security: [{ bearerAuth: [] }],
         parameters: [queryParam('month', 'string', 'Month in YYYY-MM format')],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/reports/expenses/weekly-daily': {
@@ -325,7 +326,7 @@ export const openApiSpec = {
         summary: 'Weekly expenses grouped by day and currency',
         security: [{ bearerAuth: [] }],
         parameters: [queryParam('weekStart', 'string', 'Week start date in YYYY-MM-DD format (Monday recommended)')],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/reports/incomes/yearly-monthly': {
@@ -333,7 +334,7 @@ export const openApiSpec = {
         summary: 'Yearly incomes grouped by month and currency',
         security: [{ bearerAuth: [] }],
         parameters: [queryParam('year', 'integer', 'Year in YYYY format')],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/reports/incomes/monthly-daily': {
@@ -341,7 +342,7 @@ export const openApiSpec = {
         summary: 'Monthly incomes grouped by day and currency',
         security: [{ bearerAuth: [] }],
         parameters: [queryParam('month', 'string', 'Month in YYYY-MM format')],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/reports/expenses/category-totals': {
@@ -352,7 +353,7 @@ export const openApiSpec = {
           queryParam('from', 'string', 'ISO datetime lower bound'),
           queryParam('to', 'string', 'ISO datetime upper bound')
         ],
-        responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } })
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
     '/report-preferences': authenticatedPut('Update report preferences'),
@@ -411,21 +412,59 @@ function jsonBody(properties: Record<string, unknown>, required: string[] = []) 
 
 function standardResponses(properties: Record<string, unknown>) {
   return {
-    '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties } } } },
-    '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
+    '200': {
+      description: 'OK',
+      content: {
+        'application/json': {
+          schema: { type: 'object', properties },
+          examples: {
+            success: { value: Object.fromEntries(Object.keys(properties).map((key) => [key, sampleForKey(key)])) }
+          }
+        }
+      }
+    },
+    '400': {
+      description: 'Validation error',
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/Error' },
+          examples: {
+            validationError: { value: { error: 'Validation failed.' } }
+          }
+        }
+      }
+    }
   };
 }
 
 function authenticatedGet(summary: string) {
-  return { get: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'object' } }) } };
+  return {
+    get: {
+      summary,
+      security: [{ bearerAuth: [] }],
+      responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+    }
+  };
 }
 
 function authenticatedPost(summary: string) {
-  return { post: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'object' } }) } };
+  return {
+    post: {
+      summary,
+      security: [{ bearerAuth: [] }],
+      responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+    }
+  };
 }
 
 function authenticatedPut(summary: string) {
-  return { put: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'object' } }) } };
+  return {
+    put: {
+      summary,
+      security: [{ bearerAuth: [] }],
+      responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+    }
+  };
 }
 
 function authenticatedCollection(summary: string) {
@@ -438,4 +477,29 @@ function authenticatedCollection(summary: string) {
 
 function queryParam(name: string, type: string, description: string) {
   return { name, in: 'query', required: false, schema: { type }, description };
+}
+
+function withUnauthorized(responses: Record<string, unknown>) {
+  return {
+    ...responses,
+    '401': {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/Error' },
+          examples: {
+            missingToken: { value: { error: 'Unauthorized' } }
+          }
+        }
+      }
+    }
+  };
+}
+
+function sampleForKey(key: string) {
+  if (key === 'data') return {};
+  if (key === 'accessToken' || key === 'refreshToken' || key === 'token') return '<token>';
+  if (key === 'expiresAt') return '2026-06-01T12:00:00.000Z';
+  if (key === 'telegramChatId') return '123456789';
+  return true;
 }

@@ -2,6 +2,7 @@
 
 This document captures the MVP runbook for local production-style checks and scheduled jobs.
 Formal promotion checklist lives in `docs/release-checklist.md`.
+Latest executed evidence lives in `docs/release-evidence-2026-06-01.md` and `docs/qa-e2e-2026-06-01.md`.
 
 ## Local Development
 
@@ -97,11 +98,6 @@ Keep `backend/.env` outside Git. Production deployments need:
 
 - `DATABASE_URL`
 - `JWT_SECRET`
-- `WHATSAPP_VERIFY_TOKEN`
-- `WHATSAPP_APP_SECRET`
-- `WHATSAPP_ACCESS_TOKEN`
-- `WHATSAPP_PHONE_NUMBER_ID`
-- `WHATSAPP_BUSINESS_ACCOUNT_ID`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET_TOKEN`
 - `MESSAGE_INTERPRETER_PROVIDER`

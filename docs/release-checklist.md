@@ -21,16 +21,14 @@ Use this checklist for every production promotion from `dev` to `main`.
   - app rollback first (previous image/version)
   - DB rollback by forward-fix migration (no destructive rollback in-place unless explicitly planned).
 
-## 3) Messaging smoke (WhatsApp + Telegram)
+## 3) Messaging smoke (Telegram)
 
-- WhatsApp webhook:
-  - signature enabled (`WHATSAPP_APP_SECRET`)
-  - send one inbound message, verify audit row and saved movement
-  - send duplicate text, verify duplicate confirmation flow
 - Telegram webhook:
   - verify `x-telegram-bot-api-secret-token` when configured
+  - run `/start` and verify login-link response
   - run `/link +<registered-phone>`
   - send natural-language expense and verify save + response
+  - send duplicate text and verify duplicate confirmation flow
   - run movement update by reference and verify update confirmation
 
 ## 4) Bilingual QA (es/en)
