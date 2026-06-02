@@ -45,6 +45,8 @@ export type AppConfig = ReturnType<typeof loadConfig>;
 
 export function loadConfig() {
   const env = envSchema.parse(process.env);
+  const frontendOrigins = parseFrontendOrigins(env.FRONTEND_ORIGIN);
+  const frontendPublicOrigin = resolveFrontendPublicOrigin(frontendOrigins);
 
   return {
     nodeEnv: env.NODE_ENV,
@@ -69,7 +71,45 @@ export function loadConfig() {
     messageInterpreterTemperature: env.MESSAGE_INTERPRETER_TEMPERATURE,
     otpDebugResponseEnabled: env.OTP_DEBUG_RESPONSE_ENABLED,
     frontendOrigin: env.FRONTEND_ORIGIN,
+    frontendOrigins,
+    frontendPublicOrigin,
     useInMemoryRepositories: env.USE_IN_MEMORY_REPOSITORIES,
     legacyBudgetsEndpointsEnabled: env.LEGACY_BUDGETS_ENDPOINTS_ENABLED
   };
+}
+
+function parseFrontendOrigins(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function resolveFrontendPublicOrigin(origins: string[]) {
+  const lastPublic = [...origins]
+    .reverse()
+    .find((origin) => isHttpUrl(origin) && !isLocalhostOrigin(origin));
+
+  if (lastPublic) return lastPublic;
+
+  const lastValid = [...origins].reverse().find(isHttpUrl);
+  return lastValid ?? 'http://localhost:4200';
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isLocalhostOrigin(value: string) {
+  try {
+    const url = new URL(value);
+    return ['localhost', '127.0.0.1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
 }

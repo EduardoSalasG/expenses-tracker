@@ -16,12 +16,7 @@ export function createApp(container: AppContainer) {
   // Set FRONTEND_ORIGIN="*" to allow any origin (dev only).
   const frontendOrigin = container.config.frontendOrigin?.trim();
   const allowAll = frontendOrigin === '*';
-  const allowList = allowAll
-    ? []
-    : (frontendOrigin ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+  const allowList = allowAll ? [] : container.config.frontendOrigins;
 
   app.use(cors({
     origin: (origin, callback) => {

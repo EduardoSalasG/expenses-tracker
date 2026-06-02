@@ -166,6 +166,8 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     messageInterpreterTemperature: 0.1,
     otpDebugResponseEnabled: false,
     frontendOrigin: 'http://localhost:4200',
+    frontendOrigins: ['http://localhost:4200'],
+    frontendPublicOrigin: 'http://localhost:4200',
     useInMemoryRepositories: true,
     legacyBudgetsEndpointsEnabled: true,
     ...overrides

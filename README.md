@@ -99,6 +99,8 @@ Before going live:
 3. Update the `netlify.toml` `/api/*` redirect target to your real Render backend URL if it differs from `https://expenses-tracker-api.onrender.com`.
 4. Set `FRONTEND_ORIGIN` in Render backend to your Netlify domain.
 
+For temporary Netlify -> local backend testing, point `netlify.toml` `/api/*` to your public dev tunnel backend URL and include the Netlify domain in backend `FRONTEND_ORIGIN`.
+
 Release flow:
 
 1. Work on `dev`.

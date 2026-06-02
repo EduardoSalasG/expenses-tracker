@@ -39,7 +39,7 @@ export class InboundMessagingService {
     for (const message of batch.messages) {
       if (batch.channel === 'telegram' && isStartCommand(message.message) && message.replyTo) {
         const { token } = await this.container.useCases.requestTelegramLinkToken.execute(message.replyTo);
-        const linkUrl = `${this.container.config.frontendOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
+        const linkUrl = `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
         await this.container.messaging.sendText(
           message.replyTo,
           [

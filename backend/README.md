@@ -35,7 +35,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_MODEL`: model name. For the planned GitHub Models setup, use `deepseek/DeepSeek-V3-0324`.
 - `MESSAGE_INTERPRETER_TEMPERATURE`: low value recommended for structured financial extraction.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
-- `FRONTEND_ORIGIN`: allowed CORS origin.
+- `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list.
 - `LEGACY_BUDGETS_ENDPOINTS_ENABLED`: keeps deprecated `GET/PUT /budgets/monthly` aliases enabled (`true` by default). Set to `false` to enforce `/budgets` only.
 
 ## Database
