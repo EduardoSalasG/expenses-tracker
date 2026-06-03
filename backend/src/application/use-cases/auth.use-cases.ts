@@ -93,8 +93,8 @@ export class RequestEmailMagicLinkUseCase {
     await this.email.send({
       to: user.email,
       subject: 'Your Expenses Tracker access link',
-      text: buildMagicLinkText(user.preferredName, loginUrl),
-      html: buildMagicLinkHtml(user.preferredName, loginUrl)
+      text: buildMagicLinkText(user.preferredLanguage ?? 'es', user.preferredName, loginUrl),
+      html: buildMagicLinkHtml(user.preferredLanguage ?? 'es', user.preferredName, loginUrl)
     });
 
     return {
@@ -277,7 +277,18 @@ function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string,
   ].join('\n');
 }
 
-function buildMagicLinkText(preferredName: string, loginUrl: string) {
+function buildMagicLinkText(language: 'es' | 'en', preferredName: string, loginUrl: string) {
+  if (language === 'es') {
+    return [
+      `${preferredName}, aquí tienes tu enlace de acceso a Expenses Tracker.`,
+      '',
+      'Úsalo dentro de los próximos 15 minutos:',
+      loginUrl,
+      '',
+      'Si no solicitaste este correo, puedes ignorarlo.'
+    ].join('\n');
+  }
+
   return [
     `${preferredName}, here is your access link for Expenses Tracker.`,
     '',
@@ -288,13 +299,89 @@ function buildMagicLinkText(preferredName: string, loginUrl: string) {
   ].join('\n');
 }
 
-function buildMagicLinkHtml(preferredName: string, loginUrl: string) {
-  return [
-    `<p>${escapeHtml(preferredName)}, here is your access link for <strong>Expenses Tracker</strong>.</p>`,
-    `<p><a href="${escapeHtml(loginUrl)}">Open my account</a></p>`,
-    '<p>This link expires in 15 minutes.</p>',
-    '<p>If you did not request this email, you can ignore it.</p>'
-  ].join('');
+function buildMagicLinkHtml(language: 'es' | 'en', preferredName: string, loginUrl: string) {
+  const copy = language === 'es'
+    ? {
+        preheader: 'Tu enlace de acceso a Expenses Tracker',
+        greeting: `${preferredName}, aquí tienes tu enlace de acceso.`,
+        description: 'Abre tu cuenta con un solo clic. Este enlace estará disponible durante 15 minutos.',
+        cta: 'Abrir mi cuenta',
+        fallback: 'Si el botón no funciona, copia y pega este enlace en tu navegador:',
+        expiry: 'Este enlace vence en 15 minutos.',
+        ignore: 'Si no solicitaste este correo, puedes ignorarlo.',
+        signoff: 'Expenses Tracker',
+        eyebrow: 'ACCESO SEGURO'
+      }
+    : {
+        preheader: 'Your Expenses Tracker access link',
+        greeting: `${preferredName}, here is your access link.`,
+        description: 'Open your account in one click. This link will be available for 15 minutes.',
+        cta: 'Open my account',
+        fallback: 'If the button does not work, copy and paste this link into your browser:',
+        expiry: 'This link expires in 15 minutes.',
+        ignore: 'If you did not request this email, you can ignore it.',
+        signoff: 'Expenses Tracker',
+        eyebrow: 'SECURE ACCESS'
+      };
+  const safeName = escapeHtml(preferredName);
+  const safeUrl = escapeHtml(loginUrl);
+
+  return `<!doctype html>
+<html lang="${language}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expenses Tracker</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f3f6fb;color:#0f172a;font-family:Inter,Segoe UI,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(copy.preheader)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f3f6fb;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:560px;">
+            <tr>
+              <td style="padding-bottom:16px;">
+                <div style="display:inline-flex;align-items:center;gap:12px;">
+                  <div style="width:44px;height:44px;border-radius:12px;background:#2f5be7;color:#ffffff;font-size:22px;font-weight:700;line-height:44px;text-align:center;">ET</div>
+                  <div>
+                    <div style="margin:0;color:#0f172a;font-size:20px;font-weight:700;">Expenses Tracker</div>
+                    <div style="margin-top:2px;color:#64748b;font-size:12px;letter-spacing:0.08em;">${escapeHtml(copy.eyebrow)}</div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border:1px solid #d7deea;border-radius:20px;padding:32px;">
+                <div style="color:#2f5be7;font-size:12px;font-weight:700;letter-spacing:0.08em;margin-bottom:14px;">${escapeHtml(copy.eyebrow)}</div>
+                <h1 style="margin:0 0 12px;color:#0f172a;font-size:28px;line-height:1.2;font-weight:700;">${safeName}</h1>
+                <p style="margin:0 0 24px;color:#475569;font-size:16px;line-height:1.6;">${escapeHtml(copy.greeting)} ${escapeHtml(copy.description)}</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 24px;">
+                  <tr>
+                    <td style="border-radius:999px;background:#2f5be7;">
+                      <a href="${safeUrl}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;">${escapeHtml(copy.cta)}</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 8px;color:#0f172a;font-size:14px;font-weight:600;">${escapeHtml(copy.fallback)}</p>
+                <p style="margin:0 0 20px;word-break:break-all;">
+                  <a href="${safeUrl}" style="color:#2f5be7;text-decoration:none;font-size:14px;line-height:1.6;">${safeUrl}</a>
+                </p>
+                <div style="height:1px;background:#e2e8f0;margin:0 0 20px;"></div>
+                <p style="margin:0 0 6px;color:#475569;font-size:14px;line-height:1.6;">${escapeHtml(copy.expiry)}</p>
+                <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">${escapeHtml(copy.ignore)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 4px 0;color:#64748b;font-size:12px;line-height:1.6;text-align:center;">
+                ${escapeHtml(copy.signoff)}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
 function maskEmail(email: string) {
