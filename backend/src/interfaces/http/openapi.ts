@@ -122,6 +122,42 @@ export const openApiSpec = {
         }
       }
     },
+    '/auth/telegram/registration-link': {
+      post: {
+        summary: 'Create Telegram deep link for web-first registration',
+        requestBody: jsonBody({
+          phoneNumber: { type: 'string', example: '+56912345678' }
+        }, ['phoneNumber']),
+        responses: {
+          '200': {
+            description: 'Deep link generated',
+            content: {
+              'application/json': {
+                examples: {
+                  success: {
+                    value: {
+                      phoneNumber: '+56912345678',
+                      botUrl: 'https://t.me/AlphaExpensesTrackerBot?start=<registration-token>'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or configuration error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPhone: { value: { error: 'Validation failed.' } },
+                  missingUsername: { value: { error: 'Telegram bot username is not configured.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/otp/verify': {
       post: {
         summary: 'Verify Telegram OTP and receive tokens',

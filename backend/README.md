@@ -36,6 +36,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_TEMPERATURE`: low value recommended for structured financial extraction.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
 - `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list.
+- `TELEGRAM_BOT_USERNAME`: bot username without the leading `@`. Required for generating Telegram registration deep links from the web.
 - `LEGACY_BUDGETS_ENDPOINTS_ENABLED`: keeps deprecated `GET/PUT /budgets/monthly` aliases enabled (`true` by default). Set to `false` to enforce `/budgets` only.
 
 ## Database
@@ -102,10 +103,12 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
 
+`POST /auth/telegram/registration-link` starts the web-first registration flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration in the web app without asking for the Telegram chat id manually.
+
 `POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
 
 - If the Telegram chat is already linked to a user, the endpoint returns `linkedUser: true` plus access token, refresh token, and user snapshot. The frontend should create the session immediately and skip OTP.
-- If the chat is not linked yet, the endpoint returns `linkedUser: false`, `telegramChatId`, and optionally the registered phone number if it was pre-associated. The frontend can then continue with OTP or registration fallback.
+- If the chat is not linked yet, the endpoint returns `linkedUser: false`, `telegramChatId`, and optionally the registered phone number if it came from a web registration intent. The frontend can then request OTP and finish profile creation without asking for Telegram chat id manually.
 
 ## Expense API
 
@@ -261,6 +264,7 @@ Linking flow example:
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 
 Telegram webhook setup uses Bot API `setWebhook` and `getWebhookInfo`. Use `/start` from the bot chat to receive an auto-generated login link. Already linked users are signed in directly from that link; unlinked users continue with `/link +<phone>` and OTP/registration fallback.
+For web-first registration, the bot deep link also supports `/start <registration-token>`, which converts the pending phone registration into a Telegram login link tied to that chat.
 
 ## Report Delivery
 

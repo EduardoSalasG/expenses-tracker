@@ -1,4 +1,4 @@
-export { ConsumeTelegramLinkTokenUseCase, RequestOtpUseCase, RequestTelegramLinkTokenUseCase, RefreshSessionUseCase, VerifyOtpUseCase } from './auth.use-cases.js';
+export { ConsumeTelegramLinkTokenUseCase, CreateTelegramRegistrationLinkUseCase, RequestOtpUseCase, RequestTelegramLinkTokenUseCase, RefreshSessionUseCase, VerifyOtpUseCase } from './auth.use-cases.js';
 export { FinanceUseCases } from './finance.use-cases.js';
 export { ProcessInboundFinanceMessageUseCase } from './process-inbound-finance-message.use-case.js';
 export { SendDueReportsUseCase } from './send-due-reports.use-case.js';

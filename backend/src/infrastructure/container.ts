@@ -32,6 +32,7 @@ import {
 } from './repositories/postgres.js';
 import {
   ConsumeTelegramLinkTokenUseCase,
+  CreateTelegramRegistrationLinkUseCase,
   FinanceUseCases,
   ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
@@ -99,6 +100,9 @@ export function createContainer(config: AppConfig) {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
       requestTelegramLinkToken: new RequestTelegramLinkTokenUseCase(telegramLinkTokens, clock),
+      createTelegramRegistrationLink: new CreateTelegramRegistrationLinkUseCase(tokens, {
+        telegramBotUsername: config.telegramBotUsername
+      }),
       consumeTelegramLinkToken: new ConsumeTelegramLinkTokenUseCase(telegramLinkTokens, users, tokens, clock),
       verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging, {
         frontendPublicOrigin: config.frontendPublicOrigin

@@ -107,6 +107,13 @@ Release flow:
 2. Merge `dev` into `main` only when production-ready.
 3. Let Netlify and Render auto-deploy from `main`.
 
+## Registration and Access
+
+- Logged-out visitors land on `/`, a public landing page focused on registration and feature discovery.
+- The landing header keeps a single login action for existing users.
+- New users start with phone number only in the web app, then continue through a Telegram deep link that binds the chat without asking for `chat_id` manually.
+- Returning Telegram-linked users can open the web from the bot and sign in directly from the link token without OTP.
+
 ## Telegram Testing
 
 Configure webhook with Telegram Bot API and verify with `getWebhookInfo`.

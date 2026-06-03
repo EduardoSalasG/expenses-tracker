@@ -22,7 +22,6 @@ import { I18nService } from '../core/i18n.service';
           </a>
           <nav aria-label="Primary" class="landing-primary-nav flex w-full items-center gap-2 sm:w-auto sm:gap-3">
             <a mat-button routerLink="/login" class="flex-1 !text-brand-navy sm:flex-none">{{ t('landing_login') }}</a>
-            <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="flex-1 sm:flex-none">{{ t('landing_register') }}</a>
           </nav>
         </div>
       </header>
@@ -48,9 +47,6 @@ import { I18nService } from '../core/i18n.service';
             <div class="landing-cta-group mt-8 flex flex-col gap-3 sm:flex-row">
               <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="!h-12 !px-6">
                 {{ t('landing_register') }}
-              </a>
-              <a mat-stroked-button routerLink="/login" class="!h-12 !px-6 !border-brand-border !text-brand-ink">
-                {{ t('landing_login') }}
               </a>
             </div>
             <p class="mt-3 text-sm text-brand-muted">{{ t('landing_cta_support') }}</p>

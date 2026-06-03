@@ -627,11 +627,11 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
 export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async create(input: { token: string; chatId: string; expiresAt: Date }) {
+  async create(input: { token: string; chatId: string; phoneNumber?: string; expiresAt: Date }) {
     await this.pool.query(
-      `insert into telegram_link_tokens (token, chat_id, expires_at)
-       values ($1, $2, $3)`,
-      [input.token, input.chatId, input.expiresAt]
+      `insert into telegram_link_tokens (token, chat_id, phone_number, expires_at)
+       values ($1, $2, $3, $4)`,
+      [input.token, input.chatId, input.phoneNumber ?? null, input.expiresAt]
     );
   }
 
@@ -642,13 +642,14 @@ export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRep
        where token = $1
          and consumed_at is null
          and expires_at >= $2
-       returning token, chat_id, expires_at`,
+       returning token, chat_id, phone_number, expires_at`,
       [token, now]
     );
     if (!result.rows[0]) return undefined;
     return {
       token: result.rows[0].token,
       chatId: result.rows[0].chat_id,
+      phoneNumber: result.rows[0].phone_number ?? undefined,
       expiresAt: result.rows[0].expires_at instanceof Date ? result.rows[0].expires_at.toISOString() : String(result.rows[0].expires_at)
     };
   }

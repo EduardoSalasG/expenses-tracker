@@ -10,5 +10,6 @@ export function registerAuthRoutes(app: Express, container: AppContainer) {
   app.post('/auth/otp/verify', asyncHandler(controller.verifyOtp));
   app.post('/auth/refresh', asyncHandler(controller.refreshSession));
   app.post('/auth/telegram/link-token', asyncHandler(controller.createTelegramLinkToken));
+  app.post('/auth/telegram/registration-link', asyncHandler(controller.createTelegramRegistrationLink));
   app.post('/auth/telegram/consume-link-token', asyncHandler(controller.consumeTelegramLinkToken));
 }

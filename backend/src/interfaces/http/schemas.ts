@@ -28,6 +28,10 @@ export const createTelegramLinkTokenSchema = z.object({
   chatId: z.string().min(2)
 });
 
+export const createTelegramRegistrationLinkSchema = z.object({
+  phoneNumber: phoneNumberSchema
+});
+
 export const consumeTelegramLinkTokenSchema = z.object({
   token: z.string().min(10)
 });

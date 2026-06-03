@@ -553,11 +553,12 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
 }
 
 export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRepository {
-  private readonly tokens = new Map<string, { chatId: string; expiresAt: string; consumed: boolean }>();
+  private readonly tokens = new Map<string, { chatId: string; phoneNumber?: string; expiresAt: string; consumed: boolean }>();
 
-  async create(input: { token: string; chatId: string; expiresAt: Date }) {
+  async create(input: { token: string; chatId: string; phoneNumber?: string; expiresAt: Date }) {
     this.tokens.set(input.token, {
       chatId: input.chatId,
+      phoneNumber: input.phoneNumber,
       expiresAt: input.expiresAt.toISOString(),
       consumed: false
     });
@@ -572,6 +573,7 @@ export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRep
     return {
       token,
       chatId: record.chatId,
+      phoneNumber: record.phoneNumber,
       expiresAt: record.expiresAt
     };
   }

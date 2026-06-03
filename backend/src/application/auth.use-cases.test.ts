@@ -166,11 +166,19 @@ class FakeTokenService implements TokenService {
     return `refresh:${user.id}`;
   }
 
+  signTelegramRegistrationIntent(phoneNumber: string) {
+    return `telegram-registration:${phoneNumber}`;
+  }
+
   verifyAccessToken() {
     return { userId: 'user-id', tenantId: 'tenant-id' };
   }
 
   verifyRefreshToken() {
     return { userId: 'user-id', tenantId: 'tenant-id' };
+  }
+
+  verifyTelegramRegistrationIntent(token: string) {
+    return { phoneNumber: token.replace('telegram-registration:', '') };
   }
 }

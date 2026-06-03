@@ -168,6 +168,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     frontendOrigin: 'http://localhost:4200',
     frontendOrigins: ['http://localhost:4200'],
     frontendPublicOrigin: 'http://localhost:4200',
+    telegramBotUsername: '',
     useInMemoryRepositories: true,
     legacyBudgetsEndpointsEnabled: true,
     ...overrides

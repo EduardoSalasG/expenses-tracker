@@ -29,6 +29,11 @@ interface TelegramLinkRegistrationResponse {
   linkedUser: false;
 }
 
+interface TelegramRegistrationLinkResponse {
+  phoneNumber: string;
+  botUrl: string;
+}
+
 export interface RequestOtpResponse {
   sent: boolean;
   requiresRegistration: boolean;
@@ -56,6 +61,10 @@ export class AuthService {
 
   requestOtpWithTelegram(phoneNumber: string, telegramChatId?: string) {
     return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber, telegramChatId });
+  }
+
+  createTelegramRegistrationLink(phoneNumber: string) {
+    return this.http.post<TelegramRegistrationLinkResponse>(`${environment.apiBaseUrl}/auth/telegram/registration-link`, { phoneNumber });
   }
 
   consumeTelegramLinkToken(token: string) {

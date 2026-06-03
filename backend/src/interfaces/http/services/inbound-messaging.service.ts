@@ -37,21 +37,52 @@ export class InboundMessagingService {
     }
 
     for (const message of batch.messages) {
-      if (batch.channel === 'telegram' && message.replyTo && (isStartCommand(message.message) || isWebAccessRequest(message.message))) {
-        const linkUrl = await this.buildTelegramLoginUrl(message.replyTo);
-        await this.container.messaging.sendText(
-          message.replyTo,
-          isStartCommand(message.message)
-            ? buildTelegramStartMessage(linkUrl)
-            : buildTelegramWebMessage(linkUrl),
-          { channel: 'telegram' }
-        );
-        this.container.logger.info('Telegram access link command processed.', {
-          channel: batch.channel,
-          replyTo: message.replyTo,
-          command: isStartCommand(message.message) ? 'start' : 'web'
-        });
-        continue;
+      if (batch.channel === 'telegram' && message.replyTo) {
+        const startPayload = getStartPayload(message.message);
+        if (startPayload !== undefined) {
+          const registrationLink = await this.tryBuildTelegramRegistrationLoginUrl(message.replyTo, startPayload);
+          if (startPayload && !registrationLink) {
+            await this.container.messaging.sendText(
+              message.replyTo,
+              buildTelegramRegistrationStartInvalidMessage(),
+              { channel: 'telegram' }
+            );
+            this.container.logger.info('Telegram registration start payload rejected.', {
+              channel: batch.channel,
+              replyTo: message.replyTo
+            });
+            continue;
+          }
+          const linkUrl = registrationLink ?? await this.buildTelegramLoginUrl(message.replyTo);
+          await this.container.messaging.sendText(
+            message.replyTo,
+            registrationLink
+              ? buildTelegramRegistrationStartMessage(linkUrl)
+              : buildTelegramStartMessage(linkUrl),
+            { channel: 'telegram' }
+          );
+          this.container.logger.info('Telegram start command processed.', {
+            channel: batch.channel,
+            replyTo: message.replyTo,
+            registrationLink: Boolean(registrationLink)
+          });
+          continue;
+        }
+
+        if (isWebAccessRequest(message.message)) {
+          const linkUrl = await this.buildTelegramLoginUrl(message.replyTo);
+          await this.container.messaging.sendText(
+            message.replyTo,
+            buildTelegramWebMessage(linkUrl),
+            { channel: 'telegram' }
+          );
+          this.container.logger.info('Telegram access link command processed.', {
+            channel: batch.channel,
+            replyTo: message.replyTo,
+            command: 'web'
+          });
+          continue;
+        }
       }
 
       const result = await this.container.useCases.processInboundFinanceMessage.execute({
@@ -71,10 +102,22 @@ export class InboundMessagingService {
     const { token } = await this.container.useCases.requestTelegramLinkToken.execute(chatId);
     return `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
   }
+
+  private async tryBuildTelegramRegistrationLoginUrl(chatId: string, startPayload: string) {
+    try {
+      const { phoneNumber } = this.container.tokens.verifyTelegramRegistrationIntent(startPayload);
+      const { token } = await this.container.useCases.requestTelegramLinkToken.execute(chatId, phoneNumber);
+      return `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
+    } catch {
+      return undefined;
+    }
+  }
 }
 
-function isStartCommand(message: string) {
-  return /^\/start\b/i.test(message.trim());
+function getStartPayload(message: string) {
+  const match = message.trim().match(/^\/start(?:\s+(.+))?$/i);
+  if (!match) return undefined;
+  return match[1]?.trim() || '';
 }
 
 function isWebAccessRequest(message: string) {
@@ -93,6 +136,18 @@ function buildTelegramStartMessage(linkUrl: string) {
     'Para conectar tu cuenta, abre este enlace desde tu navegador:',
     linkUrl
   ].join('\n');
+}
+
+function buildTelegramRegistrationStartMessage(linkUrl: string) {
+  return [
+    'Ya reconocí tu solicitud de registro.',
+    'Vuelve a la web con este enlace para continuar y recibir tu código de acceso:',
+    linkUrl
+  ].join('\n');
+}
+
+function buildTelegramRegistrationStartInvalidMessage() {
+  return 'Ese enlace de registro ya no es válido o expiró. Vuelve a la web y genera uno nuevo.';
 }
 
 function buildTelegramWebMessage(linkUrl: string) {

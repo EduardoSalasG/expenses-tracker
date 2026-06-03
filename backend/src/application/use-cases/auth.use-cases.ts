@@ -12,10 +12,7 @@ export class RequestOtpUseCase {
 
   async execute(input: { phoneNumber: string; telegramChatId?: string }) {
     const existingUser = await this.users.findByPhoneNumber(input.phoneNumber);
-    if (existingUser && input.telegramChatId && input.telegramChatId !== existingUser.telegramChatId) {
-      await this.users.linkTelegramChatByPhone(existingUser.phoneNumber, input.telegramChatId);
-    }
-    const targetChatId = input.telegramChatId ?? existingUser?.telegramChatId;
+    const targetChatId = existingUser?.telegramChatId ?? input.telegramChatId;
     if (!targetChatId) {
       throw new Error('Telegram chat is not linked. Open the bot and send /link +<your-phone-number>, then request OTP again.');
     }
@@ -42,11 +39,30 @@ export class RequestTelegramLinkTokenUseCase {
     private readonly clock: Clock
   ) {}
 
-  async execute(chatId: string) {
+  async execute(chatId: string, phoneNumber?: string) {
     const token = randomUUID();
     const expiresAt = new Date(this.clock.now().getTime() + 15 * 60 * 1000);
-    await this.telegramLinkTokens.create({ token, chatId, expiresAt });
+    await this.telegramLinkTokens.create({ token, chatId, phoneNumber, expiresAt });
     return { token, expiresAt: expiresAt.toISOString() };
+  }
+}
+
+export class CreateTelegramRegistrationLinkUseCase {
+  constructor(
+    private readonly tokens: TokenService,
+    private readonly options: { telegramBotUsername: string }
+  ) {}
+
+  async execute(phoneNumber: string) {
+    if (!this.options.telegramBotUsername) {
+      throw new Error('Telegram bot username is not configured.');
+    }
+
+    const token = this.tokens.signTelegramRegistrationIntent(phoneNumber);
+    return {
+      phoneNumber,
+      botUrl: `https://t.me/${this.options.telegramBotUsername}?start=${encodeURIComponent(token)}`
+    };
   }
 }
 
@@ -65,7 +81,7 @@ export class ConsumeTelegramLinkTokenUseCase {
     if (linkedUser) {
       return {
         telegramChatId: record.chatId,
-        phoneNumber: linkedUser.phoneNumber,
+        phoneNumber: record.phoneNumber ?? linkedUser.phoneNumber,
         linkedUser: true,
         user: linkedUser,
         accessToken: this.tokens.signAccessToken(linkedUser),
@@ -75,7 +91,7 @@ export class ConsumeTelegramLinkTokenUseCase {
 
     return {
       telegramChatId: record.chatId,
-      phoneNumber: undefined,
+      phoneNumber: record.phoneNumber,
       linkedUser: false
     };
   }

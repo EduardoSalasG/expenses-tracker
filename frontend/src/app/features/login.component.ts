@@ -7,13 +7,14 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatIconModule],
   template: `
     <main class="app-surface grid min-h-screen place-items-center px-3 py-6 sm:px-4 sm:py-10">
       <mat-card class="page-panel w-full max-w-md p-5 sm:p-7">
@@ -23,6 +24,14 @@ import { I18nService } from '../core/i18n.service';
           <p class="mt-2 text-sm leading-6 text-brand-muted">
             {{ t('login_subtitle') }}
           </p>
+          <div class="mt-4 inline-flex rounded-lg border border-brand-border bg-brand-surface-muted p-1">
+            <button type="button" class="rounded-md px-4 py-2 text-sm font-medium transition-colors" [class.bg-brand-blue]="mode() === 'login'" [class.text-white]="mode() === 'login'" [class.text-brand-ink]="mode() !== 'login'" (click)="setMode('login')">
+              {{ t('login_mode_login') }}
+            </button>
+            <button type="button" class="rounded-md px-4 py-2 text-sm font-medium transition-colors" [class.bg-brand-blue]="mode() === 'register'" [class.text-white]="mode() === 'register'" [class.text-brand-ink]="mode() !== 'register'" (click)="setMode('register')">
+              {{ t('login_mode_register') }}
+            </button>
+          </div>
         </div>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
@@ -44,15 +53,30 @@ import { I18nService } from '../core/i18n.service';
               <mat-error>Enter a valid phone number.</mat-error>
             }
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ t('login_telegram_chat_id') }}</mat-label>
-            <input matInput formControlName="telegramChatId" placeholder="123456789" autocomplete="off" [readonly]="telegramLocked()">
-            @if (form.controls.telegramChatId.touched && form.controls.telegramChatId.invalid) {
-              <mat-error>{{ t('login_telegram_chat_id_error') }}</mat-error>
-            }
-          </mat-form-field>
+
+          @if (!otpSent() && mode() === 'login') {
+            <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
+              {{ t('login_existing_account_hint') }}
+            </div>
+          }
+
+          @if (!otpSent() && mode() === 'register') {
+            <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <p class="text-sm text-brand-muted">{{ t('login_register_intro') }}</p>
+              @if (registrationBotUrl()) {
+                <a mat-flat-button color="primary" class="mt-4 !h-11 !w-full" [href]="registrationBotUrl()" target="_blank" rel="noopener">
+                  <mat-icon>send</mat-icon>
+                  {{ t('login_register_open_telegram') }}
+                </a>
+                <p class="mt-3 text-sm leading-6 text-brand-muted">{{ t('login_register_waiting') }}</p>
+              }
+            </div>
+          }
 
           @if (otpSent()) {
+            <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
+              {{ t('login_otp_sent_hint') }}
+            </div>
             @if (debugCode()) {
               <div class="rounded border bg-[var(--semantic-warning-bg)] p-3 text-sm text-[var(--semantic-warning-text)] border-[var(--semantic-warning-border)]">
                 Local OTP code: <strong>{{ debugCode() }}</strong>
@@ -123,7 +147,7 @@ import { I18nService } from '../core/i18n.service';
           }
 
           <button mat-flat-button color="primary" type="submit" class="!h-11 w-full" [disabled]="autoSigningIn()">
-            {{ otpSent() ? t('login_verify_enter') : t('login_send_code') }}
+            {{ otpSent() ? t('login_verify_enter') : (mode() === 'register' ? t('login_register_generate_link') : t('login_send_code')) }}
           </button>
         </form>
       </mat-card>
@@ -140,6 +164,8 @@ export class LoginComponent implements OnInit {
   readonly phoneLocked = signal(false);
   readonly telegramLocked = signal(false);
   readonly otpRequestInFlight = signal(false);
+  readonly mode = signal<'login' | 'register'>('login');
+  readonly registrationBotUrl = signal('');
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
     code: [''],
@@ -150,7 +176,7 @@ export class LoginComponent implements OnInit {
     countryOfResidence: [''],
     preferredCurrency: ['CLP'],
     preferredLanguage: ['es' as 'es' | 'en'],
-    telegramChatId: ['', [Validators.required, Validators.minLength(2)]]
+    telegramChatId: ['']
   });
 
   constructor(
@@ -163,6 +189,10 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit() {
+    const mode = this.route.snapshot.queryParamMap.get('mode');
+    if (mode === 'register') {
+      this.mode.set('register');
+    }
     const linkToken = this.route.snapshot.queryParamMap.get('linkToken');
     if (!linkToken) return;
     this.autoSigningIn.set(true);
@@ -178,6 +208,7 @@ export class LoginComponent implements OnInit {
         if (payload.phoneNumber) {
           this.form.controls.phoneNumber.setValue(payload.phoneNumber);
           this.phoneLocked.set(true);
+          this.mode.set('register');
           this.requestOtpFromTelegramLink();
           return;
         }
@@ -191,7 +222,7 @@ export class LoginComponent implements OnInit {
   }
 
   submit() {
-    if (this.form.invalid) {
+    if (this.form.controls.phoneNumber.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -200,6 +231,10 @@ export class LoginComponent implements OnInit {
     this.errorMessage.set('');
 
     if (!this.otpSent()) {
+      if (this.mode() === 'register') {
+        this.requestRegistrationLink();
+        return;
+      }
       this.requestOtp();
       return;
     }
@@ -279,10 +314,32 @@ export class LoginComponent implements OnInit {
     });
   }
 
+  private requestRegistrationLink() {
+    if (this.otpRequestInFlight()) return;
+
+    this.otpRequestInFlight.set(true);
+    this.auth.createTelegramRegistrationLink(this.form.controls.phoneNumber.getRawValue()).subscribe({
+      next: (response) => {
+        this.registrationBotUrl.set(response.botUrl);
+        this.otpRequestInFlight.set(false);
+      },
+      error: (error) => {
+        this.errorMessage.set(this.toErrorMessage(error, this.t('login_register_link_error')));
+        this.otpRequestInFlight.set(false);
+      }
+    });
+  }
+
   private requestOtpFromTelegramLink() {
     this.errorMessage.set('');
     if (this.form.controls.phoneNumber.invalid || this.form.controls.telegramChatId.invalid) return;
     this.requestOtp();
+  }
+
+  setMode(mode: 'login' | 'register') {
+    this.mode.set(mode);
+    this.errorMessage.set('');
+    this.registrationBotUrl.set('');
   }
 
   private toErrorMessage(error: unknown, fallback: string) {
