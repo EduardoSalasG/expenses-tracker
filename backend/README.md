@@ -94,13 +94,18 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 
 ## Auth API
 
-`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. Existing users continue with OTP-only login. Unknown phone numbers must complete registration fields during OTP verification.
+`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. Unknown phone numbers must complete registration fields during OTP verification.
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
 `POST /auth/otp/verify` verifies the code and returns an access token plus refresh token. Existing users are not overwritten during login. New users must provide `firstName`, `lastName`, `preferredName`, `email`, `countryOfResidence`, and `preferredCurrency`; the backend creates the profile, seeds default categories, and sends a Telegram greeting after OTP verification. The greeting uses `preferredName` and explains natural-language examples for expenses, incomes, reports, and budget questions. `preferredName` is the name the app should use when communicating with the user.
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
+
+`POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
+
+- If the Telegram chat is already linked to a user, the endpoint returns `linkedUser: true` plus access token, refresh token, and user snapshot. The frontend should create the session immediately and skip OTP.
+- If the chat is not linked yet, the endpoint returns `linkedUser: false`, `telegramChatId`, and optionally the registered phone number if it was pre-associated. The frontend can then continue with OTP or registration fallback.
 
 ## Expense API
 
@@ -255,7 +260,7 @@ Linking flow example:
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 
-Telegram webhook setup uses Bot API `setWebhook` and `getWebhookInfo`. Use `/start` from the bot chat to receive an auto-generated login link and complete account linking.
+Telegram webhook setup uses Bot API `setWebhook` and `getWebhookInfo`. Use `/start` from the bot chat to receive an auto-generated login link. Already linked users are signed in directly from that link; unlinked users continue with `/link +<phone>` and OTP/registration fallback.
 
 ## Report Delivery
 

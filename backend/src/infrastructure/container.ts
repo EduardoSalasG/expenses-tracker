@@ -76,7 +76,8 @@ export function createContainer(config: AppConfig) {
     pendingDrafts,
     messaging,
     interpreter,
-    clock
+    clock,
+    { frontendPublicOrigin: config.frontendPublicOrigin }
   );
 
   return {
@@ -98,8 +99,10 @@ export function createContainer(config: AppConfig) {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
       requestTelegramLinkToken: new RequestTelegramLinkTokenUseCase(telegramLinkTokens, clock),
-      consumeTelegramLinkToken: new ConsumeTelegramLinkTokenUseCase(telegramLinkTokens, clock),
-      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging),
+      consumeTelegramLinkToken: new ConsumeTelegramLinkTokenUseCase(telegramLinkTokens, users, tokens, clock),
+      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging, {
+        frontendPublicOrigin: config.frontendPublicOrigin
+      }),
       refreshSession: new RefreshSessionUseCase(users, tokens),
       processInboundFinanceMessage,
       finance,

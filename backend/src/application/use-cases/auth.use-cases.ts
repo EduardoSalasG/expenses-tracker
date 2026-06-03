@@ -53,13 +53,31 @@ export class RequestTelegramLinkTokenUseCase {
 export class ConsumeTelegramLinkTokenUseCase {
   constructor(
     private readonly telegramLinkTokens: TelegramLinkTokenRepository,
+    private readonly users: UserRepository,
+    private readonly tokens: TokenService,
     private readonly clock: Clock
   ) {}
 
   async execute(token: string) {
     const record = await this.telegramLinkTokens.consume(token, this.clock.now());
     if (!record) throw new Error('Invalid or expired link token.');
-    return { telegramChatId: record.chatId };
+    const linkedUser = await this.users.findByTelegramChatId(record.chatId);
+    if (linkedUser) {
+      return {
+        telegramChatId: record.chatId,
+        phoneNumber: linkedUser.phoneNumber,
+        linkedUser: true,
+        user: linkedUser,
+        accessToken: this.tokens.signAccessToken(linkedUser),
+        refreshToken: this.tokens.signRefreshToken(linkedUser)
+      };
+    }
+
+    return {
+      telegramChatId: record.chatId,
+      phoneNumber: undefined,
+      linkedUser: false
+    };
   }
 }
 
@@ -70,7 +88,8 @@ export class VerifyOtpUseCase {
     private readonly categories: CategoryRepository,
     private readonly tokens: TokenService,
     private readonly clock: Clock,
-    private readonly messaging: MessagingProvider
+    private readonly messaging: MessagingProvider,
+    private readonly options: { frontendPublicOrigin: string }
   ) {}
 
   async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string; preferredLanguage?: 'es' | 'en'; telegramChatId?: string }) {
@@ -109,7 +128,15 @@ export class VerifyOtpUseCase {
     await this.categories.ensureDefaults(user.tenantId);
     if (input.telegramChatId) {
       await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
-      await this.messaging.sendText(input.telegramChatId, buildRegistrationGreeting(user.preferredLanguage ?? 'es', user.preferredName), { channel: 'telegram' });
+      await this.messaging.sendText(
+        input.telegramChatId,
+        buildRegistrationGreeting(
+          user.preferredLanguage ?? 'es',
+          user.preferredName,
+          this.options.frontendPublicOrigin
+        ),
+        { channel: 'telegram' }
+      );
     }
 
     return {
@@ -128,12 +155,14 @@ function buildOtpMessage(language: 'es' | 'en', code: string) {
   return `Your Expenses Tracker verification code is ${code}. It expires in 10 minutes.`;
 }
 
-function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string) {
+function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string, frontendPublicOrigin: string) {
+  const dashboardUrl = `${frontendPublicOrigin.replace(/\/$/, '')}/dashboard`;
+
   if (language === 'es') {
     return [
-      `Hola ${preferredName}, bienvenido a Expenses Tracker.`,
+      `${preferredName}, tu cuenta ya quedó lista.`,
       '',
-      'Ya puedes enviar mensajes en lenguaje natural para registrar tus finanzas.',
+      'Cuéntame tu ingreso de este mes y los gastos a medida que vayan ocurriendo. Yo los iré registrando por ti.',
       '',
       'Ejemplos:',
       '- 20.000 clases en Bsoul, transferencia desde BCI',
@@ -142,14 +171,16 @@ function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string)
       '- Cuanto gaste este mes?',
       '- Enviame mi reporte mensual',
       '',
-      'Usaremos tu moneda preferida del perfil. No necesitas escribirla en cada mensaje.'
+      'Usaré la moneda de tu perfil, así que no necesitas escribirla en cada mensaje.',
+      '',
+      `Puedes ver tu dashboard aquí: ${dashboardUrl}`
     ].join('\n');
   }
 
   return [
-    `Hi ${preferredName}, welcome to Expenses Tracker.`,
+    `${preferredName}, your account is ready.`,
     '',
-    'You can now send natural messages to track your finances.',
+    'Send me this month’s income and the expenses as they happen. I will keep them tracked for you.',
     '',
     'Examples:',
     '- 20.000 classes at Bsoul, transfer from BCI',
@@ -158,7 +189,9 @@ function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string)
     '- How much did I spend this month?',
     '- Send me my monthly report',
     '',
-    'Use your preferred currency from your profile. You do not need to write the currency in each message.'
+    'I will use the currency from your profile, so you do not need to include it in every message.',
+    '',
+    `You can open your dashboard here: ${dashboardUrl}`
   ].join('\n');
 }
 

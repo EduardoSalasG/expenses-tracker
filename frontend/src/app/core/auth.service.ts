@@ -17,6 +17,18 @@ interface VerifyOtpResponse {
   };
 }
 
+interface TelegramLinkSessionResponse extends VerifyOtpResponse {
+  telegramChatId: string;
+  phoneNumber: string;
+  linkedUser: true;
+}
+
+interface TelegramLinkRegistrationResponse {
+  telegramChatId: string;
+  phoneNumber?: string;
+  linkedUser: false;
+}
+
 export interface RequestOtpResponse {
   sent: boolean;
   requiresRegistration: boolean;
@@ -47,7 +59,13 @@ export class AuthService {
   }
 
   consumeTelegramLinkToken(token: string) {
-    return this.http.post<{ telegramChatId: string }>(`${environment.apiBaseUrl}/auth/telegram/consume-link-token`, { token });
+    return this.http.post<TelegramLinkSessionResponse | TelegramLinkRegistrationResponse>(`${environment.apiBaseUrl}/auth/telegram/consume-link-token`, { token }).pipe(
+      tap((response) => {
+        if (response.linkedUser) {
+          this.storeSession(response);
+        }
+      })
+    );
   }
 
   verifyOtp(payload: {

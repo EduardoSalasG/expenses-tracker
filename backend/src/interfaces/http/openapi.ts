@@ -191,7 +191,7 @@ export const openApiSpec = {
     },
     '/auth/telegram/consume-link-token': {
       post: {
-        summary: 'Consume Telegram link token and return chat id',
+        summary: 'Consume Telegram link token',
         requestBody: jsonBody({ token: { type: 'string' } }, ['token']),
         responses: {
           '200': {
@@ -199,7 +199,33 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 examples: {
-                  linked: { value: { telegramChatId: '123456789' } }
+                  linkedUser: {
+                    value: {
+                      telegramChatId: '123456789',
+                      phoneNumber: '+56982439041',
+                      linkedUser: true,
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: {
+                        id: 'user-id',
+                        phoneNumber: '+56982439041',
+                        preferredName: 'Vane'
+                      }
+                    }
+                  },
+                  unlinkedUser: {
+                    value: {
+                      telegramChatId: '123456789',
+                      phoneNumber: '+56982439041',
+                      linkedUser: false
+                    }
+                  },
+                  unlinkedChatOnly: {
+                    value: {
+                      telegramChatId: '123456789',
+                      linkedUser: false
+                    }
+                  }
                 }
               }
             }

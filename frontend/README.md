@@ -53,7 +53,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 
 ## Routes
 
-- `/login`: Telegram OTP login. Users enter phone number and Telegram chat id. Unknown phone numbers must complete name, last name, preferred name, email, country, and preferred currency before OTP verification creates the profile.
+- `/login`: Telegram-first login. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. Otherwise the page falls back to Telegram chat id + OTP. Unknown phone numbers must complete name, last name, preferred name, email, country, and preferred currency before OTP verification creates the profile.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.
@@ -63,7 +63,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 
 ## Session Behavior
 
-The frontend stores the access token and refresh token after OTP verification. Authenticated API calls include the access token; if the backend returns `401`, the interceptor calls `POST /auth/refresh`, stores the renewed tokens, and retries the original request once.
+The frontend stores the access token and refresh token after OTP verification or Telegram link-token auto-login. Authenticated API calls include the access token; if the backend returns `401`, the interceptor calls `POST /auth/refresh`, stores the renewed tokens, and retries the original request once.
 
 ## UI Conventions
 

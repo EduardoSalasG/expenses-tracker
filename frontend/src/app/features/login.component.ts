@@ -26,6 +26,11 @@ import { I18nService } from '../core/i18n.service';
         </div>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
+          @if (autoSigningIn()) {
+            <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
+              Signing you in from Telegram...
+            </div>
+          }
           @if (errorMessage()) {
             <div class="rounded border bg-[var(--semantic-danger-bg)] p-3 text-sm text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)]" role="alert" aria-live="assertive">
               {{ errorMessage() }}
@@ -34,14 +39,14 @@ import { I18nService } from '../core/i18n.service';
 
           <mat-form-field appearance="outline">
             <mat-label>{{ t('login_phone') }}</mat-label>
-            <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel">
+            <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel" [readonly]="phoneLocked()">
             @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
               <mat-error>Enter a valid phone number.</mat-error>
             }
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('login_telegram_chat_id') }}</mat-label>
-            <input matInput formControlName="telegramChatId" placeholder="123456789" autocomplete="off">
+            <input matInput formControlName="telegramChatId" placeholder="123456789" autocomplete="off" [readonly]="telegramLocked()">
             @if (form.controls.telegramChatId.touched && form.controls.telegramChatId.invalid) {
               <mat-error>{{ t('login_telegram_chat_id_error') }}</mat-error>
             }
@@ -117,7 +122,7 @@ import { I18nService } from '../core/i18n.service';
             </mat-form-field>
           }
 
-          <button mat-flat-button color="primary" type="submit" class="!h-11 w-full">
+          <button mat-flat-button color="primary" type="submit" class="!h-11 w-full" [disabled]="autoSigningIn()">
             {{ otpSent() ? t('login_verify_enter') : t('login_send_code') }}
           </button>
         </form>
@@ -131,6 +136,10 @@ export class LoginComponent implements OnInit {
   readonly requiresRegistration = signal(false);
   readonly debugCode = signal('');
   readonly errorMessage = signal('');
+  readonly autoSigningIn = signal(false);
+  readonly phoneLocked = signal(false);
+  readonly telegramLocked = signal(false);
+  readonly otpRequestInFlight = signal(false);
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
     code: [''],
@@ -156,11 +165,26 @@ export class LoginComponent implements OnInit {
   ngOnInit() {
     const linkToken = this.route.snapshot.queryParamMap.get('linkToken');
     if (!linkToken) return;
+    this.autoSigningIn.set(true);
     this.auth.consumeTelegramLinkToken(linkToken).subscribe({
       next: (payload) => {
+        if (payload.linkedUser) {
+          this.router.navigateByUrl('/dashboard');
+          return;
+        }
+
         this.form.controls.telegramChatId.setValue(payload.telegramChatId);
+        this.telegramLocked.set(true);
+        if (payload.phoneNumber) {
+          this.form.controls.phoneNumber.setValue(payload.phoneNumber);
+          this.phoneLocked.set(true);
+          this.requestOtpFromTelegramLink();
+          return;
+        }
+        this.autoSigningIn.set(false);
       },
       error: () => {
+        this.autoSigningIn.set(false);
         this.errorMessage.set('Invalid or expired Telegram link token. Please return to Telegram and tap start again.');
       }
     });
@@ -176,17 +200,7 @@ export class LoginComponent implements OnInit {
     this.errorMessage.set('');
 
     if (!this.otpSent()) {
-        this.auth.requestOtpWithTelegram(value.phoneNumber, value.telegramChatId || undefined).subscribe({
-        next: (response) => {
-          this.requiresRegistration.set(response.requiresRegistration);
-          this.debugCode.set(response.debugCode ?? '');
-          this.otpSent.set(true);
-          this.applyRegistrationValidators(response.requiresRegistration);
-        },
-        error: (error) => {
-          this.errorMessage.set(this.toErrorMessage(error, 'Could not send the verification code.'));
-        }
-      });
+      this.requestOtp();
       return;
     }
 
@@ -241,6 +255,34 @@ export class LoginComponent implements OnInit {
 
     this.form.controls.code.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(6)]);
     [...controls, this.form.controls.code].forEach((control) => control.updateValueAndValidity());
+  }
+
+  private requestOtp() {
+    if (this.otpRequestInFlight()) return;
+
+    const value = this.form.getRawValue();
+    this.otpRequestInFlight.set(true);
+    this.auth.requestOtpWithTelegram(value.phoneNumber, value.telegramChatId || undefined).subscribe({
+      next: (response) => {
+        this.requiresRegistration.set(response.requiresRegistration);
+        this.debugCode.set(response.debugCode ?? '');
+        this.otpSent.set(true);
+        this.applyRegistrationValidators(response.requiresRegistration);
+        this.otpRequestInFlight.set(false);
+        this.autoSigningIn.set(false);
+      },
+      error: (error) => {
+        this.errorMessage.set(this.toErrorMessage(error, 'Could not send the verification code.'));
+        this.otpRequestInFlight.set(false);
+        this.autoSigningIn.set(false);
+      }
+    });
+  }
+
+  private requestOtpFromTelegramLink() {
+    this.errorMessage.set('');
+    if (this.form.controls.phoneNumber.invalid || this.form.controls.telegramChatId.invalid) return;
+    this.requestOtp();
   }
 
   private toErrorMessage(error: unknown, fallback: string) {
