@@ -5,7 +5,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://6nj2hj1k-3000.brs.devtunnels.ms/:splat"
+  to = "https://6nj2hj1k-3000.brs.devtunnels.ms/api/:splat"
   status = 200
   force = true
 
