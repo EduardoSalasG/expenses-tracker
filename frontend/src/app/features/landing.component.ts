@@ -132,6 +132,86 @@ import { I18nService } from '../core/i18n.service';
         </div>
       </section>
 
+      <section class="border-y border-brand-border/60 bg-brand-surface">
+        <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+          <div class="max-w-2xl">
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_preview_title') }}</h2>
+            <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_preview_subtitle') }}</p>
+          </div>
+          <div class="mt-8 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <article class="overflow-hidden rounded-2xl border border-brand-border bg-brand-bg shadow-sm">
+              <div class="flex items-center justify-between border-b border-brand-border px-4 py-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand-blue">{{ t('landing_preview_web_label') }}</p>
+                  <h3 class="mt-1 text-lg font-semibold text-brand-ink">{{ t('landing_preview_web_title') }}</h3>
+                </div>
+                <div class="rounded-lg bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-ink shadow-sm">{{ t('landing_preview_web_badge') }}</div>
+              </div>
+              <div class="grid gap-4 p-4 sm:grid-cols-3">
+                @for (metric of previewMetrics; track metric.label) {
+                  <div class="rounded-xl border border-brand-border bg-brand-surface p-4">
+                    <p class="text-sm text-brand-muted">{{ metric.label }}</p>
+                    <p class="mt-2 text-2xl font-semibold text-brand-ink">{{ metric.value }}</p>
+                    <p class="mt-1 text-xs text-brand-muted">{{ metric.caption }}</p>
+                  </div>
+                }
+              </div>
+              <div class="grid gap-4 border-t border-brand-border p-4 lg:grid-cols-[0.95fr_1.05fr]">
+                <div class="rounded-xl border border-brand-border bg-brand-surface p-4">
+                  <h4 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-blue">{{ t('landing_preview_variation_title') }}</h4>
+                  <ul class="mt-4 space-y-3">
+                    @for (variation of previewVariations; track variation.category) {
+                      <li class="flex items-center justify-between gap-4">
+                        <div>
+                          <p class="font-medium text-brand-ink">{{ variation.category }}</p>
+                          <p class="text-sm text-brand-muted">{{ variation.detail }}</p>
+                        </div>
+                        <span class="text-sm font-semibold" [class.text-emerald-500]="variation.positive" [class.text-rose-400]="!variation.positive">
+                          {{ variation.delta }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                </div>
+                <div class="rounded-xl border border-brand-border bg-brand-surface p-4">
+                  <h4 class="text-sm font-semibold uppercase tracking-[0.12em] text-brand-blue">{{ t('landing_preview_history_title') }}</h4>
+                  <div class="mt-4 space-y-3">
+                    @for (record of previewHistory; track record.concept) {
+                      <div class="flex items-start justify-between gap-4 rounded-lg bg-brand-surface-muted px-3 py-3">
+                        <div class="min-w-0">
+                          <p class="truncate font-medium text-brand-ink">{{ record.concept }}</p>
+                          <p class="text-sm text-brand-muted">{{ record.meta }}</p>
+                        </div>
+                        <span class="shrink-0 text-sm font-semibold text-brand-ink">{{ record.amount }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="overflow-hidden rounded-2xl border border-brand-border bg-brand-bg shadow-sm">
+              <div class="flex items-center justify-between border-b border-brand-border px-4 py-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand-blue">{{ t('landing_preview_telegram_label') }}</p>
+                  <h3 class="mt-1 text-lg font-semibold text-brand-ink">{{ t('landing_preview_telegram_title') }}</h3>
+                </div>
+                <div class="rounded-lg bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-ink shadow-sm">{{ t('landing_preview_telegram_badge') }}</div>
+              </div>
+              <div class="space-y-3 p-4">
+                @for (message of previewTelegram; track message.body) {
+                  <div class="flex" [class.justify-end]="message.outbound">
+                    <div class="max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm" [class.bg-brand-blue]="message.outbound" [class.text-white]="message.outbound" [class.bg-brand-surface]="!message.outbound" [class.text-brand-ink]="!message.outbound" [class.border]="!message.outbound" [class.border-brand-border]="!message.outbound">
+                      <p>{{ message.body }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
         <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
           <div class="max-w-2xl">
@@ -192,19 +272,46 @@ import { I18nService } from '../core/i18n.service';
         </div>
       </section>
 
+      <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
+        <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+          <div class="max-w-2xl">
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_faq_title') }}</h2>
+            <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_faq_subtitle') }}</p>
+          </div>
+          <div class="mt-8 grid gap-4 lg:grid-cols-2">
+            @for (item of faq; track item.question) {
+              <article class="rounded-xl border border-brand-border bg-brand-surface p-5 shadow-sm">
+                <h3 class="text-lg font-semibold text-brand-ink">{{ item.question }}</h3>
+                <p class="mt-2 text-sm leading-6 text-brand-muted">{{ item.answer }}</p>
+              </article>
+            }
+          </div>
+        </div>
+      </section>
+
       <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div class="rounded-2xl border border-brand-border bg-brand-surface p-6 shadow-sm sm:p-8 lg:flex lg:items-center lg:justify-between lg:gap-8">
           <div class="max-w-2xl">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_cta_title') }}</h2>
             <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_cta_description') }}</p>
           </div>
-          <div class="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="!h-12 !px-6">
-              {{ t('landing_register') }}
-            </a>
-            <a mat-stroked-button routerLink="/login" class="!h-12 !px-6 !border-brand-border !text-brand-ink">
-              {{ t('landing_login') }}
-            </a>
+          <div class="mt-6 grid w-full gap-3 lg:mt-0 lg:max-w-xl lg:grid-cols-2">
+            @for (cta of contextualCtas; track cta.title) {
+              <article class="rounded-xl border border-brand-border bg-brand-bg p-4">
+                <div class="flex items-start gap-3">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-surface text-brand-blue">
+                    <mat-icon>{{ cta.icon }}</mat-icon>
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="text-base font-semibold text-brand-ink">{{ cta.title }}</h3>
+                    <p class="mt-1 text-sm leading-6 text-brand-muted">{{ cta.description }}</p>
+                  </div>
+                </div>
+                <a mat-flat-button [color]="cta.primary ? 'primary' : undefined" routerLink="/login" [queryParams]="cta.queryParams" class="mt-4 !h-11 !w-full !px-5" [class.!bg-brand-surface]="!cta.primary" [class.!text-brand-ink]="!cta.primary">
+                  {{ cta.button }}
+                </a>
+              </article>
+            }
           </div>
         </div>
       </section>
@@ -251,6 +358,57 @@ export class LandingComponent implements OnInit {
     { icon: 'shield', title: this.t('landing_trust_1_title'), description: this.t('landing_trust_1_desc') },
     { icon: 'devices', title: this.t('landing_trust_2_title'), description: this.t('landing_trust_2_desc') },
     { icon: 'insights', title: this.t('landing_trust_3_title'), description: this.t('landing_trust_3_desc') }
+  ];
+
+  readonly previewMetrics = [
+    { label: this.t('landing_preview_metric_1_label'), value: this.t('landing_preview_metric_1_value'), caption: this.t('landing_preview_metric_1_caption') },
+    { label: this.t('landing_preview_metric_2_label'), value: this.t('landing_preview_metric_2_value'), caption: this.t('landing_preview_metric_2_caption') },
+    { label: this.t('landing_preview_metric_3_label'), value: this.t('landing_preview_metric_3_value'), caption: this.t('landing_preview_metric_3_caption') }
+  ];
+
+  readonly previewVariations = [
+    { category: this.t('landing_preview_variation_1_category'), detail: this.t('landing_preview_variation_1_detail'), delta: this.t('landing_preview_variation_1_delta'), positive: false },
+    { category: this.t('landing_preview_variation_2_category'), detail: this.t('landing_preview_variation_2_detail'), delta: this.t('landing_preview_variation_2_delta'), positive: true },
+    { category: this.t('landing_preview_variation_3_category'), detail: this.t('landing_preview_variation_3_detail'), delta: this.t('landing_preview_variation_3_delta'), positive: false }
+  ];
+
+  readonly previewHistory = [
+    { concept: this.t('landing_preview_history_1_concept'), meta: this.t('landing_preview_history_1_meta'), amount: this.t('landing_preview_history_1_amount') },
+    { concept: this.t('landing_preview_history_2_concept'), meta: this.t('landing_preview_history_2_meta'), amount: this.t('landing_preview_history_2_amount') },
+    { concept: this.t('landing_preview_history_3_concept'), meta: this.t('landing_preview_history_3_meta'), amount: this.t('landing_preview_history_3_amount') }
+  ];
+
+  readonly previewTelegram = [
+    { body: this.t('landing_preview_message_1'), outbound: true },
+    { body: this.t('landing_preview_message_2'), outbound: false },
+    { body: this.t('landing_preview_message_3'), outbound: true },
+    { body: this.t('landing_preview_message_4'), outbound: false }
+  ];
+
+  readonly faq = [
+    { question: this.t('landing_faq_1_q'), answer: this.t('landing_faq_1_a') },
+    { question: this.t('landing_faq_2_q'), answer: this.t('landing_faq_2_a') },
+    { question: this.t('landing_faq_3_q'), answer: this.t('landing_faq_3_a') },
+    { question: this.t('landing_faq_4_q'), answer: this.t('landing_faq_4_a') }
+  ];
+
+  readonly contextualCtas = [
+    {
+      icon: 'send',
+      title: this.t('landing_cta_context_telegram_title'),
+      description: this.t('landing_cta_context_telegram_desc'),
+      button: this.t('landing_cta_context_telegram_button'),
+      queryParams: { mode: 'register', channel: 'telegram' },
+      primary: true
+    },
+    {
+      icon: 'language',
+      title: this.t('landing_cta_context_web_title'),
+      description: this.t('landing_cta_context_web_desc'),
+      button: this.t('landing_cta_context_web_button'),
+      queryParams: { mode: 'register', channel: 'web' },
+      primary: false
+    }
   ];
 
   ngOnInit() {
