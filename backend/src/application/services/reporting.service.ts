@@ -109,10 +109,13 @@ export function formatBudgetStatusMessage(
   month: string,
   budgets: MonthlyBudget[],
   expenses: Expense[],
+  incomes: Array<{ amount: number; currency: string }>,
   categories: Category[],
   categoryName?: string,
   language: LanguageCode = 'es'
 ) {
+  const netLine = formatNetBudgetLine(incomes, expenses, language);
+  const monthLabel = formatMonthLabel(month, language);
   const filteredBudgets = categoryName
     ? budgets.filter((budget) => {
       const category = categories.find((item) => item.id === (budget.subcategoryId ?? budget.categoryId));
@@ -121,8 +124,22 @@ export function formatBudgetStatusMessage(
     : budgets;
 
   if (!filteredBudgets.length) {
-    if (language === 'en') return `No budgets configured for ${categoryName ? `${categoryName} in ` : ''}${month}.`;
-    return `No hay presupuestos configurados para ${categoryName ? `${categoryName} en ` : ''}${month}.`;
+    if (language === 'en') {
+      return [
+        `This is your budget for ${monthLabel}:`,
+        '',
+        netLine,
+        '',
+        `No budgets configured for ${categoryName ? `${categoryName} in ` : ''}${monthLabel}.`
+      ].join('\n');
+    }
+    return [
+      `Este es tu presupuesto para ${monthLabel}:`,
+      '',
+      netLine,
+      '',
+      `No hay presupuestos configurados para ${categoryName ? `${categoryName} en ` : ''}${monthLabel}.`
+    ].join('\n');
   }
 
   const lines = filteredBudgets.map((budget) => {
@@ -136,12 +153,27 @@ export function formatBudgetStatusMessage(
     const remaining = Math.max(budget.amount - spent, 0);
     const label = categoryLabel(categories, budget.subcategoryId ?? budget.categoryId);
     if (language === 'en') {
-      return `${label}: spent ${formatMoney(budget.currency, spent, language)} of ${formatMoney(budget.currency, budget.amount, language)}. Remaining: ${formatMoney(budget.currency, remaining, language)}.`;
+      return [
+        `- ${label}:`,
+        `  - Spent ${formatMoney(budget.currency, spent, language)} of ${formatMoney(budget.currency, budget.amount, language)}.`,
+        `  - Remaining: ${formatMoney(budget.currency, remaining, language)}.`
+      ].join('\n');
     }
-    return `${label}: gastado ${formatMoney(budget.currency, spent, language)} de ${formatMoney(budget.currency, budget.amount, language)}. Disponible: ${formatMoney(budget.currency, remaining, language)}.`;
+    return [
+      `- ${label}:`,
+      `  - Gastado ${formatMoney(budget.currency, spent, language)} de ${formatMoney(budget.currency, budget.amount, language)}.`,
+      `  - Disponible: ${formatMoney(budget.currency, remaining, language)}.`
+    ].join('\n');
   });
 
-  return [language === 'en' ? `Budget ${month}` : `Presupuesto ${month}`, ...lines].join('\n');
+  return [
+    language === 'en' ? `This is your budget for ${monthLabel}:` : `Este es tu presupuesto para ${monthLabel}:`,
+    '',
+    netLine,
+    '',
+    language === 'en' ? 'By category:' : 'Por categorías:',
+    ...lines
+  ].join('\n');
 }
 
 export function formatMoney(currency: string, amount: number, language: LanguageCode = 'es') {
@@ -165,6 +197,25 @@ function formatTotals(totals: Record<string, number>, language: LanguageCode) {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([currency, amount]) => formatMoney(currency, amount, language))
     .join(' | ');
+}
+
+function formatNetBudgetLine(
+  incomes: Array<{ amount: number; currency: string }>,
+  expenses: Expense[],
+  language: LanguageCode
+) {
+  const incomeTotals = totalsByCurrency(incomes);
+  const expenseTotals = totalsByCurrency(expenses);
+  const currencies = [...new Set([...Object.keys(incomeTotals), ...Object.keys(expenseTotals)])].sort((left, right) => left.localeCompare(right));
+
+  if (!currencies.length) {
+    return language === 'en' ? 'Net available: No movement' : 'Disponible total: Sin movimientos';
+  }
+
+  const parts = currencies.map((currency) => formatMoney(currency, (incomeTotals[currency] ?? 0) - (expenseTotals[currency] ?? 0), language));
+  return language === 'en'
+    ? `- Net available: ${parts.join(' | ')}`
+    : `- Disponible total: ${parts.join(' | ')}`;
 }
 
 function reportFrequencyLabel(frequency: ReportFrequency, language: LanguageCode = 'es') {
@@ -220,4 +271,15 @@ function categoryLabel(categories: Category[], categoryId: string): string {
 
 function normalizeName(value: string) {
   return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatMonthLabel(month: string, language: LanguageCode) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const date = new Date(Date.UTC(year, monthNumber - 1, 1, 12, 0, 0));
+  const locale = language === 'en' ? 'en-US' : 'es-CL';
+  return new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(date);
 }

@@ -25,7 +25,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -68,7 +69,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const input = {
@@ -112,7 +114,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const first = await useCase.execute({
@@ -164,7 +167,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -202,7 +206,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -253,7 +258,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -297,7 +303,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
       new FixedIncomeInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     await useCase.execute({
@@ -334,7 +341,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       drafts,
       new NoopMessagingProvider(),
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:00:00.000Z') }
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const first = await useCase.execute({
@@ -394,7 +402,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
       new DeterministicMessageInterpreter(),
-      { now: () => new Date('2026-05-06T00:05:00.000Z') }
+      { now: () => new Date('2026-05-06T00:05:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -416,6 +425,84 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(updated.subcategoryId).toBe(restaurants?.id);
     expect(messaging.messages.at(-1)?.body).toContain('Eduardo, Gasto actualizado.');
     expect(messaging.messages.at(-1)?.body).toContain('Categoría: Food > Restaurants.');
+  });
+
+  it('answers budget remaining when the user asks how much money is left', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
+    if (!food) throw new Error('Missing Food category in test defaults.');
+
+    await budgets.upsertMonthly({
+      tenantId: user.tenantId,
+      categoryId: food.id,
+      amount: 100000,
+      currency: 'CLP'
+    });
+    await expenses.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-06T00:00:00.000Z',
+      amount: 35000,
+      currency: 'CLP',
+      concept: 'Supermercado',
+      categoryId: food.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    const incomes = new InMemoryIncomeRepository();
+    await incomes.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-02T00:00:00.000Z',
+      amount: 150000,
+      currency: 'CLP',
+      concept: 'Sueldo'
+    });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      incomes,
+      budgets,
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:05:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-budget-left',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: 'cuánto dinero me queda'
+    });
+
+    expect(result.status).toBe('budget_status_sent');
+    expect(messaging.messages.at(-1)?.body).toContain('Vane, Este es tu presupuesto para mayo de 2026:');
+    expect(messaging.messages.at(-1)?.body).toContain('- Disponible total: $115.000');
+    expect(messaging.messages.at(-1)?.body).toContain('Por categorías:');
+    expect(messaging.messages.at(-1)?.body).toContain('- Food:');
+    expect(messaging.messages.at(-1)?.body).toContain('  - Gastado $35.000 de $100.000.');
+    expect(messaging.messages.at(-1)?.body).toContain('  - Disponible: $65.000.');
   });
 });
 

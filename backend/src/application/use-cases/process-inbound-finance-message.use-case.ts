@@ -41,7 +41,8 @@ export class ProcessInboundFinanceMessageUseCase {
     private readonly pendingDrafts: MessagingPendingDraftRepository,
     private readonly messaging: MessagingProvider,
     private readonly interpreter: MessageInterpreterPort,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly options: { frontendPublicOrigin: string }
   ) {}
 
   async execute(input: InboundTextMessage) {
@@ -58,7 +59,12 @@ export class ProcessInboundFinanceMessageUseCase {
         return { status: 'ignored_unregistered_sender' as const };
       }
 
-      await this.reply(linkedUser, input.replyTo ?? input.fromPhoneNumber, telegramLinkedMessage(linkedUser), input.channel);
+      await this.reply(
+        linkedUser,
+        input.replyTo ?? input.fromPhoneNumber,
+        telegramLinkedMessage(linkedUser, this.options.frontendPublicOrigin),
+        input.channel
+      );
       return { status: 'telegram_linked' as const };
     }
 
@@ -266,7 +272,15 @@ export class ProcessInboundFinanceMessageUseCase {
         this.budgets.listMonthly(user.tenantId),
         this.report(user.tenantId, from, to)
       ]);
-      const budgetMessage = formatBudgetStatusMessage(month, budgets, report.expenses, categories, interpreted.categoryName, user.preferredLanguage);
+      const budgetMessage = formatBudgetStatusMessage(
+        month,
+        budgets,
+        report.expenses,
+        report.incomes,
+        categories,
+        interpreted.categoryName,
+        user.preferredLanguage
+      );
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
@@ -676,10 +690,35 @@ function telegramLinkNotFoundMessage() {
   return 'No encontre ese telefono registrado. Primero registrate en la web y luego vuelve a enviar /link.';
 }
 
-function telegramLinkedMessage(user: User) {
+function telegramLinkedMessage(user: User, frontendPublicOrigin: string) {
+  const dashboardUrl = `${frontendPublicOrigin.replace(/\/$/, '')}/dashboard`;
   return user.preferredLanguage === 'en'
-    ? 'Telegram linked successfully. You can now send expenses/incomes in natural language.'
-    : 'Telegram vinculado correctamente. Ya puedes enviar gastos/ingresos en lenguaje natural.';
+    ? [
+      'Telegram is now connected to your account.',
+      '',
+      'Send me this month’s income and the expenses as they happen. I will keep everything organized for you.',
+      '',
+      'Examples:',
+      '- Salary income 1.200.000, bank transfer',
+      '- 25.000 lunch at Tavelli, debit card BCI',
+      '- 18.990 Uber, cash',
+      '- How much did I spend this month?',
+      '',
+      `You can review your dashboard here: ${dashboardUrl}`
+    ].join('\n')
+    : [
+      'Telegram quedó conectado a tu cuenta.',
+      '',
+      'Cuéntame el ingreso de este mes y los gastos a medida que vayan ocurriendo. Yo los iré ordenando por ti.',
+      '',
+      'Ejemplos:',
+      '- Ingreso de sueldo 1.200.000, transferencia',
+      '- 25.000 almuerzo en Tavelli, debito BCI',
+      '- 18.990 Uber, efectivo',
+      '- Cuanto gaste este mes?',
+      '',
+      `Puedes revisar tu dashboard aquí: ${dashboardUrl}`
+    ].join('\n');
 }
 
 function telegramUnlinkedMessage() {

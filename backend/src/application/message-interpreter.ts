@@ -89,7 +89,7 @@ export class DeterministicMessageInterpreter {
     }
 
     if (/\b(report|reporte|resumen|summary)\b/.test(lower) || /\b(cu[aá]nto|how much|spent|gastado|gaste|gast[eé])\b/.test(lower)) {
-      if (/\b(budget|presupuesto)\b/.test(lower)) {
+      if (isBudgetStatusRequest(lower)) {
         return { intent: 'ask_budget_status', confidence: 0.75, month: monthFromDate(context.now) };
       }
 
@@ -113,6 +113,14 @@ export class DeterministicMessageInterpreter {
       needsConfirmation: parsed.status !== 'ready'
     };
   }
+}
+
+function isBudgetStatusRequest(message: string) {
+  return (
+    /\b(budget|presupuesto)\b/.test(message) ||
+    /\b(cu[aá]nto|how much|what)\b/.test(message) &&
+    /\b(me queda|queda|left|remaining|resta|restante|disponible|available)\b/.test(message)
+  );
 }
 
 function parseMovementUpdate(message: string, context: MessageInterpreterContext): InterpretedMessage {
