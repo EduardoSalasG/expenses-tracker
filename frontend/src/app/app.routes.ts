@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/login.component';
+import { LandingComponent } from './features/landing.component';
 import { ShellComponent } from './features/shell.component';
 import { DashboardComponent } from './features/dashboard.component';
 import { ExpensesComponent } from './features/expenses.component';
@@ -7,10 +8,11 @@ import { IncomesComponent } from './features/incomes.component';
 import { BudgetsComponent } from './features/budgets.component';
 import { CategoriesComponent } from './features/categories.component';
 import { SettingsComponent } from './features/settings.component';
-import { authGuard } from './core/auth.guard';
+import { authGuard, guestGuard } from './core/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
+  { path: '', pathMatch: 'full', component: LandingComponent, canActivate: [guestGuard] },
+  { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   {
     path: '',
     component: ShellComponent,
@@ -25,5 +27,5 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' }
     ]
   },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', redirectTo: '' }
 ];
