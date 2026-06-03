@@ -192,6 +192,8 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.i18n.usePublicSpanish();
+    this.form.controls.preferredLanguage.setValue('es');
     const mode = this.route.snapshot.queryParamMap.get('mode');
     if (mode === 'register') {
       this.mode.set('register');
@@ -330,10 +332,21 @@ export class LoginComponent implements OnInit {
 
   private toErrorMessage(error: unknown, fallback: string) {
     if (error instanceof HttpErrorResponse && typeof error.error?.error === 'string') {
-      return error.error.error;
+      return this.translatePublicErrorMessage(error.error.error);
     }
 
     return fallback;
+  }
+
+  private translatePublicErrorMessage(message: string) {
+    const translations: Record<string, string> = {
+      'No account found for that phone number.': this.t('login_error_no_account'),
+      'This account has no email configured. Sign in with your password and add an email in Settings first.': this.t('login_error_no_email'),
+      'Could not send magic link email.': this.t('login_error_magic_link_send'),
+      'Invalid or expired magic link token.': this.t('login_magic_link_invalid'),
+      'Invalid phone number or password.': this.t('login_error_invalid_credentials_backend')
+    };
+    return translations[message] ?? message;
   }
 
   sendMagicLink() {

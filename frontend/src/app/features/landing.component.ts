@@ -423,6 +423,7 @@ export class LandingComponent implements OnInit {
   ];
 
   ngOnInit() {
+    this.i18n.usePublicSpanish();
     const title = this.t('landing_meta_title');
     const description = this.t('landing_meta_description');
     this.title.setTitle(title);
