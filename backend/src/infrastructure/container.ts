@@ -1,5 +1,6 @@
 import type { AppConfig } from './config.js';
 import { createPool, pingDatabase } from './database.js';
+import { ResendEmailProvider } from './email-providers/resend.provider.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
 import { ScryptPasswordHasher } from './password-hasher.service.js';
@@ -10,6 +11,7 @@ import { WhatsAppCloudProvider } from './messaging-providers/whatsapp.provider.j
 import {
   InMemoryBudgetRepository,
   InMemoryCategoryRepository,
+  InMemoryEmailMagicLinkTokenRepository,
   InMemoryExpenseRepository,
   InMemoryIncomeRepository,
   InMemoryMessagingMessageAuditRepository,
@@ -22,6 +24,7 @@ import {
 import {
   PostgresBudgetRepository,
   PostgresCategoryRepository,
+  PostgresEmailMagicLinkTokenRepository,
   PostgresExpenseRepository,
   PostgresIncomeRepository,
   PostgresMessagingMessageAuditRepository,
@@ -33,12 +36,14 @@ import {
 } from './repositories/postgres.js';
 import {
   ConsumeTelegramLinkTokenUseCase,
+  ConsumeEmailMagicLinkUseCase,
   CreateTelegramRegistrationLinkUseCase,
   FinanceUseCases,
   LoginWebUseCase,
   ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
   RegisterWebUseCase,
+  RequestEmailMagicLinkUseCase,
   RequestTelegramLinkTokenUseCase,
   RequestOtpUseCase,
   SendDueReportsUseCase,
@@ -61,8 +66,10 @@ export function createContainer(config: AppConfig) {
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const telegramLinkTokens = pool ? new PostgresTelegramLinkTokenRepository(pool) : new InMemoryTelegramLinkTokenRepository();
+  const emailMagicLinks = pool ? new PostgresEmailMagicLinkTokenRepository(pool) : new InMemoryEmailMagicLinkTokenRepository();
   const tokens = new JwtTokenService(config);
   const passwords = new ScryptPasswordHasher();
+  const email = new ResendEmailProvider(config, logger);
   const whatsappMessaging = new WhatsAppCloudProvider(config, logger);
   const telegramMessaging = new TelegramProvider(config, logger);
   const messaging = new ChannelMessagingRouter({
@@ -102,6 +109,10 @@ export function createContainer(config: AppConfig) {
     useCases: {
       registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens),
       loginWeb: new LoginWebUseCase(users, passwords, tokens),
+      requestEmailMagicLink: new RequestEmailMagicLinkUseCase(users, emailMagicLinks, email, clock, {
+        frontendPublicOrigin: config.frontendPublicOrigin
+      }),
+      consumeEmailMagicLink: new ConsumeEmailMagicLinkUseCase(emailMagicLinks, users, tokens, clock),
       requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),

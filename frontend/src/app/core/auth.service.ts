@@ -36,6 +36,12 @@ interface TelegramRegistrationLinkResponse {
   botUrl: string;
 }
 
+interface MagicLinkRequestResponse {
+  sent: boolean;
+  expiresAt: string;
+  email: string;
+}
+
 export interface RequestOtpResponse {
   sent: boolean;
   requiresRegistration: boolean;
@@ -86,6 +92,18 @@ export class AuthService {
 
   loginWeb(payload: { phoneNumber: string; password: string; telegramChatId?: string }) {
     return this.http.post<AuthSessionResponse>(`${environment.apiBaseUrl}/auth/login`, payload).pipe(
+      tap((response) => {
+        this.storeSession(response);
+      })
+    );
+  }
+
+  requestMagicLink(phoneNumber: string) {
+    return this.http.post<MagicLinkRequestResponse>(`${environment.apiBaseUrl}/auth/magic-link/request`, { phoneNumber });
+  }
+
+  consumeMagicLinkToken(token: string) {
+    return this.http.post<AuthSessionResponse>(`${environment.apiBaseUrl}/auth/magic-link/consume`, { token }).pipe(
       tap((response) => {
         this.storeSession(response);
       })

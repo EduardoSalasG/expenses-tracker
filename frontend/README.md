@@ -54,7 +54,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 ## Routes
 
 - `/`: public landing page for logged-out visitors. The header exposes login for existing users, while the rest of the page is optimized for registration/conversion.
-- `/login`: web-native login/registration. Existing users sign in with phone number + password. New users create an account from the web. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
+- `/login`: web-native login/registration. Existing users can sign in with phone number + password or request a magic link by email. New users create an account from the web. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.

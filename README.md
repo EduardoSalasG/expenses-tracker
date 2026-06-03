@@ -23,10 +23,6 @@ Every behavior change must keep documentation aligned:
 - Domain, architecture, or persistence changes update `docs/diagrams/flows.md`.
 - Database query changes update `database/query-analysis.md` when performance or index usage matters.
 
-## CI
-
-GitHub Actions verifies backend tests/build, frontend tests/build, and Docker Compose config on pushes and pull requests to `main`.
-
 ## Quick Start
 
 Install dependencies after network access is available, then run PostgreSQL in Docker:
@@ -112,6 +108,7 @@ Release flow:
 - Logged-out visitors land on `/`, a public landing page focused on registration and feature discovery.
 - The landing header keeps a single login action for existing users.
 - New users can create an account directly from the web with phone number + password.
+- Existing users can also request a one-time email magic link if their account has an email configured.
 - Telegram linking is optional and can happen later from a Telegram deep link without asking for `chat_id` manually.
 - Returning Telegram-linked users can open the web from the bot and sign in directly from the link token without OTP.
 

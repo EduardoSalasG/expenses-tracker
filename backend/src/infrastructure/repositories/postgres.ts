@@ -1,5 +1,5 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -672,6 +672,36 @@ export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRep
       token: result.rows[0].token,
       chatId: result.rows[0].chat_id,
       phoneNumber: result.rows[0].phone_number ?? undefined,
+      expiresAt: result.rows[0].expires_at instanceof Date ? result.rows[0].expires_at.toISOString() : String(result.rows[0].expires_at)
+    };
+  }
+}
+
+export class PostgresEmailMagicLinkTokenRepository implements EmailMagicLinkTokenRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async create(input: { token: string; userId: string; expiresAt: Date }) {
+    await this.pool.query(
+      `insert into email_magic_link_tokens (token, user_id, expires_at)
+       values ($1, $2, $3)`,
+      [input.token, input.userId, input.expiresAt]
+    );
+  }
+
+  async consume(token: string, now: Date) {
+    const result = await this.pool.query(
+      `update email_magic_link_tokens
+       set consumed_at = $2
+       where token = $1
+         and consumed_at is null
+         and expires_at >= $2
+       returning token, user_id, expires_at`,
+      [token, now]
+    );
+    if (!result.rows[0]) return undefined;
+    return {
+      token: result.rows[0].token,
+      userId: result.rows[0].user_id,
       expiresAt: result.rows[0].expires_at instanceof Date ? result.rows[0].expires_at.toISOString() : String(result.rows[0].expires_at)
     };
   }

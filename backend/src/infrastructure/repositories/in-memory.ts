@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   BudgetRepository,
   CategoryRepository,
+  EmailMagicLinkTokenRepository,
   ExpenseRepository,
   IncomeRepository,
   MessagingMessageAuditRepository,
@@ -588,6 +589,31 @@ export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRep
       token,
       chatId: record.chatId,
       phoneNumber: record.phoneNumber,
+      expiresAt: record.expiresAt
+    };
+  }
+}
+
+export class InMemoryEmailMagicLinkTokenRepository implements EmailMagicLinkTokenRepository {
+  private readonly tokens = new Map<string, { userId: string; expiresAt: string; consumed: boolean }>();
+
+  async create(input: { token: string; userId: string; expiresAt: Date }) {
+    this.tokens.set(input.token, {
+      userId: input.userId,
+      expiresAt: input.expiresAt.toISOString(),
+      consumed: false
+    });
+  }
+
+  async consume(token: string, now: Date) {
+    const record = this.tokens.get(token);
+    if (!record) return undefined;
+    if (record.consumed) return undefined;
+    if (record.expiresAt < now.toISOString()) return undefined;
+    record.consumed = true;
+    return {
+      token,
+      userId: record.userId,
       expiresAt: record.expiresAt
     };
   }

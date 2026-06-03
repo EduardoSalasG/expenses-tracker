@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { RequestOtpUseCase, VerifyOtpUseCase } from './use-cases.js';
+import { ConsumeEmailMagicLinkUseCase, LoginWebUseCase, RegisterWebUseCase, RequestEmailMagicLinkUseCase, RequestOtpUseCase, VerifyOtpUseCase } from './use-cases.js';
 import {
   InMemoryCategoryRepository,
+  InMemoryEmailMagicLinkTokenRepository,
   InMemoryOtpRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
-import type { MessagingProvider, TokenService } from './ports.js';
+import type { EmailProvider, MessagingProvider, TokenService } from './ports.js';
+import { ScryptPasswordHasher } from '../infrastructure/password-hasher.service.js';
 import type { User } from '../domain/index.js';
 
 describe('auth use cases', () => {
@@ -142,6 +144,84 @@ describe('auth use cases', () => {
     expect(messaging.messages[0].body).toContain('How much did I spend this month?');
     expect(messaging.messages[0].body).toContain('https://expenses-tracker-easg.netlify.app/dashboard');
   });
+
+  it('registers a web user and allows password login', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const passwords = new ScryptPasswordHasher();
+    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService());
+
+    const session = await registerUseCase.execute({
+      phoneNumber: '+56982439041',
+      password: 'correct-horse-battery',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Edu',
+      email: 'eduardo@example.com',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      preferredLanguage: 'es'
+    });
+
+    expect(session.user.phoneNumber).toBe('+56982439041');
+    const loginUseCase = new LoginWebUseCase(users, passwords, new FakeTokenService());
+    const loginSession = await loginUseCase.execute({
+      phoneNumber: '+56982439041',
+      password: 'correct-horse-battery'
+    });
+
+    expect(loginSession.user.preferredName).toBe('Edu');
+  });
+
+  it('sends a magic link email for existing users with email configured', async () => {
+    const users = new InMemoryUserRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Edu',
+      email: 'eduardo@example.com',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    const links = new InMemoryEmailMagicLinkTokenRepository();
+    const email = new CapturingEmailProvider();
+    const requestUseCase = new RequestEmailMagicLinkUseCase(users, links, email, fixedClock(), {
+      frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
+    });
+
+    const result = await requestUseCase.execute(user.phoneNumber);
+
+    expect(result.sent).toBe(true);
+    expect(result.email).toContain('@example.com');
+    expect(email.messages).toHaveLength(1);
+    expect(email.messages[0].html).toContain('magicLinkToken=');
+  });
+
+  it('consumes a magic link and returns a session', async () => {
+    const users = new InMemoryUserRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Edu',
+      email: 'eduardo@example.com',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    const links = new InMemoryEmailMagicLinkTokenRepository();
+    await links.create({
+      token: 'magic-link-token',
+      userId: user.id,
+      expiresAt: new Date('2026-05-10T00:10:00.000Z')
+    });
+    const consumeUseCase = new ConsumeEmailMagicLinkUseCase(links, users, new FakeTokenService(), fixedClock());
+
+    const result = await consumeUseCase.execute('magic-link-token');
+
+    expect(result.user.id).toBe(user.id);
+    expect(result.accessToken).toContain(user.id);
+  });
 });
 
 function fixedClock() {
@@ -154,6 +234,14 @@ class CapturingMessagingProvider implements MessagingProvider {
   async sendText(toPhoneNumber: string, body: string) {
     this.messages.push({ toPhoneNumber, body });
     return { captured: true };
+  }
+}
+
+class CapturingEmailProvider implements EmailProvider {
+  readonly messages: Array<{ to: string; subject: string; html: string; text?: string }> = [];
+
+  async send(options: { to: string; subject: string; html: string; text?: string }) {
+    this.messages.push(options);
   }
 }
 

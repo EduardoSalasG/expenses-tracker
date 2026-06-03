@@ -37,7 +37,7 @@ import { I18nService } from '../core/i18n.service';
         <form [formGroup]="form" (ngSubmit)="submit()" class="grid gap-4">
           @if (autoSigningIn()) {
             <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
-              Signing you in from Telegram...
+              {{ t('login_auto_signing_in') }}
             </div>
           }
           @if (errorMessage()) {
@@ -45,12 +45,17 @@ import { I18nService } from '../core/i18n.service';
               {{ errorMessage() }}
             </div>
           }
+          @if (magicLinkStatus()) {
+            <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted" role="status" aria-live="polite">
+              {{ magicLinkStatus() }}
+            </div>
+          }
 
           <mat-form-field appearance="outline">
             <mat-label>{{ t('login_phone') }}</mat-label>
             <input matInput formControlName="phoneNumber" placeholder="+56912345678" autocomplete="tel" inputmode="tel" [readonly]="phoneLocked()">
             @if (form.controls.phoneNumber.touched && form.controls.phoneNumber.invalid) {
-              <mat-error>Enter a valid phone number.</mat-error>
+              <mat-error>{{ t('login_phone_error') }}</mat-error>
             }
           </mat-form-field>
 
@@ -68,6 +73,10 @@ import { I18nService } from '../core/i18n.service';
                 <mat-error>{{ t('login_password_error') }}</mat-error>
               }
             </mat-form-field>
+            <button type="button" mat-stroked-button class="!h-11 w-full" (click)="sendMagicLink()">
+              {{ t('login_send_magic_link') }}
+            </button>
+            <p class="text-sm text-brand-muted">{{ t('login_magic_link_hint') }}</p>
           }
 
           @if (mode() === 'register') {
@@ -154,6 +163,7 @@ export class LoginComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly errorMessage = signal('');
   readonly autoSigningIn = signal(false);
+  readonly magicLinkStatus = signal('');
   readonly phoneLocked = signal(false);
   readonly telegramLocked = signal(false);
   readonly mode = signal<'login' | 'register'>('login');
@@ -186,6 +196,18 @@ export class LoginComponent implements OnInit {
     if (mode === 'register') {
       this.mode.set('register');
     }
+    const magicLinkToken = this.route.snapshot.queryParamMap.get('magicLinkToken');
+    if (magicLinkToken) {
+      this.autoSigningIn.set(true);
+      this.auth.consumeMagicLinkToken(magicLinkToken).subscribe({
+        next: () => this.router.navigateByUrl('/dashboard'),
+        error: () => {
+          this.autoSigningIn.set(false);
+          this.errorMessage.set(this.t('login_magic_link_invalid'));
+        }
+      });
+      return;
+    }
     const linkToken = this.route.snapshot.queryParamMap.get('linkToken');
     if (!linkToken) return;
     this.autoSigningIn.set(true);
@@ -208,7 +230,7 @@ export class LoginComponent implements OnInit {
       },
       error: () => {
         this.autoSigningIn.set(false);
-        this.errorMessage.set('Invalid or expired Telegram link token. Please return to Telegram and tap start again.');
+        this.errorMessage.set(this.t('login_telegram_link_invalid'));
       }
     });
   }
@@ -216,6 +238,7 @@ export class LoginComponent implements OnInit {
   submit() {
     const value = this.form.getRawValue();
     this.errorMessage.set('');
+    this.magicLinkStatus.set('');
 
     if (this.mode() === 'login') {
       if (this.form.controls.phoneNumber.invalid || this.form.controls.password.invalid) {
@@ -297,6 +320,7 @@ export class LoginComponent implements OnInit {
   setMode(mode: 'login' | 'register') {
     this.mode.set(mode);
     this.errorMessage.set('');
+    this.magicLinkStatus.set('');
     this.applyRegistrationValidators(mode === 'register');
     this.form.controls.password.reset('');
     this.form.controls.confirmPassword.clearValidators();
@@ -310,6 +334,24 @@ export class LoginComponent implements OnInit {
     }
 
     return fallback;
+  }
+
+  sendMagicLink() {
+    this.errorMessage.set('');
+    this.magicLinkStatus.set('');
+    if (this.form.controls.phoneNumber.invalid) {
+      this.form.controls.phoneNumber.markAsTouched();
+      return;
+    }
+
+    this.auth.requestMagicLink(this.form.controls.phoneNumber.getRawValue()).subscribe({
+      next: (response) => {
+        this.magicLinkStatus.set(this.t('login_magic_link_sent').replace('{email}', response.email));
+      },
+      error: (error) => {
+        this.errorMessage.set(this.toErrorMessage(error, this.t('login_magic_link_error')));
+      }
+    });
   }
 
   showControlError(controlName: 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency') {

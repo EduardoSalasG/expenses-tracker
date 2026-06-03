@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, PasswordHasher, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
+import type { CategoryRepository, Clock, EmailMagicLinkTokenRepository, EmailProvider, MessagingProvider, OtpRepository, PasswordHasher, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -62,6 +62,72 @@ export class CreateTelegramRegistrationLinkUseCase {
     return {
       phoneNumber,
       botUrl: `https://t.me/${this.options.telegramBotUsername}?start=${encodeURIComponent(token)}`
+    };
+  }
+}
+
+export class RequestEmailMagicLinkUseCase {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly emailMagicLinks: EmailMagicLinkTokenRepository,
+    private readonly email: EmailProvider,
+    private readonly clock: Clock,
+    private readonly options: { frontendPublicOrigin: string }
+  ) {}
+
+  async execute(phoneNumber: string) {
+    const user = await this.users.findByPhoneNumber(phoneNumber);
+    if (!user) {
+      throw new Error('No account found for that phone number.');
+    }
+
+    if (!user.email) {
+      throw new Error('This account has no email configured. Sign in with your password and add an email in Settings first.');
+    }
+
+    const token = randomUUID();
+    const expiresAt = new Date(this.clock.now().getTime() + 15 * 60 * 1000);
+    await this.emailMagicLinks.create({ token, userId: user.id, expiresAt });
+
+    const loginUrl = `${this.options.frontendPublicOrigin.replace(/\/$/, '')}/login?magicLinkToken=${encodeURIComponent(token)}`;
+    await this.email.send({
+      to: user.email,
+      subject: 'Your Expenses Tracker access link',
+      text: buildMagicLinkText(user.preferredName, loginUrl),
+      html: buildMagicLinkHtml(user.preferredName, loginUrl)
+    });
+
+    return {
+      sent: true,
+      expiresAt: expiresAt.toISOString(),
+      email: maskEmail(user.email)
+    };
+  }
+}
+
+export class ConsumeEmailMagicLinkUseCase {
+  constructor(
+    private readonly emailMagicLinks: EmailMagicLinkTokenRepository,
+    private readonly users: UserRepository,
+    private readonly tokens: TokenService,
+    private readonly clock: Clock
+  ) {}
+
+  async execute(token: string) {
+    const record = await this.emailMagicLinks.consume(token, this.clock.now());
+    if (!record) {
+      throw new Error('Invalid or expired magic link token.');
+    }
+
+    const user = await this.users.findById(record.userId);
+    if (!user) {
+      throw new Error('Invalid or expired magic link token.');
+    }
+
+    return {
+      user,
+      accessToken: this.tokens.signAccessToken(user),
+      refreshToken: this.tokens.signRefreshToken(user)
     };
   }
 }
@@ -209,6 +275,42 @@ function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string,
     '',
     `You can open your dashboard here: ${dashboardUrl}`
   ].join('\n');
+}
+
+function buildMagicLinkText(preferredName: string, loginUrl: string) {
+  return [
+    `${preferredName}, here is your access link for Expenses Tracker.`,
+    '',
+    'Use it within the next 15 minutes:',
+    loginUrl,
+    '',
+    'If you did not request this email, you can ignore it.'
+  ].join('\n');
+}
+
+function buildMagicLinkHtml(preferredName: string, loginUrl: string) {
+  return [
+    `<p>${escapeHtml(preferredName)}, here is your access link for <strong>Expenses Tracker</strong>.</p>`,
+    `<p><a href="${escapeHtml(loginUrl)}">Open my account</a></p>`,
+    '<p>This link expires in 15 minutes.</p>',
+    '<p>If you did not request this email, you can ignore it.</p>'
+  ].join('');
+}
+
+function maskEmail(email: string) {
+  const [localPart, domain] = email.split('@');
+  if (!localPart || !domain) return email;
+  const visible = localPart.slice(0, 2);
+  return `${visible}${'*'.repeat(Math.max(localPart.length - 2, 2))}@${domain}`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 export class RegisterWebUseCase {

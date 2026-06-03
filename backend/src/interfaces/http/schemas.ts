@@ -26,6 +26,14 @@ export const webLoginSchema = z.object({
   telegramChatId: z.string().min(2).optional()
 });
 
+export const requestMagicLinkSchema = z.object({
+  phoneNumber: phoneNumberSchema
+});
+
+export const consumeMagicLinkSchema = z.object({
+  token: z.string().min(10)
+});
+
 export const verifyOtpSchema = z.object({
   phoneNumber: phoneNumberSchema,
   code: z.string().length(6),

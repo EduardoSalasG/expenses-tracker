@@ -1,6 +1,8 @@
 export type { BudgetRepository } from './budget.repository.js';
 export type { CategoryRepository } from './category.repository.js';
 export type { Clock } from './clock.js';
+export type { EmailMagicLinkTokenRecord, EmailMagicLinkTokenRepository } from './email-magic-link-token.repository.js';
+export type { EmailProvider } from './email.provider.js';
 export type { CategoryTotalByPeriod, CurrencyTotalByPeriod, ExpenseRepository } from './expense.repository.js';
 export type { IncomeRepository } from './income.repository.js';
 export type { MessageInterpreterPort } from './message-interpreter.port.js';

@@ -29,6 +29,9 @@ pnpm --filter @expenses-tracker/backend dev
 - `TELEGRAM_BOT_TOKEN`: Telegram bot HTTP API token.
 - `TELEGRAM_BOT_API_BASE_URL`: Telegram API base URL (`https://api.telegram.org`).
 - `TELEGRAM_WEBHOOK_SECRET_TOKEN`: optional secret expected in `x-telegram-bot-api-secret-token` for webhook hardening.
+- `RESEND_API_KEY`: Resend API key used to send email magic links.
+- `RESEND_API_BASE_URL`: Resend REST API base URL (`https://api.resend.com`).
+- `RESEND_FROM_EMAIL`: verified sender used for magic-link emails.
 - `MESSAGE_INTERPRETER_PROVIDER`: `deterministic`, `github-models`, or `openai-compatible`.
 - `MESSAGE_INTERPRETER_API_KEY`: API key for the selected LLM provider. For GitHub Models, use a GitHub token with Models access. Leave empty to fall back to deterministic parsing.
 - `MESSAGE_INTERPRETER_BASE_URL`: chat completions base URL. GitHub Models uses `https://models.github.ai/inference`.
@@ -100,6 +103,10 @@ Primary authentication is web-native. Telegram is optional and can be linked dur
 `POST /auth/register` creates a user with phone number + password and immediately returns access/refresh tokens. Required registration fields are `firstName`, `lastName`, `preferredName`, `countryOfResidence`, and `preferredCurrency`. `email` is optional. If `telegramChatId` is present, the backend links that Telegram chat automatically after registration.
 
 `POST /auth/login` signs in with phone number + password and returns access/refresh tokens. If `telegramChatId` is present, the backend links that Telegram chat automatically after successful login.
+
+`POST /auth/magic-link/request` sends a one-time login email through Resend for an existing user with an email on file. The request only needs the phone number. The response returns whether the email was sent, when the link expires, and a masked version of the destination email.
+
+`POST /auth/magic-link/consume` exchanges a one-time email token for access/refresh tokens. Tokens expire after 15 minutes and are single-use.
 
 `POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is now a fallback flow for Telegram-linked users rather than the primary way into the web app.
 

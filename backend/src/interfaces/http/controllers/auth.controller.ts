@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { AppContainer } from '../../../infrastructure/container.js';
-import { consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestOtpSchema, verifyOtpSchema, webLoginSchema, webRegisterSchema } from '../schemas.js';
+import { consumeMagicLinkSchema, consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestMagicLinkSchema, requestOtpSchema, verifyOtpSchema, webLoginSchema, webRegisterSchema } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
 export class AuthController {
@@ -19,6 +19,16 @@ export class AuthController {
   loginWeb = async (request: Request, response: Response) => {
     const body = parseBody(webLoginSchema, request.body);
     response.json(await this.container.useCases.loginWeb.execute(body));
+  };
+
+  requestMagicLink = async (request: Request, response: Response) => {
+    const body = parseBody(requestMagicLinkSchema, request.body);
+    response.json(await this.container.useCases.requestEmailMagicLink.execute(body.phoneNumber));
+  };
+
+  consumeMagicLink = async (request: Request, response: Response) => {
+    const body = parseBody(consumeMagicLinkSchema, request.body);
+    response.json(await this.container.useCases.consumeEmailMagicLink.execute(body.token));
   };
 
   createTelegramLinkToken = async (request: Request, response: Response) => {

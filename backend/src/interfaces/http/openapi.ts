@@ -210,6 +210,82 @@ export const openApiSpec = {
         }
       }
     },
+    '/auth/magic-link/request': {
+      post: {
+        summary: 'Send email magic link',
+        description: 'Sends a one-time sign-in link to the email already configured on the account identified by phone number.',
+        requestBody: jsonBody({
+          phoneNumber: { type: 'string', example: '+56912345678' }
+        }, ['phoneNumber']),
+        responses: {
+          '200': {
+            description: 'Magic link sent',
+            content: {
+              'application/json': {
+                examples: {
+                  sent: {
+                    value: {
+                      sent: true,
+                      expiresAt: '2026-06-03T18:00:00.000Z',
+                      email: 'va****@example.com'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or account state error',
+            content: {
+              'application/json': {
+                examples: {
+                  missingAccount: { value: { error: 'No account found for that phone number.' } },
+                  missingEmail: { value: { error: 'This account has no email configured. Sign in with your password and add an email in Settings first.' } },
+                  providerError: { value: { error: 'Could not send magic link email.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/auth/magic-link/consume': {
+      post: {
+        summary: 'Consume email magic link',
+        description: 'Consumes a one-time email sign-in token and returns a browser session.',
+        requestBody: jsonBody({
+          token: { type: 'string', example: '5f50d30e-7f96-4ad2-b16f-2a38e8576b95' }
+        }, ['token']),
+        responses: {
+          '200': {
+            description: 'Session created',
+            content: {
+              'application/json': {
+                examples: {
+                  signedIn: {
+                    value: {
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: { id: 'user-id', phoneNumber: '+56912345678', preferredName: 'Vane' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid or expired token',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidToken: { value: { error: 'Invalid or expired magic link token.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/telegram/registration-link': {
       post: {
         summary: 'Create Telegram deep link for web-first registration',
