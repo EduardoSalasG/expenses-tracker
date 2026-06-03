@@ -37,6 +37,14 @@ import { I18nService } from '../core/i18n.service';
             <p class="mt-5 max-w-xl text-base leading-7 text-brand-muted sm:text-lg">
               {{ t('landing_description') }}
             </p>
+            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+              @for (outcome of outcomes; track outcome.label) {
+                <div class="rounded-lg border border-brand-border bg-brand-surface/85 p-4 shadow-sm">
+                  <p class="text-xl font-semibold text-brand-ink">{{ outcome.value }}</p>
+                  <p class="mt-1 text-sm text-brand-muted">{{ outcome.label }}</p>
+                </div>
+              }
+            </div>
             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
               <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="!h-12 !px-6">
                 {{ t('landing_register') }}
@@ -45,6 +53,7 @@ import { I18nService } from '../core/i18n.service';
                 {{ t('landing_login') }}
               </a>
             </div>
+            <p class="mt-3 text-sm text-brand-muted">{{ t('landing_cta_support') }}</p>
             <ul class="mt-8 grid gap-3 text-sm text-brand-muted sm:grid-cols-3">
               <li class="flex items-center gap-2">
                 <mat-icon class="!h-5 !w-5 !text-brand-blue">chat</mat-icon>
@@ -92,8 +101,20 @@ import { I18nService } from '../core/i18n.service';
       </section>
 
       <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div class="grid gap-4 md:grid-cols-3">
+          @for (reason of reasons; track reason.title) {
+            <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-surface-muted text-brand-blue">
+                <mat-icon>{{ reason.icon }}</mat-icon>
+              </div>
+              <h2 class="mt-4 text-lg font-semibold">{{ reason.title }}</h2>
+              <p class="mt-2 text-sm leading-6 text-brand-muted">{{ reason.description }}</p>
+            </article>
+          }
+        </div>
+
         <div class="max-w-2xl">
-          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_features_title') }}</h2>
+          <h2 class="mt-14 text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_features_title') }}</h2>
           <p class="mt-3 text-base leading-7 text-brand-muted">
             {{ t('landing_features_subtitle') }}
           </p>
@@ -108,6 +129,26 @@ import { I18nService } from '../core/i18n.service';
               <p class="mt-2 text-sm leading-6 text-brand-muted">{{ feature.description }}</p>
             </article>
           }
+        </div>
+      </section>
+
+      <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
+        <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div class="max-w-2xl">
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_examples_title') }}</h2>
+            <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_examples_subtitle') }}</p>
+          </div>
+          <div class="mt-8 grid gap-4 lg:grid-cols-3">
+            @for (example of examples; track example.title) {
+              <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
+                <p class="text-sm font-semibold uppercase tracking-[0.14em] text-brand-blue">{{ example.title }}</p>
+                <p class="mt-4 rounded-lg bg-brand-surface-muted px-4 py-3 text-sm font-medium text-brand-ink">
+                  {{ example.input }}
+                </p>
+                <p class="mt-4 text-sm leading-6 text-brand-muted">{{ example.output }}</p>
+              </article>
+            }
+          </div>
         </div>
       </section>
 
@@ -130,6 +171,24 @@ import { I18nService } from '../core/i18n.service';
               </li>
             }
           </ol>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div class="max-w-2xl">
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_trust_title') }}</h2>
+          <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_trust_subtitle') }}</p>
+        </div>
+        <div class="mt-8 grid gap-4 md:grid-cols-3">
+          @for (trust of trustPoints; track trust.title) {
+            <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-surface-muted text-brand-blue">
+                <mat-icon>{{ trust.icon }}</mat-icon>
+              </div>
+              <h3 class="mt-4 text-lg font-semibold">{{ trust.title }}</h3>
+              <p class="mt-2 text-sm leading-6 text-brand-muted">{{ trust.description }}</p>
+            </article>
+          }
         </div>
       </section>
 
@@ -164,10 +223,34 @@ export class LandingComponent implements OnInit {
     { icon: 'schedule', title: this.t('landing_feature_reports_title'), description: this.t('landing_feature_reports_desc') }
   ];
 
+  readonly outcomes = [
+    { value: this.t('landing_outcome_1_value'), label: this.t('landing_outcome_1_label') },
+    { value: this.t('landing_outcome_2_value'), label: this.t('landing_outcome_2_label') },
+    { value: this.t('landing_outcome_3_value'), label: this.t('landing_outcome_3_label') }
+  ];
+
+  readonly reasons = [
+    { icon: 'bolt', title: this.t('landing_reason_1_title'), description: this.t('landing_reason_1_desc') },
+    { icon: 'visibility', title: this.t('landing_reason_2_title'), description: this.t('landing_reason_2_desc') },
+    { icon: 'psychology', title: this.t('landing_reason_3_title'), description: this.t('landing_reason_3_desc') }
+  ];
+
   readonly steps = [
     { title: this.t('landing_step_1_title'), description: this.t('landing_step_1_desc') },
     { title: this.t('landing_step_2_title'), description: this.t('landing_step_2_desc') },
     { title: this.t('landing_step_3_title'), description: this.t('landing_step_3_desc') }
+  ];
+
+  readonly examples = [
+    { title: this.t('landing_example_1_title'), input: this.t('landing_example_1_input'), output: this.t('landing_example_1_output') },
+    { title: this.t('landing_example_2_title'), input: this.t('landing_example_2_input'), output: this.t('landing_example_2_output') },
+    { title: this.t('landing_example_3_title'), input: this.t('landing_example_3_input'), output: this.t('landing_example_3_output') }
+  ];
+
+  readonly trustPoints = [
+    { icon: 'shield', title: this.t('landing_trust_1_title'), description: this.t('landing_trust_1_desc') },
+    { icon: 'devices', title: this.t('landing_trust_2_title'), description: this.t('landing_trust_2_desc') },
+    { icon: 'insights', title: this.t('landing_trust_3_title'), description: this.t('landing_trust_3_desc') }
   ];
 
   ngOnInit() {
