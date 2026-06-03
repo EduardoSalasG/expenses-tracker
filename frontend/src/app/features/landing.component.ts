@@ -67,15 +67,15 @@ import { I18nService } from '../core/i18n.service';
             <p class="mt-3 text-sm text-brand-muted">{{ t('landing_cta_support') }}</p>
             <ul class="mt-8 grid gap-3 text-sm text-brand-muted sm:grid-cols-3">
               <li class="flex items-center gap-2">
-                <mat-icon class="!h-5 !w-5 !text-brand-blue">chat</mat-icon>
+                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">chat</mat-icon>
                 <span>{{ t('landing_proof_messaging') }}</span>
               </li>
               <li class="flex items-center gap-2">
-                <mat-icon class="!h-5 !w-5 !text-brand-blue">savings</mat-icon>
+                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">savings</mat-icon>
                 <span>{{ t('landing_proof_budget') }}</span>
               </li>
               <li class="flex items-center gap-2">
-                <mat-icon class="!h-5 !w-5 !text-brand-blue">monitoring</mat-icon>
+                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">monitoring</mat-icon>
                 <span>{{ t('landing_proof_reports') }}</span>
               </li>
             </ul>
@@ -116,7 +116,7 @@ import { I18nService } from '../core/i18n.service';
           @for (reason of reasons; track reason.title) {
             <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
               <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-surface-muted text-brand-blue">
-                <mat-icon>{{ reason.icon }}</mat-icon>
+                <mat-icon class="landing-inline-icon">{{ reason.icon }}</mat-icon>
               </div>
               <h2 class="mt-4 text-lg font-semibold">{{ reason.title }}</h2>
               <p class="mt-2 text-sm leading-6 text-brand-muted">{{ reason.description }}</p>
@@ -134,7 +134,7 @@ import { I18nService } from '../core/i18n.service';
           @for (feature of features; track feature.title) {
             <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
               <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-surface-muted text-brand-blue">
-                <mat-icon>{{ feature.icon }}</mat-icon>
+                <mat-icon class="landing-inline-icon">{{ feature.icon }}</mat-icon>
               </div>
               <h3 class="mt-4 text-lg font-semibold">{{ feature.title }}</h3>
               <p class="mt-2 text-sm leading-6 text-brand-muted">{{ feature.description }}</p>
@@ -274,7 +274,7 @@ import { I18nService } from '../core/i18n.service';
           @for (trust of trustPoints; track trust.title) {
             <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
               <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-surface-muted text-brand-blue">
-                <mat-icon>{{ trust.icon }}</mat-icon>
+                <mat-icon class="landing-inline-icon">{{ trust.icon }}</mat-icon>
               </div>
               <h3 class="mt-4 text-lg font-semibold">{{ trust.title }}</h3>
               <p class="mt-2 text-sm leading-6 text-brand-muted">{{ trust.description }}</p>
@@ -311,7 +311,7 @@ import { I18nService } from '../core/i18n.service';
               <article class="rounded-xl border border-brand-border bg-brand-bg p-4">
                 <div class="flex items-start gap-3">
                   <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-surface text-brand-blue">
-                    <mat-icon>{{ cta.icon }}</mat-icon>
+                    <mat-icon class="landing-inline-icon">{{ cta.icon }}</mat-icon>
                   </div>
                   <div class="min-w-0">
                     <h3 class="text-base font-semibold text-brand-ink">{{ cta.title }}</h3>
