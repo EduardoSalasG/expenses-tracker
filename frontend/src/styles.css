@@ -217,6 +217,43 @@ table {
   width: 100%;
 }
 
+.landing-nav-login.mat-mdc-outlined-button,
+.landing-nav-register.mat-mdc-unelevated-button {
+  min-height: 44px;
+  border-radius: 9999px !important;
+  padding-inline: 1.1rem !important;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.landing-nav-login.mat-mdc-outlined-button {
+  border-color: color-mix(in srgb, var(--brand-border) 78%, transparent) !important;
+  color: var(--brand-ink) !important;
+  background: rgb(var(--brand-surface-rgb) / 0.02);
+}
+
+.landing-nav-login.mat-mdc-outlined-button:hover {
+  background: rgb(var(--brand-surface-rgb) / 0.08);
+  border-color: rgb(var(--brand-blue-rgb) / 0.5) !important;
+}
+
+.landing-nav-register.mat-mdc-unelevated-button {
+  background: linear-gradient(135deg, rgb(var(--brand-blue-rgb)) 0%, rgb(var(--brand-navy-700-rgb)) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px rgb(var(--brand-blue-rgb) / 0.28);
+}
+
+.landing-nav-register.mat-mdc-unelevated-button:hover {
+  box-shadow: 0 14px 30px rgb(var(--brand-blue-rgb) / 0.35);
+  filter: brightness(1.04);
+}
+
+.landing-nav-login .mdc-button__label,
+.landing-nav-register .mdc-button__label {
+  color: inherit !important;
+}
+
 .landing-hero-ring {
   position: absolute;
   inset: 0;
@@ -492,6 +529,12 @@ table {
   .landing-primary-nav .mat-mdc-button-touch-target,
   .landing-cta-group .mat-mdc-button-touch-target {
     width: 100%;
+  }
+
+  .landing-nav-login.mat-mdc-outlined-button,
+  .landing-nav-register.mat-mdc-unelevated-button {
+    min-height: 46px;
+    justify-content: center;
   }
 
   .mat-mdc-card.page-panel {

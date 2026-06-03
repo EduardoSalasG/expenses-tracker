@@ -21,7 +21,22 @@ import { I18nService } from '../core/i18n.service';
             </div>
           </a>
           <nav aria-label="Primary" class="landing-primary-nav flex w-full items-center gap-2 sm:w-auto sm:gap-3">
-            <a mat-button routerLink="/login" class="flex-1 !text-brand-navy sm:flex-none">{{ t('landing_login') }}</a>
+            <a
+              mat-stroked-button
+              routerLink="/login"
+              class="landing-nav-login flex-1 sm:flex-none"
+            >
+              {{ t('landing_login') }}
+            </a>
+            <a
+              mat-flat-button
+              color="primary"
+              routerLink="/login"
+              [queryParams]="{ mode: 'register' }"
+              class="landing-nav-register flex-1 sm:flex-none"
+            >
+              {{ t('landing_register') }}
+            </a>
           </nav>
         </div>
       </header>
