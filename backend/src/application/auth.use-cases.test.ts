@@ -67,7 +67,15 @@ describe('auth use cases', () => {
     });
     await otps.create(existing.phoneNumber, '123456', new Date('2026-05-10T00:10:00.000Z'));
     const messaging = new CapturingMessagingProvider();
-    const useCase = new VerifyOtpUseCase(users, otps, categories, new FakeTokenService(), fixedClock(), messaging);
+    const useCase = new VerifyOtpUseCase(
+      users,
+      otps,
+      categories,
+      new FakeTokenService(),
+      fixedClock(),
+      messaging,
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
 
     const result = await useCase.execute({ phoneNumber: existing.phoneNumber, code: '123456' });
 
@@ -88,7 +96,8 @@ describe('auth use cases', () => {
       new InMemoryCategoryRepository(),
       new FakeTokenService(),
       fixedClock(),
-      new CapturingMessagingProvider()
+      new CapturingMessagingProvider(),
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     await expect(useCase.execute({ phoneNumber: '+56982439041', code: '123456' }))
@@ -106,7 +115,8 @@ describe('auth use cases', () => {
       new InMemoryCategoryRepository(),
       new FakeTokenService(),
       fixedClock(),
-      messaging
+      messaging,
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
 
     const result = await useCase.execute({
@@ -126,10 +136,11 @@ describe('auth use cases', () => {
     expect(messaging.messages).toHaveLength(1);
     expect(messaging.messages[0]).toEqual({
       toPhoneNumber: '12345',
-      body: expect.stringContaining('Hi Edu, welcome to Expenses Tracker.')
+      body: expect.stringContaining('Edu, your account is ready.')
     });
     expect(messaging.messages[0].body).toContain('20.000 classes at Bsoul');
     expect(messaging.messages[0].body).toContain('How much did I spend this month?');
+    expect(messaging.messages[0].body).toContain('https://expenses-tracker-easg.netlify.app/dashboard');
   });
 });
 
