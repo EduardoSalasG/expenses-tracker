@@ -96,7 +96,8 @@ export const openApiSpec = {
     },
     '/auth/otp/request': {
       post: {
-        summary: 'Request Telegram OTP',
+        summary: 'Request Telegram OTP (fallback flow)',
+        description: 'Fallback flow for Telegram-linked users. Primary web authentication uses /auth/register and /auth/login.',
         requestBody: jsonBody({
           phoneNumber: { type: 'string', example: '+56912345678' },
           telegramChatId: { type: 'string', example: '123456789' }
@@ -122,9 +123,97 @@ export const openApiSpec = {
         }
       }
     },
+    '/auth/register': {
+      post: {
+        summary: 'Create web account',
+        description: 'Primary registration flow. Creates a user with phone number + password. Telegram is optional; if telegramChatId is provided it is linked automatically after registration.',
+        requestBody: jsonBody({
+          phoneNumber: { type: 'string', example: '+56912345678' },
+          password: { type: 'string', example: 'correct-horse-battery' },
+          firstName: { type: 'string', example: 'Vanessa' },
+          lastName: { type: 'string', example: 'Salas' },
+          preferredName: { type: 'string', example: 'Vane' },
+          email: { type: 'string', example: 'vane@example.com' },
+          countryOfResidence: { type: 'string', example: 'Chile' },
+          preferredCurrency: { type: 'string', example: 'CLP' },
+          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' },
+          telegramChatId: { type: 'string', example: '123456789' }
+        }, ['phoneNumber', 'password', 'firstName', 'lastName', 'preferredName', 'countryOfResidence', 'preferredCurrency']),
+        responses: {
+          '201': {
+            description: 'Account created and session started',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: { id: 'user-id', phoneNumber: '+56912345678', preferredName: 'Vane' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or business rule error',
+            content: {
+              'application/json': {
+                examples: {
+                  validationError: { value: { error: 'Validation failed.' } },
+                  alreadyRegistered: { value: { error: 'Phone number is already registered. Please log in.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/auth/login': {
+      post: {
+        summary: 'Sign in from the web',
+        description: 'Primary login flow using phone number + password. Telegram is optional; if telegramChatId is provided the backend links that chat after successful authentication.',
+        requestBody: jsonBody({
+          phoneNumber: { type: 'string', example: '+56912345678' },
+          password: { type: 'string', example: 'correct-horse-battery' },
+          telegramChatId: { type: 'string', example: '123456789' }
+        }, ['phoneNumber', 'password']),
+        responses: {
+          '200': {
+            description: 'Session created',
+            content: {
+              'application/json': {
+                examples: {
+                  signedIn: {
+                    value: {
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: { id: 'user-id', phoneNumber: '+56912345678', preferredName: 'Vane' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or credential error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidCredentials: { value: { error: 'Invalid phone number or password.' } },
+                  validationError: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/telegram/registration-link': {
       post: {
         summary: 'Create Telegram deep link for web-first registration',
+        description: 'Optional convenience flow. Generates a Telegram deep link so a web user can link a chat without typing chat_id manually.',
         requestBody: jsonBody({
           phoneNumber: { type: 'string', example: '+56912345678' }
         }, ['phoneNumber']),
@@ -160,7 +249,8 @@ export const openApiSpec = {
     },
     '/auth/otp/verify': {
       post: {
-        summary: 'Verify Telegram OTP and receive tokens',
+        summary: 'Verify Telegram OTP and receive tokens (fallback flow)',
+        description: 'Fallback flow for Telegram-driven login/registration. Primary web auth uses /auth/register and /auth/login.',
         requestBody: jsonBody({
           phoneNumber: { type: 'string' },
           code: { type: 'string' },

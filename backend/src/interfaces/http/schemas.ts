@@ -7,6 +7,25 @@ export const requestOtpSchema = z.object({
   telegramChatId: z.string().min(2).optional()
 });
 
+export const webRegisterSchema = z.object({
+  phoneNumber: phoneNumberSchema,
+  password: z.string().min(8),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  preferredName: z.string().min(1),
+  email: z.string().email().optional(),
+  countryOfResidence: z.string().min(2),
+  preferredCurrency: z.string().length(3).transform((value) => value.toUpperCase()),
+  preferredLanguage: z.enum(['es', 'en']).default('es'),
+  telegramChatId: z.string().min(2).optional()
+});
+
+export const webLoginSchema = z.object({
+  phoneNumber: phoneNumberSchema,
+  password: z.string().min(8),
+  telegramChatId: z.string().min(2).optional()
+});
+
 export const verifyOtpSchema = z.object({
   phoneNumber: phoneNumberSchema,
   code: z.string().length(6),

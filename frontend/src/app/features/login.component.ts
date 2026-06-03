@@ -54,100 +54,96 @@ import { I18nService } from '../core/i18n.service';
             }
           </mat-form-field>
 
-          @if (!otpSent() && mode() === 'login') {
+          @if (linkingTelegram()) {
             <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
-              {{ t('login_existing_account_hint') }}
+              {{ t('login_telegram_linking_hint') }}
             </div>
           }
 
-          @if (!otpSent() && mode() === 'register') {
+          @if (mode() === 'login') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_password') }}</mat-label>
+              <input matInput formControlName="password" type="password" autocomplete="current-password">
+              @if (form.controls.password.touched && form.controls.password.invalid) {
+                <mat-error>{{ t('login_password_error') }}</mat-error>
+              }
+            </mat-form-field>
+          }
+
+          @if (mode() === 'register') {
             <div class="rounded border border-brand-border bg-brand-surface p-4">
               <p class="text-sm text-brand-muted">{{ t('login_register_intro') }}</p>
-              @if (registrationBotUrl()) {
-                <a mat-flat-button color="primary" class="mt-4 !h-11 !w-full" [href]="registrationBotUrl()" target="_blank" rel="noopener">
-                  <mat-icon>send</mat-icon>
-                  {{ t('login_register_open_telegram') }}
-                </a>
-                <p class="mt-3 text-sm leading-6 text-brand-muted">{{ t('login_register_waiting') }}</p>
+              @if (linkingTelegram()) {
+                <p class="mt-3 text-sm leading-6 text-brand-muted">{{ t('login_register_telegram_connected') }}</p>
               }
             </div>
-          }
-
-          @if (otpSent()) {
-            <div class="rounded border border-brand-border bg-brand-surface p-3 text-sm text-brand-muted">
-              {{ t('login_otp_sent_hint') }}
-            </div>
-            @if (debugCode()) {
-              <div class="rounded border bg-[var(--semantic-warning-bg)] p-3 text-sm text-[var(--semantic-warning-text)] border-[var(--semantic-warning-border)]">
-                Local OTP code: <strong>{{ debugCode() }}</strong>
-              </div>
-            }
-            @if (requiresRegistration()) {
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
-                <p class="text-sm font-medium text-brand-ink">Create your profile</p>
-                <p class="mt-1 text-xs text-brand-muted">This number is not registered yet.</p>
-              </div>
-              <mat-form-field appearance="outline">
-                <mat-label>Name</mat-label>
-                <input matInput formControlName="firstName" autocomplete="given-name">
-                @if (showControlError('firstName')) {
-                  <mat-error>Name is required.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Last name</mat-label>
-                <input matInput formControlName="lastName" autocomplete="family-name">
-                @if (showControlError('lastName')) {
-                  <mat-error>Last name is required.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Email</mat-label>
-                <input matInput formControlName="email" type="email" autocomplete="email">
-                @if (showControlError('email')) {
-                  <mat-error>Enter a valid email.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Country</mat-label>
-                <input matInput formControlName="countryOfResidence" placeholder="Chile" autocomplete="country-name">
-                @if (showControlError('countryOfResidence')) {
-                  <mat-error>Country is required.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Preferred currency</mat-label>
-                <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP" autocomplete="off">
-                @if (showControlError('preferredCurrency')) {
-                  <mat-error>Use a 3-letter currency code.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Preferred name</mat-label>
-                <input matInput formControlName="preferredName" placeholder="How should we call you?" autocomplete="nickname">
-                @if (showControlError('preferredName')) {
-                  <mat-error>Preferred name is required.</mat-error>
-                }
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ t('settings_language') }}</mat-label>
-                <mat-select formControlName="preferredLanguage">
-                  <mat-option value="es">{{ t('settings_language_es') }}</mat-option>
-                  <mat-option value="en">{{ t('settings_language_en') }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-            }
             <mat-form-field appearance="outline">
-              <mat-label>Verification code</mat-label>
-              <input matInput formControlName="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
-              @if (form.controls.code.touched && form.controls.code.invalid) {
-                <mat-error>Enter the 6-digit code.</mat-error>
+              <mat-label>{{ t('login_first_name') }}</mat-label>
+              <input matInput formControlName="firstName" autocomplete="given-name">
+              @if (showControlError('firstName')) {
+                <mat-error>{{ t('login_first_name_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_last_name') }}</mat-label>
+              <input matInput formControlName="lastName" autocomplete="family-name">
+              @if (showControlError('lastName')) {
+                <mat-error>{{ t('login_last_name_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_email') }}</mat-label>
+              <input matInput formControlName="email" type="email" autocomplete="email">
+              @if (showControlError('email')) {
+                <mat-error>{{ t('login_email_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_country') }}</mat-label>
+              <input matInput formControlName="countryOfResidence" autocomplete="country-name">
+              @if (showControlError('countryOfResidence')) {
+                <mat-error>{{ t('login_country_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_currency') }}</mat-label>
+              <input matInput formControlName="preferredCurrency" maxlength="3" placeholder="CLP" autocomplete="off">
+              @if (showControlError('preferredCurrency')) {
+                <mat-error>{{ t('login_currency_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_preferred_name') }}</mat-label>
+              <input matInput formControlName="preferredName" autocomplete="nickname">
+              @if (showControlError('preferredName')) {
+                <mat-error>{{ t('login_preferred_name_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('settings_language') }}</mat-label>
+              <mat-select formControlName="preferredLanguage">
+                <mat-option value="es">{{ t('settings_language_es') }}</mat-option>
+                <mat-option value="en">{{ t('settings_language_en') }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_password') }}</mat-label>
+              <input matInput formControlName="password" type="password" autocomplete="new-password">
+              @if (form.controls.password.touched && form.controls.password.invalid) {
+                <mat-error>{{ t('login_password_error') }}</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('login_confirm_password') }}</mat-label>
+              <input matInput formControlName="confirmPassword" type="password" autocomplete="new-password">
+              @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.invalid) {
+                <mat-error>{{ t('login_confirm_password_error') }}</mat-error>
               }
             </mat-form-field>
           }
 
           <button mat-flat-button color="primary" type="submit" class="!h-11 w-full" [disabled]="autoSigningIn()">
-            {{ otpSent() ? t('login_verify_enter') : (mode() === 'register' ? t('login_register_generate_link') : t('login_send_code')) }}
+            {{ mode() === 'register' ? t('landing_register') : t('landing_login') }}
           </button>
         </form>
       </mat-card>
@@ -156,19 +152,16 @@ import { I18nService } from '../core/i18n.service';
 })
 export class LoginComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
-  readonly otpSent = signal(false);
-  readonly requiresRegistration = signal(false);
-  readonly debugCode = signal('');
   readonly errorMessage = signal('');
   readonly autoSigningIn = signal(false);
   readonly phoneLocked = signal(false);
   readonly telegramLocked = signal(false);
-  readonly otpRequestInFlight = signal(false);
   readonly mode = signal<'login' | 'register'>('login');
-  readonly registrationBotUrl = signal('');
+  readonly linkingTelegram = signal(false);
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
-    code: [''],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: [''],
     firstName: [''],
     lastName: [''],
     preferredName: [''],
@@ -205,12 +198,11 @@ export class LoginComponent implements OnInit {
 
         this.form.controls.telegramChatId.setValue(payload.telegramChatId);
         this.telegramLocked.set(true);
+        this.linkingTelegram.set(true);
         if (payload.phoneNumber) {
           this.form.controls.phoneNumber.setValue(payload.phoneNumber);
           this.phoneLocked.set(true);
           this.mode.set('register');
-          this.requestOtpFromTelegramLink();
-          return;
         }
         this.autoSigningIn.set(false);
       },
@@ -222,46 +214,57 @@ export class LoginComponent implements OnInit {
   }
 
   submit() {
-    if (this.form.controls.phoneNumber.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
     const value = this.form.getRawValue();
     this.errorMessage.set('');
 
-    if (!this.otpSent()) {
-      if (this.mode() === 'register') {
-        this.requestRegistrationLink();
+    if (this.mode() === 'login') {
+      if (this.form.controls.phoneNumber.invalid || this.form.controls.password.invalid) {
+        this.form.controls.phoneNumber.markAsTouched();
+        this.form.controls.password.markAsTouched();
         return;
       }
-      this.requestOtp();
+
+      this.auth.loginWeb({
+        phoneNumber: value.phoneNumber,
+        password: value.password,
+        telegramChatId: value.telegramChatId || undefined
+      }).subscribe({
+        next: () => this.router.navigateByUrl('/dashboard'),
+        error: (error) => {
+          this.errorMessage.set(this.toErrorMessage(error, this.t('login_invalid_credentials')));
+        }
+      });
       return;
     }
 
-    const payload = this.requiresRegistration()
-      ? {
-        phoneNumber: value.phoneNumber,
-        code: value.code,
-        firstName: value.firstName,
-        lastName: value.lastName,
-        preferredName: value.preferredName || value.firstName,
-        email: value.email,
-        countryOfResidence: value.countryOfResidence,
-        preferredCurrency: value.preferredCurrency.toUpperCase(),
-        preferredLanguage: value.preferredLanguage,
-        telegramChatId: value.telegramChatId || undefined
-      }
-      : {
-        phoneNumber: value.phoneNumber,
-        code: value.code,
-        telegramChatId: value.telegramChatId || undefined
-      };
+    this.applyRegistrationValidators(true);
+    this.form.controls.confirmPassword.setValidators([Validators.required, Validators.minLength(8)]);
+    this.form.controls.confirmPassword.updateValueAndValidity();
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (value.password !== value.confirmPassword) {
+      this.errorMessage.set(this.t('login_password_mismatch'));
+      this.form.controls.confirmPassword.markAsTouched();
+      return;
+    }
 
-    this.auth.verifyOtp(payload).subscribe({
+    this.auth.registerWeb({
+      phoneNumber: value.phoneNumber,
+      password: value.password,
+      firstName: value.firstName,
+      lastName: value.lastName,
+      preferredName: value.preferredName || value.firstName,
+      email: value.email || undefined,
+      countryOfResidence: value.countryOfResidence,
+      preferredCurrency: value.preferredCurrency.toUpperCase(),
+      preferredLanguage: value.preferredLanguage,
+      telegramChatId: value.telegramChatId || undefined
+    }).subscribe({
       next: () => this.router.navigateByUrl('/dashboard'),
       error: (error) => {
-        this.errorMessage.set(this.toErrorMessage(error, 'Could not verify the code.'));
+        this.errorMessage.set(this.toErrorMessage(error, this.t('login_register_error')));
       }
     });
   }
@@ -288,58 +291,17 @@ export class LoginComponent implements OnInit {
       this.form.controls.preferredName.addValidators([Validators.required]);
     }
 
-    this.form.controls.code.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(6)]);
-    [...controls, this.form.controls.code].forEach((control) => control.updateValueAndValidity());
-  }
-
-  private requestOtp() {
-    if (this.otpRequestInFlight()) return;
-
-    const value = this.form.getRawValue();
-    this.otpRequestInFlight.set(true);
-    this.auth.requestOtpWithTelegram(value.phoneNumber, value.telegramChatId || undefined).subscribe({
-      next: (response) => {
-        this.requiresRegistration.set(response.requiresRegistration);
-        this.debugCode.set(response.debugCode ?? '');
-        this.otpSent.set(true);
-        this.applyRegistrationValidators(response.requiresRegistration);
-        this.otpRequestInFlight.set(false);
-        this.autoSigningIn.set(false);
-      },
-      error: (error) => {
-        this.errorMessage.set(this.toErrorMessage(error, 'Could not send the verification code.'));
-        this.otpRequestInFlight.set(false);
-        this.autoSigningIn.set(false);
-      }
-    });
-  }
-
-  private requestRegistrationLink() {
-    if (this.otpRequestInFlight()) return;
-
-    this.otpRequestInFlight.set(true);
-    this.auth.createTelegramRegistrationLink(this.form.controls.phoneNumber.getRawValue()).subscribe({
-      next: (response) => {
-        this.registrationBotUrl.set(response.botUrl);
-        this.otpRequestInFlight.set(false);
-      },
-      error: (error) => {
-        this.errorMessage.set(this.toErrorMessage(error, this.t('login_register_link_error')));
-        this.otpRequestInFlight.set(false);
-      }
-    });
-  }
-
-  private requestOtpFromTelegramLink() {
-    this.errorMessage.set('');
-    if (this.form.controls.phoneNumber.invalid || this.form.controls.telegramChatId.invalid) return;
-    this.requestOtp();
+    controls.forEach((control) => control.updateValueAndValidity());
   }
 
   setMode(mode: 'login' | 'register') {
     this.mode.set(mode);
     this.errorMessage.set('');
-    this.registrationBotUrl.set('');
+    this.applyRegistrationValidators(mode === 'register');
+    this.form.controls.password.reset('');
+    this.form.controls.confirmPassword.clearValidators();
+    this.form.controls.confirmPassword.updateValueAndValidity();
+    this.form.controls.confirmPassword.reset('');
   }
 
   private toErrorMessage(error: unknown, fallback: string) {

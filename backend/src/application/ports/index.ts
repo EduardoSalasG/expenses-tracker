@@ -8,6 +8,7 @@ export type { MessagingMessageAuditRepository } from './messaging-message-audit.
 export type { MessagingPendingDraftRepository } from './messaging-pending-draft.repository.js';
 export type { MessagingProvider } from './messaging.provider.js';
 export type { OtpRepository } from './otp.repository.js';
+export type { PasswordHasher } from './password-hasher.port.js';
 export type { ReportDispatchRepository } from './report-dispatch.repository.js';
 export type { TelegramLinkTokenRecord, TelegramLinkTokenRepository } from './telegram-link-token.repository.js';
 export type { TokenService } from './token.service.js';

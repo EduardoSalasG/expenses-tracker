@@ -13,6 +13,15 @@ export class PostgresUserRepository implements UserRepository {
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
   }
 
+  async findAuthByPhoneNumber(phoneNumber: string) {
+    const result = await this.pool.query('select * from users where phone_number = $1', [phoneNumber]);
+    if (!result.rows[0]) return undefined;
+    return {
+      user: mapUser(result.rows[0]),
+      passwordHash: result.rows[0].password_hash ?? undefined
+    };
+  }
+
   async findByTelegramChatId(chatId: string) {
     const result = await this.pool.query('select * from users where telegram_chat_id = $1', [chatId]);
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
@@ -45,6 +54,19 @@ export class PostgresUserRepository implements UserRepository {
         input.preferredLanguage ?? 'es'
       ]
     );
+    return mapUser(result.rows[0]);
+  }
+
+  async setPasswordHash(userId: string, passwordHash: string) {
+    const result = await this.pool.query(
+      `update users
+       set password_hash = $2,
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [userId, passwordHash]
+    );
+    if (!result.rows[0]) throw new Error('User not found.');
     return mapUser(result.rows[0]);
   }
 

@@ -95,7 +95,13 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 
 ## Auth API
 
-`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. Unknown phone numbers must complete registration fields during OTP verification.
+Primary authentication is web-native. Telegram is optional and can be linked during or after web login.
+
+`POST /auth/register` creates a user with phone number + password and immediately returns access/refresh tokens. Required registration fields are `firstName`, `lastName`, `preferredName`, `countryOfResidence`, and `preferredCurrency`. `email` is optional. If `telegramChatId` is present, the backend links that Telegram chat automatically after registration.
+
+`POST /auth/login` signs in with phone number + password and returns access/refresh tokens. If `telegramChatId` is present, the backend links that Telegram chat automatically after successful login.
+
+`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is now a fallback flow for Telegram-linked users rather than the primary way into the web app.
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
@@ -103,12 +109,12 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /auth/refresh` accepts a refresh token and returns a renewed access token, refresh token, and current user snapshot.
 
-`POST /auth/telegram/registration-link` starts the web-first registration flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration in the web app without asking for the Telegram chat id manually.
+`POST /auth/telegram/registration-link` is an optional convenience flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration or links Telegram in the web app without asking for the Telegram chat id manually.
 
 `POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
 
 - If the Telegram chat is already linked to a user, the endpoint returns `linkedUser: true` plus access token, refresh token, and user snapshot. The frontend should create the session immediately and skip OTP.
-- If the chat is not linked yet, the endpoint returns `linkedUser: false`, `telegramChatId`, and optionally the registered phone number if it came from a web registration intent. The frontend can then request OTP and finish profile creation without asking for Telegram chat id manually.
+- If the chat is not linked yet, the endpoint returns `linkedUser: false`, `telegramChatId`, and optionally the registered phone number if it came from a web registration intent. The frontend can then continue with standard web login or registration while silently attaching the Telegram chat.
 
 ## Expense API
 
@@ -263,7 +269,7 @@ Linking flow example:
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 
-Telegram webhook setup uses Bot API `setWebhook` and `getWebhookInfo`. Use `/start` from the bot chat to receive an auto-generated login link. Already linked users are signed in directly from that link; unlinked users continue with `/link +<phone>` and OTP/registration fallback.
+Telegram webhook setup uses Bot API `setWebhook` and `getWebhookInfo`. Use `/start` from the bot chat to receive an auto-generated login link. Already linked users are signed in directly from that link; unlinked users can keep using the web without Telegram or link the chat from `/link +<phone>`.
 For web-first registration, the bot deep link also supports `/start <registration-token>`, which converts the pending phone registration into a Telegram login link tied to that chat.
 
 ## Report Delivery

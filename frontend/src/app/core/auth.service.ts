@@ -17,6 +17,8 @@ interface VerifyOtpResponse {
   };
 }
 
+interface AuthSessionResponse extends VerifyOtpResponse {}
+
 interface TelegramLinkSessionResponse extends VerifyOtpResponse {
   telegramChatId: string;
   phoneNumber: string;
@@ -61,6 +63,33 @@ export class AuthService {
 
   requestOtpWithTelegram(phoneNumber: string, telegramChatId?: string) {
     return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber, telegramChatId });
+  }
+
+  registerWeb(payload: {
+    phoneNumber: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    preferredName: string;
+    email?: string;
+    countryOfResidence: string;
+    preferredCurrency: string;
+    preferredLanguage?: 'es' | 'en';
+    telegramChatId?: string;
+  }) {
+    return this.http.post<AuthSessionResponse>(`${environment.apiBaseUrl}/auth/register`, payload).pipe(
+      tap((response) => {
+        this.storeSession(response);
+      })
+    );
+  }
+
+  loginWeb(payload: { phoneNumber: string; password: string; telegramChatId?: string }) {
+    return this.http.post<AuthSessionResponse>(`${environment.apiBaseUrl}/auth/login`, payload).pipe(
+      tap((response) => {
+        this.storeSession(response);
+      })
+    );
   }
 
   createTelegramRegistrationLink(phoneNumber: string) {

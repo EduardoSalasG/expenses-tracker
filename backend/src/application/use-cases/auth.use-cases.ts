@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
+import type { CategoryRepository, Clock, MessagingProvider, OtpRepository, PasswordHasher, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -209,6 +209,92 @@ function buildRegistrationGreeting(language: 'es' | 'en', preferredName: string,
     '',
     `You can open your dashboard here: ${dashboardUrl}`
   ].join('\n');
+}
+
+export class RegisterWebUseCase {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly categories: CategoryRepository,
+    private readonly passwords: PasswordHasher,
+    private readonly tokens: TokenService
+  ) {}
+
+  async execute(input: {
+    phoneNumber: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    preferredName: string;
+    email?: string;
+    countryOfResidence: string;
+    preferredCurrency: string;
+    preferredLanguage?: 'es' | 'en';
+    telegramChatId?: string;
+  }) {
+    const existingUser = await this.users.findByPhoneNumber(input.phoneNumber);
+    if (existingUser) {
+      throw new Error('Phone number is already registered. Please log in.');
+    }
+
+    const user = await this.users.upsertByPhoneNumber({
+      phoneNumber: input.phoneNumber,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      preferredName: input.preferredName,
+      email: input.email,
+      countryOfResidence: input.countryOfResidence,
+      preferredCurrency: input.preferredCurrency,
+      preferredLanguage: input.preferredLanguage ?? 'es',
+      telegramChatId: undefined,
+      telegramUsername: undefined
+    });
+    await this.users.setPasswordHash(user.id, await this.passwords.hash(input.password));
+    await this.categories.ensureDefaults(user.tenantId);
+    if (input.telegramChatId) {
+      await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
+    }
+
+    return {
+      user,
+      accessToken: this.tokens.signAccessToken(user),
+      refreshToken: this.tokens.signRefreshToken(user)
+    };
+  }
+}
+
+export class LoginWebUseCase {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly passwords: PasswordHasher,
+    private readonly tokens: TokenService
+  ) {}
+
+  async execute(input: {
+    phoneNumber: string;
+    password: string;
+    telegramChatId?: string;
+  }) {
+    const authRecord = await this.users.findAuthByPhoneNumber(input.phoneNumber);
+    if (!authRecord?.passwordHash) {
+      throw new Error('Invalid phone number or password.');
+    }
+
+    const isValid = await this.passwords.verify(input.password, authRecord.passwordHash);
+    if (!isValid) {
+      throw new Error('Invalid phone number or password.');
+    }
+
+    let user = authRecord.user;
+    if (input.telegramChatId && input.telegramChatId !== user.telegramChatId) {
+      user = (await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId)) ?? user;
+    }
+
+    return {
+      user,
+      accessToken: this.tokens.signAccessToken(user),
+      refreshToken: this.tokens.signRefreshToken(user)
+    };
+  }
 }
 
 export class RefreshSessionUseCase {

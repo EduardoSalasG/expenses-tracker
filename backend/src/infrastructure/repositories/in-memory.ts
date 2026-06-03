@@ -13,13 +13,20 @@ import type {
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
 } from '../../application/ports.js';
-import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
+import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
+  private readonly passwordHashes = new Map<string, string>();
 
   async findByPhoneNumber(phoneNumber: string) {
     return [...this.users.values()].find((user) => user.phoneNumber === phoneNumber);
+  }
+
+  async findAuthByPhoneNumber(phoneNumber: string): Promise<UserAuthRecord | undefined> {
+    const user = await this.findByPhoneNumber(phoneNumber);
+    if (!user) return undefined;
+    return { user, passwordHash: this.passwordHashes.get(user.id) };
   }
 
   async findByTelegramChatId(chatId: string) {
@@ -50,6 +57,13 @@ export class InMemoryUserRepository implements UserRepository {
       reportPreferences: ['monthly']
     };
     this.users.set(user.id, user);
+    return user;
+  }
+
+  async setPasswordHash(userId: string, passwordHash: string) {
+    const user = this.users.get(userId);
+    if (!user) throw new Error('User not found.');
+    this.passwordHashes.set(userId, passwordHash);
     return user;
   }
 

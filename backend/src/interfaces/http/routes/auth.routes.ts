@@ -6,6 +6,8 @@ import { asyncHandler } from '../utils.js';
 export function registerAuthRoutes(app: Express, container: AppContainer) {
   const controller = new AuthController(container);
 
+  app.post('/auth/register', asyncHandler(controller.registerWeb));
+  app.post('/auth/login', asyncHandler(controller.loginWeb));
   app.post('/auth/otp/request', asyncHandler(controller.requestOtp));
   app.post('/auth/otp/verify', asyncHandler(controller.verifyOtp));
   app.post('/auth/refresh', asyncHandler(controller.refreshSession));

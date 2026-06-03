@@ -20,3 +20,8 @@ export interface User {
   preferredLanguage?: LanguageCode;
   reportPreferences: ReportFrequency[];
 }
+
+export interface UserAuthRecord {
+  user: User;
+  passwordHash?: string;
+}

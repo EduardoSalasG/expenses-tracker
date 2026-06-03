@@ -1,8 +1,8 @@
 # Expenses Tracker
 
-Consumer expenses tracker with Telegram-first capture, PostgreSQL persistence, an Express API, and an Angular dashboard.
+Consumer expenses tracker with web-first access, optional Telegram capture, PostgreSQL persistence, an Express API, and an Angular dashboard.
 
-Telegram expense capture is intended for registered users only. The backend ignores unregistered sender references defensively.
+Telegram expense capture is intended for registered users only and works as an optional convenience channel. The web app is fully usable without Telegram.
 
 Telegram messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; GitHub Models with `deepseek/DeepSeek-V3-0324` or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
 
@@ -111,7 +111,8 @@ Release flow:
 
 - Logged-out visitors land on `/`, a public landing page focused on registration and feature discovery.
 - The landing header keeps a single login action for existing users.
-- New users start with phone number only in the web app, then continue through a Telegram deep link that binds the chat without asking for `chat_id` manually.
+- New users can create an account directly from the web with phone number + password.
+- Telegram linking is optional and can happen later from a Telegram deep link without asking for `chat_id` manually.
 - Returning Telegram-linked users can open the web from the bot and sign in directly from the link token without OTP.
 
 ## Telegram Testing

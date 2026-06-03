@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { AppContainer } from '../../../infrastructure/container.js';
-import { consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestOtpSchema, verifyOtpSchema } from '../schemas.js';
+import { consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestOtpSchema, verifyOtpSchema, webLoginSchema, webRegisterSchema } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
 export class AuthController {
@@ -9,6 +9,16 @@ export class AuthController {
   requestOtp = async (request: Request, response: Response) => {
     const body = parseBody(requestOtpSchema, request.body);
     response.json(await this.container.useCases.requestOtp.execute(body));
+  };
+
+  registerWeb = async (request: Request, response: Response) => {
+    const body = parseBody(webRegisterSchema, request.body);
+    response.status(201).json(await this.container.useCases.registerWeb.execute(body));
+  };
+
+  loginWeb = async (request: Request, response: Response) => {
+    const body = parseBody(webLoginSchema, request.body);
+    response.json(await this.container.useCases.loginWeb.execute(body));
   };
 
   createTelegramLinkToken = async (request: Request, response: Response) => {

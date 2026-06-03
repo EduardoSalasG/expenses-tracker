@@ -2,6 +2,7 @@ import type { AppConfig } from './config.js';
 import { createPool, pingDatabase } from './database.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
+import { ScryptPasswordHasher } from './password-hasher.service.js';
 import { JwtTokenService } from './token.service.js';
 import { ChannelMessagingRouter } from './messaging-providers/channel-messaging-router.js';
 import { TelegramProvider } from './messaging-providers/telegram.provider.js';
@@ -34,8 +35,10 @@ import {
   ConsumeTelegramLinkTokenUseCase,
   CreateTelegramRegistrationLinkUseCase,
   FinanceUseCases,
+  LoginWebUseCase,
   ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
+  RegisterWebUseCase,
   RequestTelegramLinkTokenUseCase,
   RequestOtpUseCase,
   SendDueReportsUseCase,
@@ -59,6 +62,7 @@ export function createContainer(config: AppConfig) {
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const telegramLinkTokens = pool ? new PostgresTelegramLinkTokenRepository(pool) : new InMemoryTelegramLinkTokenRepository();
   const tokens = new JwtTokenService(config);
+  const passwords = new ScryptPasswordHasher();
   const whatsappMessaging = new WhatsAppCloudProvider(config, logger);
   const telegramMessaging = new TelegramProvider(config, logger);
   const messaging = new ChannelMessagingRouter({
@@ -96,6 +100,8 @@ export function createContainer(config: AppConfig) {
       return { status: 'ok' as const, checks: { database: 'ok' } };
     },
     useCases: {
+      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens),
+      loginWeb: new LoginWebUseCase(users, passwords, tokens),
       requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
