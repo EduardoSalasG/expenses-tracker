@@ -12,26 +12,26 @@ import { I18nService } from '../core/i18n.service';
   template: `
     <main class="min-h-screen bg-brand-bg text-brand-ink">
       <header class="border-b border-brand-border/80 bg-brand-surface/90 backdrop-blur">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <a routerLink="/" class="flex items-center gap-3" aria-label="Expenses Tracker home">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <a routerLink="/" class="flex items-center gap-3 self-start" aria-label="Expenses Tracker home">
             <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-navy text-sm font-semibold text-white shadow-sm">ET</div>
             <div>
               <div class="text-lg font-semibold tracking-tight">{{ t('app_name') }}</div>
               <div class="text-xs text-brand-muted">{{ t('landing_tagline') }}</div>
             </div>
           </a>
-          <nav aria-label="Primary" class="flex items-center gap-2 sm:gap-3">
-            <a mat-button routerLink="/login" class="!text-brand-navy">{{ t('landing_login') }}</a>
-            <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }">{{ t('landing_register') }}</a>
+          <nav aria-label="Primary" class="landing-primary-nav flex w-full items-center gap-2 sm:w-auto sm:gap-3">
+            <a mat-button routerLink="/login" class="flex-1 !text-brand-navy sm:flex-none">{{ t('landing_login') }}</a>
+            <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="flex-1 sm:flex-none">{{ t('landing_register') }}</a>
           </nav>
         </div>
       </header>
 
       <section class="relative overflow-hidden border-b border-brand-border/60 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_42%),linear-gradient(180deg,rgba(var(--brand-surface-rgb),1),rgba(var(--brand-bg-rgb),1))]">
-        <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:py-20">
+        <div class="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:py-20">
           <div class="max-w-2xl">
             <p class="text-sm font-semibold uppercase tracking-[0.18em] text-brand-blue">{{ t('landing_eyebrow') }}</p>
-            <h1 class="mt-4 text-4xl font-semibold tracking-tight text-brand-ink sm:text-5xl lg:text-6xl">
+            <h1 class="mt-4 text-3xl font-semibold tracking-tight text-brand-ink sm:text-5xl lg:text-6xl">
               {{ t('landing_title') }}
             </h1>
             <p class="mt-5 max-w-xl text-base leading-7 text-brand-muted sm:text-lg">
@@ -45,7 +45,7 @@ import { I18nService } from '../core/i18n.service';
                 </div>
               }
             </div>
-            <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div class="landing-cta-group mt-8 flex flex-col gap-3 sm:flex-row">
               <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="!h-12 !px-6">
                 {{ t('landing_register') }}
               </a>
@@ -70,7 +70,7 @@ import { I18nService } from '../core/i18n.service';
             </ul>
           </div>
 
-          <div class="relative mx-auto w-full max-w-[520px]">
+          <div class="relative mx-auto w-full max-w-[320px] sm:max-w-[420px] lg:max-w-[520px]">
             <div class="landing-hero-art">
               <div class="landing-hero-ring"></div>
               <div class="landing-hero-card">
@@ -133,7 +133,7 @@ import { I18nService } from '../core/i18n.service';
       </section>
 
       <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
-        <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
           <div class="max-w-2xl">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_examples_title') }}</h2>
             <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_examples_subtitle') }}</p>
@@ -142,7 +142,7 @@ import { I18nService } from '../core/i18n.service';
             @for (example of examples; track example.title) {
               <article class="rounded-lg border border-brand-border bg-brand-surface p-5 shadow-sm">
                 <p class="text-sm font-semibold uppercase tracking-[0.14em] text-brand-blue">{{ example.title }}</p>
-                <p class="mt-4 rounded-lg bg-brand-surface-muted px-4 py-3 text-sm font-medium text-brand-ink">
+                <p class="mt-4 break-words rounded-lg bg-brand-surface-muted px-4 py-3 text-sm font-medium leading-6 text-brand-ink">
                   {{ example.input }}
                 </p>
                 <p class="mt-4 text-sm leading-6 text-brand-muted">{{ example.output }}</p>

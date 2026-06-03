@@ -484,6 +484,16 @@ table {
 }
 
 @media (max-width: 767px) {
+  .landing-primary-nav .mat-mdc-button-base,
+  .landing-cta-group .mat-mdc-button-base {
+    width: 100%;
+  }
+
+  .landing-primary-nav .mat-mdc-button-touch-target,
+  .landing-cta-group .mat-mdc-button-touch-target {
+    width: 100%;
+  }
+
   .mat-mdc-card.page-panel {
     border-radius: 6px;
   }
@@ -555,7 +565,38 @@ table {
     border-width: 7px;
   }
 
+  .landing-hero-card {
+    inset: 7%;
+  }
+
+  .landing-hero-head {
+    padding: 9%;
+  }
+
   .landing-hero-smile {
     width: 58px;
+  }
+
+  .landing-hero-eye {
+    width: 28px;
+  }
+
+  .landing-hero-chart-left::before {
+    height: 56px;
+    box-shadow: 28px 14px 0 0 rgb(59 130 246 / 0.92), 56px -6px 0 0 rgb(96 165 250 / 0.92);
+  }
+
+  .landing-hero-chart-right::before {
+    height: 36px;
+    box-shadow: 28px -10px 0 0 rgb(59 130 246 / 0.92), 56px 8px 0 0 rgb(96 165 250 / 0.92);
+  }
+
+  .landing-hero-chart-right::after {
+    top: -20px;
+    width: 68px;
+  }
+
+  .landing-hero-wallet {
+    width: 40%;
   }
 }
