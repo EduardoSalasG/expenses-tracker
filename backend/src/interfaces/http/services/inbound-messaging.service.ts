@@ -37,19 +37,20 @@ export class InboundMessagingService {
     }
 
     for (const message of batch.messages) {
-      if (batch.channel === 'telegram' && isStartCommand(message.message) && message.replyTo) {
-        const { token } = await this.container.useCases.requestTelegramLinkToken.execute(message.replyTo);
-        const linkUrl = `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
+      if (batch.channel === 'telegram' && message.replyTo && (isStartCommand(message.message) || isWebAccessRequest(message.message))) {
+        const linkUrl = await this.buildTelegramLoginUrl(message.replyTo);
         await this.container.messaging.sendText(
           message.replyTo,
-          [
-            'Bienvenido a Expenses Tracker.',
-            'Para conectar tu cuenta, abre este enlace:',
-            linkUrl
-          ].join('\n'),
+          isStartCommand(message.message)
+            ? buildTelegramStartMessage(linkUrl)
+            : buildTelegramWebMessage(linkUrl),
           { channel: 'telegram' }
         );
-        this.container.logger.info('Telegram start command processed.', { channel: batch.channel, replyTo: message.replyTo });
+        this.container.logger.info('Telegram access link command processed.', {
+          channel: batch.channel,
+          replyTo: message.replyTo,
+          command: isStartCommand(message.message) ? 'start' : 'web'
+        });
         continue;
       }
 
@@ -65,8 +66,39 @@ export class InboundMessagingService {
       });
     }
   }
+
+  private async buildTelegramLoginUrl(chatId: string) {
+    const { token } = await this.container.useCases.requestTelegramLinkToken.execute(chatId);
+    return `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;
+  }
 }
 
 function isStartCommand(message: string) {
   return /^\/start\b/i.test(message.trim());
+}
+
+function isWebAccessRequest(message: string) {
+  const trimmed = message.trim().toLowerCase();
+  if (/^\/web\b/.test(trimmed)) return true;
+
+  return (
+    /\b(web|sitio|pagina|página|app|aplicacion|aplicación|dashboard|panel|login)\b/.test(trimmed) &&
+    /\b(abrir|abre|open|entrar|ingresar|pasame|pásame|mandame|mándame|enviame|envíame|quiero|dame|comparteme|compárteme|link)\b/.test(trimmed)
+  );
+}
+
+function buildTelegramStartMessage(linkUrl: string) {
+  return [
+    'Bienvenido a Expenses Tracker.',
+    'Para conectar tu cuenta, abre este enlace desde tu navegador:',
+    linkUrl
+  ].join('\n');
+}
+
+function buildTelegramWebMessage(linkUrl: string) {
+  return [
+    'Aquí tienes tu acceso web.',
+    'Ábrelo para entrar directo al login y continuar con tu cuenta:',
+    linkUrl
+  ].join('\n');
 }
