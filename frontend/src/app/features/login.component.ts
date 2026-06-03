@@ -66,17 +66,49 @@ import { I18nService } from '../core/i18n.service';
           }
 
           @if (mode() === 'login') {
-            <mat-form-field appearance="outline">
-              <mat-label>{{ t('login_password') }}</mat-label>
-              <input matInput formControlName="password" type="password" autocomplete="current-password">
-              @if (form.controls.password.touched && form.controls.password.invalid) {
-                <mat-error>{{ t('login_password_error') }}</mat-error>
-              }
-            </mat-form-field>
-            <button type="button" mat-stroked-button class="!h-11 w-full" (click)="sendMagicLink()">
-              {{ t('login_send_magic_link') }}
-            </button>
-            <p class="text-sm text-brand-muted">{{ t('login_magic_link_hint') }}</p>
+            <div class="rounded-lg border border-brand-border bg-brand-surface p-3">
+              <p class="mb-3 text-sm font-medium text-brand-ink">{{ t('login_method_title') }}</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  class="rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors"
+                  [class.border-brand-blue]="loginMethod() === 'password'"
+                  [class.bg-brand-surface-muted]="loginMethod() === 'password'"
+                  [class.text-brand-ink]="loginMethod() === 'password'"
+                  [class.border-brand-border]="loginMethod() !== 'password'"
+                  [class.text-brand-muted]="loginMethod() !== 'password'"
+                  (click)="setLoginMethod('password')">
+                  {{ t('login_method_password') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors"
+                  [class.border-brand-blue]="loginMethod() === 'magic-link'"
+                  [class.bg-brand-surface-muted]="loginMethod() === 'magic-link'"
+                  [class.text-brand-ink]="loginMethod() === 'magic-link'"
+                  [class.border-brand-border]="loginMethod() !== 'magic-link'"
+                  [class.text-brand-muted]="loginMethod() !== 'magic-link'"
+                  (click)="setLoginMethod('magic-link')">
+                  {{ t('login_method_magic_link') }}
+                </button>
+              </div>
+            </div>
+
+            @if (loginMethod() === 'password') {
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('login_password') }}</mat-label>
+                <input matInput formControlName="password" type="password" autocomplete="current-password">
+                @if (form.controls.password.touched && form.controls.password.invalid) {
+                  <mat-error>{{ t('login_password_error') }}</mat-error>
+                }
+              </mat-form-field>
+            }
+
+            @if (loginMethod() === 'magic-link') {
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <p class="text-sm leading-6 text-brand-muted">{{ t('login_magic_link_hint') }}</p>
+              </div>
+            }
           }
 
           @if (mode() === 'register') {
@@ -152,7 +184,13 @@ import { I18nService } from '../core/i18n.service';
           }
 
           <button mat-flat-button color="primary" type="submit" class="!h-11 w-full" [disabled]="autoSigningIn()">
-            {{ mode() === 'register' ? t('landing_register') : t('landing_login') }}
+            {{
+              mode() === 'register'
+                ? t('landing_register')
+                : loginMethod() === 'magic-link'
+                  ? t('login_send_magic_link')
+                  : t('landing_login')
+            }}
           </button>
         </form>
       </mat-card>
@@ -167,6 +205,7 @@ export class LoginComponent implements OnInit {
   readonly phoneLocked = signal(false);
   readonly telegramLocked = signal(false);
   readonly mode = signal<'login' | 'register'>('login');
+  readonly loginMethod = signal<'password' | 'magic-link'>('password');
   readonly linkingTelegram = signal(false);
   readonly form = this.fb.nonNullable.group({
     phoneNumber: ['', [Validators.required, Validators.minLength(8)]],
@@ -243,7 +282,17 @@ export class LoginComponent implements OnInit {
     this.magicLinkStatus.set('');
 
     if (this.mode() === 'login') {
-      if (this.form.controls.phoneNumber.invalid || this.form.controls.password.invalid) {
+      if (this.form.controls.phoneNumber.invalid) {
+        this.form.controls.phoneNumber.markAsTouched();
+        return;
+      }
+
+      if (this.loginMethod() === 'magic-link') {
+        this.sendMagicLink();
+        return;
+      }
+
+      if (this.form.controls.password.invalid) {
         this.form.controls.phoneNumber.markAsTouched();
         this.form.controls.password.markAsTouched();
         return;
@@ -323,11 +372,21 @@ export class LoginComponent implements OnInit {
     this.mode.set(mode);
     this.errorMessage.set('');
     this.magicLinkStatus.set('');
+    if (mode === 'login') {
+      this.loginMethod.set('password');
+    }
     this.applyRegistrationValidators(mode === 'register');
     this.form.controls.password.reset('');
     this.form.controls.confirmPassword.clearValidators();
     this.form.controls.confirmPassword.updateValueAndValidity();
     this.form.controls.confirmPassword.reset('');
+  }
+
+  setLoginMethod(method: 'password' | 'magic-link') {
+    this.loginMethod.set(method);
+    this.errorMessage.set('');
+    this.magicLinkStatus.set('');
+    this.form.controls.password.markAsUntouched();
   }
 
   private toErrorMessage(error: unknown, fallback: string) {
