@@ -384,6 +384,108 @@ function buildMagicLinkHtml(language: 'es' | 'en', preferredName: string, loginU
 </html>`;
 }
 
+function buildRegistrationWelcomeText(language: 'es' | 'en', preferredName: string, dashboardUrl: string) {
+  if (language === 'es') {
+    return [
+      `${preferredName}, tu cuenta ya está lista.`,
+      '',
+      'Ya puedes registrar tus gastos e ingresos desde la web.',
+      'Si luego quieres más comodidad, también puedes conectar Telegram desde tu panel.',
+      '',
+      'Abre tu dashboard aquí:',
+      dashboardUrl
+    ].join('\n');
+  }
+
+  return [
+    `${preferredName}, your account is ready.`,
+    '',
+    'You can now track expenses and income from the web.',
+    'If you want extra convenience later, you can also connect Telegram from your dashboard.',
+    '',
+    'Open your dashboard here:',
+    dashboardUrl
+  ].join('\n');
+}
+
+function buildRegistrationWelcomeHtml(language: 'es' | 'en', preferredName: string, dashboardUrl: string) {
+  const copy = language === 'es'
+    ? {
+        preheader: 'Tu cuenta de Expenses Tracker ya está lista',
+        eyebrow: 'CUENTA CREADA',
+        greeting: `${preferredName}, tu cuenta ya está lista.`,
+        description: 'Ya puedes registrar tus gastos e ingresos desde la web. Si luego quieres más comodidad, también puedes conectar Telegram desde tu panel.',
+        cta: 'Abrir mi dashboard',
+        fallback: 'Si el botón no funciona, usa este enlace:',
+        signoff: 'Expenses Tracker'
+      }
+    : {
+        preheader: 'Your Expenses Tracker account is ready',
+        eyebrow: 'ACCOUNT READY',
+        greeting: `${preferredName}, your account is ready.`,
+        description: 'You can now track expenses and income from the web. If you want extra convenience later, you can also connect Telegram from your dashboard.',
+        cta: 'Open my dashboard',
+        fallback: 'If the button does not work, use this link:',
+        signoff: 'Expenses Tracker'
+      };
+  const safeName = escapeHtml(preferredName);
+  const safeUrl = escapeHtml(dashboardUrl);
+
+  return `<!doctype html>
+<html lang="${language}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expenses Tracker</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f3f6fb;color:#0f172a;font-family:Inter,Segoe UI,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(copy.preheader)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f3f6fb;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:560px;">
+            <tr>
+              <td style="padding-bottom:16px;">
+                <div style="display:inline-flex;align-items:center;gap:12px;">
+                  <div style="width:44px;height:44px;border-radius:12px;background:#2f5be7;color:#ffffff;font-size:22px;font-weight:700;line-height:44px;text-align:center;">ET</div>
+                  <div>
+                    <div style="margin:0;color:#0f172a;font-size:20px;font-weight:700;">Expenses Tracker</div>
+                    <div style="margin-top:2px;color:#64748b;font-size:12px;letter-spacing:0.08em;">${escapeHtml(copy.eyebrow)}</div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border:1px solid #d7deea;border-radius:20px;padding:32px;">
+                <div style="color:#2f5be7;font-size:12px;font-weight:700;letter-spacing:0.08em;margin-bottom:14px;">${escapeHtml(copy.eyebrow)}</div>
+                <h1 style="margin:0 0 12px;color:#0f172a;font-size:28px;line-height:1.2;font-weight:700;">${safeName}</h1>
+                <p style="margin:0 0 24px;color:#475569;font-size:16px;line-height:1.6;">${escapeHtml(copy.greeting)} ${escapeHtml(copy.description)}</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 24px;">
+                  <tr>
+                    <td style="border-radius:999px;background:#2f5be7;">
+                      <a href="${safeUrl}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;">${escapeHtml(copy.cta)}</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 8px;color:#0f172a;font-size:14px;font-weight:600;">${escapeHtml(copy.fallback)}</p>
+                <p style="margin:0;word-break:break-all;">
+                  <a href="${safeUrl}" style="color:#2f5be7;text-decoration:none;font-size:14px;line-height:1.6;">${safeUrl}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 4px 0;color:#64748b;font-size:12px;line-height:1.6;text-align:center;">
+                ${escapeHtml(copy.signoff)}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 function maskEmail(email: string) {
   const [localPart, domain] = email.split('@');
   if (!localPart || !domain) return email;
@@ -405,7 +507,9 @@ export class RegisterWebUseCase {
     private readonly users: UserRepository,
     private readonly categories: CategoryRepository,
     private readonly passwords: PasswordHasher,
-    private readonly tokens: TokenService
+    private readonly tokens: TokenService,
+    private readonly email: EmailProvider,
+    private readonly options: { frontendPublicOrigin: string; logger?: { error(message: string, meta?: unknown): void } }
   ) {}
 
   async execute(input: {
@@ -441,6 +545,23 @@ export class RegisterWebUseCase {
     await this.categories.ensureDefaults(user.tenantId);
     if (input.telegramChatId) {
       await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
+    }
+    if (user.email) {
+      try {
+        const dashboardUrl = `${this.options.frontendPublicOrigin.replace(/\/$/, '')}/dashboard`;
+        await this.email.send({
+          to: user.email,
+          subject: user.preferredLanguage === 'en' ? 'Welcome to Expenses Tracker' : 'Bienvenido a Expenses Tracker',
+          text: buildRegistrationWelcomeText(user.preferredLanguage ?? 'es', user.preferredName, dashboardUrl),
+          html: buildRegistrationWelcomeHtml(user.preferredLanguage ?? 'es', user.preferredName, dashboardUrl)
+        });
+      } catch (error) {
+        this.options.logger?.error('Registration welcome email failed.', {
+          userId: user.id,
+          email: user.email,
+          error
+        });
+      }
     }
 
     return {

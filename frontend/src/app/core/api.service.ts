@@ -38,6 +38,8 @@ export interface CurrentUser {
   id: string;
   email?: string;
   phoneNumber: string;
+  telegramChatId?: string;
+  telegramUsername?: string;
   firstName: string;
   lastName: string;
   preferredName: string;
@@ -56,6 +58,11 @@ export interface MonthlyBudget {
   subcategoryId?: string;
   amount: number;
   currency: string;
+}
+
+export interface TelegramRegistrationLinkResponse {
+  phoneNumber: string;
+  botUrl: string;
 }
 
 export interface Report {
@@ -102,6 +109,10 @@ export class ApiService {
 
   updateMe(payload: Pick<CurrentUser, 'firstName' | 'lastName' | 'preferredName' | 'email' | 'countryOfResidence' | 'preferredCurrency' | 'preferredLanguage'>) {
     return this.http.put<CurrentUser>(`${environment.apiBaseUrl}/me`, payload);
+  }
+
+  createTelegramRegistrationLink(phoneNumber: string) {
+    return this.http.post<TelegramRegistrationLinkResponse>(`${environment.apiBaseUrl}/auth/telegram/registration-link`, { phoneNumber });
   }
 
   expenses(filters: ExpenseFilters = {}) {

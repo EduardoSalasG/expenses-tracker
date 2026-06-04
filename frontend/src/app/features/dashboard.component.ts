@@ -2,9 +2,10 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, com
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
-import { ApiService, type Category, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
+import { ApiService, type Category, type CurrentUser, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { PeriodStateService } from '../core/period-state.service';
 
@@ -59,8 +60,37 @@ interface CategoryVariationRow {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule, MatButtonModule],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule],
   template: `
+    @if (showTelegramBanner()) {
+      <section class="mb-4">
+        <div
+          class="flex w-full items-start justify-between gap-4 rounded-xl border border-brand-border bg-brand-surface px-4 py-3 text-left shadow-sm transition-colors hover:bg-brand-surface-muted"
+          role="button"
+          tabindex="0"
+          (click)="openTelegramModal()"
+          (keydown.enter)="openTelegramModal()"
+          (keydown.space)="openTelegramModal()"
+        >
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-brand-ink">{{ t('dashboard_telegram_banner_title') }}</div>
+            <div class="mt-1 text-sm text-brand-muted">{{ t('dashboard_telegram_banner_desc') }}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium uppercase tracking-wide text-brand-blue">{{ t('dashboard_telegram_banner_cta') }}</span>
+            <button
+              type="button"
+              class="flex h-8 w-8 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-bg hover:text-brand-ink"
+              (click)="dismissTelegramBanner($event)"
+              [attr.aria-label]="t('common_close')"
+            >
+              <mat-icon class="!h-5 !w-5">close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </section>
+    }
+
     <div class="mb-5 flex flex-col gap-4 border-b border-brand-border pb-5 sm:mb-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ periodLabel() }}</p>
@@ -247,6 +277,61 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
     }
+
+    @if (telegramModalOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg/70 px-4 py-6">
+        <div class="w-full max-w-md rounded-2xl border border-brand-border bg-brand-surface p-6 shadow-2xl">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-semibold text-brand-ink">{{ t('dashboard_telegram_modal_title') }}</h2>
+              <p class="mt-2 text-sm leading-6 text-brand-muted">{{ t('dashboard_telegram_modal_intro') }}</p>
+            </div>
+            <button
+              type="button"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-bg hover:text-brand-ink"
+              (click)="closeTelegramModal()"
+              [attr.aria-label]="t('common_close')"
+            >
+              <mat-icon class="!h-5 !w-5">close</mat-icon>
+            </button>
+          </div>
+          <ol class="mt-5 grid gap-3 text-sm leading-6 text-brand-muted">
+            <li>1. {{ t('dashboard_telegram_step_1') }}</li>
+            <li>2. {{ t('dashboard_telegram_step_2') }}</li>
+            <li>3. {{ t('dashboard_telegram_step_3') }}</li>
+          </ol>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="closeTelegramModal()">
+              {{ t('common_cancel') }}
+            </button>
+            <a
+              mat-flat-button
+              color="primary"
+              class="!h-11"
+              [href]="telegramBotUrl()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('dashboard_telegram_open_bot') }}
+            </a>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (telegramDismissModalOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg/70 px-4 py-6">
+        <div class="w-full max-w-sm rounded-2xl border border-brand-border bg-brand-surface p-6 shadow-2xl">
+          <h2 class="text-lg font-semibold text-brand-ink">{{ t('dashboard_telegram_dismiss_title') }}</h2>
+          <p class="mt-3 text-sm leading-6 text-brand-muted">{{ t('dashboard_telegram_dismiss_desc') }}</p>
+          <div class="mt-6 flex justify-end">
+            <button mat-flat-button color="primary" type="button" class="!h-11" (click)="closeTelegramDismissModal()">
+              {{ t('common_close') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -259,6 +344,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly recentExpenses = signal<Expense[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
+  readonly user = signal<CurrentUser | null>(null);
   readonly report = signal<Report | null>(null);
   readonly periodTotals = signal<PeriodTotalRow[]>([]);
   readonly categoryTotals = signal<CategoryTotalRow[]>([]);
@@ -299,6 +385,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       amountLabel: this.formatMoney(currency, amount)
     };
   });
+  readonly showTelegramBanner = computed(() => {
+    const user = this.user();
+    if (!user || user.telegramChatId) return false;
+    return !localStorage.getItem(`telegram_banner_dismissed_${user.id}`);
+  });
+  readonly telegramBotUrl = signal('https://t.me/');
+  readonly telegramModalOpen = signal(false);
+  readonly telegramDismissModalOpen = signal(false);
 
   private currencyChart?: Chart;
   private categoryChart?: Chart;
@@ -359,6 +453,27 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!value || value === this.selectedYear()) return;
     this.selectedYear.set(value);
     this.loadDashboard();
+  }
+
+  openTelegramModal() {
+    this.telegramModalOpen.set(true);
+  }
+
+  closeTelegramModal() {
+    this.telegramModalOpen.set(false);
+  }
+
+  dismissTelegramBanner(event: Event) {
+    event.stopPropagation();
+    const user = this.user();
+    if (user) {
+      localStorage.setItem(`telegram_banner_dismissed_${user.id}`, 'true');
+    }
+    this.telegramDismissModalOpen.set(true);
+  }
+
+  closeTelegramDismissModal() {
+    this.telegramDismissModalOpen.set(false);
   }
 
   categoryName(categoryId: string) {
@@ -614,6 +729,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.api.weeklyExpensesDailyTotals(weekStartIsoDate())
       : this.api.yearlyExpensesMonthlyTotals(this.selectedYear());
     forkJoin({
+      user: this.api.me(),
       recentExpenses: this.api.recentExpenses(5),
       report: this.api.report(range.from, range.to),
       categories: this.api.categories(),
@@ -621,7 +737,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       periodTotals: seriesRequest,
       categoryTotals: this.api.periodExpenseCategoryTotals(range.from, range.to)
     }).subscribe({
-      next: ({ recentExpenses, report, categories, budgets, periodTotals, categoryTotals }) => {
+      next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals }) => {
+        this.user.set(user);
         this.recentExpenses.set(recentExpenses);
         this.report.set(report);
         this.categories.set(categories);
@@ -629,6 +746,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.periodTotals.set(periodTotals);
         this.categoryTotals.set(categoryTotals);
         this.loading.set(false);
+        if (!user.telegramChatId) {
+          this.api.createTelegramRegistrationLink(user.phoneNumber).subscribe({
+            next: (response) => this.telegramBotUrl.set(response.botUrl),
+            error: () => this.telegramBotUrl.set('https://t.me/')
+          });
+        }
         setTimeout(() => this.renderCharts());
       },
       error: () => {

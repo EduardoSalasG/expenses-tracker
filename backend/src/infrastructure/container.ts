@@ -107,7 +107,10 @@ export function createContainer(config: AppConfig) {
       return { status: 'ok' as const, checks: { database: 'ok' } };
     },
     useCases: {
-      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens),
+      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens, email, {
+        frontendPublicOrigin: config.frontendPublicOrigin,
+        logger
+      }),
       loginWeb: new LoginWebUseCase(users, passwords, tokens),
       requestEmailMagicLink: new RequestEmailMagicLinkUseCase(users, emailMagicLinks, email, clock, {
         frontendPublicOrigin: config.frontendPublicOrigin

@@ -135,6 +135,39 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
       <mat-card class="page-panel p-5 xl:col-span-2">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
+            <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_telegram_title') }}</h2>
+            <p class="mt-1 text-sm text-brand-muted">
+              {{ user()?.telegramChatId ? t('settings_telegram_connected') : t('settings_telegram_not_connected') }}
+            </p>
+            @if (user()?.telegramUsername) {
+              <p class="mt-1 text-sm text-brand-muted">{{ user()?.telegramUsername }}</p>
+            }
+          </div>
+          @if (!user()?.telegramChatId) {
+            <a
+              mat-flat-button
+              color="primary"
+              class="!h-11"
+              [href]="telegramBotUrl()"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('settings_telegram_cta') }}
+            </a>
+          }
+        </div>
+        @if (!user()?.telegramChatId) {
+          <ol class="mt-4 grid gap-2 text-sm leading-6 text-brand-muted">
+            <li>1. {{ t('settings_telegram_step_1') }}</li>
+            <li>2. {{ t('settings_telegram_step_2') }}</li>
+            <li>3. {{ t('settings_telegram_step_3') }}</li>
+          </ol>
+        }
+      </mat-card>
+
+      <mat-card class="page-panel p-5 xl:col-span-2">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_session') }}</h2>
             <p class="mt-1 text-sm text-brand-muted">{{ t('settings_session_hint') }}</p>
           </div>
@@ -157,6 +190,7 @@ export class SettingsComponent {
   readonly savingProfile = signal(false);
   readonly message = signal('');
   readonly profileMessage = signal('');
+  readonly telegramBotUrl = signal('https://t.me/');
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
@@ -204,6 +238,12 @@ export class SettingsComponent {
           monthly: user.reportPreferences.includes('monthly'),
           yearly: user.reportPreferences.includes('yearly')
         });
+        if (!user.telegramChatId) {
+          this.api.createTelegramRegistrationLink(user.phoneNumber).subscribe({
+            next: (response) => this.telegramBotUrl.set(response.botUrl),
+            error: () => this.telegramBotUrl.set('https://t.me/')
+          });
+        }
         this.loading.set(false);
       },
       error: () => {

@@ -83,27 +83,51 @@ import { I18nService } from '../core/i18n.service';
 
           <div class="relative mx-auto w-full max-w-[320px] sm:max-w-[420px] lg:max-w-[520px]">
             <div class="landing-hero-art">
-              <div class="landing-hero-ring"></div>
-              <div class="landing-hero-card">
-                <div class="landing-hero-bot">
-                  <div class="landing-hero-antenna"></div>
-                  <div class="landing-hero-head">
-                    <div class="landing-hero-face">
-                      <span class="landing-hero-eye"></span>
-                      <span class="landing-hero-eye"></span>
-                      <span class="landing-hero-smile"></span>
+              <div class="landing-hero-shell">
+                <div class="landing-hero-header">
+                  <div class="landing-hero-badge">
+                    <div class="landing-hero-badge-mark">ET</div>
+                    <div>
+                      <div class="landing-hero-badge-title">{{ t('app_name') }}</div>
+                      <div class="landing-hero-badge-subtitle">{{ t('landing_tagline') }}</div>
                     </div>
                   </div>
-                  <div class="landing-hero-body">
-                    <div class="landing-hero-logo">ET</div>
+                  <div class="landing-hero-pill">{{ t('landing_preview_web_badge') }}</div>
+                </div>
+                <div class="landing-hero-content">
+                  <div class="landing-hero-summary">
+                    @for (metric of previewMetrics; track metric.label) {
+                      <div class="landing-hero-stat">
+                        <div class="landing-hero-stat-label">{{ metric.label }}</div>
+                        <div class="landing-hero-stat-value">{{ metric.value }}</div>
+                        <div class="landing-hero-stat-foot">{{ metric.caption }}</div>
+                      </div>
+                    }
+                  </div>
+                  <div class="landing-hero-grid">
+                    <div class="landing-hero-list">
+                      <div class="landing-hero-section-title">{{ t('landing_preview_history_title') }}</div>
+                      <div class="landing-hero-list-items">
+                        @for (record of previewHistory; track record.concept) {
+                          <div class="landing-hero-list-row">
+                            <div class="landing-hero-list-meta">
+                              <div class="landing-hero-list-name">{{ record.concept }}</div>
+                              <div class="landing-hero-list-caption">{{ record.meta }}</div>
+                            </div>
+                            <div class="landing-hero-list-value">{{ record.amount }}</div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                    <div class="landing-hero-chat">
+                      @for (message of previewTelegram; track message.body) {
+                        <div class="landing-hero-chat-bubble" [class.landing-hero-chat-bubble--out]="message.outbound" [class.landing-hero-chat-bubble--in]="!message.outbound">
+                          {{ message.body }}
+                        </div>
+                      }
+                    </div>
                   </div>
                 </div>
-                <div class="landing-hero-coin-stack"></div>
-                <div class="landing-hero-coin"></div>
-                <div class="landing-hero-receipt"></div>
-                <div class="landing-hero-chart landing-hero-chart-left"></div>
-                <div class="landing-hero-chart landing-hero-chart-right"></div>
-                <div class="landing-hero-wallet"></div>
               </div>
             </div>
             <p class="mt-4 text-center text-sm text-brand-muted">{{ t('landing_visual_caption') }}</p>

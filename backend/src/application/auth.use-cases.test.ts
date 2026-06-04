@@ -149,7 +149,10 @@ describe('auth use cases', () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const passwords = new ScryptPasswordHasher();
-    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService());
+    const email = new CapturingEmailProvider();
+    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), email, {
+      frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
+    });
 
     const session = await registerUseCase.execute({
       phoneNumber: '+56982439041',
@@ -164,6 +167,9 @@ describe('auth use cases', () => {
     });
 
     expect(session.user.phoneNumber).toBe('+56982439041');
+    expect(email.messages).toHaveLength(1);
+    expect(email.messages[0].subject).toBe('Bienvenido a Expenses Tracker');
+    expect(email.messages[0].html).toContain('/dashboard');
     const loginUseCase = new LoginWebUseCase(users, passwords, new FakeTokenService());
     const loginSession = await loginUseCase.execute({
       phoneNumber: '+56982439041',
