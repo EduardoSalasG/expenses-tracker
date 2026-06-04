@@ -87,6 +87,7 @@ Messaging is abstracted at the application layer through `MessagingProvider`, `M
 Telegram routes are available at `POST /webhooks/telegram` and support:
 
 - Normal text updates as primary inbound input.
+- Help commands: `/commands` and `/help` return the available bot commands, an example for each one, and the type of reply the bot will send.
 - Account linking command: `/link +569XXXXXXXX` (or `/vincular +569XXXXXXXX`) to bind a Telegram chat id to a previously registered user phone.
 - Optional webhook secret verification via `x-telegram-bot-api-secret-token` when `TELEGRAM_WEBHOOK_SECRET_TOKEN` is configured.
 
@@ -272,6 +273,12 @@ Linking flow example:
 
 ```text
 /link +56982439041
+```
+
+Help command example:
+
+```text
+/commands
 ```
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
