@@ -311,6 +311,7 @@ interface CategoryVariationRow {
               [href]="telegramBotUrl()"
               target="_blank"
               rel="noopener noreferrer"
+              (click)="closeTelegramModal()"
             >
               {{ t('dashboard_telegram_open_bot') }}
             </a>
