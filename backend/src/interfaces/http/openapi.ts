@@ -524,6 +524,64 @@ export const openApiSpec = {
         }
       }
     },
+    '/expenses/{expenseId}': {
+      put: {
+        summary: 'Update manual expense',
+        description: 'Updates an existing tenant-scoped expense, including date, concept, category, payment method, and amount.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'expenseId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Expense UUID' }
+        ],
+        requestBody: jsonBody({
+          date: { type: 'string', format: 'date-time' },
+          amount: { type: 'number', example: 33000 },
+          currency: { type: 'string', example: 'CLP' },
+          concept: { type: 'string', example: 'Natacion' },
+          categoryId: { type: 'string', format: 'uuid' },
+          subcategoryId: { type: 'string', format: 'uuid' },
+          paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Expense updated',
+            content: {
+              'application/json': {
+                examples: {
+                  updated: {
+                    value: {
+                      id: '2e0ddc9e-5dbd-4f84-8df2-7f77f0c0f2d7',
+                      concept: 'Natacion',
+                      amount: 33000,
+                      currency: 'CLP'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Expense not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingExpense: { value: { error: 'Expense not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
     '/expenses/recent': authenticatedGet('List recent expenses'),
     '/incomes': {
       get: {

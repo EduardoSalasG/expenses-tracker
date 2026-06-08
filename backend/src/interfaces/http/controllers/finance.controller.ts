@@ -12,7 +12,8 @@ import {
   reportPreferencesSchema,
   reportWeekStartQuerySchema,
   reportYearQuerySchema,
-  reportQuerySchema
+  reportQuerySchema,
+  updateExpenseSchema
 } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
@@ -27,6 +28,25 @@ export class FinanceController {
       tenantId: authRequest.auth.tenantId,
       userId: authRequest.auth.userId
     }));
+  };
+
+  updateExpense = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(updateExpenseSchema, request.body);
+    const expenseId = Array.isArray(request.params.expenseId) ? request.params.expenseId[0] : request.params.expenseId;
+    try {
+      response.json(await this.container.useCases.finance.updateExpense({
+        ...body,
+        expenseId,
+        tenantId: authRequest.auth.tenantId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Expense not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
   };
 
   listExpenses = async (request: Request, response: Response) => {

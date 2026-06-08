@@ -21,6 +21,33 @@ export class FinanceUseCases {
     });
   }
 
+  async updateExpense(input: {
+    tenantId: string;
+    expenseId: string;
+    date: string;
+    amount: number;
+    currency: string;
+    concept: string;
+    categoryId: string;
+    subcategoryId?: string;
+    paymentMethod: Expense['paymentMethod'];
+  }) {
+    const categories = await this.categories.listByTenant(input.tenantId);
+    const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
+    const updated = await this.expenses.update({
+      tenantId: input.tenantId,
+      expenseId: input.expenseId,
+      date: input.date,
+      amount: input.amount,
+      concept: input.concept,
+      categoryId: normalized.categoryId,
+      subcategoryId: normalized.subcategoryId,
+      paymentMethod: input.paymentMethod
+    });
+    if (!updated) throw new Error('Expense not found.');
+    return updated;
+  }
+
   listExpenses(input: {
     tenantId: string;
     from?: string;

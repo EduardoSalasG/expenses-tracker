@@ -96,6 +96,8 @@ export const createExpenseSchema = z.object({
   paymentMethod: paymentMethodSchema
 });
 
+export const updateExpenseSchema = createExpenseSchema;
+
 export const expenseQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),

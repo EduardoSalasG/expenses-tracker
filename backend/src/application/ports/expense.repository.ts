@@ -18,10 +18,12 @@ export interface ExpenseRepository {
   update(input: {
     tenantId: TenantId;
     expenseId: string;
+    date?: string;
     amount?: number;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethod?: Expense['paymentMethod'];
   }): Promise<Expense | undefined>;
   list(input: {
     tenantId: TenantId;

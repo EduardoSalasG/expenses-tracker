@@ -110,6 +110,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_category') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_payment_method') }}</th>
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
+              <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -120,9 +121,15 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                 <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
                 <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
                 <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
+                  <button mat-stroked-button type="button" (click)="openEditExpenseDialog(expense)">
+                    <mat-icon>edit</mat-icon>
+                    {{ t('common_edit') }}
+                  </button>
+                </td>
               </tr>
             } @empty {
-              <tr><td class="py-6 text-brand-muted" colspan="5">{{ t('expenses_empty_filters') }}</td></tr>
+              <tr><td class="py-6 text-brand-muted" colspan="6">{{ t('expenses_empty_filters') }}</td></tr>
             }
           </tbody>
         </table>
@@ -176,9 +183,23 @@ export class ExpensesComponent implements OnInit {
 
   openNewExpenseDialog() {
     const ref = this.dialog.open(ExpenseCreateDialogComponent, { width: '860px', maxWidth: '96vw', data: { categories: this.categories() } });
-    ref.afterClosed().subscribe((saved: boolean) => {
-      if (saved) {
-        this.snackBar.open(this.t('expenses_saved'), undefined, { duration: 2400 });
+    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
+      if (result?.saved) {
+        this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
+        this.loadExpenses();
+      }
+    });
+  }
+
+  openEditExpenseDialog(expense: Expense) {
+    const ref = this.dialog.open(ExpenseCreateDialogComponent, {
+      width: '860px',
+      maxWidth: '96vw',
+      data: { categories: this.categories(), expense }
+    });
+    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
+      if (result?.saved) {
+        this.snackBar.open(this.t('expenses_updated'), undefined, { duration: 2400 });
         this.loadExpenses();
       }
     });
@@ -246,7 +267,7 @@ export class ExpensesComponent implements OnInit {
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule],
   template: `
-    <h2 class="mb-4 text-xl font-semibold">{{ t('expenses_new') }}</h2>
+    <h2 class="mb-4 text-xl font-semibold">{{ expense() ? t('expenses_edit') : t('expenses_new') }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
       <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
       <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
@@ -263,7 +284,7 @@ export class ExpensesComponent implements OnInit {
       }
       <div class="flex justify-end gap-2 lg:col-span-4">
         <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('expenses_saving') : t('expenses_save') }}</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('expenses_saving') : expense() ? t('common_update') : t('expenses_save') }}</button>
       </div>
     </form>
   `
@@ -275,6 +296,7 @@ export class ExpenseCreateDialogComponent {
   readonly t = (key: string) => this.i18n.t(key);
   readonly saving = signal(false);
   readonly categories = signal<Category[]>([]);
+  readonly expense = signal<Expense | null>(null);
   readonly selectedCategoryId = signal('');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly subcategoriesForForm = computed(() => this.categories().filter((category) => category.parentId === this.selectedCategoryId()));
@@ -292,13 +314,30 @@ export class ExpenseCreateDialogComponent {
 
   constructor(
     readonly dialogRef: MatDialogRef<ExpenseCreateDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) data: { categories: Category[] }
+    @Inject(MAT_DIALOG_DATA) data: { categories: Category[]; expense?: Expense }
   ) {
     this.categories.set(data.categories ?? []);
-    const firstRoot = this.rootCategories()[0];
-    if (firstRoot) {
-      this.form.controls.categoryId.setValue(firstRoot.id);
-      this.selectedCategoryId.set(firstRoot.id);
+    this.expense.set(data.expense ?? null);
+    const existingExpense = data.expense;
+    if (existingExpense) {
+      this.form.patchValue({
+        concept: existingExpense.concept,
+        amount: existingExpense.amount,
+        currency: existingExpense.currency,
+        date: toDateInputValue(new Date(existingExpense.date)),
+        categoryId: existingExpense.categoryId,
+        subcategoryId: existingExpense.subcategoryId ?? '',
+        paymentKind: existingExpense.paymentMethod.kind,
+        bank: existingExpense.paymentMethod.bank ?? '',
+        cardType: existingExpense.paymentMethod.cardType ?? 'debit'
+      });
+      this.selectedCategoryId.set(existingExpense.categoryId);
+    } else {
+      const firstRoot = this.rootCategories()[0];
+      if (firstRoot) {
+        this.form.controls.categoryId.setValue(firstRoot.id);
+        this.selectedCategoryId.set(firstRoot.id);
+      }
     }
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
       this.selectedCategoryId.set(categoryId);
@@ -309,7 +348,7 @@ export class ExpenseCreateDialogComponent {
   save() {
     const value = this.form.getRawValue();
     this.saving.set(true);
-    this.api.createExpense({
+    const payload = {
       date: startOfDay(value.date),
       amount: Number(value.amount),
       currency: value.currency.toUpperCase(),
@@ -317,8 +356,12 @@ export class ExpenseCreateDialogComponent {
       categoryId: value.categoryId,
       subcategoryId: value.subcategoryId || undefined,
       paymentMethod: paymentMethodPayload(value.paymentKind, value.bank, value.cardType)
-    }).subscribe({
-      next: () => this.dialogRef.close(true),
+    };
+    const request = this.expense()
+      ? this.api.updateExpense(this.expense()!.id, payload)
+      : this.api.createExpense(payload);
+    request.subscribe({
+      next: () => this.dialogRef.close({ saved: true, mode: this.expense() ? 'edit' : 'create' }),
       error: () => this.saving.set(false)
     });
   }

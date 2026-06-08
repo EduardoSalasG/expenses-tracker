@@ -203,27 +203,39 @@ export class PostgresExpenseRepository implements ExpenseRepository {
   async update(input: {
     tenantId: string;
     expenseId: string;
+    date?: string;
     amount?: number;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethod?: Expense['paymentMethod'];
   }) {
     const result = await this.pool.query(
       `update expenses
-       set amount = coalesce($3, amount),
-           concept = coalesce($4, concept),
-           category_id = coalesce($5, category_id),
-           subcategory_id = case when $6::boolean then $7::uuid else subcategory_id end
+       set expense_date = coalesce($3, expense_date),
+           amount = coalesce($4, amount),
+           concept = coalesce($5, concept),
+           category_id = coalesce($6, category_id),
+           subcategory_id = case when $7::boolean then $8::uuid else subcategory_id end,
+           payment_method_kind = coalesce($9, payment_method_kind),
+           bank = case when $10::boolean then $11 else bank end,
+           card_type = case when $12::boolean then $13 else card_type end
        where tenant_id = $1 and id = $2
        returning *`,
       [
         input.tenantId,
         input.expenseId,
+        input.date ?? null,
         input.amount ?? null,
         input.concept ?? null,
         input.categoryId ?? null,
         Object.prototype.hasOwnProperty.call(input, 'subcategoryId'),
-        input.subcategoryId ?? null
+        input.subcategoryId ?? null,
+        input.paymentMethod?.kind ?? null,
+        Object.prototype.hasOwnProperty.call(input, 'paymentMethod'),
+        input.paymentMethod?.bank ?? null,
+        Object.prototype.hasOwnProperty.call(input, 'paymentMethod'),
+        input.paymentMethod?.cardType ?? null
       ]
     );
     return result.rows[0] ? mapExpense(result.rows[0]) : undefined;

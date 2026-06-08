@@ -133,6 +133,10 @@ export class ApiService {
     return this.http.post(`${environment.apiBaseUrl}/expenses`, payload);
   }
 
+  updateExpense(expenseId: string, payload: unknown) {
+    return this.http.put(`${environment.apiBaseUrl}/expenses/${expenseId}`, payload);
+  }
+
   createIncome(payload: unknown) {
     return this.http.post(`${environment.apiBaseUrl}/incomes`, payload);
   }

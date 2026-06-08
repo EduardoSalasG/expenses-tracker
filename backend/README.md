@@ -130,6 +130,8 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /expenses` creates manual expenses. Telegram-created expenses use the same persistence model after parsing and validation, but always use the user's preferred currency instead of treating currency as message input.
 
+`PUT /expenses/:expenseId` updates a manual expense. The web app uses it to edit date, concept, category/subcategory, payment method, and amount from the expense history.
+
 ## Income API
 
 `GET /incomes` lists tenant-scoped incomes with optional `from`, `to`, `currency`, and `limit` query parameters.

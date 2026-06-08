@@ -9,6 +9,7 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   const auth = requireAuth(container);
 
   app.post('/expenses', auth, asyncHandler(controller.createExpense));
+  app.put('/expenses/:expenseId', auth, asyncHandler(controller.updateExpense));
   app.get('/expenses', auth, asyncHandler(controller.listExpenses));
   app.get('/expenses/recent', auth, asyncHandler(controller.recentExpenses));
   app.post('/incomes', auth, asyncHandler(controller.createIncome));

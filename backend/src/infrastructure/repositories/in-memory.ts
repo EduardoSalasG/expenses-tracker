@@ -162,18 +162,22 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   async update(input: {
     tenantId: string;
     expenseId: string;
+    date?: string;
     amount?: number;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethod?: Expense['paymentMethod'];
   }) {
     const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
     if (index < 0) return undefined;
     this.expenses[index] = {
       ...this.expenses[index],
+      date: input.date ?? this.expenses[index].date,
       amount: input.amount ?? this.expenses[index].amount,
       concept: input.concept ?? this.expenses[index].concept,
       categoryId: input.categoryId ?? this.expenses[index].categoryId,
+      paymentMethod: input.paymentMethod ?? this.expenses[index].paymentMethod,
       subcategoryId: Object.prototype.hasOwnProperty.call(input, 'subcategoryId')
         ? input.subcategoryId ?? undefined
         : this.expenses[index].subcategoryId
