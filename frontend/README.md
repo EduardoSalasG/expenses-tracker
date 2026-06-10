@@ -54,25 +54,28 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 ## Routes
 
 - `/`: public landing page for logged-out visitors. The header exposes login for existing users, while the rest of the page is optimized for registration/conversion.
-- `/login`: web-native login/registration. Existing users can sign in with phone number + password or request a magic link by email. New users create an account from the web. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
+- `/login`: web-native login/registration. Existing users choose password login or email magic link. New users register in two steps: first lead capture (`name + email`), then full account data. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation, cash/transfer/card details, filtered expense history, and auto-refresh after save.
 - `/incomes`: income capture, filtered income history, totals by currency, and auto-refresh after save.
 - `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, and inline updates.
 - `/categories`: main category and subcategory management with default/custom labels.
 - `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, and session logout.
+- `/terms` and `/privacy`: public legal pages linked from the landing footer.
 
 ## Session Behavior
 
 The frontend stores the access token and refresh token after web login, web registration, OTP verification, or Telegram link-token auto-login. Authenticated API calls include the access token; if the backend returns `401`, the interceptor calls `POST /auth/refresh`, stores the renewed tokens, and retries the original request once.
 
 Telegram is optional. Users can register and use the full web app without connecting Telegram. If they choose to connect it later, the frontend can consume Telegram link tokens and silently attach the chat after a successful web login or registration.
+If Telegram is not configured yet, the dashboard shows a dismissible banner that opens the setup modal and deep-links the user to the bot.
 
 ## UI Conventions
 
 - Angular Material supplies form fields, buttons, nav, cards, tables, and progress indicators.
 - Tailwind supplies layout, spacing, and responsive utilities.
 - Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
+- First-run onboarding tours are shown once per module and stored client-side so they do not repeat on every session.
 - CLP amounts are displayed in Chilean currency format, for example `$20.000`.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 

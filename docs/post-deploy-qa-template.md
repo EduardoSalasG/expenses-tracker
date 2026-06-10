@@ -21,10 +21,12 @@ Evidence:
 
 ## Auth checks
 
-- [ ] OTP request works from login
-- [ ] OTP verify works
-- [ ] Invalid code shows frontend error
-- [ ] Expired code shows frontend error
+- [ ] Password login works
+- [ ] Magic-link request works
+- [ ] Magic-link consume works
+- [ ] Invalid password shows frontend error
+- [ ] Invalid or expired magic-link token shows frontend error
+- [ ] Telegram link-token auto-login works for linked users
 
 Evidence:
 - phone used:

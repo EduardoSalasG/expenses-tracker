@@ -107,6 +107,8 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 
 Primary authentication is web-native. Telegram is optional and can be linked during or after web login.
 
+`POST /auth/register/lead` saves the first public registration step (`firstName`, `email`, optional phone and language). It exists so the frontend can split registration into two screens without losing partially completed leads.
+
 `POST /auth/register` creates a user with phone number + password and immediately returns access/refresh tokens. Required registration fields are `firstName`, `lastName`, `preferredName`, `countryOfResidence`, and `preferredCurrency`. `email` is optional. If `telegramChatId` is present, the backend links that Telegram chat automatically after registration.
 
 `POST /auth/login` signs in with phone number + password and returns access/refresh tokens. If `telegramChatId` is present, the backend links that Telegram chat automatically after successful login.
@@ -115,7 +117,7 @@ Primary authentication is web-native. Telegram is optional and can be linked dur
 
 `POST /auth/magic-link/consume` exchanges a one-time email token for access/refresh tokens. Tokens expire after 15 minutes and are single-use.
 
-`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is now a fallback flow for Telegram-linked users rather than the primary way into the web app.
+`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is a fallback flow for Telegram-linked users rather than the primary way into the web app.
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
@@ -221,6 +223,18 @@ http://localhost:3000/api/docs
 When running through Docker Compose, the backend is exposed at the same URL.
 
 Every public endpoint must include request/response schemas, status codes, auth requirements, and error examples.
+The final auth/messaging pass must explicitly cover:
+
+- `POST /auth/register/lead`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/magic-link/request`
+- `POST /auth/magic-link/consume`
+- `POST /auth/telegram/registration-link`
+- `POST /auth/telegram/consume-link-token`
+- `POST /auth/otp/request`
+- `POST /auth/otp/verify`
+- `POST /webhooks/telegram`
 
 ## Messaging Webhook
 

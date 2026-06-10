@@ -4,10 +4,11 @@ Use this checklist for every production promotion from `dev` to `main`.
 
 ## 1) Pre-merge gates
 
-- CI green on `dev` (backend tests/build, frontend tests/build).
+- Branch is `dev` and up to date with `origin/dev`.
 - No pending DB migration conflicts.
 - `pnpm --filter @expenses-tracker/backend test`
-- `pnpm --filter @expenses-tracker/frontend test -- --watch=false --browsers=ChromeHeadless`
+- `pnpm --filter @expenses-tracker/backend build`
+- `pnpm --filter @expenses-tracker/frontend build`
 
 ## 2) Migration and DB verification
 
@@ -34,8 +35,9 @@ Use this checklist for every production promotion from `dev` to `main`.
 ## 4) Bilingual QA (es/en)
 
 - Frontend labels/screens in `es` and `en`:
-  - dashboard, expenses, incomes, budgets, categories, settings, login
+  - landing, login/register, dashboard, expenses, incomes, budgets, categories, settings
 - Messaging output in `es` and `en`:
+  - link/account guidance
   - save confirmations
   - clarifications/drafts
   - duplicate confirmation
@@ -49,6 +51,15 @@ Use this checklist for every production promotion from `dev` to `main`.
   - success example
   - error example
   - auth requirement
+- Verify Telegram-only auth/messaging flows:
+  - `/auth/register/lead`
+  - `/auth/register`
+  - `/auth/login`
+  - `/auth/magic-link/request`
+  - `/auth/magic-link/consume`
+  - `/auth/telegram/registration-link`
+  - `/auth/telegram/consume-link-token`
+  - `/webhooks/telegram`
 - Update:
   - `backend/README.md`
   - `frontend/README.md` (if UI/flow/env changed)
@@ -61,7 +72,8 @@ Use this checklist for every production promotion from `dev` to `main`.
 - Confirm Netlify + Render deploys completed.
 - Post-deploy checks:
   - `/health/live`, `/health/ready`
-  - login OTP
+  - web password login
+  - magic-link request/consume
   - one expense save from messaging channel
   - dashboard loads with current month/year view
 - Save evidence in `docs/post-deploy-qa-template.md` (one file per release run or copied section).

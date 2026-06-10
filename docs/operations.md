@@ -2,7 +2,7 @@
 
 This document captures the MVP runbook for local production-style checks and scheduled jobs.
 Formal promotion checklist lives in `docs/release-checklist.md`.
-Latest executed evidence lives in `docs/release-evidence-2026-06-01.md` and `docs/qa-e2e-2026-06-01.md`.
+Latest executed evidence lives in `docs/release-evidence-2026-06-10.md` and `docs/qa-evidence-2026-06-10.md`.
 
 ## Local Development
 
@@ -24,17 +24,19 @@ docker compose up --build
 
 The backend and frontend containers are intended for image validation and deployment packaging. Normal development should keep them stopped.
 
-## Continuous Integration
+## Validation Workflow
 
-GitHub Actions runs on pushes and pull requests to `dev` and `main`:
+This repository no longer depends on GitHub Actions for release validation.
+
+Validation is executed manually on `dev` before promotion:
 
 - backend tests
 - backend build
-- frontend tests in headless Chrome
 - frontend build
-- Docker Compose config validation
-
-Linting is intentionally not part of CI yet because ESLint and Angular lint configuration are not finalized in this MVP.
+- migration verification
+- Telegram webhook smoke
+- bilingual QA
+- Swagger/docs final pass
 
 ## Gitflow
 

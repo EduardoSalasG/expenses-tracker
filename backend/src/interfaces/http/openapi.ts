@@ -144,10 +144,55 @@ export const openApiSpec = {
         }
       }
     },
+    '/auth/register/lead': {
+      post: {
+        summary: 'Save first-step registration lead',
+        description: 'Persists the first public registration step so partially completed signups can be recovered later.',
+        requestBody: jsonBody({
+          firstName: { type: 'string', example: 'Eduardo' },
+          email: { type: 'string', example: 'eduardo@example.com' },
+          preferredLanguage: { type: 'string', enum: ['es', 'en'], example: 'es' },
+          phoneNumber: { type: 'string', example: '+56912345678' }
+        }, ['firstName', 'email']),
+        responses: {
+          '201': {
+            description: 'Lead saved',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      saved: true,
+                      lead: {
+                        firstName: 'Eduardo',
+                        email: 'eduardo@example.com',
+                        preferredLanguage: 'es',
+                        phoneNumber: '+56912345678',
+                        status: 'started'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidLead: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/register': {
       post: {
         summary: 'Create web account',
-        description: 'Primary registration flow. Creates a user with phone number + password. Telegram is optional; if telegramChatId is provided it is linked automatically after registration.',
+        description: 'Primary registration flow. Creates a user with phone number + password. Telegram is optional; if telegramChatId is provided it is linked automatically after registration. If the email matches a started lead, that lead is marked as completed.',
         requestBody: jsonBody({
           phoneNumber: { type: 'string', example: '+56912345678' },
           password: { type: 'string', example: 'correct-horse-battery' },
@@ -395,21 +440,67 @@ export const openApiSpec = {
       post: {
         summary: 'Refresh JWT session',
         requestBody: jsonBody({ refreshToken: { type: 'string' } }, ['refreshToken']),
-        responses: standardResponses({
-          accessToken: { type: 'string' },
-          refreshToken: { type: 'string' },
-          user: { type: 'object' }
-        })
+        responses: {
+          '200': {
+            description: 'Session refreshed',
+            content: {
+              'application/json': {
+                examples: {
+                  refreshed: {
+                    value: {
+                      accessToken: '<jwt-access-token>',
+                      refreshToken: '<jwt-refresh-token>',
+                      user: { id: 'user-id', phoneNumber: '+56912345678', preferredName: 'Vane' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid refresh token',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidToken: { value: { error: 'Invalid refresh token.' } }
+                }
+              }
+            }
+          }
+        }
       }
     },
     '/auth/telegram/link-token': {
       post: {
         summary: 'Create one-time Telegram link token',
         requestBody: jsonBody({ chatId: { type: 'string', example: '123456789' } }, ['chatId']),
-        responses: standardResponses({
-          token: { type: 'string' },
-          expiresAt: { type: 'string', format: 'date-time' }
-        })
+        responses: {
+          '200': {
+            description: 'Link token created',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      token: '5f50d30e-7f96-4ad2-b16f-2a38e8576b95',
+                      expiresAt: '2026-06-10T18:15:00.000Z'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidChat: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        }
       }
     },
     '/auth/telegram/consume-link-token': {
@@ -500,7 +591,7 @@ export const openApiSpec = {
       },
       post: {
         summary: 'Create manual expense',
-        description: 'Creates a tenant-scoped expense. Backend normalizes category persistence to root category + optional subcategory.',
+        description: 'Creates a tenant-scoped expense. Backend normalizes category persistence to root category + optional subcategory. Installments default to 1; when installmentCount > 1 the backend creates future installment rows from firstInstallmentDate across following months.',
         security: [{ bearerAuth: [] }],
         requestBody: jsonBody({
           date: { type: 'string', format: 'date-time' },
@@ -511,6 +602,8 @@ export const openApiSpec = {
           subcategoryId: { type: 'string', format: 'uuid' },
           paymentMethodOptionId: { type: 'string', format: 'uuid' },
           bankOptionId: { type: 'string', format: 'uuid' },
+          installmentCount: { type: 'integer', example: 3, minimum: 1, maximum: 60 },
+          firstInstallmentDate: { type: 'string', format: 'date-time', example: '2026-06-08T00:00:00.000Z' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
         responses: {
@@ -525,7 +618,8 @@ export const openApiSpec = {
                         id: '2e0ddc9e-5dbd-4f84-8df2-7f77f0c0f2d7',
                         concept: 'Natacion',
                         amount: 33000,
-                        currency: 'CLP'
+                        currency: 'CLP',
+                        installmentCount: 3
                       }
                     }
                   }
@@ -536,13 +630,14 @@ export const openApiSpec = {
               description: 'Validation error',
               content: {
                 'application/json': {
-                  examples: {
-                    invalidPayload: { value: { error: 'Validation failed.' } },
-                    invalidCategory: { value: { error: 'No category is available for this tenant.' } }
-                  }
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } },
+                  invalidCategory: { value: { error: 'No category is available for this tenant.' } },
+                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } }
                 }
               }
             }
+          }
           })
         }
       }
@@ -564,6 +659,8 @@ export const openApiSpec = {
           subcategoryId: { type: 'string', format: 'uuid' },
           paymentMethodOptionId: { type: 'string', format: 'uuid' },
           bankOptionId: { type: 'string', format: 'uuid' },
+          installmentCount: { type: 'integer', example: 3, minimum: 1, maximum: 60 },
+          firstInstallmentDate: { type: 'string', format: 'date-time', example: '2026-06-08T00:00:00.000Z' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
         responses: withUnauthorized({
@@ -577,7 +674,8 @@ export const openApiSpec = {
                       id: '2e0ddc9e-5dbd-4f84-8df2-7f77f0c0f2d7',
                       concept: 'Natacion',
                       amount: 33000,
-                      currency: 'CLP'
+                      currency: 'CLP',
+                      installmentCount: 3
                     }
                   }
                 }
@@ -589,7 +687,8 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 examples: {
-                  invalidPayload: { value: { error: 'Validation failed.' } }
+                  invalidPayload: { value: { error: 'Validation failed.' } },
+                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } }
                 }
               }
             }
@@ -618,9 +717,83 @@ export const openApiSpec = {
           queryParam('currency', 'string', 'Currency code such as CLP'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],
-        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Income list',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          id: 'a0f1b4ea-d458-4a81-9d60-5c05a8db7d75',
+                          date: '2026-06-01T00:00:00.000Z',
+                          amount: 1200000,
+                          currency: 'CLP',
+                          concept: 'Sueldo'
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidQuery: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
       },
-      post: authenticatedPost('Create income').post
+      post: {
+        summary: 'Create income',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          date: { type: 'string', format: 'date-time', example: '2026-06-01T00:00:00.000Z' },
+          amount: { type: 'number', example: 1200000 },
+          currency: { type: 'string', example: 'CLP' },
+          concept: { type: 'string', example: 'Sueldo' }
+        }, ['date', 'amount', 'currency', 'concept']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Income created',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      data: {
+                        id: 'a0f1b4ea-d458-4a81-9d60-5c05a8db7d75',
+                        date: '2026-06-01T00:00:00.000Z',
+                        amount: 1200000,
+                        currency: 'CLP',
+                        concept: 'Sueldo'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
+      }
     },
     '/incomes/{incomeId}': {
       put: {
@@ -636,7 +809,34 @@ export const openApiSpec = {
           concept: { type: 'string', example: 'Sueldo' }
         }, ['date', 'amount', 'currency', 'concept']),
         responses: withUnauthorized({
-          '200': { description: 'Income updated', content: { 'application/json': { schema: { type: 'object' } } } },
+          '200': {
+            description: 'Income updated',
+            content: {
+              'application/json': {
+                examples: {
+                  updated: {
+                    value: {
+                      id: 'a0f1b4ea-d458-4a81-9d60-5c05a8db7d75',
+                      date: '2026-06-01T00:00:00.000Z',
+                      amount: 1200000,
+                      currency: 'CLP',
+                      concept: 'Sueldo'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          },
           '404': { description: 'Income not found', content: { 'application/json': { examples: { missingIncome: { value: { error: 'Income not found.' } } } } } }
         })
       }
@@ -645,7 +845,35 @@ export const openApiSpec = {
       get: {
         summary: 'List categories and subcategories',
         security: [{ bearerAuth: [] }],
-        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Category tree',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        { id: 'root-category-id', name: 'Food', parentId: null },
+                        { id: 'subcategory-id', name: 'Restaurants', parentId: 'root-category-id' }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidRequest: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
       },
       post: {
         summary: 'Create category or subcategory',
@@ -654,7 +882,29 @@ export const openApiSpec = {
           name: { type: 'string' },
           parentId: { type: 'string', description: 'Optional parent category UUID for subcategories.' }
         }, ['name']),
-        responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Category created',
+            content: {
+              'application/json': {
+                examples: {
+                  createdRoot: { value: { data: { id: 'root-category-id', name: 'Food', parentId: null } } },
+                  createdSubcategory: { value: { data: { id: 'subcategory-id', name: 'Restaurants', parentId: 'root-category-id' } } }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidParent: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
       }
     },
     '/banks': {
@@ -871,7 +1121,40 @@ export const openApiSpec = {
       get: {
         summary: 'List permanent budgets (applied every month)',
         security: [{ bearerAuth: [] }],
-        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Permanent budgets',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          categoryId: 'root-category-id',
+                          categoryName: 'Sports',
+                          subcategoryId: null,
+                          amount: 50000,
+                          currency: 'CLP'
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidRequest: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
       },
       put: {
         summary: 'Create or update permanent budget',
@@ -882,7 +1165,38 @@ export const openApiSpec = {
           amount: { type: 'number' },
           currency: { type: 'string', example: 'CLP' }
         }, ['categoryId', 'amount', 'currency']),
-        responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Budget upserted',
+            content: {
+              'application/json': {
+                examples: {
+                  updated: {
+                    value: {
+                      data: {
+                        categoryId: 'root-category-id',
+                        subcategoryId: null,
+                        amount: 50000,
+                        currency: 'CLP'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or classification error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidCategory: { value: { error: 'Category not found.' } },
+                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } }
+                }
+              }
+            }
+          }
+        })
       }
     },
     '/budgets/monthly': {
@@ -959,7 +1273,37 @@ export const openApiSpec = {
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
-    '/report-preferences': authenticatedPut('Update report preferences'),
+    '/report-preferences': {
+      put: {
+        summary: 'Update report preferences',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          preferences: { type: 'array', items: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'yearly'] }, example: ['monthly', 'yearly'] }
+        }, ['preferences']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Preferences updated',
+            content: {
+              'application/json': {
+                examples: {
+                  updated: { value: { data: { preferences: ['monthly', 'yearly'] } } }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPreference: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
     '/webhooks/telegram': {
       post: {
         summary: 'Receive Telegram webhook event',
