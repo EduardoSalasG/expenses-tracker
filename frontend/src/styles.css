@@ -321,8 +321,26 @@ table {
 }
 
 .auth-select option {
-  color: #0f172a;
-  background: #ffffff;
+  color: var(--brand-ink);
+  background: var(--brand-surface);
+}
+
+select {
+  color: var(--brand-ink);
+  background-color: var(--brand-surface);
+}
+
+select option {
+  color: var(--brand-ink);
+  background: var(--brand-surface);
+}
+
+select option:checked,
+select option:hover,
+select option:focus {
+  color: var(--brand-ink);
+  background: color-mix(in srgb, var(--brand-blue) 18%, var(--brand-surface) 82%);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--brand-blue) 18%, var(--brand-surface) 82%) inset;
 }
 
 .auth-error {
@@ -353,12 +371,15 @@ table {
   font-weight: 600;
   letter-spacing: 0;
   box-shadow: none;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .landing-nav-login.mat-mdc-outlined-button {
-  border-color: color-mix(in srgb, var(--brand-border) 78%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-blue) 26%, var(--brand-border) 74%) !important;
   color: var(--brand-ink) !important;
-  background: rgb(var(--brand-surface-rgb) / 0.02);
+  background: rgb(var(--brand-surface-rgb) / 0.08);
 }
 
 .landing-nav-login.mat-mdc-outlined-button:hover {
@@ -387,8 +408,11 @@ table {
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  line-height: 1;
+  line-height: 1 !important;
   flex-shrink: 0;
+  font-size: 1.25rem !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
 }
 
 .landing-hero-shell {

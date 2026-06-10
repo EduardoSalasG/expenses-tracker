@@ -66,15 +66,15 @@ import { I18nService } from '../core/i18n.service';
             </div>
             <p class="mt-3 text-sm text-brand-muted">{{ t('landing_cta_support') }}</p>
             <ul class="mt-8 grid gap-3 text-sm text-brand-muted sm:grid-cols-3">
-              <li class="flex items-center gap-2">
+              <li class="flex items-start gap-2">
                 <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">chat</mat-icon>
                 <span>{{ t('landing_proof_messaging') }}</span>
               </li>
-              <li class="flex items-center gap-2">
+              <li class="flex items-start gap-2">
                 <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">savings</mat-icon>
                 <span>{{ t('landing_proof_budget') }}</span>
               </li>
-              <li class="flex items-center gap-2">
+              <li class="flex items-start gap-2">
                 <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">monitoring</mat-icon>
                 <span>{{ t('landing_proof_reports') }}</span>
               </li>
