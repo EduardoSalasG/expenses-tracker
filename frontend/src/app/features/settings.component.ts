@@ -9,7 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
-import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
+import { ApiService, type BankOption, type CurrentUser, type PaymentMethodOption, type ReportFrequency } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
@@ -133,6 +133,81 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
       </mat-card>
 
       <mat-card class="page-panel p-5 xl:col-span-2">
+        <div class="grid gap-6 xl:grid-cols-2">
+          <section>
+            <div class="mb-3">
+              <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_banks_title') }}</h2>
+              <p class="mt-1 text-sm text-brand-muted">{{ t('settings_banks_hint') }}</p>
+            </div>
+            <form [formGroup]="bankForm" (ngSubmit)="createBankOption()" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('settings_bank_name') }}</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+              <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="bankForm.invalid || savingBank()">
+                {{ t('settings_bank_add') }}
+              </button>
+            </form>
+            <app-feedback-banner [message]="bankMessage()" [tone]="bankMessage().includes('No se pudo') || bankMessage().includes('Could not') ? 'error' : 'success'" />
+            <div class="mt-4 grid gap-2">
+              @for (bank of bankOptions(); track bank.id) {
+                <div class="flex items-center justify-between rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm">
+                  <span>{{ bank.name }}</span>
+                  <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ bank.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                </div>
+              }
+            </div>
+          </section>
+
+          <section>
+            <div class="mb-3">
+              <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_payment_methods_title') }}</h2>
+              <p class="mt-1 text-sm text-brand-muted">{{ t('settings_payment_methods_hint') }}</p>
+            </div>
+            <form [formGroup]="paymentMethodForm" (ngSubmit)="createPaymentMethodOption()" class="grid gap-3">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('settings_payment_method_name') }}</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('settings_payment_method_kind') }}</mat-label>
+                  <mat-select formControlName="kind">
+                    <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
+                    <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
+                    <mat-option value="card">{{ t('expenses_card') }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                @if (paymentMethodForm.controls.kind.value === 'card') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('expenses_card_type') }}</mat-label>
+                    <mat-select formControlName="cardType">
+                      <mat-option value="debit">{{ t('expenses_debit') }}</mat-option>
+                      <mat-option value="credit">{{ t('expenses_credit') }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                }
+              </div>
+              <div class="flex justify-start">
+                <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="paymentMethodForm.invalid || savingPaymentMethod()">
+                  {{ t('settings_payment_method_add') }}
+                </button>
+              </div>
+            </form>
+            <app-feedback-banner [message]="paymentMethodMessage()" [tone]="paymentMethodMessage().includes('No se pudo') || paymentMethodMessage().includes('Could not') ? 'error' : 'success'" />
+            <div class="mt-4 grid gap-2">
+              @for (option of paymentMethodOptions(); track option.id) {
+                <div class="flex items-center justify-between rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm">
+                  <span>{{ paymentMethodLabel(option) }}</span>
+                  <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ option.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                </div>
+              }
+            </div>
+          </section>
+        </div>
+      </mat-card>
+
+      <mat-card class="page-panel p-5 xl:col-span-2">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_telegram_title') }}</h2>
@@ -190,6 +265,12 @@ export class SettingsComponent {
   readonly savingProfile = signal(false);
   readonly message = signal('');
   readonly profileMessage = signal('');
+  readonly bankOptions = signal<BankOption[]>([]);
+  readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
+  readonly savingBank = signal(false);
+  readonly savingPaymentMethod = signal(false);
+  readonly bankMessage = signal('');
+  readonly paymentMethodMessage = signal('');
   readonly telegramBotUrl = signal('https://t.me/');
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
@@ -205,6 +286,14 @@ export class SettingsComponent {
     weekly: [false],
     monthly: [true],
     yearly: [false]
+  });
+  readonly bankForm = this.fb.nonNullable.group({
+    name: ['', Validators.required]
+  });
+  readonly paymentMethodForm = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    kind: ['cash' as 'cash' | 'card' | 'transfer', Validators.required],
+    cardType: ['debit' as 'credit' | 'debit']
   });
 
   constructor(
@@ -244,6 +333,14 @@ export class SettingsComponent {
             error: () => this.telegramBotUrl.set('https://t.me/')
           });
         }
+        this.api.bankOptions().subscribe({
+          next: (banks) => this.bankOptions.set(banks),
+          error: () => this.bankOptions.set([])
+        });
+        this.api.paymentMethodOptions().subscribe({
+          next: (options) => this.paymentMethodOptions.set(options),
+          error: () => this.paymentMethodOptions.set([])
+        });
         this.loading.set(false);
       },
       error: () => {
@@ -296,6 +393,56 @@ export class SettingsComponent {
     });
   }
 
+  createBankOption() {
+    if (this.bankForm.invalid) return;
+    this.savingBank.set(true);
+    this.bankMessage.set('');
+    this.api.createBankOption({ name: this.bankForm.getRawValue().name }).subscribe({
+      next: (bank) => {
+        this.bankOptions.set([...this.bankOptions(), bank].sort(sortByNameThenDefault));
+        this.bankForm.reset({ name: '' });
+        this.savingBank.set(false);
+        this.bankMessage.set(this.t('settings_bank_saved'));
+      },
+      error: () => {
+        this.savingBank.set(false);
+        this.bankMessage.set(this.t('settings_bank_save_error'));
+      }
+    });
+  }
+
+  createPaymentMethodOption() {
+    if (this.paymentMethodForm.invalid) return;
+    this.savingPaymentMethod.set(true);
+    this.paymentMethodMessage.set('');
+    const value = this.paymentMethodForm.getRawValue();
+    this.api.createPaymentMethodOption({
+      name: value.name,
+      kind: value.kind,
+      cardType: value.kind === 'card' ? value.cardType : undefined
+    }).subscribe({
+      next: (option) => {
+        this.paymentMethodOptions.set([...this.paymentMethodOptions(), option].sort(sortPaymentOptions));
+        this.paymentMethodForm.reset({ name: '', kind: 'cash', cardType: 'debit' });
+        this.savingPaymentMethod.set(false);
+        this.paymentMethodMessage.set(this.t('settings_payment_method_saved'));
+      },
+      error: () => {
+        this.savingPaymentMethod.set(false);
+        this.paymentMethodMessage.set(this.t('settings_payment_method_save_error'));
+      }
+    });
+  }
+
+  paymentMethodLabel(option: PaymentMethodOption) {
+    if (!option.isDefault) return option.name;
+    if (option.code === 'cash') return this.t('expenses_cash');
+    if (option.code === 'transfer') return this.t('expenses_transfer');
+    if (option.code === 'debit_card') return `${this.t('expenses_debit')} ${this.t('expenses_card')}`;
+    if (option.code === 'credit_card') return `${this.t('expenses_credit')} ${this.t('expenses_card')}`;
+    return option.name;
+  }
+
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/login');
@@ -304,4 +451,14 @@ export class SettingsComponent {
   t(key: string) {
     return this.i18n.t(key);
   }
+}
+
+function sortByNameThenDefault(left: BankOption, right: BankOption) {
+  if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1;
+  return left.name.localeCompare(right.name);
+}
+
+function sortPaymentOptions(left: PaymentMethodOption, right: PaymentMethodOption) {
+  if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1;
+  return left.name.localeCompare(right.name);
 }

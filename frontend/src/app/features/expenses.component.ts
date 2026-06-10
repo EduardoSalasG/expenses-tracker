@@ -9,7 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ApiService, type Category, type Expense } from '../core/api.service';
+import { ApiService, type BankOption, type Category, type Expense, type PaymentMethodOption } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
@@ -144,6 +144,8 @@ export class ExpensesComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
+  readonly bankOptions = signal<BankOption[]>([]);
+  readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
   readonly expenses = signal<Expense[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -162,6 +164,8 @@ export class ExpensesComponent implements OnInit {
 
   ngOnInit() {
     this.api.categories().subscribe((categories) => this.categories.set(categories));
+    this.api.bankOptions().subscribe((banks) => this.bankOptions.set(banks));
+    this.api.paymentMethodOptions().subscribe((options) => this.paymentMethodOptions.set(options));
     const monthRange = this.range();
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
     this.loadExpenses();
@@ -187,7 +191,7 @@ export class ExpensesComponent implements OnInit {
       maxWidth: 'calc(100vw - 1.5rem)',
       panelClass: 'brand-dialog-panel',
       autoFocus: false,
-      data: { categories: this.categories() }
+      data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions() }
     });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
       if (result?.saved) {
@@ -203,7 +207,7 @@ export class ExpensesComponent implements OnInit {
       maxWidth: 'calc(100vw - 1.5rem)',
       panelClass: 'brand-dialog-panel',
       autoFocus: false,
-      data: { categories: this.categories(), expense }
+      data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions(), expense }
     });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
       if (result?.saved) {
@@ -286,12 +290,9 @@ export class ExpensesComponent implements OnInit {
         <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentKind"><mat-option value="cash">{{ t('expenses_cash') }}</mat-option><mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option><mat-option value="card">{{ t('expenses_card') }}</mat-option></mat-select></mat-form-field>
-        @if (form.controls.paymentKind.value === 'card' || form.controls.paymentKind.value === 'transfer') {
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><input matInput formControlName="bank"></mat-form-field>
-        }
-        @if (form.controls.paymentKind.value === 'card') {
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_card_type') }}</mat-label><mat-select formControlName="cardType"><mat-option value="debit">{{ t('expenses_debit') }}</mat-option><mat-option value="credit">{{ t('expenses_credit') }}</mat-option></mat-select></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}</mat-select></mat-form-field>
+        @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}</mat-select></mat-form-field>
         }
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
@@ -346,10 +347,14 @@ export class ExpenseCreateDialogComponent {
   readonly t = (key: string) => this.i18n.t(key);
   readonly saving = signal(false);
   readonly categories = signal<Category[]>([]);
+  readonly bankOptions = signal<BankOption[]>([]);
+  readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
   readonly expense = signal<Expense | null>(null);
   readonly selectedCategoryId = signal('');
+  readonly selectedPaymentMethodKind = computed(() => this.selectedPaymentMethodOption()?.kind ?? 'cash');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly subcategoriesForForm = computed(() => this.categories().filter((category) => category.parentId === this.selectedCategoryId()));
+  readonly selectedPaymentMethodOption = computed(() => this.paymentMethodOptions().find((option) => option.id === this.form.controls.paymentMethodOptionId.value));
   readonly form = this.fb.nonNullable.group({
     concept: ['', Validators.required],
     amount: [0, [Validators.required, Validators.min(0.01)]],
@@ -357,19 +362,24 @@ export class ExpenseCreateDialogComponent {
     date: [toDateInputValue(new Date()), Validators.required],
     categoryId: ['', Validators.required],
     subcategoryId: [''],
-    paymentKind: ['cash'],
-    bank: [''],
-    cardType: ['debit']
+    paymentMethodOptionId: ['', Validators.required],
+    bankOptionId: ['']
   });
 
   constructor(
     readonly dialogRef: MatDialogRef<ExpenseCreateDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) data: { categories: Category[]; expense?: Expense }
+    @Inject(MAT_DIALOG_DATA) data: { categories: Category[]; bankOptions: BankOption[]; paymentMethodOptions: PaymentMethodOption[]; expense?: Expense }
   ) {
     this.categories.set(data.categories ?? []);
+    this.bankOptions.set(data.bankOptions ?? []);
+    this.paymentMethodOptions.set(data.paymentMethodOptions ?? []);
     this.expense.set(data.expense ?? null);
     const existingExpense = data.expense;
     if (existingExpense) {
+      const paymentMethodOptionId = existingExpense.paymentMethodOptionId
+        ?? inferPaymentMethodOptionId(existingExpense, this.paymentMethodOptions());
+      const bankOptionId = existingExpense.bankOptionId
+        ?? inferBankOptionId(existingExpense, this.bankOptions());
       this.form.patchValue({
         concept: existingExpense.concept,
         amount: existingExpense.amount,
@@ -377,26 +387,40 @@ export class ExpenseCreateDialogComponent {
         date: toDateInputValue(new Date(existingExpense.date)),
         categoryId: existingExpense.categoryId,
         subcategoryId: existingExpense.subcategoryId ?? '',
-        paymentKind: existingExpense.paymentMethod.kind,
-        bank: existingExpense.paymentMethod.bank ?? '',
-        cardType: existingExpense.paymentMethod.cardType ?? 'debit'
+        paymentMethodOptionId: paymentMethodOptionId ?? '',
+        bankOptionId: bankOptionId ?? ''
       });
       this.selectedCategoryId.set(existingExpense.categoryId);
     } else {
       const firstRoot = this.rootCategories()[0];
+      const defaultPaymentMethod = this.paymentMethodOptions().find((option) => option.code === 'cash') ?? this.paymentMethodOptions()[0];
       if (firstRoot) {
         this.form.controls.categoryId.setValue(firstRoot.id);
         this.selectedCategoryId.set(firstRoot.id);
+      }
+      if (defaultPaymentMethod) {
+        this.form.controls.paymentMethodOptionId.setValue(defaultPaymentMethod.id);
       }
     }
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
       this.selectedCategoryId.set(categoryId);
       this.form.controls.subcategoryId.setValue('');
     });
+    this.form.controls.paymentMethodOptionId.valueChanges.subscribe(() => {
+      if (this.selectedPaymentMethodKind() === 'cash') {
+        this.form.controls.bankOptionId.setValue('');
+      }
+    });
   }
 
   save() {
     const value = this.form.getRawValue();
+    const selectedPaymentMethod = this.paymentMethodOptions().find((option) => option.id === value.paymentMethodOptionId);
+    const selectedBank = this.bankOptions().find((bank) => bank.id === value.bankOptionId);
+    if (!selectedPaymentMethod) {
+      this.saving.set(false);
+      return;
+    }
     this.saving.set(true);
     const payload = {
       date: startOfDay(value.date),
@@ -405,7 +429,9 @@ export class ExpenseCreateDialogComponent {
       concept: value.concept,
       categoryId: value.categoryId,
       subcategoryId: value.subcategoryId || undefined,
-      paymentMethod: paymentMethodPayload(value.paymentKind, value.bank, value.cardType)
+      paymentMethodOptionId: selectedPaymentMethod.id,
+      bankOptionId: value.bankOptionId || undefined,
+      paymentMethod: paymentMethodPayload(selectedPaymentMethod, selectedBank)
     };
     const request = this.expense()
       ? this.api.updateExpense(this.expense()!.id, payload)
@@ -414,6 +440,10 @@ export class ExpenseCreateDialogComponent {
       next: () => this.dialogRef.close({ saved: true, mode: this.expense() ? 'edit' : 'create' }),
       error: () => this.saving.set(false)
     });
+  }
+
+  paymentMethodOptionLabel(option: PaymentMethodOption) {
+    return option.isDefault ? translatePaymentMethodOption(this.t, option) : option.name;
   }
 }
 
@@ -426,10 +456,10 @@ function startOfDay(date: string) {
 function endOfDay(date: string) {
   return new Date(`${date}T23:59:59.999`).toISOString();
 }
-function paymentMethodPayload(kind: string, bank: string, cardType: string) {
-  if (kind === 'card') return { kind: 'card', bank: bank || undefined, cardType: cardType as 'credit' | 'debit' };
-  if (kind === 'transfer') return { kind: 'transfer', bank: bank || undefined };
-  return { kind: 'cash' };
+function paymentMethodPayload(option: PaymentMethodOption, bank?: BankOption) {
+  if (option.kind === 'card') return { kind: 'card' as const, bank: bank?.name, cardType: option.cardType };
+  if (option.kind === 'transfer') return { kind: 'transfer' as const, bank: bank?.name };
+  return { kind: 'cash' as const };
 }
 function rangeFromMonth(month: string) {
   const [year, monthNumber] = month.split('-').map(Number);
@@ -437,4 +467,33 @@ function rangeFromMonth(month: string) {
   const toDate = new Date(Date.UTC(year, monthNumber, 0));
   const toInput = `${toDate.getUTCFullYear()}-${String(toDate.getUTCMonth() + 1).padStart(2, '0')}-${String(toDate.getUTCDate()).padStart(2, '0')}`;
   return { fromInput, toInput };
+}
+
+function inferPaymentMethodOptionId(expense: Expense, options: PaymentMethodOption[]) {
+  return options.find((option) =>
+    option.kind === expense.paymentMethod.kind &&
+    (option.kind !== 'card' || option.cardType === expense.paymentMethod.cardType)
+  )?.id;
+}
+
+function inferBankOptionId(expense: Expense, banks: BankOption[]) {
+  if (!expense.paymentMethod.bank) return undefined;
+  const normalized = normalizeLabel(expense.paymentMethod.bank);
+  return banks.find((bank) => normalizeLabel(bank.name) === normalized)?.id;
+}
+
+function normalizeLabel(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function translatePaymentMethodOption(t: (key: string) => string, option: PaymentMethodOption) {
+  if (option.code === 'cash') return t('expenses_cash');
+  if (option.code === 'transfer') return t('expenses_transfer');
+  if (option.code === 'debit_card') return `${t('expenses_debit')} ${t('expenses_card')}`;
+  if (option.code === 'credit_card') return `${t('expenses_credit')} ${t('expenses_card')}`;
+  return option.name;
 }

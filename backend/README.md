@@ -51,6 +51,12 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
+Behavior summary:
+
+- `pnpm db:migrate` is the required step for any new environment and loads schema + default system catalogs.
+- `pnpm db:seed` is optional and only loads local/demo users plus their default categories.
+- Starting the backend against an empty production database does not auto-run demo seed data.
+
 Query choices and index rationale are documented in `database/query-analysis.md`. Use `EXPLAIN (ANALYZE, BUFFERS)` before changing report or dashboard queries.
 
 ## Docker
@@ -138,6 +144,8 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /incomes` creates income records such as salary, refunds, and other personal money-in events.
 
+`PUT /incomes/:incomeId` updates date, amount, currency, and concept for an existing income record.
+
 ## Budget API
 
 `GET /budgets` lists tenant-scoped permanent budgets (reused every month).
@@ -173,6 +181,18 @@ Additional aggregate endpoints:
 `GET /categories` lists tenant-scoped categories and subcategories. Root categories have no `parentId`.
 
 `POST /categories` creates a root category when `parentId` is omitted, or a subcategory when `parentId` is provided.
+
+## Payment Catalog API
+
+The app now uses parameterized payment catalogs. System defaults are global, and tenants can add their own options.
+
+`GET /banks` lists global default banks plus tenant-specific custom banks.
+
+`POST /banks` creates a tenant-specific bank option.
+
+`GET /payment-method-options` lists global default payment methods plus tenant-specific custom methods.
+
+`POST /payment-method-options` creates a tenant-specific payment method option. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
 
 ## Profile and Report Preferences
 

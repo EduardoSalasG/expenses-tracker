@@ -8,6 +8,23 @@ export type ReportFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type CardType = 'credit' | 'debit';
 export type PaymentMethodKind = 'cash' | 'card' | 'transfer';
 
+export interface BankOption {
+  id: string;
+  tenantId?: TenantId;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface PaymentMethodOption {
+  id: string;
+  tenantId?: TenantId;
+  code: string;
+  name: string;
+  kind: PaymentMethodKind;
+  cardType?: CardType;
+  isDefault: boolean;
+}
+
 export interface PaymentMethod {
   kind: PaymentMethodKind;
   bank?: string;
@@ -24,6 +41,8 @@ export interface Expense {
   concept: string;
   categoryId: CategoryId;
   subcategoryId?: CategoryId;
+  paymentMethodOptionId?: string;
+  bankOptionId?: string;
   paymentMethod: PaymentMethod;
   originalMessage?: string;
 }

@@ -10,6 +10,7 @@ import { TelegramProvider } from './messaging-providers/telegram.provider.js';
 import { WhatsAppCloudProvider } from './messaging-providers/whatsapp.provider.js';
 import {
   InMemoryBudgetRepository,
+  InMemoryBankOptionRepository,
   InMemoryCategoryRepository,
   InMemoryEmailMagicLinkTokenRepository,
   InMemoryExpenseRepository,
@@ -17,12 +18,14 @@ import {
   InMemoryMessagingMessageAuditRepository,
   InMemoryMessagingPendingDraftRepository,
   InMemoryOtpRepository,
+  InMemoryPaymentMethodOptionRepository,
   InMemoryReportDispatchRepository,
   InMemoryTelegramLinkTokenRepository,
   InMemoryUserRepository
 } from './repositories/in-memory.js';
 import {
   PostgresBudgetRepository,
+  PostgresBankOptionRepository,
   PostgresCategoryRepository,
   PostgresEmailMagicLinkTokenRepository,
   PostgresExpenseRepository,
@@ -30,6 +33,7 @@ import {
   PostgresMessagingMessageAuditRepository,
   PostgresMessagingPendingDraftRepository,
   PostgresOtpRepository,
+  PostgresPaymentMethodOptionRepository,
   PostgresReportDispatchRepository,
   PostgresTelegramLinkTokenRepository,
   PostgresUserRepository
@@ -59,6 +63,8 @@ export function createContainer(config: AppConfig) {
   const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
   const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
+  const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
+  const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
@@ -77,7 +83,7 @@ export function createContainer(config: AppConfig) {
     telegram: telegramMessaging
   });
   const interpreter = createMessageInterpreter(config, logger);
-  const finance = new FinanceUseCases(expenses, incomes, budgets, categories);
+  const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions);
   const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
     users,
     categories,

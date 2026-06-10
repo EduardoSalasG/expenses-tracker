@@ -2,11 +2,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Inject } from '@angular/core';
 import { ApiService, type Income } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -89,6 +90,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                 <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
                 <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
                 <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
+                <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -97,6 +99,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                   <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
                   <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
                   <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
+                  <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
+                    <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
+                      <mat-icon>edit</mat-icon>
+                      {{ t('common_edit') }}
+                    </button>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -163,6 +171,22 @@ export class IncomesComponent implements OnInit {
     });
   }
 
+  openEditIncomeDialog(income: Income) {
+    const ref = this.dialog.open(IncomeCreateDialogComponent, {
+      width: 'min(720px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: { income }
+    });
+    ref.afterClosed().subscribe((saved: boolean) => {
+      if (saved) {
+        this.snackBar.open(this.t('incomes_updated'), undefined, { duration: 2400 });
+        this.loadIncomes();
+      }
+    });
+  }
+
   loadIncomes() {
     this.loading.set(true);
     this.error.set('');
@@ -219,7 +243,7 @@ export class IncomesComponent implements OnInit {
   template: `
     <div class="brand-dialog-shell">
       <div class="brand-dialog-header">
-        <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ t('incomes_new') }}</h2>
+        <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ income() ? t('common_edit') : t('incomes_new') }}</h2>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
         <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
@@ -228,7 +252,7 @@ export class IncomesComponent implements OnInit {
         <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
-          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : t('incomes_save') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : income() ? t('common_update') : t('incomes_save') }}</button>
         </div>
       </form>
     </div>
@@ -281,17 +305,37 @@ export class IncomeCreateDialogComponent {
     date: [toDateInputValue(new Date()), Validators.required]
   });
 
-  constructor(readonly dialogRef: MatDialogRef<IncomeCreateDialogComponent>) {}
+  readonly income = signal<Income | null>(null);
+
+  constructor(
+    readonly dialogRef: MatDialogRef<IncomeCreateDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) data: { income?: Income } | null
+  ) {
+    const existingIncome = data?.income ?? null;
+    this.income.set(existingIncome);
+    if (existingIncome) {
+      this.form.patchValue({
+        concept: existingIncome.concept,
+        amount: existingIncome.amount,
+        currency: existingIncome.currency,
+        date: toDateInputValue(new Date(existingIncome.date))
+      });
+    }
+  }
 
   save() {
     const value = this.form.getRawValue();
     this.saving.set(true);
-    this.api.createIncome({
+    const payload = {
       concept: value.concept,
       amount: Number(value.amount),
       currency: value.currency.toUpperCase(),
       date: startOfDay(value.date)
-    }).subscribe({
+    };
+    const request = this.income()
+      ? this.api.updateIncome(this.income()!.id, payload)
+      : this.api.createIncome(payload);
+    request.subscribe({
       next: () => this.dialogRef.close(true),
       error: () => this.saving.set(false)
     });

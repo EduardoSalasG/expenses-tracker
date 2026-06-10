@@ -20,9 +20,12 @@ export interface ExpenseRepository {
     expenseId: string;
     date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethodOptionId?: string | null;
+    bankOptionId?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }): Promise<Expense | undefined>;
   list(input: {

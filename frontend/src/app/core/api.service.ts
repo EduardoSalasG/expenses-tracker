@@ -8,6 +8,23 @@ export interface PaymentMethod {
   cardType?: 'credit' | 'debit';
 }
 
+export interface BankOption {
+  id: string;
+  tenantId?: string;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface PaymentMethodOption {
+  id: string;
+  tenantId?: string;
+  code: string;
+  name: string;
+  kind: 'cash' | 'card' | 'transfer';
+  cardType?: 'credit' | 'debit';
+  isDefault: boolean;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -16,6 +33,8 @@ export interface Expense {
   concept: string;
   categoryId: string;
   subcategoryId?: string;
+  paymentMethodOptionId?: string;
+  bankOptionId?: string;
   paymentMethod: PaymentMethod;
 }
 
@@ -141,6 +160,10 @@ export class ApiService {
     return this.http.post(`${environment.apiBaseUrl}/incomes`, payload);
   }
 
+  updateIncome(incomeId: string, payload: unknown) {
+    return this.http.put(`${environment.apiBaseUrl}/incomes/${incomeId}`, payload);
+  }
+
   incomes(filters: IncomeFilters = {}) {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(filters)) {
@@ -155,6 +178,22 @@ export class ApiService {
 
   createCategory(payload: unknown) {
     return this.http.post(`${environment.apiBaseUrl}/categories`, payload);
+  }
+
+  bankOptions() {
+    return this.http.get<BankOption[]>(`${environment.apiBaseUrl}/banks`);
+  }
+
+  createBankOption(payload: { name: string }) {
+    return this.http.post<BankOption>(`${environment.apiBaseUrl}/banks`, payload);
+  }
+
+  paymentMethodOptions() {
+    return this.http.get<PaymentMethodOption[]>(`${environment.apiBaseUrl}/payment-method-options`);
+  }
+
+  createPaymentMethodOption(payload: { name: string; kind: 'cash' | 'card' | 'transfer'; cardType?: 'credit' | 'debit' }) {
+    return this.http.post<PaymentMethodOption>(`${environment.apiBaseUrl}/payment-method-options`, payload);
   }
 
   monthlyBudgets() {

@@ -2,18 +2,21 @@ import type { Request, Response } from 'express';
 import type { AppContainer } from '../../../infrastructure/container.js';
 import type { AuthenticatedRequest } from '../middleware.js';
 import {
+  bankOptionSchema,
   createCategorySchema,
   createExpenseSchema,
   createIncomeSchema,
   expenseQuerySchema,
   incomeQuerySchema,
   monthlyBudgetSchema,
+  paymentMethodOptionSchema,
   reportMonthQuerySchema,
   reportPreferencesSchema,
   reportWeekStartQuerySchema,
   reportYearQuerySchema,
   reportQuerySchema,
-  updateExpenseSchema
+  updateExpenseSchema,
+  updateIncomeSchema
 } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
@@ -23,11 +26,19 @@ export class FinanceController {
   createExpense = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const body = parseBody(createExpenseSchema, request.body);
-    response.status(201).json(await this.container.useCases.finance.createExpense({
-      ...body,
-      tenantId: authRequest.auth.tenantId,
-      userId: authRequest.auth.userId
-    }));
+    try {
+      response.status(201).json(await this.container.useCases.finance.createExpense({
+        ...body,
+        tenantId: authRequest.auth.tenantId,
+        userId: authRequest.auth.userId
+      }));
+    } catch (error) {
+      if (error instanceof Error && (error.message === 'Payment method option not found.' || error.message === 'Bank option not found.')) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
   };
 
   updateExpense = async (request: Request, response: Response) => {
@@ -43,6 +54,10 @@ export class FinanceController {
     } catch (error) {
       if (error instanceof Error && error.message === 'Expense not found.') {
         response.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof Error && (error.message === 'Payment method option not found.' || error.message === 'Bank option not found.')) {
+        response.status(400).json({ error: error.message });
         return;
       }
       throw error;
@@ -74,6 +89,25 @@ export class FinanceController {
     }));
   };
 
+  updateIncome = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(updateIncomeSchema, request.body);
+    const incomeId = Array.isArray(request.params.incomeId) ? request.params.incomeId[0] : request.params.incomeId;
+    try {
+      response.json(await this.container.useCases.finance.updateIncome({
+        ...body,
+        incomeId,
+        tenantId: authRequest.auth.tenantId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Income not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
   listIncomes = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = incomeQuerySchema.parse(request.query);
@@ -94,6 +128,38 @@ export class FinanceController {
     response.status(201).json(await this.container.useCases.finance.createCategory({
       ...body,
       tenantId: authRequest.auth.tenantId,
+      isDefault: false
+    }));
+  };
+
+  listBankOptions = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    response.json(await this.container.useCases.finance.listBankOptions(authRequest.auth.tenantId));
+  };
+
+  createBankOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(bankOptionSchema, request.body);
+    response.status(201).json(await this.container.useCases.finance.createBankOption({
+      tenantId: authRequest.auth.tenantId,
+      name: body.name,
+      isDefault: false
+    }));
+  };
+
+  listPaymentMethodOptions = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    response.json(await this.container.useCases.finance.listPaymentMethodOptions(authRequest.auth.tenantId));
+  };
+
+  createPaymentMethodOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(paymentMethodOptionSchema, request.body);
+    response.status(201).json(await this.container.useCases.finance.createPaymentMethodOption({
+      tenantId: authRequest.auth.tenantId,
+      name: body.name,
+      kind: body.kind,
+      cardType: body.cardType,
       isDefault: false
     }));
   };

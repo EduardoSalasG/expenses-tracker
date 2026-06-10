@@ -13,9 +13,14 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   app.get('/expenses', auth, asyncHandler(controller.listExpenses));
   app.get('/expenses/recent', auth, asyncHandler(controller.recentExpenses));
   app.post('/incomes', auth, asyncHandler(controller.createIncome));
+  app.put('/incomes/:incomeId', auth, asyncHandler(controller.updateIncome));
   app.get('/incomes', auth, asyncHandler(controller.listIncomes));
   app.get('/categories', auth, asyncHandler(controller.listCategories));
   app.post('/categories', auth, asyncHandler(controller.createCategory));
+  app.get('/banks', auth, asyncHandler(controller.listBankOptions));
+  app.post('/banks', auth, asyncHandler(controller.createBankOption));
+  app.get('/payment-method-options', auth, asyncHandler(controller.listPaymentMethodOptions));
+  app.post('/payment-method-options', auth, asyncHandler(controller.createPaymentMethodOption));
   app.get('/budgets', auth, asyncHandler(controller.monthlyBudgets));
   app.put('/budgets', auth, asyncHandler(controller.upsertMonthlyBudget));
   // Backward compatibility (legacy clients). Can be disabled by env flag.

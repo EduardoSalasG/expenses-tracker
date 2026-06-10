@@ -1,6 +1,6 @@
 import type { QueryResultRow } from 'pg';
-import type { BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -171,6 +171,72 @@ export class PostgresCategoryRepository implements CategoryRepository {
   }
 }
 
+export class PostgresBankOptionRepository implements BankOptionRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async listByTenant(tenantId: string) {
+    const result = await this.pool.query(
+      `select * from bank_options
+       where tenant_id is null or tenant_id = $1
+       order by is_default desc, name`,
+      [tenantId]
+    );
+    return result.rows.map(mapBankOption);
+  }
+
+  async findAccessibleById(tenantId: string, bankOptionId: string) {
+    const result = await this.pool.query(
+      `select * from bank_options
+       where id = $1 and (tenant_id is null or tenant_id = $2)`,
+      [bankOptionId, tenantId]
+    );
+    return result.rows[0] ? mapBankOption(result.rows[0]) : undefined;
+  }
+
+  async create(input: Omit<BankOption, 'id'>) {
+    const result = await this.pool.query(
+      `insert into bank_options (tenant_id, name, is_default)
+       values ($1, $2, $3)
+       returning *`,
+      [input.tenantId ?? null, input.name, input.isDefault]
+    );
+    return mapBankOption(result.rows[0]);
+  }
+}
+
+export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptionRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async listByTenant(tenantId: string) {
+    const result = await this.pool.query(
+      `select * from payment_method_options
+       where tenant_id is null or tenant_id = $1
+       order by is_default desc, name`,
+      [tenantId]
+    );
+    return result.rows.map(mapPaymentMethodOption);
+  }
+
+  async findAccessibleById(tenantId: string, paymentMethodOptionId: string) {
+    const result = await this.pool.query(
+      `select * from payment_method_options
+       where id = $1 and (tenant_id is null or tenant_id = $2)`,
+      [paymentMethodOptionId, tenantId]
+    );
+    return result.rows[0] ? mapPaymentMethodOption(result.rows[0]) : undefined;
+  }
+
+  async create(input: Omit<PaymentMethodOption, 'id'>) {
+    const result = await this.pool.query(
+      `insert into payment_method_options (tenant_id, code, name, kind, card_type, is_default)
+       values ($1, $2, $3, $4, $5, $6)
+       returning *`,
+      [input.tenantId ?? null, input.code, input.name, input.kind, input.cardType ?? null, input.isDefault]
+    );
+    return mapPaymentMethodOption(result.rows[0]);
+  }
+}
+
 export class PostgresExpenseRepository implements ExpenseRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -178,9 +244,9 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     const result = await this.pool.query(
       `insert into expenses (
         tenant_id, user_id, expense_date, amount, currency, concept, category_id, subcategory_id,
-        payment_method_kind, bank, card_type, original_message
+        payment_method_option_id, bank_option_id, payment_method_kind, bank, card_type, original_message
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       returning *`,
       [
         input.tenantId,
@@ -191,6 +257,8 @@ export class PostgresExpenseRepository implements ExpenseRepository {
         input.concept,
         input.categoryId,
         input.subcategoryId ?? null,
+        input.paymentMethodOptionId ?? null,
+        input.bankOptionId ?? null,
         input.paymentMethod.kind,
         input.paymentMethod.bank ?? null,
         input.paymentMethod.cardType ?? null,
@@ -205,21 +273,27 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     expenseId: string;
     date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethodOptionId?: string | null;
+    bankOptionId?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }) {
     const result = await this.pool.query(
       `update expenses
        set expense_date = coalesce($3, expense_date),
            amount = coalesce($4, amount),
-           concept = coalesce($5, concept),
-           category_id = coalesce($6, category_id),
-           subcategory_id = case when $7::boolean then $8::uuid else subcategory_id end,
-           payment_method_kind = coalesce($9, payment_method_kind),
-           bank = case when $10::boolean then $11 else bank end,
-           card_type = case when $12::boolean then $13 else card_type end
+           currency = coalesce($5, currency),
+           concept = coalesce($6, concept),
+           category_id = coalesce($7, category_id),
+           subcategory_id = case when $8::boolean then $9::uuid else subcategory_id end,
+           payment_method_option_id = case when $10::boolean then $11::uuid else payment_method_option_id end,
+           bank_option_id = case when $12::boolean then $13::uuid else bank_option_id end,
+           payment_method_kind = coalesce($14, payment_method_kind),
+           bank = case when $15::boolean then $16 else bank end,
+           card_type = case when $17::boolean then $18 else card_type end
        where tenant_id = $1 and id = $2
        returning *`,
       [
@@ -227,10 +301,15 @@ export class PostgresExpenseRepository implements ExpenseRepository {
         input.expenseId,
         input.date ?? null,
         input.amount ?? null,
+        input.currency ?? null,
         input.concept ?? null,
         input.categoryId ?? null,
         Object.prototype.hasOwnProperty.call(input, 'subcategoryId'),
         input.subcategoryId ?? null,
+        Object.prototype.hasOwnProperty.call(input, 'paymentMethodOptionId'),
+        input.paymentMethodOptionId ?? null,
+        Object.prototype.hasOwnProperty.call(input, 'bankOptionId'),
+        input.bankOptionId ?? null,
         input.paymentMethod?.kind ?? null,
         Object.prototype.hasOwnProperty.call(input, 'paymentMethod'),
         input.paymentMethod?.bank ?? null,
@@ -339,16 +418,20 @@ export class PostgresIncomeRepository implements IncomeRepository {
   async update(input: {
     tenantId: string;
     incomeId: string;
+    date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
   }) {
     const result = await this.pool.query(
       `update incomes
-       set amount = coalesce($3, amount),
-           concept = coalesce($4, concept)
+       set income_date = coalesce($3, income_date),
+           amount = coalesce($4, amount),
+           currency = coalesce($5, currency),
+           concept = coalesce($6, concept)
        where tenant_id = $1 and id = $2
        returning *`,
-      [input.tenantId, input.incomeId, input.amount ?? null, input.concept ?? null]
+      [input.tenantId, input.incomeId, input.date ?? null, input.amount ?? null, input.currency ?? null, input.concept ?? null]
     );
     return result.rows[0] ? mapIncome(result.rows[0]) : undefined;
   }
@@ -748,6 +831,27 @@ function mapCategory(row: QueryResultRow): Category {
   };
 }
 
+function mapBankOption(row: QueryResultRow): BankOption {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id ?? undefined,
+    name: row.name,
+    isDefault: row.is_default
+  };
+}
+
+function mapPaymentMethodOption(row: QueryResultRow): PaymentMethodOption {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id ?? undefined,
+    code: row.code,
+    name: row.name,
+    kind: row.kind,
+    cardType: row.card_type ?? undefined,
+    isDefault: row.is_default
+  };
+}
+
 function mapExpense(row: QueryResultRow): Expense {
   return {
     id: row.id,
@@ -759,6 +863,8 @@ function mapExpense(row: QueryResultRow): Expense {
     concept: row.concept,
     categoryId: row.category_id,
     subcategoryId: row.subcategory_id ?? undefined,
+    paymentMethodOptionId: row.payment_method_option_id ?? undefined,
+    bankOptionId: row.bank_option_id ?? undefined,
     paymentMethod: {
       kind: row.payment_method_kind,
       bank: row.bank ?? undefined,

@@ -1,5 +1,5 @@
-import type { Category, Expense, Income, MonthlyBudget } from '../../domain/index.js';
-import type { BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository } from '../ports.js';
+import type { BankOption, Category, Expense, Income, MonthlyBudget, PaymentMethodOption } from '../../domain/index.js';
+import type { BankOptionRepository, BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, PaymentMethodOptionRepository } from '../ports.js';
 import { normalizeCategorySelection } from '../services/category-normalization.service.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
 
@@ -8,16 +8,30 @@ export class FinanceUseCases {
     private readonly expenses: ExpenseRepository,
     private readonly incomes: IncomeRepository,
     private readonly budgets: BudgetRepository,
-    private readonly categories: CategoryRepository
+    private readonly categories: CategoryRepository,
+    private readonly banks: BankOptionRepository = {
+      listByTenant: async () => [],
+      findAccessibleById: async () => undefined,
+      create: async () => { throw new Error('Bank options repository not configured.'); }
+    },
+    private readonly paymentMethods: PaymentMethodOptionRepository = {
+      listByTenant: async () => [],
+      findAccessibleById: async () => undefined,
+      create: async () => { throw new Error('Payment method options repository not configured.'); }
+    }
   ) {}
 
-  async createExpense(input: Omit<Expense, 'id'>) {
+  async createExpense(input: Omit<Expense, 'id'> & { paymentMethodOptionId?: string; bankOptionId?: string }) {
     const categories = await this.categories.listByTenant(input.tenantId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
+    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input);
     return this.expenses.create({
       ...input,
       categoryId: normalized.categoryId,
-      subcategoryId: normalized.subcategoryId
+      subcategoryId: normalized.subcategoryId,
+      paymentMethod: paymentSelection.paymentMethod,
+      paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
+      bankOptionId: paymentSelection.bankOptionId
     });
   }
 
@@ -30,19 +44,25 @@ export class FinanceUseCases {
     concept: string;
     categoryId: string;
     subcategoryId?: string;
+    paymentMethodOptionId?: string;
+    bankOptionId?: string;
     paymentMethod: Expense['paymentMethod'];
   }) {
     const categories = await this.categories.listByTenant(input.tenantId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
+    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input);
     const updated = await this.expenses.update({
       tenantId: input.tenantId,
       expenseId: input.expenseId,
       date: input.date,
       amount: input.amount,
+      currency: input.currency,
       concept: input.concept,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
-      paymentMethod: input.paymentMethod
+      paymentMethod: paymentSelection.paymentMethod,
+      paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
+      bankOptionId: paymentSelection.bankOptionId
     });
     if (!updated) throw new Error('Expense not found.');
     return updated;
@@ -68,6 +88,19 @@ export class FinanceUseCases {
     return this.incomes.create(input);
   }
 
+  async updateIncome(input: {
+    tenantId: string;
+    incomeId: string;
+    date: string;
+    amount: number;
+    currency: string;
+    concept: string;
+  }) {
+    const updated = await this.incomes.update(input);
+    if (!updated) throw new Error('Income not found.');
+    return updated;
+  }
+
   listIncomes(input: {
     tenantId: string;
     from?: string;
@@ -84,6 +117,25 @@ export class FinanceUseCases {
 
   createCategory(input: Omit<Category, 'id'>) {
     return this.categories.create(input);
+  }
+
+  listBankOptions(tenantId: string) {
+    return this.banks.listByTenant(tenantId);
+  }
+
+  createBankOption(input: Omit<BankOption, 'id'>) {
+    return this.banks.create(input);
+  }
+
+  listPaymentMethodOptions(tenantId: string) {
+    return this.paymentMethods.listByTenant(tenantId);
+  }
+
+  createPaymentMethodOption(input: Omit<PaymentMethodOption, 'id' | 'code'>) {
+    return this.paymentMethods.create({
+      ...input,
+      code: slugifyPaymentMethodCode(input.name)
+    });
   }
 
   upsertMonthlyBudget(input: Omit<MonthlyBudget, 'id'>) {
@@ -138,6 +190,43 @@ export class FinanceUseCases {
   periodExpenseCategoryTotals(tenantId: string, from: string, to: string) {
     return this.expenses.periodCategoryTotalsByTenant(tenantId, from, to);
   }
+
+  private async resolvePaymentSelection(
+    tenantId: string,
+    input: { paymentMethod: Expense['paymentMethod']; paymentMethodOptionId?: string; bankOptionId?: string }
+  ) {
+    let paymentMethod = input.paymentMethod;
+    let paymentMethodOptionId = input.paymentMethodOptionId;
+    let bankOptionId = input.bankOptionId;
+
+    if (paymentMethodOptionId) {
+      const option = await this.paymentMethods.findAccessibleById(tenantId, paymentMethodOptionId);
+      if (!option) throw new Error('Payment method option not found.');
+      paymentMethod = {
+        kind: option.kind,
+        cardType: option.cardType,
+        bank: paymentMethod.bank
+      };
+    }
+
+    if (bankOptionId) {
+      const bank = await this.banks.findAccessibleById(tenantId, bankOptionId);
+      if (!bank) throw new Error('Bank option not found.');
+      paymentMethod = {
+        ...paymentMethod,
+        bank: bank.name
+      };
+    } else if (paymentMethod.kind === 'cash') {
+      bankOptionId = undefined;
+      paymentMethod = { kind: 'cash' };
+    }
+
+    return {
+      paymentMethod,
+      paymentMethodOptionId,
+      bankOptionId
+    };
+  }
 }
 
 function previousPeriod(from: string, to: string) {
@@ -187,4 +276,14 @@ function aggregateCategoryCurrency(totals: Array<{ categoryId: string; currency:
     acc[key] = (acc[key] ?? 0) + Number(item.total);
     return acc;
   }, {});
+}
+
+function slugifyPaymentMethodCode(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50) || 'custom_method';
 }

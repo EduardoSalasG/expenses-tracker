@@ -6,7 +6,9 @@ export interface IncomeRepository {
   update(input: {
     tenantId: TenantId;
     incomeId: string;
+    date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
   }): Promise<Income | undefined>;
   list(input: {

@@ -2,6 +2,12 @@
 
 PostgreSQL schema, seed data, functions, and query analysis notes.
 
+Important behavior:
+
+- `pnpm db:migrate` creates and evolves schema objects only.
+- `pnpm db:seed` is optional and only loads demo/local bootstrap data.
+- A brand-new production database is **not** auto-filled with demo users or business data just because the backend starts.
+
 ## Docker Image
 
 The database image is built from `database/Dockerfile`. On first container startup, PostgreSQL executes:
@@ -18,14 +24,40 @@ The database image is built from `database/Dockerfile`. On first container start
 - `19-010-report-dispatches.sql`
 - `20-001-demo-seed.sql`
 
-The seed creates:
+The optional demo seed creates:
 
 - Demo consumer user: `+56912345678`, `demo@example.com`
 - Admin user: `+56900000000`, `admin@example.com`
 - Default category tree for both tenants, including Food/Groceries, Food/Restaurants, Transport/Uber, Education/Dance, Services/Phone, and related consumer categories
 - Compatibility login role: `postgres` / `postgres`, useful for older local `.env` files
 
+The seed does **not** create expenses, incomes, budgets, or tenant business data.
+
 Expenses support `cash`, `card`, and `transfer` payment methods. Card payments can include `credit` or `debit` card type; transfer payments can store the originating bank.
+
+Migration `018_payment_catalogs_and_income_editing.sql` creates the global default payment catalogs used by the app:
+
+- Banks:
+  - Banco de Chile
+  - Banco Internacional
+  - Scotiabank Chile
+  - Banco de Crédito e Inversiones
+  - Banco BICE
+  - Banco Santander-Chile
+  - Banco Itaú Chile
+  - Banco Falabella
+  - Banco Ripley
+  - Banco Consorcio
+  - Tanner Banco Digital
+  - Tenpo Bank Chile
+  - Banco del Estado de Chile
+- Payment methods:
+  - Transferencia
+  - Tarjeta de débito
+  - Tarjeta de crédito
+  - Efectivo
+
+Those defaults come from migrations, not from the demo seed. Users can also create tenant-specific banks and payment methods later from the app.
 
 Provider clarification state is stored in `messaging_pending_drafts` with one active draft per tenant/user/channel.
 

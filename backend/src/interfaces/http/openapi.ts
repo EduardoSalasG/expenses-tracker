@@ -35,6 +35,27 @@ export const openApiSpec = {
             }
           }
         ]
+      },
+      BankOption: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string', format: 'uuid', nullable: true },
+          name: { type: 'string', example: 'Banco de Crédito e Inversiones' },
+          isDefault: { type: 'boolean', example: true }
+        }
+      },
+      PaymentMethodOption: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string', format: 'uuid', nullable: true },
+          code: { type: 'string', example: 'credit_card' },
+          name: { type: 'string', example: 'Tarjeta de crédito' },
+          kind: { type: 'string', enum: ['cash', 'card', 'transfer'] },
+          cardType: { type: 'string', enum: ['credit', 'debit'], nullable: true },
+          isDefault: { type: 'boolean', example: true }
+        }
       }
     }
   },
@@ -488,6 +509,8 @@ export const openApiSpec = {
           concept: { type: 'string', example: 'Natacion' },
           categoryId: { type: 'string', format: 'uuid' },
           subcategoryId: { type: 'string', format: 'uuid' },
+          paymentMethodOptionId: { type: 'string', format: 'uuid' },
+          bankOptionId: { type: 'string', format: 'uuid' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
         responses: {
@@ -539,6 +562,8 @@ export const openApiSpec = {
           concept: { type: 'string', example: 'Natacion' },
           categoryId: { type: 'string', format: 'uuid' },
           subcategoryId: { type: 'string', format: 'uuid' },
+          paymentMethodOptionId: { type: 'string', format: 'uuid' },
+          bankOptionId: { type: 'string', format: 'uuid' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
         }, ['date', 'amount', 'currency', 'concept', 'categoryId', 'paymentMethod']),
         responses: withUnauthorized({
@@ -597,6 +622,25 @@ export const openApiSpec = {
       },
       post: authenticatedPost('Create income').post
     },
+    '/incomes/{incomeId}': {
+      put: {
+        summary: 'Update income',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'incomeId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Income UUID' }
+        ],
+        requestBody: jsonBody({
+          date: { type: 'string', format: 'date-time' },
+          amount: { type: 'number', example: 1200000 },
+          currency: { type: 'string', example: 'CLP' },
+          concept: { type: 'string', example: 'Sueldo' }
+        }, ['date', 'amount', 'currency', 'concept']),
+        responses: withUnauthorized({
+          '200': { description: 'Income updated', content: { 'application/json': { schema: { type: 'object' } } } },
+          '404': { description: 'Income not found', content: { 'application/json': { examples: { missingIncome: { value: { error: 'Income not found.' } } } } } }
+        })
+      }
+    },
     '/categories': {
       get: {
         summary: 'List categories and subcategories',
@@ -611,6 +655,38 @@ export const openApiSpec = {
           parentId: { type: 'string', description: 'Optional parent category UUID for subcategories.' }
         }, ['name']),
         responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
+      }
+    },
+    '/banks': {
+      get: {
+        summary: 'List available banks (system defaults + tenant custom)',
+        security: [{ bearerAuth: [] }],
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { $ref: '#/components/schemas/BankOption' } } }))
+      },
+      post: {
+        summary: 'Create custom bank option',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Caja Los Andes' }
+        }, ['name']),
+        responses: withUnauthorized(standardResponses({ data: { $ref: '#/components/schemas/BankOption' } }))
+      }
+    },
+    '/payment-method-options': {
+      get: {
+        summary: 'List payment method options (system defaults + tenant custom)',
+        security: [{ bearerAuth: [] }],
+        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { $ref: '#/components/schemas/PaymentMethodOption' } } }))
+      },
+      post: {
+        summary: 'Create custom payment method option',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Tarjeta empresa' },
+          kind: { type: 'string', enum: ['cash', 'card', 'transfer'] },
+          cardType: { type: 'string', enum: ['credit', 'debit'] }
+        }, ['name', 'kind']),
+        responses: withUnauthorized(standardResponses({ data: { $ref: '#/components/schemas/PaymentMethodOption' } }))
       }
     },
     '/budgets': {

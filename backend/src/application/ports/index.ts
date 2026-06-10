@@ -1,4 +1,5 @@
 export type { BudgetRepository } from './budget.repository.js';
+export type { BankOptionRepository } from './bank-option.repository.js';
 export type { CategoryRepository } from './category.repository.js';
 export type { Clock } from './clock.js';
 export type { EmailMagicLinkTokenRecord, EmailMagicLinkTokenRepository } from './email-magic-link-token.repository.js';
@@ -11,6 +12,7 @@ export type { MessagingPendingDraftRepository } from './messaging-pending-draft.
 export type { MessagingProvider } from './messaging.provider.js';
 export type { OtpRepository } from './otp.repository.js';
 export type { PasswordHasher } from './password-hasher.port.js';
+export type { PaymentMethodOptionRepository } from './payment-method-option.repository.js';
 export type { ReportDispatchRepository } from './report-dispatch.repository.js';
 export type { TelegramLinkTokenRecord, TelegramLinkTokenRepository } from './telegram-link-token.repository.js';
 export type { TokenService } from './token.service.js';

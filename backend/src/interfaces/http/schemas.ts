@@ -86,6 +86,24 @@ export const paymentMethodSchema = z.discriminatedUnion('kind', [
   })
 ]);
 
+export const bankOptionSchema = z.object({
+  name: z.string().min(1)
+});
+
+export const paymentMethodOptionSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(['cash', 'card', 'transfer']),
+  cardType: z.enum(['credit', 'debit']).optional()
+}).superRefine((value, ctx) => {
+  if (value.kind !== 'card' && value.cardType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'cardType is only valid for card payment methods.',
+      path: ['cardType']
+    });
+  }
+});
+
 export const createExpenseSchema = z.object({
   date: z.string().datetime(),
   amount: z.number().positive(),
@@ -93,6 +111,8 @@ export const createExpenseSchema = z.object({
   concept: z.string().min(1),
   categoryId: z.string().uuid(),
   subcategoryId: z.string().uuid().optional(),
+  paymentMethodOptionId: z.string().uuid().optional(),
+  bankOptionId: z.string().uuid().optional(),
   paymentMethod: paymentMethodSchema
 });
 
@@ -113,6 +133,8 @@ export const createIncomeSchema = z.object({
   currency: z.string().length(3),
   concept: z.string().min(1)
 });
+
+export const updateIncomeSchema = createIncomeSchema;
 
 export const incomeQuerySchema = z.object({
   from: z.string().datetime().optional(),

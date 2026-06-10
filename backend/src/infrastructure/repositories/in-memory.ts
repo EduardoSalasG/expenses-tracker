@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  BankOptionRepository,
   BudgetRepository,
   CategoryRepository,
   EmailMagicLinkTokenRepository,
@@ -8,13 +9,14 @@ import type {
   MessagingMessageAuditRepository,
   MessagingPendingDraftRepository,
   OtpRepository,
+  PaymentMethodOptionRepository,
   ReportDispatchRepository,
   TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
 } from '../../application/ports.js';
-import type { Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -150,6 +152,63 @@ const DEFAULT_CATEGORY_TREE = [
   { name: 'Other', subcategories: ['Gifts'] }
 ];
 
+const DEFAULT_BANK_OPTIONS = [
+  'Banco de Chile',
+  'Banco Internacional',
+  'Scotiabank Chile',
+  'Banco de Crédito e Inversiones',
+  'Banco BICE',
+  'Banco Santander-Chile',
+  'Banco Itaú Chile',
+  'Banco Falabella',
+  'Banco Ripley',
+  'Banco Consorcio',
+  'Tanner Banco Digital',
+  'Tenpo Bank Chile',
+  'Banco del Estado de Chile'
+];
+
+export class InMemoryBankOptionRepository implements BankOptionRepository {
+  private readonly banks: BankOption[] = DEFAULT_BANK_OPTIONS.map((name) => ({ id: randomUUID(), name, isDefault: true }));
+
+  async listByTenant(tenantId: string) {
+    return this.banks.filter((bank) => !bank.tenantId || bank.tenantId === tenantId);
+  }
+
+  async findAccessibleById(tenantId: string, bankOptionId: string) {
+    return this.banks.find((bank) => bank.id === bankOptionId && (!bank.tenantId || bank.tenantId === tenantId));
+  }
+
+  async create(input: Omit<BankOption, 'id'>) {
+    const bank = { ...input, id: randomUUID() };
+    this.banks.push(bank);
+    return bank;
+  }
+}
+
+export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptionRepository {
+  private readonly paymentMethods: PaymentMethodOption[] = [
+    { id: randomUUID(), name: 'Transferencia', code: 'transfer', kind: 'transfer', isDefault: true },
+    { id: randomUUID(), name: 'Tarjeta de débito', code: 'debit_card', kind: 'card', cardType: 'debit', isDefault: true },
+    { id: randomUUID(), name: 'Tarjeta de crédito', code: 'credit_card', kind: 'card', cardType: 'credit', isDefault: true },
+    { id: randomUUID(), name: 'Efectivo', code: 'cash', kind: 'cash', isDefault: true }
+  ];
+
+  async listByTenant(tenantId: string) {
+    return this.paymentMethods.filter((method) => !method.tenantId || method.tenantId === tenantId);
+  }
+
+  async findAccessibleById(tenantId: string, paymentMethodOptionId: string) {
+    return this.paymentMethods.find((method) => method.id === paymentMethodOptionId && (!method.tenantId || method.tenantId === tenantId));
+  }
+
+  async create(input: Omit<PaymentMethodOption, 'id'>) {
+    const method = { ...input, id: randomUUID() };
+    this.paymentMethods.push(method);
+    return method;
+  }
+}
+
 export class InMemoryExpenseRepository implements ExpenseRepository {
   private readonly expenses: Expense[] = [];
 
@@ -164,9 +223,12 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     expenseId: string;
     date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
     categoryId?: string;
     subcategoryId?: string | null;
+    paymentMethodOptionId?: string | null;
+    bankOptionId?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }) {
     const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
@@ -175,8 +237,15 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
       ...this.expenses[index],
       date: input.date ?? this.expenses[index].date,
       amount: input.amount ?? this.expenses[index].amount,
+      currency: input.currency ?? this.expenses[index].currency,
       concept: input.concept ?? this.expenses[index].concept,
       categoryId: input.categoryId ?? this.expenses[index].categoryId,
+      paymentMethodOptionId: Object.prototype.hasOwnProperty.call(input, 'paymentMethodOptionId')
+        ? input.paymentMethodOptionId ?? undefined
+        : this.expenses[index].paymentMethodOptionId,
+      bankOptionId: Object.prototype.hasOwnProperty.call(input, 'bankOptionId')
+        ? input.bankOptionId ?? undefined
+        : this.expenses[index].bankOptionId,
       paymentMethod: input.paymentMethod ?? this.expenses[index].paymentMethod,
       subcategoryId: Object.prototype.hasOwnProperty.call(input, 'subcategoryId')
         ? input.subcategoryId ?? undefined
@@ -289,14 +358,18 @@ export class InMemoryIncomeRepository implements IncomeRepository {
   async update(input: {
     tenantId: string;
     incomeId: string;
+    date?: string;
     amount?: number;
+    currency?: string;
     concept?: string;
   }) {
     const index = this.incomes.findIndex((income) => income.tenantId === input.tenantId && income.id === input.incomeId);
     if (index < 0) return undefined;
     this.incomes[index] = {
       ...this.incomes[index],
+      date: input.date ?? this.incomes[index].date,
       amount: input.amount ?? this.incomes[index].amount,
+      currency: input.currency ?? this.incomes[index].currency,
       concept: input.concept ?? this.incomes[index].concept
     };
     return this.incomes[index];
