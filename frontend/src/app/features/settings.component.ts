@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { ApiService, type BankOption, type CurrentUser, type PaymentMethodOption, type ReportFrequency } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
@@ -44,7 +45,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
     <app-feedback-banner [message]="loading() ? t('settings_loading') : ''" tone="info" />
 
     <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <mat-card class="page-panel p-2">
+      <mat-card id="settings-profile-panel" class="page-panel p-2">
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
@@ -132,7 +133,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-catalogs-panel" class="page-panel p-5 xl:col-span-2">
         <div class="grid gap-6 xl:grid-cols-2">
           <section>
             <div class="mb-3">
@@ -249,7 +250,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
-      <mat-card class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-telegram-panel" class="page-panel p-5 xl:col-span-2">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_telegram_title') }}</h2>
@@ -344,7 +345,8 @@ export class SettingsComponent {
     private readonly api: ApiService,
     private readonly auth: AuthService,
     private readonly router: Router,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    private readonly onboarding: OnboardingService
   ) {
     this.load();
   }
@@ -386,6 +388,7 @@ export class SettingsComponent {
           error: () => this.paymentMethodOptions.set([])
         });
         this.loading.set(false);
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
@@ -569,6 +572,31 @@ export class SettingsComponent {
 
   feedbackTone(message: string) {
     return message.includes('No se pudo') || message.includes('Could not') ? 'error' : 'success';
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('settings', [
+      {
+        element: '#settings-profile-panel',
+        title: this.t('onboarding_settings_title'),
+        description: this.t('onboarding_settings_desc')
+      },
+      {
+        element: '#settings-profile-panel',
+        title: this.t('onboarding_settings_profile_title'),
+        description: this.t('onboarding_settings_profile_desc')
+      },
+      {
+        element: '#settings-catalogs-panel',
+        title: this.t('onboarding_settings_catalogs_title'),
+        description: this.t('onboarding_settings_catalogs_desc')
+      },
+      {
+        element: '#settings-telegram-panel',
+        title: this.t('onboarding_settings_telegram_title'),
+        description: this.t('onboarding_settings_telegram_desc')
+      }
+    ]);
   }
 }
 

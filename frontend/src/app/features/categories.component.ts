@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -31,7 +32,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     <app-page-header [title]="t('categories_title')" [eyebrow]="t('categories_subtitle')"></app-page-header>
 
     <section class="grid gap-4 lg:grid-cols-2">
-      <mat-card class="page-panel p-2">
+      <mat-card id="categories-main-panel" class="page-panel p-2">
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
@@ -50,7 +51,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-2">
+      <mat-card id="categories-sub-panel" class="page-panel p-2">
         <mat-accordion>
           <mat-expansion-panel>
             <mat-expansion-panel-header>
@@ -82,7 +83,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <app-feedback-banner [message]="message()" tone="success" />
     </div>
 
-    <mat-card class="page-panel mt-4 p-5">
+    <mat-card id="categories-library-panel" class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">{{ t('categories_library') }}</h2>
         <span class="text-sm text-brand-muted">{{ categories().length }} {{ t('categories_count') }}</span>
@@ -126,6 +127,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 export class CategoriesComponent {
   private readonly fb = inject(FormBuilder);
   private readonly i18n = inject(I18nService);
+  private readonly onboarding = inject(OnboardingService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly loading = signal(false);
@@ -154,6 +156,7 @@ export class CategoriesComponent {
           this.subForm.controls.parentId.setValue(firstRoot.id);
         }
         this.loading.set(false);
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
@@ -195,5 +198,30 @@ export class CategoriesComponent {
         this.message.set(this.t('categories_create_error'));
       }
     });
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('categories', [
+      {
+        element: '#categories-main-panel',
+        title: this.t('onboarding_categories_title'),
+        description: this.t('onboarding_categories_desc')
+      },
+      {
+        element: '#categories-main-panel',
+        title: this.t('onboarding_categories_main_title'),
+        description: this.t('onboarding_categories_main_desc')
+      },
+      {
+        element: '#categories-sub-panel',
+        title: this.t('onboarding_categories_sub_title'),
+        description: this.t('onboarding_categories_sub_desc')
+      },
+      {
+        element: '#categories-library-panel',
+        title: this.t('onboarding_categories_library_title'),
+        description: this.t('onboarding_categories_library_desc')
+      }
+    ]);
   }
 }

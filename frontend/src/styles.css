@@ -1,4 +1,5 @@
 @import '@angular/material/prebuilt-themes/azure-blue.css';
+@import 'driver.js/dist/driver.css';
 
 @tailwind base;
 @tailwind components;
@@ -361,6 +362,60 @@ select option:focus {
   position: relative;
   aspect-ratio: 0.98 / 1;
   width: 100%;
+}
+
+.driver-popover {
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink) !important;
+  border: 1px solid var(--brand-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--brand-shadow) !important;
+}
+
+.driver-popover-title,
+.driver-popover-description,
+.driver-popover-progress-text {
+  color: var(--brand-ink) !important;
+}
+
+.driver-popover-description {
+  color: var(--brand-muted) !important;
+}
+
+.driver-popover-next-btn,
+.driver-popover-prev-btn,
+.driver-popover-close-btn {
+  text-shadow: none !important;
+}
+
+.driver-popover-next-btn,
+.driver-popover-prev-btn {
+  border-radius: 9999px !important;
+  border: 1px solid var(--brand-border) !important;
+  background: var(--brand-surface) !important;
+  color: var(--brand-ink) !important;
+}
+
+.driver-popover-next-btn {
+  background: var(--brand-blue) !important;
+  border-color: var(--brand-blue) !important;
+  color: #ffffff !important;
+}
+
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--brand-surface) !important;
+}
+
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--brand-surface) !important;
+}
+
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--brand-surface) !important;
+}
+
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--brand-surface) !important;
 }
 
 .landing-nav-login.mat-mdc-outlined-button,

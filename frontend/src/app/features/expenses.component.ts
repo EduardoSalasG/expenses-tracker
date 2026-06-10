@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ApiService, type BankOption, type Category, type Expense, type PaymentMethodOption } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -37,7 +38,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
   template: `
     <app-page-header [title]="t('expenses_title')" [eyebrow]="t('expenses_subtitle')"></app-page-header>
 
-    <mat-card class="page-panel mb-4 p-4">
+    <mat-card id="expenses-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
           type="month"
@@ -46,11 +47,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           (change)="changeMonth($event)"
         >
         <div class="flex items-center gap-2">
-          <button mat-stroked-button type="button" (click)="toggleFilters()">
+          <button id="expenses-filter-toggle" mat-stroked-button type="button" (click)="toggleFilters()">
             <mat-icon>tune</mat-icon>
             {{ t('expenses_filters_more') }}
           </button>
-          <button mat-flat-button color="primary" type="button" (click)="openNewExpenseDialog()">
+          <button id="expenses-new-button" mat-flat-button color="primary" type="button" (click)="openNewExpenseDialog()">
             <mat-icon>add</mat-icon>
             {{ t('expenses_new') }}
           </button>
@@ -96,7 +97,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       }
     </mat-card>
 
-    <mat-card class="page-panel p-5">
+    <mat-card id="expenses-history-panel" class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
         <span class="text-sm text-brand-muted">{{ expenses().length }} {{ t('expenses_records') }}</span>
@@ -148,6 +149,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 })
 export class ExpensesComponent implements OnInit {
   private readonly i18n = inject(I18nService);
+  private readonly onboarding = inject(OnboardingService);
   private readonly periodState = inject(PeriodStateService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -241,6 +243,7 @@ export class ExpensesComponent implements OnInit {
       next: (expenses) => {
         this.expenses.set(expenses);
         this.loading.set(false);
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
@@ -280,6 +283,31 @@ export class ExpensesComponent implements OnInit {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('expenses', [
+      {
+        element: '#expenses-toolbar',
+        title: this.t('onboarding_expenses_title'),
+        description: this.t('onboarding_expenses_desc')
+      },
+      {
+        element: '#expenses-filter-toggle',
+        title: this.t('onboarding_expenses_filters_title'),
+        description: this.t('onboarding_expenses_filters_desc')
+      },
+      {
+        element: '#expenses-new-button',
+        title: this.t('onboarding_expenses_new_title'),
+        description: this.t('onboarding_expenses_new_desc')
+      },
+      {
+        element: '#expenses-history-panel',
+        title: this.t('onboarding_expenses_history_title'),
+        description: this.t('onboarding_expenses_history_desc')
+      }
+    ]);
   }
 }
 

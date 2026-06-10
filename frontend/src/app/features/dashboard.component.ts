@@ -7,6 +7,7 @@ import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type CurrentUser, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 
 Chart.register(...registerables);
@@ -91,12 +92,12 @@ interface CategoryVariationRow {
       </section>
     }
 
-    <div class="mb-5 flex flex-col gap-4 border-b border-brand-border pb-5 sm:mb-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
+    <div id="dashboard-header" class="mb-5 flex flex-col gap-4 border-b border-brand-border pb-5 sm:mb-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ periodLabel() }}</p>
         <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_title') }}</h1>
       </div>
-      <div class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
+      <div id="dashboard-period-controls" class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
         <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
           <button
             mat-button
@@ -174,7 +175,7 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
 
-      <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section id="dashboard-charts" class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold">{{ t('dashboard_cash_flow_currency') }}</h2>
@@ -213,7 +214,7 @@ interface CategoryVariationRow {
       </section>
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <mat-card class="page-panel p-5">
+        <mat-card id="dashboard-recent-expenses" class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_recent_expenses') }}</h2>
           <div class="grid gap-1">
             @for (expense of recentExpenses(); track expense.id) {
@@ -416,7 +417,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private readonly api: ApiService,
     private readonly i18n: I18nService,
-    private readonly periodState: PeriodStateService
+    private readonly periodState: PeriodStateService,
+    private readonly onboarding: OnboardingService
   ) {}
 
   ngOnInit() {
@@ -825,6 +827,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
           });
         }
         setTimeout(() => this.renderCharts());
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.error.set(this.t('dashboard_loading_error'));
@@ -868,6 +871,31 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   t(key: string) {
     return this.i18n.t(key);
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('dashboard', [
+      {
+        element: '#dashboard-header',
+        title: this.t('onboarding_dashboard_title'),
+        description: this.t('onboarding_dashboard_desc')
+      },
+      {
+        element: '#dashboard-period-controls',
+        title: this.t('onboarding_dashboard_period_title'),
+        description: this.t('onboarding_dashboard_period_desc')
+      },
+      {
+        element: '#dashboard-charts',
+        title: this.t('onboarding_dashboard_charts_title'),
+        description: this.t('onboarding_dashboard_charts_desc')
+      },
+      {
+        element: '#dashboard-recent-expenses',
+        title: this.t('onboarding_dashboard_recent_title'),
+        description: this.t('onboarding_dashboard_recent_desc')
+      }
+    ]);
   }
 }
 

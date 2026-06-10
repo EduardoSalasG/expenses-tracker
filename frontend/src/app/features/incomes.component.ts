@@ -10,6 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Inject } from '@angular/core';
 import { ApiService, type Income } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
@@ -34,7 +35,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
 
-    <mat-card class="page-panel mb-4 p-4">
+    <mat-card id="incomes-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
           type="month"
@@ -43,11 +44,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           (change)="changeMonth($event)"
         >
         <div class="flex items-center gap-2">
-          <button mat-stroked-button type="button" (click)="toggleFilters()">
+          <button id="incomes-filter-toggle" mat-stroked-button type="button" (click)="toggleFilters()">
             <mat-icon>tune</mat-icon>
             {{ t('expenses_filters_more') }}
           </button>
-          <button mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
+          <button id="incomes-new-button" mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
             <mat-icon>add</mat-icon>
             {{ t('incomes_new') }}
           </button>
@@ -75,7 +76,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       }
     </mat-card>
 
-    <mat-card class="page-panel p-5">
+    <mat-card id="incomes-history-panel" class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">{{ t('incomes_history') }}</h2>
         <span class="text-sm text-brand-muted">{{ totalLabel() }} {{ t('incomes_total_across') }} {{ incomes().length }} {{ t('expenses_records') }}</span>
@@ -118,6 +119,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 })
 export class IncomesComponent implements OnInit {
   private readonly i18n = inject(I18nService);
+  private readonly onboarding = inject(OnboardingService);
   private readonly periodState = inject(PeriodStateService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -200,6 +202,7 @@ export class IncomesComponent implements OnInit {
       next: (incomes) => {
         this.incomes.set(incomes);
         this.loading.set(false);
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
@@ -233,6 +236,31 @@ export class IncomesComponent implements OnInit {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('incomes', [
+      {
+        element: '#incomes-toolbar',
+        title: this.t('onboarding_incomes_title'),
+        description: this.t('onboarding_incomes_desc')
+      },
+      {
+        element: '#incomes-filter-toggle',
+        title: this.t('onboarding_incomes_filters_title'),
+        description: this.t('onboarding_incomes_filters_desc')
+      },
+      {
+        element: '#incomes-new-button',
+        title: this.t('onboarding_incomes_new_title'),
+        description: this.t('onboarding_incomes_new_desc')
+      },
+      {
+        element: '#incomes-history-panel',
+        title: this.t('onboarding_incomes_history_title'),
+        description: this.t('onboarding_incomes_history_desc')
+      }
+    ]);
   }
 }
 
