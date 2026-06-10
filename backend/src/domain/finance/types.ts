@@ -37,12 +37,17 @@ export interface Expense {
   userId: UserId;
   date: string;
   amount: number;
+  totalAmount?: number;
   currency: CurrencyCode;
   concept: string;
   categoryId: CategoryId;
   subcategoryId?: CategoryId;
   paymentMethodOptionId?: string;
   bankOptionId?: string;
+  purchaseDate?: string;
+  installmentCount?: number;
+  installmentNumber?: number;
+  firstInstallmentDate?: string;
   paymentMethod: PaymentMethod;
   originalMessage?: string;
 }

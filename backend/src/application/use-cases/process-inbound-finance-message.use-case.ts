@@ -421,10 +421,14 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
+      totalAmount: interpreted.amount,
       currency: user.preferredCurrency,
       concept: interpreted.concept,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
+      installmentCount: interpreted.installmentCount ?? 1,
+      firstInstallmentDate: this.clock.now().toISOString(),
+      purchaseDate: this.clock.now().toISOString(),
       paymentMethod: interpreted.paymentMethod,
       originalMessage: input.message
     });
@@ -592,20 +596,28 @@ function expenseUpdatedMessage(user: User, categories: Category[], expense: Expe
 }
 
 function expenseSavedMessage(user: User, categories: Category[], expense: Expense, subcategoryId?: string) {
+  const purchaseAmount = expense.totalAmount ?? expense.amount;
+  const installmentLine = (expense.installmentCount ?? 1) > 1
+    ? user.preferredLanguage === 'en'
+      ? `Installments: ${expense.installmentCount} of ${formatMoney(expense.currency, expense.amount, 'en')}.`
+      : `Cuotas: ${expense.installmentCount} de ${formatMoney(expense.currency, expense.amount, 'es')}.`
+    : undefined;
   if (user.preferredLanguage === 'en') {
     return [
       'Expense saved.',
-      `Amount: ${formatMoney(expense.currency, expense.amount, 'en')}.`,
+      `Amount: ${formatMoney(expense.currency, purchaseAmount, 'en')}.`,
+      installmentLine,
       `Concept: ${expense.concept}.`,
       `Category: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
-    ].join('\n');
+    ].filter(Boolean).join('\n');
   }
   return [
     'Gasto guardado.',
-    `Monto: ${formatMoney(expense.currency, expense.amount, 'es')}.`,
+    `Monto: ${formatMoney(expense.currency, purchaseAmount, 'es')}.`,
+    installmentLine,
     `Concepto: ${expense.concept}.`,
     `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function findReferencedMovement(

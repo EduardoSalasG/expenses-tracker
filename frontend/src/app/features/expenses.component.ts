@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ApiService, type BankOption, type Category, type Expense, type PaymentMethodOption } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -28,6 +29,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatIconModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatSlideToggleModule,
     ReactiveFormsModule,
     FeedbackBannerComponent,
     PageHeaderComponent
@@ -117,7 +119,14 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-brand-border/60 last:border-0">
                 <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
-                <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ expense.concept }}</td>
+                <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3">
+                  <div class="font-medium">{{ expense.concept }}</div>
+                  @if ((expense.installmentCount ?? 1) > 1) {
+                    <div class="mt-1 text-xs text-brand-muted">
+                      {{ t('expenses_installment_badge') }} {{ expense.installmentNumber ?? 1 }}/{{ expense.installmentCount }}
+                    </div>
+                  }
+                </td>
                 <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
                 <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
                 <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
@@ -277,7 +286,7 @@ export class ExpensesComponent implements OnInit {
 @Component({
   selector: 'app-expense-create-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule, MatSlideToggleModule],
   template: `
     <div class="brand-dialog-shell">
       <div class="brand-dialog-header">
@@ -294,6 +303,26 @@ export class ExpensesComponent implements OnInit {
         @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}</mat-select></mat-form-field>
         }
+        <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
+          <mat-slide-toggle formControlName="installmentsEnabled">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
+          @if (form.controls.installmentsEnabled.value) {
+            <div class="mt-4 grid gap-4 md:grid-cols-2">
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('expenses_installment_count') }}</mat-label>
+                <mat-select formControlName="installmentCount">
+                  @for (count of installmentOptions; track count) {
+                    <mat-option [value]="count">{{ count }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('expenses_first_installment_date') }}</mat-label>
+                <input matInput type="date" formControlName="firstInstallmentDate">
+              </mat-form-field>
+            </div>
+            <p class="m-0 text-sm text-brand-muted">{{ t('expenses_installments_help') }}</p>
+          }
+        </div>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('expenses_saving') : expense() ? t('common_update') : t('expenses_save') }}</button>
@@ -346,6 +375,7 @@ export class ExpenseCreateDialogComponent {
   private readonly i18n = inject(I18nService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly saving = signal(false);
+  readonly installmentOptions = Array.from({ length: 24 }, (_, index) => index + 1);
   readonly categories = signal<Category[]>([]);
   readonly bankOptions = signal<BankOption[]>([]);
   readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
@@ -363,7 +393,10 @@ export class ExpenseCreateDialogComponent {
     categoryId: ['', Validators.required],
     subcategoryId: [''],
     paymentMethodOptionId: ['', Validators.required],
-    bankOptionId: ['']
+    bankOptionId: [''],
+    installmentsEnabled: [false],
+    installmentCount: [1, [Validators.required, Validators.min(1), Validators.max(24)]],
+    firstInstallmentDate: [toDateInputValue(new Date()), Validators.required]
   });
 
   constructor(
@@ -382,13 +415,16 @@ export class ExpenseCreateDialogComponent {
         ?? inferBankOptionId(existingExpense, this.bankOptions());
       this.form.patchValue({
         concept: existingExpense.concept,
-        amount: existingExpense.amount,
+        amount: existingExpense.totalAmount ?? existingExpense.amount,
         currency: existingExpense.currency,
-        date: toDateInputValue(new Date(existingExpense.date)),
+        date: toDateInputValue(new Date(existingExpense.purchaseDate ?? existingExpense.date)),
         categoryId: existingExpense.categoryId,
         subcategoryId: existingExpense.subcategoryId ?? '',
         paymentMethodOptionId: paymentMethodOptionId ?? '',
-        bankOptionId: bankOptionId ?? ''
+        bankOptionId: bankOptionId ?? '',
+        installmentsEnabled: (existingExpense.installmentCount ?? 1) > 1,
+        installmentCount: existingExpense.installmentCount ?? 1,
+        firstInstallmentDate: toDateInputValue(new Date(existingExpense.firstInstallmentDate ?? existingExpense.date))
       });
       this.selectedCategoryId.set(existingExpense.categoryId);
     } else {
@@ -411,6 +447,17 @@ export class ExpenseCreateDialogComponent {
         this.form.controls.bankOptionId.setValue('');
       }
     });
+    this.form.controls.installmentsEnabled.valueChanges.subscribe((enabled) => {
+      if (!enabled) {
+        this.form.controls.installmentCount.setValue(1);
+        this.form.controls.firstInstallmentDate.setValue(this.form.controls.date.value);
+      }
+    });
+    this.form.controls.date.valueChanges.subscribe((date) => {
+      if (!this.form.controls.installmentsEnabled.value) {
+        this.form.controls.firstInstallmentDate.setValue(date);
+      }
+    });
   }
 
   save() {
@@ -431,6 +478,8 @@ export class ExpenseCreateDialogComponent {
       subcategoryId: value.subcategoryId || undefined,
       paymentMethodOptionId: selectedPaymentMethod.id,
       bankOptionId: value.bankOptionId || undefined,
+      installmentCount: value.installmentsEnabled ? Number(value.installmentCount) : 1,
+      firstInstallmentDate: startOfDay(value.installmentsEnabled ? value.firstInstallmentDate : value.date),
       paymentMethod: paymentMethodPayload(selectedPaymentMethod, selectedBank)
     };
     const request = this.expense()

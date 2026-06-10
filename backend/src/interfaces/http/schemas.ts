@@ -117,6 +117,8 @@ export const createExpenseSchema = z.object({
   subcategoryId: z.string().uuid().optional(),
   paymentMethodOptionId: z.string().uuid().optional(),
   bankOptionId: z.string().uuid().optional(),
+  installmentCount: z.number().int().min(1).max(60).default(1),
+  firstInstallmentDate: z.string().datetime().optional(),
   paymentMethod: paymentMethodSchema
 });
 

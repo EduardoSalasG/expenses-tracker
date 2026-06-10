@@ -1,4 +1,4 @@
-import type { QueryResultRow } from 'pg';
+import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
@@ -303,31 +303,53 @@ export class PostgresExpenseRepository implements ExpenseRepository {
   constructor(private readonly pool: DatabasePool) {}
 
   async create(input: Omit<Expense, 'id'>) {
-    const result = await this.pool.query(
-      `insert into expenses (
-        tenant_id, user_id, expense_date, amount, currency, concept, category_id, subcategory_id,
-        payment_method_option_id, bank_option_id, payment_method_kind, bank, card_type, original_message
-      )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      returning *`,
-      [
-        input.tenantId,
-        input.userId,
-        input.date,
-        input.amount,
-        input.currency,
-        input.concept,
-        input.categoryId,
-        input.subcategoryId ?? null,
-        input.paymentMethodOptionId ?? null,
-        input.bankOptionId ?? null,
-        input.paymentMethod.kind,
-        input.paymentMethod.bank ?? null,
-        input.paymentMethod.cardType ?? null,
-        input.originalMessage ?? null
-      ]
-    );
-    return mapExpense(result.rows[0]);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const purchaseDate = input.purchaseDate ?? input.date;
+      const installmentCount = Math.max(1, input.installmentCount ?? 1);
+      const firstInstallmentDate = input.firstInstallmentDate ?? purchaseDate;
+
+      const inserted = await client.query(
+        `insert into expenses (
+          tenant_id, user_id, expense_date, purchase_date, amount, currency, concept, category_id, subcategory_id,
+          payment_method_option_id, bank_option_id, payment_method_kind, bank, card_type, original_message,
+          installment_count, first_installment_date
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        returning id`,
+        [
+          input.tenantId,
+          input.userId,
+          purchaseDate,
+          purchaseDate,
+          input.amount,
+          input.currency,
+          input.concept,
+          input.categoryId,
+          input.subcategoryId ?? null,
+          input.paymentMethodOptionId ?? null,
+          input.bankOptionId ?? null,
+          input.paymentMethod.kind,
+          input.paymentMethod.bank ?? null,
+          input.paymentMethod.cardType ?? null,
+          input.originalMessage ?? null,
+          installmentCount,
+          firstInstallmentDate
+        ]
+      );
+
+      const expenseId = inserted.rows[0].id as string;
+      await replaceExpenseInstallments(client, expenseId, input.amount, installmentCount, firstInstallmentDate);
+      const projected = await client.query(expenseProjectionSelectSql({ whereClause: 'where e.tenant_id = $1 and e.id = $2', limitClause: 'limit 1' }), [input.tenantId, expenseId]);
+      await client.query('commit');
+      return mapExpense(projected.rows[0]);
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async update(input: {
@@ -341,45 +363,80 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    installmentCount?: number;
+    firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }) {
-    const result = await this.pool.query(
-      `update expenses
-       set expense_date = coalesce($3, expense_date),
-           amount = coalesce($4, amount),
-           currency = coalesce($5, currency),
-           concept = coalesce($6, concept),
-           category_id = coalesce($7, category_id),
-           subcategory_id = case when $8::boolean then $9::uuid else subcategory_id end,
-           payment_method_option_id = case when $10::boolean then $11::uuid else payment_method_option_id end,
-           bank_option_id = case when $12::boolean then $13::uuid else bank_option_id end,
-           payment_method_kind = coalesce($14, payment_method_kind),
-           bank = case when $15::boolean then $16 else bank end,
-           card_type = case when $17::boolean then $18 else card_type end
-       where tenant_id = $1 and id = $2
-       returning *`,
-      [
-        input.tenantId,
-        input.expenseId,
-        input.date ?? null,
-        input.amount ?? null,
-        input.currency ?? null,
-        input.concept ?? null,
-        input.categoryId ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'subcategoryId'),
-        input.subcategoryId ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'paymentMethodOptionId'),
-        input.paymentMethodOptionId ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'bankOptionId'),
-        input.bankOptionId ?? null,
-        input.paymentMethod?.kind ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'paymentMethod'),
-        input.paymentMethod?.bank ?? null,
-        Object.prototype.hasOwnProperty.call(input, 'paymentMethod'),
-        input.paymentMethod?.cardType ?? null
-      ]
-    );
-    return result.rows[0] ? mapExpense(result.rows[0]) : undefined;
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const existing = await client.query(`select * from expenses where tenant_id = $1 and id = $2`, [input.tenantId, input.expenseId]);
+      if (!existing.rows[0]) {
+        await client.query('rollback');
+        return undefined;
+      }
+
+      const row = existing.rows[0];
+      const purchaseDate = input.date ?? toIsoString(row.purchase_date ?? row.expense_date);
+      const totalAmount = input.amount ?? Number(row.amount);
+      const installmentCount = input.installmentCount ?? Number(row.installment_count ?? 1);
+      const firstInstallmentDate = Object.prototype.hasOwnProperty.call(input, 'firstInstallmentDate')
+        ? input.firstInstallmentDate ?? purchaseDate
+        : toIsoString(row.first_installment_date ?? row.purchase_date ?? row.expense_date);
+      const paymentMethodKind = input.paymentMethod?.kind ?? row.payment_method_kind;
+      const paymentBank = Object.prototype.hasOwnProperty.call(input, 'paymentMethod')
+        ? input.paymentMethod?.bank ?? null
+        : row.bank ?? null;
+      const paymentCardType = Object.prototype.hasOwnProperty.call(input, 'paymentMethod')
+        ? input.paymentMethod?.cardType ?? null
+        : row.card_type ?? null;
+
+      await client.query(
+        `update expenses
+         set expense_date = $3,
+             purchase_date = $3,
+             amount = $4,
+             currency = $5,
+             concept = $6,
+             category_id = $7,
+             subcategory_id = $8,
+             payment_method_option_id = $9,
+             bank_option_id = $10,
+             payment_method_kind = $11,
+             bank = $12,
+             card_type = $13,
+             installment_count = $14,
+             first_installment_date = $15
+         where tenant_id = $1 and id = $2`,
+        [
+          input.tenantId,
+          input.expenseId,
+          purchaseDate,
+          totalAmount,
+          input.currency ?? row.currency,
+          input.concept ?? row.concept,
+          input.categoryId ?? row.category_id,
+          Object.prototype.hasOwnProperty.call(input, 'subcategoryId') ? input.subcategoryId ?? null : row.subcategory_id ?? null,
+          Object.prototype.hasOwnProperty.call(input, 'paymentMethodOptionId') ? input.paymentMethodOptionId ?? null : row.payment_method_option_id ?? null,
+          Object.prototype.hasOwnProperty.call(input, 'bankOptionId') ? input.bankOptionId ?? null : row.bank_option_id ?? null,
+          paymentMethodKind,
+          paymentBank,
+          paymentCardType,
+          installmentCount,
+          firstInstallmentDate
+        ]
+      );
+
+      await replaceExpenseInstallments(client, input.expenseId, totalAmount, installmentCount, firstInstallmentDate);
+      const projected = await client.query(expenseProjectionSelectSql({ whereClause: 'where e.tenant_id = $1 and e.id = $2', limitClause: 'limit 1' }), [input.tenantId, input.expenseId]);
+      await client.query('commit');
+      return projected.rows[0] ? mapExpense(projected.rows[0]) : undefined;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async list(input: {
@@ -392,16 +449,16 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     limit: number;
   }) {
     const result = await this.pool.query(
-      `select *
-       from expenses
-       where tenant_id = $1
-         and ($2::timestamptz is null or expense_date >= $2)
-         and ($3::timestamptz is null or expense_date <= $3)
-         and ($4::uuid is null or category_id = $4)
-         and ($5::char(3) is null or currency = $5)
-         and ($6::text is null or payment_method_kind = $6)
-       order by expense_date desc, created_at desc
-       limit $7`,
+      `${expenseProjectionSelectSql({
+        whereClause: `where e.tenant_id = $1
+         and ($2::timestamptz is null or i.due_date >= $2)
+         and ($3::timestamptz is null or i.due_date <= $3)
+         and ($4::uuid is null or e.category_id = $4 or e.subcategory_id = $4)
+         and ($5::char(3) is null or e.currency = $5)
+         and ($6::text is null or e.payment_method_kind = $6)`,
+        orderClause: 'order by i.due_date desc, i.installment_number asc, e.created_at desc',
+        limitClause: 'limit $7'
+      })}`,
       [
         input.tenantId,
         input.from ?? null,
@@ -417,7 +474,11 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
   async listRecent(tenantId: string, limit: number) {
     const result = await this.pool.query(
-      `select * from expenses where tenant_id = $1 order by expense_date desc, created_at desc limit $2`,
+      `${expenseProjectionSelectSql({
+        whereClause: 'where e.tenant_id = $1',
+        orderClause: 'order by i.due_date desc, i.installment_number asc, e.created_at desc',
+        limitClause: 'limit $2'
+      })}`,
       [tenantId, limit]
     );
     return result.rows.map(mapExpense);
@@ -425,7 +486,10 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
   async listByPeriod(tenantId: string, from: string, to: string) {
     const result = await this.pool.query(
-      `select * from expenses where tenant_id = $1 and expense_date >= $2 and expense_date <= $3 order by expense_date desc`,
+      `${expenseProjectionSelectSql({
+        whereClause: 'where e.tenant_id = $1 and i.due_date >= $2 and i.due_date <= $3',
+        orderClause: 'order by i.due_date desc, i.installment_number asc'
+      })}`,
       [tenantId, from, to]
     );
     return result.rows.map(mapExpense);
@@ -451,6 +515,14 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     const result = await this.pool.query(
       `select * from weekly_expenses_daily_totals_by_tenant($1, $2::date)`,
       [tenantId, weekStartIsoDate]
+    );
+    return result.rows.map(mapCurrencyTotalByPeriod);
+  }
+
+  async upcomingInstallmentsMonthlyTotalsByTenant(tenantId: string, startMonth: string, months: number) {
+    const result = await this.pool.query(
+      `select * from upcoming_expense_installments_monthly_totals_by_tenant($1, $2::date, $3)`,
+      [tenantId, `${startMonth}-01`, months]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
@@ -921,12 +993,17 @@ function mapExpense(row: QueryResultRow): Expense {
     userId: row.user_id,
     date: row.expense_date instanceof Date ? row.expense_date.toISOString() : row.expense_date,
     amount: Number(row.amount),
+    totalAmount: row.total_amount != null ? Number(row.total_amount) : Number(row.amount),
     currency: row.currency,
     concept: row.concept,
     categoryId: row.category_id,
     subcategoryId: row.subcategory_id ?? undefined,
     paymentMethodOptionId: row.payment_method_option_id ?? undefined,
     bankOptionId: row.bank_option_id ?? undefined,
+    purchaseDate: row.purchase_date ? toIsoString(row.purchase_date) : undefined,
+    installmentCount: row.installment_count != null ? Number(row.installment_count) : undefined,
+    installmentNumber: row.installment_number != null ? Number(row.installment_number) : undefined,
+    firstInstallmentDate: row.first_installment_date ? toIsoString(row.first_installment_date) : undefined,
     paymentMethod: {
       kind: row.payment_method_kind,
       bank: row.bank ?? undefined,
@@ -991,5 +1068,100 @@ function mapCategoryTotalByPeriod(row: QueryResultRow) {
 
 function isForeignKeyViolation(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23503';
+}
+
+function expenseProjectionSelectSql(input: {
+  whereClause?: string;
+  orderClause?: string;
+  limitClause?: string;
+}) {
+  return `
+    select
+      e.id,
+      e.tenant_id,
+      e.user_id,
+      i.due_date as expense_date,
+      i.amount,
+      e.amount as total_amount,
+      e.currency,
+      e.concept,
+      e.category_id,
+      e.subcategory_id,
+      e.payment_method_option_id,
+      e.bank_option_id,
+      e.payment_method_kind,
+      e.bank,
+      e.card_type,
+      e.original_message,
+      e.purchase_date,
+      e.installment_count,
+      i.installment_number,
+      e.first_installment_date,
+      e.created_at
+    from expenses e
+    join expense_installments i on i.expense_id = e.id
+    ${input.whereClause ?? ''}
+    ${input.orderClause ?? ''}
+    ${input.limitClause ?? ''}
+  `;
+}
+
+async function replaceExpenseInstallments(
+  client: DatabasePool | PoolClient,
+  expenseId: string,
+  totalAmount: number,
+  installmentCount: number,
+  firstInstallmentDate: string
+) {
+  await client.query(`delete from expense_installments where expense_id = $1`, [expenseId]);
+  const schedule = buildInstallmentSchedule(totalAmount, installmentCount, firstInstallmentDate);
+  for (const installment of schedule) {
+    await client.query(
+      `insert into expense_installments (expense_id, installment_number, installment_count, due_date, amount)
+       values ($1, $2, $3, $4, $5)`,
+      [expenseId, installment.installmentNumber, installmentCount, installment.dueDate, installment.amount]
+    );
+  }
+}
+
+function buildInstallmentSchedule(totalAmount: number, installmentCount: number, firstInstallmentDate: string) {
+  const normalizedInstallmentCount = Math.max(1, installmentCount);
+  const centsTotal = Math.round(totalAmount * 100);
+  const baseAmount = Math.floor(centsTotal / normalizedInstallmentCount);
+  let remainder = centsTotal - (baseAmount * normalizedInstallmentCount);
+  const firstDate = new Date(firstInstallmentDate);
+
+  return Array.from({ length: normalizedInstallmentCount }, (_, index) => {
+    const cents = baseAmount + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return {
+      installmentNumber: index + 1,
+      amount: cents / 100,
+      dueDate: addMonthsClamped(firstDate, index).toISOString()
+    };
+  });
+}
+
+function addMonthsClamped(date: Date, months: number) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const day = date.getUTCDate();
+  const targetYear = year + Math.floor(month / 12);
+  const targetMonth = ((month % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(
+    targetYear,
+    targetMonth,
+    Math.min(day, lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds()
+  ));
+}
+
+function toIsoString(value: unknown) {
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
 }
 

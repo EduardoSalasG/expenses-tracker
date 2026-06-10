@@ -203,6 +203,15 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
 
+      <section class="mt-4">
+        <mat-card class="page-panel chart-panel p-5">
+          <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_upcoming_installments') }}</h2>
+          <div class="h-64 sm:h-72">
+            <canvas #installmentsChart aria-label="Upcoming installments chart"></canvas>
+          </div>
+        </mat-card>
+      </section>
+
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <mat-card class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_recent_expenses') }}</h2>
@@ -339,6 +348,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('currencyChart') private currencyChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('categoryChart') private categoryChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('weeklyChart') private weeklyChartCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('installmentsChart') private installmentsChartCanvas?: ElementRef<HTMLCanvasElement>;
 
   readonly loading = signal(true);
   readonly error = signal('');
@@ -349,6 +359,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly report = signal<Report | null>(null);
   readonly periodTotals = signal<PeriodTotalRow[]>([]);
   readonly categoryTotals = signal<CategoryTotalRow[]>([]);
+  readonly upcomingInstallments = signal<PeriodTotalRow[]>([]);
   readonly viewMode = signal<'monthly' | 'yearly'>('monthly');
   readonly selectedMonth = signal(new Date().toISOString().slice(0, 7));
   readonly selectedYear = signal(new Date().getUTCFullYear());
@@ -398,6 +409,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private currencyChart?: Chart;
   private categoryChart?: Chart;
   private weeklyChart?: Chart;
+  private installmentsChart?: Chart;
   private viewReady = false;
   private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -424,6 +436,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.currencyChart?.destroy();
     this.categoryChart?.destroy();
     this.weeklyChart?.destroy();
+    this.installmentsChart?.destroy();
   }
 
   setViewMode(mode: 'monthly' | 'yearly') {
@@ -561,6 +574,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderCurrencyChart();
     this.renderCategoryChart();
     this.renderWeeklyChart();
+    this.renderInstallmentsChart();
   }
 
   private renderCurrencyChart() {
@@ -720,12 +734,67 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.weeklyChart = new Chart(canvas, config);
   }
 
+  private renderInstallmentsChart() {
+    const canvas = this.installmentsChartCanvas?.nativeElement;
+    const rows = this.upcomingInstallments();
+    if (!canvas) return;
+    const startMonth = this.viewMode() === 'monthly' ? this.selectedMonth() : `${this.selectedYear()}-01`;
+    const labels = buildFutureMonthLabels(startMonth, 6, this.locale());
+    const currencyBuckets = rows.reduce<Record<string, Record<string, number>>>((acc, row) => {
+      if (!acc[row.currency]) acc[row.currency] = {};
+      acc[row.currency][row.periodKey] = Number(row.total);
+      return acc;
+    }, {});
+    const currencies = Object.keys(currencyBuckets).sort();
+    const datasets = currencies.map((currency, index) => ({
+      label: currency,
+      data: labels.map((label) => currencyBuckets[currency][label.periodKey] ?? 0),
+      backgroundColor: this.chartColors().seriesPalette[index % this.chartColors().seriesPalette.length]
+    }));
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      plugins: [chartAreaBackgroundPlugin],
+      data: {
+        labels: labels.map((label) => label.display),
+        datasets: datasets.length ? datasets : [{
+          label: 'No data',
+          data: labels.map(() => 0),
+          backgroundColor: '#94A3B8'
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 14, usePointStyle: true } },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted }
+        } as never,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { color: this.chartColors().grid }
+          },
+          x: {
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { color: this.chartColors().grid }
+          }
+        }
+      }
+    };
+    this.installmentsChart?.destroy();
+    this.installmentsChart = new Chart(canvas, config);
+  }
+
   private loadDashboard() {
     this.loading.set(true);
     this.error.set('');
     const range = this.viewMode() === 'monthly'
       ? rangeFromMonth(this.selectedMonth())
       : rangeFromYear(this.selectedYear());
+    const installmentsStartMonth = this.viewMode() === 'monthly'
+      ? this.selectedMonth()
+      : `${this.selectedYear()}-01`;
     const seriesRequest = this.viewMode() === 'monthly'
       ? this.api.weeklyExpensesDailyTotals(weekStartIsoDate())
       : this.api.yearlyExpensesMonthlyTotals(this.selectedYear());
@@ -736,9 +805,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       categories: this.api.categories(),
       budgets: this.api.monthlyBudgets(),
       periodTotals: seriesRequest,
-      categoryTotals: this.api.periodExpenseCategoryTotals(range.from, range.to)
+      categoryTotals: this.api.periodExpenseCategoryTotals(range.from, range.to),
+      upcomingInstallments: this.api.upcomingExpenseInstallments(installmentsStartMonth, 6)
     }).subscribe({
-      next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals }) => {
+      next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals, upcomingInstallments }) => {
         this.user.set(user);
         this.recentExpenses.set(recentExpenses);
         this.report.set(report);
@@ -746,6 +816,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.budgets.set(budgets);
         this.periodTotals.set(periodTotals);
         this.categoryTotals.set(categoryTotals);
+        this.upcomingInstallments.set(upcomingInstallments);
         this.loading.set(false);
         if (!user.telegramChatId) {
           this.api.createTelegramRegistrationLink(user.phoneNumber).subscribe({
@@ -853,6 +924,17 @@ function buildYearMonthLabels(year: number, locale: string) {
     isoDate: '',
     indexToken: String(index + 1).padStart(2, '0')
   }));
+}
+
+function buildFutureMonthLabels(startMonth: string, count: number, locale: string) {
+  const [year, month] = startMonth.split('-').map(Number);
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1 + index, 1));
+    return {
+      display: new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date),
+      periodKey: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    };
+  });
 }
 
 const LIGHT_SERIES_COLORS = ['#0B1F3A', '#1D4ED8', '#12355B', '#334155', '#64748B', '#94A3B8'];

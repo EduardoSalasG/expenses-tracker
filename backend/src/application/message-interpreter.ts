@@ -9,6 +9,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     amount: z.number().positive().optional(),
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
+    installmentCount: z.number().int().min(1).max(60).default(1),
     categoryName: z.string().min(1).optional(),
     subcategoryName: z.string().min(1).optional(),
     paymentMethod: z.discriminatedUnion('kind', [
@@ -107,6 +108,7 @@ export class DeterministicMessageInterpreter {
       amount: parsed.amount,
       currency: parsed.currency,
       concept: parsed.concept,
+      installmentCount: parsed.installmentCount ?? 1,
       ...inferCategoryFromText(context.categories, message),
       paymentMethod: parsed.paymentMethod,
       missingFields: parsed.missingFields,

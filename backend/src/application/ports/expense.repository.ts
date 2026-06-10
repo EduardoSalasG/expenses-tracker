@@ -26,6 +26,8 @@ export interface ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    installmentCount?: number;
+    firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }): Promise<Expense | undefined>;
   list(input: {
@@ -42,5 +44,6 @@ export interface ExpenseRepository {
   yearlyMonthlyTotalsByTenant(tenantId: TenantId, year: number): Promise<CurrencyTotalByPeriod[]>;
   monthlyDailyTotalsByTenant(tenantId: TenantId, month: string): Promise<CurrencyTotalByPeriod[]>;
   weeklyDailyTotalsByTenant(tenantId: TenantId, weekStartIsoDate: string): Promise<CurrencyTotalByPeriod[]>;
+  upcomingInstallmentsMonthlyTotalsByTenant(tenantId: TenantId, startMonth: string, months: number): Promise<CurrencyTotalByPeriod[]>;
   periodCategoryTotalsByTenant(tenantId: TenantId, from: string, to: string): Promise<CategoryTotalByPeriod[]>;
 }

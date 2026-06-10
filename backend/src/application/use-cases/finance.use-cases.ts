@@ -50,6 +50,8 @@ export class FinanceUseCases {
     subcategoryId?: string;
     paymentMethodOptionId?: string;
     bankOptionId?: string;
+    installmentCount?: number;
+    firstInstallmentDate?: string;
     paymentMethod: Expense['paymentMethod'];
   }) {
     const categories = await this.categories.listByTenant(input.tenantId);
@@ -66,7 +68,9 @@ export class FinanceUseCases {
       subcategoryId: normalized.subcategoryId,
       paymentMethod: paymentSelection.paymentMethod,
       paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
-      bankOptionId: paymentSelection.bankOptionId
+      bankOptionId: paymentSelection.bankOptionId,
+      installmentCount: input.installmentCount,
+      firstInstallmentDate: input.firstInstallmentDate
     });
     if (!updated) throw new Error('Expense not found.');
     return updated;
@@ -226,6 +230,10 @@ export class FinanceUseCases {
 
   weeklyExpensesDailyTotals(tenantId: string, weekStartIsoDate: string) {
     return this.expenses.weeklyDailyTotalsByTenant(tenantId, weekStartIsoDate);
+  }
+
+  upcomingExpenseInstallmentsMonthlyTotals(tenantId: string, startMonth: string, months = 6) {
+    return this.expenses.upcomingInstallmentsMonthlyTotalsByTenant(tenantId, startMonth, months);
   }
 
   yearlyIncomesMonthlyTotals(tenantId: string, year: number) {

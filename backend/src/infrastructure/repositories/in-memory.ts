@@ -254,9 +254,18 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   private readonly expenses: Expense[] = [];
 
   async create(input: Omit<Expense, 'id'>) {
-    const expense = { ...input, id: randomUUID() };
+    const installmentCount = Math.max(1, input.installmentCount ?? 1);
+    const purchaseDate = input.purchaseDate ?? input.date;
+    const firstInstallmentDate = input.firstInstallmentDate ?? input.date;
+    const expense = {
+      ...input,
+      id: randomUUID(),
+      purchaseDate,
+      firstInstallmentDate,
+      installmentCount
+    };
     this.expenses.push(expense);
-    return expense;
+    return buildProjectedExpenses(expense)[0];
   }
 
   async update(input: {
@@ -270,17 +279,26 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    installmentCount?: number;
+    firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }) {
     const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
     if (index < 0) return undefined;
+    const purchaseDate = input.date ?? this.expenses[index].purchaseDate ?? this.expenses[index].date;
+    const firstInstallmentDate = Object.prototype.hasOwnProperty.call(input, 'firstInstallmentDate')
+      ? input.firstInstallmentDate ?? purchaseDate
+      : this.expenses[index].firstInstallmentDate ?? purchaseDate;
     this.expenses[index] = {
       ...this.expenses[index],
-      date: input.date ?? this.expenses[index].date,
+      date: purchaseDate,
+      purchaseDate,
       amount: input.amount ?? this.expenses[index].amount,
       currency: input.currency ?? this.expenses[index].currency,
       concept: input.concept ?? this.expenses[index].concept,
       categoryId: input.categoryId ?? this.expenses[index].categoryId,
+      installmentCount: input.installmentCount ?? this.expenses[index].installmentCount ?? 1,
+      firstInstallmentDate,
       paymentMethodOptionId: Object.prototype.hasOwnProperty.call(input, 'paymentMethodOptionId')
         ? input.paymentMethodOptionId ?? undefined
         : this.expenses[index].paymentMethodOptionId,
@@ -292,7 +310,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
         ? input.subcategoryId ?? undefined
         : this.expenses[index].subcategoryId
     };
-    return this.expenses[index];
+    return buildProjectedExpenses(this.expenses[index])[0];
   }
 
   async list(input: {
@@ -304,30 +322,30 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
   }) {
-    return this.expenses
+    return this.projectedExpenses()
       .filter((expense) => expense.tenantId === input.tenantId)
       .filter((expense) => !input.from || expense.date >= input.from)
       .filter((expense) => !input.to || expense.date <= input.to)
-      .filter((expense) => !input.categoryId || expense.categoryId === input.categoryId)
+      .filter((expense) => !input.categoryId || expense.categoryId === input.categoryId || expense.subcategoryId === input.categoryId)
       .filter((expense) => !input.currency || expense.currency === input.currency)
       .filter((expense) => !input.paymentMethodKind || expense.paymentMethod.kind === input.paymentMethodKind)
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort(sortProjectedExpenses)
       .slice(0, input.limit);
   }
 
   async listRecent(tenantId: string, limit: number) {
-    return this.expenses
+    return this.projectedExpenses()
       .filter((expense) => expense.tenantId === tenantId)
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort(sortProjectedExpenses)
       .slice(0, limit);
   }
 
   async listByPeriod(tenantId: string, from: string, to: string) {
-    return this.expenses.filter((expense) => expense.tenantId === tenantId && expense.date >= from && expense.date <= to);
+    return this.projectedExpenses().filter((expense) => expense.tenantId === tenantId && expense.date >= from && expense.date <= to);
   }
 
   async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
-    const source = this.expenses.filter((expense) =>
+    const source = this.projectedExpenses().filter((expense) =>
       expense.tenantId === tenantId && new Date(expense.date).getUTCFullYear() === year
     );
     return aggregateCurrencyTotalsBy(source, (expense) => {
@@ -338,7 +356,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
 
   async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
     const [year, monthNumber] = month.split('-').map(Number);
-    const source = this.expenses.filter((expense) => {
+    const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
       const date = new Date(expense.date);
       return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === monthNumber;
@@ -354,7 +372,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     weekEnd.setUTCHours(23, 59, 59, 999);
-    const source = this.expenses.filter((expense) => {
+    const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
       const date = new Date(expense.date);
       return date >= weekStart && date <= weekEnd;
@@ -367,7 +385,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
 
   async periodCategoryTotalsByTenant(tenantId: string, from: string, to: string) {
     const totals = new Map<string, CategoryTotalByPeriod>();
-    for (const expense of this.expenses) {
+    for (const expense of this.projectedExpenses()) {
       if (expense.tenantId !== tenantId) continue;
       if (expense.date < from || expense.date > to) continue;
       const key = [expense.categoryId, expense.subcategoryId ?? '', expense.currency].join('__');
@@ -384,6 +402,25 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
       });
     }
     return [...totals.values()];
+  }
+
+  async upcomingInstallmentsMonthlyTotalsByTenant(tenantId: string, startMonth: string, months: number) {
+    const [year, month] = startMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month - 1 + Math.max(1, months), 1, 0, 0, 0));
+    const source = this.projectedExpenses().filter((expense) => {
+      if (expense.tenantId !== tenantId) return false;
+      const date = new Date(expense.date);
+      return date >= start && date < end;
+    });
+    return aggregateCurrencyTotalsBy(source, (expense) => {
+      const date = new Date(expense.date);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    });
+  }
+
+  private projectedExpenses() {
+    return this.expenses.flatMap((expense) => buildProjectedExpenses(expense));
   }
 }
 
@@ -486,6 +523,54 @@ function aggregateCurrencyTotalsBy<T extends { amount: number; currency: string 
     });
   }
   return [...totals.values()].sort((a, b) => a.periodKey.localeCompare(b.periodKey));
+}
+
+function buildProjectedExpenses(expense: Expense) {
+  const installmentCount = Math.max(1, expense.installmentCount ?? 1);
+  const firstInstallmentDate = expense.firstInstallmentDate ?? expense.date;
+  const purchaseDate = expense.purchaseDate ?? expense.date;
+  const centsTotal = Math.round(Number(expense.amount) * 100);
+  const base = Math.floor(centsTotal / installmentCount);
+  let remainder = centsTotal - (base * installmentCount);
+  const firstDate = new Date(firstInstallmentDate);
+
+  return Array.from({ length: installmentCount }, (_, index) => {
+    const cents = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    const dueDate = addMonthsClamped(firstDate, index).toISOString();
+    return {
+      ...expense,
+      date: dueDate,
+      amount: cents / 100,
+      totalAmount: Number(expense.amount),
+      purchaseDate,
+      installmentCount,
+      installmentNumber: index + 1,
+      firstInstallmentDate
+    };
+  });
+}
+
+function addMonthsClamped(date: Date, months: number) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const day = date.getUTCDate();
+  const targetYear = year + Math.floor(month / 12);
+  const targetMonth = ((month % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(
+    targetYear,
+    targetMonth,
+    Math.min(day, lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds()
+  ));
+}
+
+function sortProjectedExpenses(a: Expense, b: Expense) {
+  return b.date.localeCompare(a.date) || (a.installmentNumber ?? 1) - (b.installmentNumber ?? 1);
 }
 
 export class InMemoryBudgetRepository implements BudgetRepository {

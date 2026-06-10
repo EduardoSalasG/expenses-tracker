@@ -294,6 +294,17 @@ export class FinanceController {
     response.json(await this.container.useCases.finance.weeklyExpensesDailyTotals(authRequest.auth.tenantId, query.weekStart));
   };
 
+  upcomingExpenseInstallmentsMonthlyTotals = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const month = typeof request.query.month === 'string' ? request.query.month : new Date().toISOString().slice(0, 7);
+    const months = Number(request.query.months ?? 6);
+    response.json(await this.container.useCases.finance.upcomingExpenseInstallmentsMonthlyTotals(
+      authRequest.auth.tenantId,
+      month,
+      Number.isFinite(months) ? Math.min(Math.max(months, 1), 24) : 6
+    ));
+  };
+
   yearlyIncomesMonthlyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportYearQuerySchema.parse(request.query);

@@ -38,6 +38,16 @@ describe('parseExpenseMessage', () => {
     expect(parsed.currency).toBe('CLP');
   });
 
+  it('extracts installment count from natural language', () => {
+    const parsed = parseExpenseMessage('500000 iphone 15, tdc bci, 3 cuotas', 'CLP');
+
+    expect(parsed.status).toBe('ready');
+    expect(parsed.amount).toBe(500000);
+    expect(parsed.installmentCount).toBe(3);
+    expect(parsed.concept).toBe('iphone 15');
+    expect(parsed.paymentMethod).toEqual({ kind: 'card', cardType: 'credit', bank: 'bci' });
+  });
+
   it('requires missing fields before saving', () => {
     const parsed = parseExpenseMessage('lunch', 'USD');
 

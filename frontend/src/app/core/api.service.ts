@@ -29,12 +29,17 @@ export interface Expense {
   id: string;
   date: string;
   amount: number;
+  totalAmount?: number;
   currency: string;
   concept: string;
   categoryId: string;
   subcategoryId?: string;
   paymentMethodOptionId?: string;
   bankOptionId?: string;
+  purchaseDate?: string;
+  installmentCount?: number;
+  installmentNumber?: number;
+  firstInstallmentDate?: string;
   paymentMethod: PaymentMethod;
 }
 
@@ -244,6 +249,13 @@ export class ApiService {
     return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
       `${environment.apiBaseUrl}/reports/expenses/weekly-daily`,
       { params: new HttpParams().set('weekStart', weekStart) }
+    );
+  }
+
+  upcomingExpenseInstallments(month: string, months = 6) {
+    return this.http.get<Array<{ periodKey: string; currency: string; total: number }>>(
+      `${environment.apiBaseUrl}/reports/expenses/upcoming-installments`,
+      { params: new HttpParams().set('month', month).set('months', months) }
     );
   }
 

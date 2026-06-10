@@ -5,6 +5,7 @@ export interface ParsedExpenseMessage {
   amount?: number;
   currency?: string;
   concept?: string;
+  installmentCount?: number;
   paymentMethod?: PaymentMethod;
   missingFields: string[];
 }
@@ -14,6 +15,7 @@ export function parseExpenseMessage(message: string, preferredCurrency: string):
   const amountMatch = trimmed.match(/(^|[\s(])(?:(CLP|USD|EUR|GBP)\s+)?([$€£])?\s*(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d{1,2})?)(?=$|[\s,.)])/i);
   const amount = amountMatch ? parseLocalizedAmount(amountMatch[4]) : undefined;
   const currency = preferredCurrency;
+  const installmentCount = parseInstallmentCount(trimmed);
 
   const lower = trimmed.toLowerCase();
   const paymentMethod = parsePaymentMethod(lower);
@@ -32,6 +34,7 @@ export function parseExpenseMessage(message: string, preferredCurrency: string):
     amount,
     currency,
     concept: concept.length > 0 ? concept : undefined,
+    installmentCount,
     paymentMethod,
     missingFields
   };
@@ -86,9 +89,19 @@ function cleanConcept(value: string) {
     .replace(/\b[a-z0-9]+\s+(transferencia|transfer|transf)\b/gi, '')
     .replace(/\b(tdc|tdd|card|tarjeta|credito|crédito|debito|débito)\s+[a-z0-9 -]+/gi, '')
     .replace(/\b(credit|debit)\b/gi, '')
+    .replace(/\b\d+\s*(cuotas|cuota|installments?|meses?)\b/gi, '')
+    .replace(/\b(en|a)\s+\d+\s*(cuotas|cuota|installments?)\b/gi, '')
     .replace(/\s*,\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+function parseInstallmentCount(message: string) {
+  const match = message.match(/\b(?:en\s+)?(\d{1,2})\s*(cuotas|cuota|installments?|months?)\b/i)
+    ?? message.match(/\b(\d{1,2})x\b/i);
+  if (!match) return 1;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : 1;
 }
 
 function extractBank(lowerMessage: string, patterns: RegExp[]) {
