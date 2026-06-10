@@ -195,6 +195,21 @@ interface CategoryVariationRow {
 
       <section class="mt-4">
         <mat-card class="page-panel chart-panel p-5">
+          <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <h2 class="text-lg font-semibold">{{ t('dashboard_expenses_by_subcategory') }}</h2>
+            <p class="text-sm text-brand-muted">
+              {{ t('dashboard_selected_category') }}:
+              <span class="font-medium text-brand-ink">{{ selectedCategoryLabel() }}</span>
+            </p>
+          </div>
+          <div class="h-64 sm:h-72">
+            <canvas #subcategoryChart aria-label="Expenses by subcategory chart"></canvas>
+          </div>
+        </mat-card>
+      </section>
+
+      <section class="mt-4">
+        <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">
             {{ viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month') }}
           </h2>
@@ -348,6 +363,7 @@ interface CategoryVariationRow {
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('currencyChart') private currencyChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('categoryChart') private categoryChartCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('subcategoryChart') private subcategoryChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('weeklyChart') private weeklyChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('installmentsChart') private installmentsChartCanvas?: ElementRef<HTMLCanvasElement>;
 
@@ -361,6 +377,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly periodTotals = signal<PeriodTotalRow[]>([]);
   readonly categoryTotals = signal<CategoryTotalRow[]>([]);
   readonly upcomingInstallments = signal<PeriodTotalRow[]>([]);
+  readonly selectedCategoryId = signal<string | null>(null);
   readonly viewMode = signal<'monthly' | 'yearly'>('monthly');
   readonly selectedMonth = signal(new Date().toISOString().slice(0, 7));
   readonly selectedYear = signal(new Date().getUTCFullYear());
@@ -386,6 +403,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   });
   readonly budgetProgress = computed(() => this.buildBudgetProgress());
   readonly categoryVariation = computed(() => this.buildCategoryVariation());
+  readonly selectedCategoryLabel = computed(() => {
+    const categoryId = this.selectedCategoryId();
+    return categoryId ? this.categoryName(categoryId) : this.t('dashboard_no_category_selected');
+  });
   readonly overallBudget = computed(() => {
     const rows = this.budgetProgress();
     if (!rows.length) return null;
@@ -409,6 +430,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private currencyChart?: Chart;
   private categoryChart?: Chart;
+  private subcategoryChart?: Chart;
   private weeklyChart?: Chart;
   private installmentsChart?: Chart;
   private viewReady = false;
@@ -437,6 +459,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mediaQuery.removeEventListener('change', this.handleThemeChange);
     this.currencyChart?.destroy();
     this.categoryChart?.destroy();
+    this.subcategoryChart?.destroy();
     this.weeklyChart?.destroy();
     this.installmentsChart?.destroy();
   }
@@ -494,6 +517,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   categoryName(categoryId: string) {
     return this.categories().find((category) => category.id === categoryId)?.name ?? 'Uncategorized';
+  }
+
+  subcategoryName(subcategoryId?: string) {
+    if (!subcategoryId) return this.t('dashboard_without_subcategory');
+    return this.categories().find((category) => category.id === subcategoryId)?.name ?? this.t('dashboard_without_subcategory');
   }
 
   paymentLabel(expense: Expense) {
@@ -575,6 +603,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.applyChartDefaults();
     this.renderCurrencyChart();
     this.renderCategoryChart();
+    this.renderSubcategoryChart();
     this.renderWeeklyChart();
     this.renderInstallmentsChart();
   }
@@ -630,19 +659,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const canvas = this.categoryChartCanvas?.nativeElement;
     const totalsRows = this.categoryTotals();
     if (!canvas) return;
-    const totals = totalsRows.reduce<Record<string, number>>((grouped, row) => {
-      const label = `${this.categoryName(row.categoryId)} (${row.currency})`;
-      grouped[label] = (grouped[label] ?? 0) + Number(row.total);
+    const totalsMap = totalsRows.reduce<Record<string, { categoryId: string; currency: string; total: number }>>((grouped, row) => {
+      const key = `${row.categoryId}:${row.currency}`;
+      if (!grouped[key]) {
+        grouped[key] = { categoryId: row.categoryId, currency: row.currency, total: 0 };
+      }
+      grouped[key].total += Number(row.total);
       return grouped;
     }, {});
-    const labels = Object.keys(totals);
+    const totals = Object.values(totalsMap).sort((left, right) => right.total - left.total);
+    const labels = totals.map((row) => `${this.categoryName(row.categoryId)} (${row.currency})`);
     const config: ChartConfiguration<'doughnut'> = {
       type: 'doughnut',
       plugins: [chartAreaBackgroundPlugin],
       data: {
         labels: labels.length ? labels : ['No expenses'],
         datasets: [{
-          data: labels.length ? labels.map((label) => totals[label]) : [1],
+          data: labels.length ? totals.map((row) => row.total) : [1],
           backgroundColor: labels.length
             ? labels.map((_, index) => this.chartColors().categoryPalette[index % this.chartColors().categoryPalette.length])
             : ['#94A3B8'],
@@ -656,11 +689,81 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         plugins: {
           legend: { position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 14, usePointStyle: true } },
           chartAreaBackground: { color: this.chartColors().surfaceMuted }
-        } as never
+        } as never,
+        onClick: (_event, elements) => {
+          const clickedIndex = elements?.[0]?.index;
+          if (clickedIndex === undefined) return;
+          const row = totals[clickedIndex];
+          if (!row) return;
+          this.selectedCategoryId.set(row.categoryId);
+          this.renderSubcategoryChart();
+        }
       }
     };
     this.categoryChart?.destroy();
     this.categoryChart = new Chart(canvas, config);
+  }
+
+  private renderSubcategoryChart() {
+    const canvas = this.subcategoryChartCanvas?.nativeElement;
+    const selectedCategoryId = this.selectedCategoryId();
+    if (!canvas) return;
+    const rows = selectedCategoryId
+      ? this.categoryTotals().filter((row) => row.categoryId === selectedCategoryId)
+      : [];
+    const totalsMap = rows.reduce<Record<string, { subcategoryId?: string; currency: string; total: number }>>((grouped, row) => {
+      const subcategoryKey = row.subcategoryId ?? '__none__';
+      const key = `${subcategoryKey}:${row.currency}`;
+      if (!grouped[key]) {
+        grouped[key] = { subcategoryId: row.subcategoryId, currency: row.currency, total: 0 };
+      }
+      grouped[key].total += Number(row.total);
+      return grouped;
+    }, {});
+    const totals = Object.values(totalsMap).sort((left, right) => right.total - left.total);
+    const labels = totals.map((row) => `${this.subcategoryName(row.subcategoryId)} (${row.currency})`);
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      plugins: [chartAreaBackgroundPlugin],
+      data: {
+        labels: labels.length ? labels : [this.t('dashboard_no_subcategory_data')],
+        datasets: [{
+          label: this.t('dashboard_expenses'),
+          data: labels.length ? totals.map((row) => row.total) : [0],
+          backgroundColor: labels.length
+            ? labels.map((_, index) => this.chartColors().seriesPalette[index % this.chartColors().seriesPalette.length])
+            : ['#94A3B8']
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted },
+          tooltip: {
+            backgroundColor: this.chartColors().surface,
+            titleColor: this.chartColors().text,
+            bodyColor: this.chartColors().text,
+            borderColor: this.chartColors().grid,
+            borderWidth: 1
+          }
+        } as never,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { color: this.chartColors().grid }
+          },
+          x: {
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { color: this.chartColors().grid }
+          }
+        }
+      }
+    };
+    this.subcategoryChart?.destroy();
+    this.subcategoryChart = new Chart(canvas, config);
   }
 
   private renderWeeklyChart() {
@@ -818,6 +921,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.budgets.set(budgets);
         this.periodTotals.set(periodTotals);
         this.categoryTotals.set(categoryTotals);
+        this.syncSelectedCategory(categoryTotals);
         this.upcomingInstallments.set(upcomingInstallments);
         this.loading.set(false);
         if (!user.telegramChatId) {
@@ -839,6 +943,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly handleThemeChange = () => {
     this.renderCharts();
   };
+
+  private syncSelectedCategory(rows: CategoryTotalRow[]) {
+    const availableCategoryIds = [...new Set(rows.map((row) => row.categoryId))];
+    const current = this.selectedCategoryId();
+    if (current && availableCategoryIds.includes(current)) return;
+    this.selectedCategoryId.set(availableCategoryIds[0] ?? null);
+  }
 
   private chartColors() {
     const styles = getComputedStyle(document.documentElement);
