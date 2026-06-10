@@ -10,13 +10,14 @@ import type {
   MessagingPendingDraftRepository,
   OtpRepository,
   PaymentMethodOptionRepository,
+  RegistrationLeadRepository,
   ReportDispatchRepository,
   TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
 } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -92,6 +93,57 @@ export class InMemoryUserRepository implements UserRepository {
     const updated = { ...user, reportPreferences: preferences };
     this.users.set(userId, updated);
     return updated;
+  }
+}
+
+export class InMemoryRegistrationLeadRepository implements RegistrationLeadRepository {
+  private readonly leads = new Map<string, RegistrationLead>();
+
+  async upsertStarted(input: {
+    firstName: string;
+    email: string;
+    preferredLanguage?: 'es' | 'en';
+    phoneNumber?: string;
+  }) {
+    const key = input.email.trim().toLowerCase();
+    const now = new Date().toISOString();
+    const existing = this.leads.get(key);
+    const lead: RegistrationLead = existing
+      ? {
+          ...existing,
+          firstName: input.firstName,
+          preferredLanguage: input.preferredLanguage ?? existing.preferredLanguage,
+          phoneNumber: input.phoneNumber ?? existing.phoneNumber,
+          status: existing.status === 'completed' ? 'completed' : 'started',
+          updatedAt: now
+        }
+      : {
+          id: randomUUID(),
+          firstName: input.firstName,
+          email: input.email,
+          preferredLanguage: input.preferredLanguage ?? 'es',
+          phoneNumber: input.phoneNumber,
+          status: 'started',
+          createdAt: now,
+          updatedAt: now
+        };
+
+    this.leads.set(key, lead);
+    return lead;
+  }
+
+  async markCompletedByEmail(email: string, phoneNumber?: string) {
+    const key = email.trim().toLowerCase();
+    const existing = this.leads.get(key);
+    if (!existing) return;
+    const now = new Date().toISOString();
+    this.leads.set(key, {
+      ...existing,
+      phoneNumber: phoneNumber ?? existing.phoneNumber,
+      status: 'completed',
+      completedAt: now,
+      updatedAt: now
+    });
   }
 }
 

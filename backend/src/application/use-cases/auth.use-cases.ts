@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { CategoryRepository, Clock, EmailMagicLinkTokenRepository, EmailProvider, MessagingProvider, OtpRepository, PasswordHasher, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
+import type { CategoryRepository, Clock, EmailMagicLinkTokenRepository, EmailProvider, MessagingProvider, OtpRepository, PasswordHasher, RegistrationLeadRepository, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -44,6 +44,23 @@ export class RequestTelegramLinkTokenUseCase {
     const expiresAt = new Date(this.clock.now().getTime() + 15 * 60 * 1000);
     await this.telegramLinkTokens.create({ token, chatId, phoneNumber, expiresAt });
     return { token, expiresAt: expiresAt.toISOString() };
+  }
+}
+
+export class SaveRegistrationLeadUseCase {
+  constructor(private readonly registrationLeads: RegistrationLeadRepository) {}
+
+  async execute(input: {
+    firstName: string;
+    email: string;
+    preferredLanguage?: 'es' | 'en';
+    phoneNumber?: string;
+  }) {
+    const lead = await this.registrationLeads.upsertStarted(input);
+    return {
+      saved: true,
+      lead
+    };
   }
 }
 
@@ -508,6 +525,7 @@ export class RegisterWebUseCase {
     private readonly categories: CategoryRepository,
     private readonly passwords: PasswordHasher,
     private readonly tokens: TokenService,
+    private readonly registrationLeads: RegistrationLeadRepository,
     private readonly email: EmailProvider,
     private readonly options: { frontendPublicOrigin: string; logger?: { error(message: string, meta?: unknown): void } }
   ) {}
@@ -545,6 +563,9 @@ export class RegisterWebUseCase {
     await this.categories.ensureDefaults(user.tenantId);
     if (input.telegramChatId) {
       await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
+    }
+    if (user.email) {
+      await this.registrationLeads.markCompletedByEmail(user.email, user.phoneNumber);
     }
     if (user.email) {
       try {

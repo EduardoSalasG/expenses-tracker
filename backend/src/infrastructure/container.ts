@@ -19,6 +19,7 @@ import {
   InMemoryMessagingPendingDraftRepository,
   InMemoryOtpRepository,
   InMemoryPaymentMethodOptionRepository,
+  InMemoryRegistrationLeadRepository,
   InMemoryReportDispatchRepository,
   InMemoryTelegramLinkTokenRepository,
   InMemoryUserRepository
@@ -34,6 +35,7 @@ import {
   PostgresMessagingPendingDraftRepository,
   PostgresOtpRepository,
   PostgresPaymentMethodOptionRepository,
+  PostgresRegistrationLeadRepository,
   PostgresReportDispatchRepository,
   PostgresTelegramLinkTokenRepository,
   PostgresUserRepository
@@ -50,6 +52,7 @@ import {
   RequestEmailMagicLinkUseCase,
   RequestTelegramLinkTokenUseCase,
   RequestOtpUseCase,
+  SaveRegistrationLeadUseCase,
   SendDueReportsUseCase,
   UpdateProfileUseCase,
   UpdateReportPreferencesUseCase,
@@ -65,6 +68,7 @@ export function createContainer(config: AppConfig) {
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
+  const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
@@ -113,7 +117,8 @@ export function createContainer(config: AppConfig) {
       return { status: 'ok' as const, checks: { database: 'ok' } };
     },
     useCases: {
-      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens, email, {
+      saveRegistrationLead: new SaveRegistrationLeadUseCase(registrationLeads),
+      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens, registrationLeads, email, {
         frontendPublicOrigin: config.frontendPublicOrigin,
         logger
       }),

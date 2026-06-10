@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils.js';
 export function registerAuthRoutes(app: Express, container: AppContainer) {
   const controller = new AuthController(container);
 
+  app.post('/auth/register/lead', asyncHandler(controller.saveRegistrationLead));
   app.post('/auth/register', asyncHandler(controller.registerWeb));
   app.post('/auth/login', asyncHandler(controller.loginWeb));
   app.post('/auth/magic-link/request', asyncHandler(controller.requestMagicLink));

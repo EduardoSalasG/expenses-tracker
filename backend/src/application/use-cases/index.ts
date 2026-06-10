@@ -1,4 +1,4 @@
-export { ConsumeEmailMagicLinkUseCase, ConsumeTelegramLinkTokenUseCase, CreateTelegramRegistrationLinkUseCase, LoginWebUseCase, RegisterWebUseCase, RequestEmailMagicLinkUseCase, RequestOtpUseCase, RequestTelegramLinkTokenUseCase, RefreshSessionUseCase, VerifyOtpUseCase } from './auth.use-cases.js';
+export { ConsumeEmailMagicLinkUseCase, ConsumeTelegramLinkTokenUseCase, CreateTelegramRegistrationLinkUseCase, LoginWebUseCase, RegisterWebUseCase, RequestEmailMagicLinkUseCase, RequestOtpUseCase, RequestTelegramLinkTokenUseCase, RefreshSessionUseCase, SaveRegistrationLeadUseCase, VerifyOtpUseCase } from './auth.use-cases.js';
 export { FinanceUseCases } from './finance.use-cases.js';
 export { ProcessInboundFinanceMessageUseCase } from './process-inbound-finance-message.use-case.js';
 export { SendDueReportsUseCase } from './send-due-reports.use-case.js';

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ConsumeEmailMagicLinkUseCase, LoginWebUseCase, RegisterWebUseCase, RequestEmailMagicLinkUseCase, RequestOtpUseCase, VerifyOtpUseCase } from './use-cases.js';
+import { ConsumeEmailMagicLinkUseCase, LoginWebUseCase, RegisterWebUseCase, RequestEmailMagicLinkUseCase, RequestOtpUseCase, SaveRegistrationLeadUseCase, VerifyOtpUseCase } from './use-cases.js';
 import {
   InMemoryCategoryRepository,
   InMemoryEmailMagicLinkTokenRepository,
+  InMemoryRegistrationLeadRepository,
   InMemoryOtpRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
@@ -148,9 +149,10 @@ describe('auth use cases', () => {
   it('registers a web user and allows password login', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
+    const registrationLeads = new InMemoryRegistrationLeadRepository();
     const passwords = new ScryptPasswordHasher();
     const email = new CapturingEmailProvider();
-    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), email, {
+    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), registrationLeads, email, {
       frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
     });
 
@@ -177,6 +179,59 @@ describe('auth use cases', () => {
     });
 
     expect(loginSession.user.preferredName).toBe('Edu');
+  });
+
+  it('stores a registration lead after the first public step', async () => {
+    const leads = new InMemoryRegistrationLeadRepository();
+    const useCase = new SaveRegistrationLeadUseCase(leads);
+
+    const result = await useCase.execute({
+      firstName: 'Eduardo',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+
+    expect(result.saved).toBe(true);
+    expect(result.lead.status).toBe('started');
+    expect(result.lead.email).toBe('eduardo@example.com');
+  });
+
+  it('marks the registration lead as completed after creating the account', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const registrationLeads = new InMemoryRegistrationLeadRepository();
+    const passwords = new ScryptPasswordHasher();
+    const email = new CapturingEmailProvider();
+    const leadUseCase = new SaveRegistrationLeadUseCase(registrationLeads);
+    await leadUseCase.execute({
+      firstName: 'Eduardo',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+
+    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), registrationLeads, email, {
+      frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
+    });
+
+    await registerUseCase.execute({
+      phoneNumber: '+56982439041',
+      password: 'correct-horse-battery',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Edu',
+      email: 'eduardo@example.com',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      preferredLanguage: 'es'
+    });
+
+    const updatedLead = await registrationLeads.upsertStarted({
+      firstName: 'Eduardo',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+    expect(updatedLead.status).toBe('completed');
+    expect(updatedLead.completedAt).toBeTruthy();
   });
 
   it('sends a magic link email for existing users with email configured', async () => {

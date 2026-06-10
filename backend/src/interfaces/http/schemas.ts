@@ -20,6 +20,13 @@ export const webRegisterSchema = z.object({
   telegramChatId: z.string().min(2).optional()
 });
 
+export const saveRegistrationLeadSchema = z.object({
+  firstName: z.string().min(1),
+  email: z.string().email(),
+  preferredLanguage: z.enum(['es', 'en']).default('es'),
+  phoneNumber: phoneNumberSchema.optional()
+});
+
 export const webLoginSchema = z.object({
   phoneNumber: phoneNumberSchema,
   password: z.string().min(8),

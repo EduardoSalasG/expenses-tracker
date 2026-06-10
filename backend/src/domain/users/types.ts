@@ -3,6 +3,7 @@ import type { TenantId } from '../tenancy/index.js';
 
 export type UserId = string;
 export type LanguageCode = 'es' | 'en';
+export type RegistrationLeadStatus = 'started' | 'completed';
 
 export interface User {
   id: UserId;
@@ -24,4 +25,16 @@ export interface User {
 export interface UserAuthRecord {
   user: User;
   passwordHash?: string;
+}
+
+export interface RegistrationLead {
+  id: string;
+  firstName: string;
+  email: string;
+  preferredLanguage: LanguageCode;
+  phoneNumber?: string;
+  status: RegistrationLeadStatus;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }

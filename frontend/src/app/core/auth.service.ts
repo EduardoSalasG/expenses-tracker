@@ -42,6 +42,17 @@ interface MagicLinkRequestResponse {
   email: string;
 }
 
+interface RegistrationLeadResponse {
+  saved: boolean;
+  lead: {
+    id: string;
+    email: string;
+    firstName: string;
+    preferredLanguage: 'es' | 'en';
+    status: 'started' | 'completed';
+  };
+}
+
 export interface RequestOtpResponse {
   sent: boolean;
   requiresRegistration: boolean;
@@ -69,6 +80,15 @@ export class AuthService {
 
   requestOtpWithTelegram(phoneNumber: string, telegramChatId?: string) {
     return this.http.post<RequestOtpResponse>(`${environment.apiBaseUrl}/auth/otp/request`, { phoneNumber, telegramChatId });
+  }
+
+  saveRegistrationLead(payload: {
+    firstName: string;
+    email: string;
+    preferredLanguage?: 'es' | 'en';
+    phoneNumber?: string;
+  }) {
+    return this.http.post<RegistrationLeadResponse>(`${environment.apiBaseUrl}/auth/register/lead`, payload);
   }
 
   registerWeb(payload: {

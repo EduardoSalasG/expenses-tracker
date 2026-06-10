@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { AppContainer } from '../../../infrastructure/container.js';
-import { consumeMagicLinkSchema, consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestMagicLinkSchema, requestOtpSchema, verifyOtpSchema, webLoginSchema, webRegisterSchema } from '../schemas.js';
+import { consumeMagicLinkSchema, consumeTelegramLinkTokenSchema, createTelegramLinkTokenSchema, createTelegramRegistrationLinkSchema, refreshTokenSchema, requestMagicLinkSchema, requestOtpSchema, saveRegistrationLeadSchema, verifyOtpSchema, webLoginSchema, webRegisterSchema } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
 export class AuthController {
@@ -9,6 +9,11 @@ export class AuthController {
   requestOtp = async (request: Request, response: Response) => {
     const body = parseBody(requestOtpSchema, request.body);
     response.json(await this.container.useCases.requestOtp.execute(body));
+  };
+
+  saveRegistrationLead = async (request: Request, response: Response) => {
+    const body = parseBody(saveRegistrationLeadSchema, request.body);
+    response.status(201).json(await this.container.useCases.saveRegistrationLead.execute(body));
   };
 
   registerWeb = async (request: Request, response: Response) => {

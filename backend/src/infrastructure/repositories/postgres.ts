@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -118,6 +118,51 @@ export class PostgresUserRepository implements UserRepository {
     );
     if (!result.rows[0]) throw new Error('User not found.');
     return mapUser(result.rows[0]);
+  }
+}
+
+export class PostgresRegistrationLeadRepository implements RegistrationLeadRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async upsertStarted(input: {
+    firstName: string;
+    email: string;
+    preferredLanguage?: 'es' | 'en';
+    phoneNumber?: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into registration_leads (
+        email, first_name, preferred_language, phone_number, status
+      )
+      values ($1, $2, $3, $4, 'started')
+      on conflict (email) do update
+      set first_name = excluded.first_name,
+          preferred_language = excluded.preferred_language,
+          phone_number = coalesce(excluded.phone_number, registration_leads.phone_number),
+          status = case when registration_leads.status = 'completed' then 'completed' else 'started' end,
+          updated_at = now()
+      returning *`,
+      [
+        input.email.trim().toLowerCase(),
+        input.firstName,
+        input.preferredLanguage ?? 'es',
+        input.phoneNumber ?? null
+      ]
+    );
+
+    return mapRegistrationLead(result.rows[0]);
+  }
+
+  async markCompletedByEmail(email: string, phoneNumber?: string) {
+    await this.pool.query(
+      `update registration_leads
+       set phone_number = coalesce($2, phone_number),
+           status = 'completed',
+           completed_at = coalesce(completed_at, now()),
+           updated_at = now()
+       where email = $1`,
+      [email.trim().toLowerCase(), phoneNumber ?? null]
+    );
   }
 }
 
@@ -934,6 +979,20 @@ export class PostgresEmailMagicLinkTokenRepository implements EmailMagicLinkToke
       expiresAt: result.rows[0].expires_at instanceof Date ? result.rows[0].expires_at.toISOString() : String(result.rows[0].expires_at)
     };
   }
+}
+
+function mapRegistrationLead(row: QueryResultRow): RegistrationLead {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    email: row.email,
+    preferredLanguage: row.preferred_language ?? 'es',
+    phoneNumber: row.phone_number ?? undefined,
+    status: row.status,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+    completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : undefined
+  };
 }
 
 function mapUser(row: QueryResultRow): User {
