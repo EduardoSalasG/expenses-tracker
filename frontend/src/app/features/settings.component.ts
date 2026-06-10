@@ -144,16 +144,38 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 <mat-label>{{ t('settings_bank_name') }}</mat-label>
                 <input matInput formControlName="name" />
               </mat-form-field>
-              <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="bankForm.invalid || savingBank()">
-                {{ t('settings_bank_add') }}
-              </button>
+              <div class="flex gap-2 sm:justify-end">
+                <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="bankForm.invalid || savingBank()">
+                  {{ editingBankId() ? t('common_update') : t('settings_bank_add') }}
+                </button>
+                @if (editingBankId()) {
+                  <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="cancelBankEdit()">
+                    {{ t('settings_cancel_edit') }}
+                  </button>
+                }
+              </div>
             </form>
-            <app-feedback-banner [message]="bankMessage()" [tone]="bankMessage().includes('No se pudo') || bankMessage().includes('Could not') ? 'error' : 'success'" />
+            <app-feedback-banner [message]="bankMessage()" [tone]="feedbackTone(bankMessage())" />
             <div class="mt-4 grid gap-2">
               @for (bank of bankOptions(); track bank.id) {
                 <div class="flex items-center justify-between rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm">
-                  <span>{{ bank.name }}</span>
-                  <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ bank.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="truncate">{{ bank.name }}</span>
+                    <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ bank.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                    @if (editingBankId() === bank.id) {
+                      <span class="rounded-full bg-brand-accent/15 px-2 py-0.5 text-xs text-brand-accent">{{ t('settings_editing') }}</span>
+                    }
+                  </div>
+                  <div class="flex items-center gap-1">
+                    @if (!bank.isDefault) {
+                      <button mat-icon-button type="button" class="!text-brand-ink" (click)="startBankEdit(bank)" [attr.aria-label]="t('common_edit')">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deleteBankOption(bank)" [attr.aria-label]="t('common_close')">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  </div>
                 </div>
               }
             </div>
@@ -188,18 +210,38 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                   </mat-form-field>
                 }
               </div>
-              <div class="flex justify-start">
+              <div class="flex flex-wrap gap-2">
                 <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="paymentMethodForm.invalid || savingPaymentMethod()">
-                  {{ t('settings_payment_method_add') }}
+                  {{ editingPaymentMethodId() ? t('common_update') : t('settings_payment_method_add') }}
                 </button>
+                @if (editingPaymentMethodId()) {
+                  <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="cancelPaymentMethodEdit()">
+                    {{ t('settings_cancel_edit') }}
+                  </button>
+                }
               </div>
             </form>
-            <app-feedback-banner [message]="paymentMethodMessage()" [tone]="paymentMethodMessage().includes('No se pudo') || paymentMethodMessage().includes('Could not') ? 'error' : 'success'" />
+            <app-feedback-banner [message]="paymentMethodMessage()" [tone]="feedbackTone(paymentMethodMessage())" />
             <div class="mt-4 grid gap-2">
               @for (option of paymentMethodOptions(); track option.id) {
                 <div class="flex items-center justify-between rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm">
-                  <span>{{ paymentMethodLabel(option) }}</span>
-                  <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ option.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="truncate">{{ paymentMethodLabel(option) }}</span>
+                    <span class="rounded-full border border-brand-border px-2 py-0.5 text-xs text-brand-muted">{{ option.isDefault ? t('settings_default_badge') : t('settings_custom_badge') }}</span>
+                    @if (editingPaymentMethodId() === option.id) {
+                      <span class="rounded-full bg-brand-accent/15 px-2 py-0.5 text-xs text-brand-accent">{{ t('settings_editing') }}</span>
+                    }
+                  </div>
+                  <div class="flex items-center gap-1">
+                    @if (!option.isDefault) {
+                      <button mat-icon-button type="button" class="!text-brand-ink" (click)="startPaymentMethodEdit(option)" [attr.aria-label]="t('common_edit')">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deletePaymentMethodOption(option)" [attr.aria-label]="t('common_close')">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  </div>
                 </div>
               }
             </div>
@@ -271,6 +313,8 @@ export class SettingsComponent {
   readonly savingPaymentMethod = signal(false);
   readonly bankMessage = signal('');
   readonly paymentMethodMessage = signal('');
+  readonly editingBankId = signal<string | null>(null);
+  readonly editingPaymentMethodId = signal<string | null>(null);
   readonly telegramBotUrl = signal('https://t.me/');
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
@@ -397,16 +441,20 @@ export class SettingsComponent {
     if (this.bankForm.invalid) return;
     this.savingBank.set(true);
     this.bankMessage.set('');
-    this.api.createBankOption({ name: this.bankForm.getRawValue().name }).subscribe({
+    const editingId = this.editingBankId();
+    const request = editingId
+      ? this.api.updateBankOption(editingId, { name: this.bankForm.getRawValue().name })
+      : this.api.createBankOption({ name: this.bankForm.getRawValue().name });
+    request.subscribe({
       next: (bank) => {
-        this.bankOptions.set([...this.bankOptions(), bank].sort(sortByNameThenDefault));
-        this.bankForm.reset({ name: '' });
+        this.bankOptions.set(upsertSortedBank(this.bankOptions(), bank));
+        this.cancelBankEdit();
         this.savingBank.set(false);
-        this.bankMessage.set(this.t('settings_bank_saved'));
+        this.bankMessage.set(this.t(editingId ? 'settings_bank_updated' : 'settings_bank_saved'));
       },
       error: () => {
         this.savingBank.set(false);
-        this.bankMessage.set(this.t('settings_bank_save_error'));
+        this.bankMessage.set(this.t(editingId ? 'settings_bank_update_error' : 'settings_bank_save_error'));
       }
     });
   }
@@ -416,20 +464,87 @@ export class SettingsComponent {
     this.savingPaymentMethod.set(true);
     this.paymentMethodMessage.set('');
     const value = this.paymentMethodForm.getRawValue();
-    this.api.createPaymentMethodOption({
+    const editingId = this.editingPaymentMethodId();
+    const payload = {
       name: value.name,
       kind: value.kind,
       cardType: value.kind === 'card' ? value.cardType : undefined
-    }).subscribe({
+    } as const;
+    const request = editingId
+      ? this.api.updatePaymentMethodOption(editingId, payload)
+      : this.api.createPaymentMethodOption(payload);
+    request.subscribe({
       next: (option) => {
-        this.paymentMethodOptions.set([...this.paymentMethodOptions(), option].sort(sortPaymentOptions));
-        this.paymentMethodForm.reset({ name: '', kind: 'cash', cardType: 'debit' });
+        this.paymentMethodOptions.set(upsertSortedPaymentMethod(this.paymentMethodOptions(), option));
+        this.cancelPaymentMethodEdit();
         this.savingPaymentMethod.set(false);
-        this.paymentMethodMessage.set(this.t('settings_payment_method_saved'));
+        this.paymentMethodMessage.set(this.t(editingId ? 'settings_payment_method_updated' : 'settings_payment_method_saved'));
       },
       error: () => {
         this.savingPaymentMethod.set(false);
-        this.paymentMethodMessage.set(this.t('settings_payment_method_save_error'));
+        this.paymentMethodMessage.set(this.t(editingId ? 'settings_payment_method_update_error' : 'settings_payment_method_save_error'));
+      }
+    });
+  }
+
+  startBankEdit(bank: BankOption) {
+    this.editingBankId.set(bank.id);
+    this.bankForm.reset({ name: bank.name });
+    this.bankMessage.set('');
+  }
+
+  cancelBankEdit() {
+    this.editingBankId.set(null);
+    this.bankForm.reset({ name: '' });
+  }
+
+  deleteBankOption(bank: BankOption) {
+    if (!confirm(this.t('settings_delete_confirm'))) return;
+    this.savingBank.set(true);
+    this.bankMessage.set('');
+    this.api.deleteBankOption(bank.id).subscribe({
+      next: () => {
+        this.bankOptions.set(this.bankOptions().filter((item) => item.id !== bank.id));
+        if (this.editingBankId() === bank.id) this.cancelBankEdit();
+        this.savingBank.set(false);
+        this.bankMessage.set(this.t('settings_bank_deleted'));
+      },
+      error: () => {
+        this.savingBank.set(false);
+        this.bankMessage.set(this.t('settings_bank_delete_error'));
+      }
+    });
+  }
+
+  startPaymentMethodEdit(option: PaymentMethodOption) {
+    this.editingPaymentMethodId.set(option.id);
+    this.paymentMethodForm.reset({
+      name: option.name,
+      kind: option.kind,
+      cardType: option.cardType ?? 'debit'
+    });
+    this.paymentMethodMessage.set('');
+  }
+
+  cancelPaymentMethodEdit() {
+    this.editingPaymentMethodId.set(null);
+    this.paymentMethodForm.reset({ name: '', kind: 'cash', cardType: 'debit' });
+  }
+
+  deletePaymentMethodOption(option: PaymentMethodOption) {
+    if (!confirm(this.t('settings_delete_confirm'))) return;
+    this.savingPaymentMethod.set(true);
+    this.paymentMethodMessage.set('');
+    this.api.deletePaymentMethodOption(option.id).subscribe({
+      next: () => {
+        this.paymentMethodOptions.set(this.paymentMethodOptions().filter((item) => item.id !== option.id));
+        if (this.editingPaymentMethodId() === option.id) this.cancelPaymentMethodEdit();
+        this.savingPaymentMethod.set(false);
+        this.paymentMethodMessage.set(this.t('settings_payment_method_deleted'));
+      },
+      error: () => {
+        this.savingPaymentMethod.set(false);
+        this.paymentMethodMessage.set(this.t('settings_payment_method_delete_error'));
       }
     });
   }
@@ -451,6 +566,10 @@ export class SettingsComponent {
   t(key: string) {
     return this.i18n.t(key);
   }
+
+  feedbackTone(message: string) {
+    return message.includes('No se pudo') || message.includes('Could not') ? 'error' : 'success';
+  }
 }
 
 function sortByNameThenDefault(left: BankOption, right: BankOption) {
@@ -461,4 +580,16 @@ function sortByNameThenDefault(left: BankOption, right: BankOption) {
 function sortPaymentOptions(left: PaymentMethodOption, right: PaymentMethodOption) {
   if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1;
   return left.name.localeCompare(right.name);
+}
+
+function upsertSortedBank(banks: BankOption[], updated: BankOption) {
+  const next = banks.filter((bank) => bank.id !== updated.id);
+  next.push(updated);
+  return next.sort(sortByNameThenDefault);
+}
+
+function upsertSortedPaymentMethod(options: PaymentMethodOption[], updated: PaymentMethodOption) {
+  const next = options.filter((option) => option.id !== updated.id);
+  next.push(updated);
+  return next.sort(sortPaymentOptions);
 }

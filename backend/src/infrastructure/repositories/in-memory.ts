@@ -184,6 +184,20 @@ export class InMemoryBankOptionRepository implements BankOptionRepository {
     this.banks.push(bank);
     return bank;
   }
+
+  async update(input: { tenantId: string; bankOptionId: string; name: string }) {
+    const index = this.banks.findIndex((bank) => bank.id === input.bankOptionId && bank.tenantId === input.tenantId && !bank.isDefault);
+    if (index < 0) return undefined;
+    this.banks[index] = { ...this.banks[index], name: input.name };
+    return this.banks[index];
+  }
+
+  async delete(input: { tenantId: string; bankOptionId: string }) {
+    const index = this.banks.findIndex((bank) => bank.id === input.bankOptionId && bank.tenantId === input.tenantId && !bank.isDefault);
+    if (index < 0) return false;
+    this.banks.splice(index, 1);
+    return true;
+  }
 }
 
 export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptionRepository {
@@ -206,6 +220,33 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
     const method = { ...input, id: randomUUID() };
     this.paymentMethods.push(method);
     return method;
+  }
+
+  async update(input: {
+    tenantId: string;
+    paymentMethodOptionId: string;
+    code: string;
+    name: string;
+    kind: PaymentMethodOption['kind'];
+    cardType?: PaymentMethodOption['cardType'];
+  }) {
+    const index = this.paymentMethods.findIndex((method) => method.id === input.paymentMethodOptionId && method.tenantId === input.tenantId && !method.isDefault);
+    if (index < 0) return undefined;
+    this.paymentMethods[index] = {
+      ...this.paymentMethods[index],
+      code: input.code,
+      name: input.name,
+      kind: input.kind,
+      cardType: input.cardType
+    };
+    return this.paymentMethods[index];
+  }
+
+  async delete(input: { tenantId: string; paymentMethodOptionId: string }) {
+    const index = this.paymentMethods.findIndex((method) => method.id === input.paymentMethodOptionId && method.tenantId === input.tenantId && !method.isDefault);
+    if (index < 0) return false;
+    this.paymentMethods.splice(index, 1);
+    return true;
   }
 }
 

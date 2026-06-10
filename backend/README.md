@@ -190,9 +190,17 @@ The app now uses parameterized payment catalogs. System defaults are global, and
 
 `POST /banks` creates a tenant-specific bank option.
 
+`PUT /banks/:bankOptionId` updates a tenant-specific custom bank option. Default banks cannot be modified.
+
+`DELETE /banks/:bankOptionId` deletes a tenant-specific custom bank option. If the bank is already referenced by expenses, the API returns a validation error instead of deleting it.
+
 `GET /payment-method-options` lists global default payment methods plus tenant-specific custom methods.
 
 `POST /payment-method-options` creates a tenant-specific payment method option. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
+
+`PUT /payment-method-options/:paymentMethodOptionId` updates a tenant-specific custom payment method. Default payment methods cannot be modified.
+
+`DELETE /payment-method-options/:paymentMethodOptionId` deletes a tenant-specific custom payment method. If the method is already referenced by expenses, the API returns a validation error instead of deleting it.
 
 ## Profile and Report Preferences
 

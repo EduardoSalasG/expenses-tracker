@@ -12,12 +12,16 @@ export class FinanceUseCases {
     private readonly banks: BankOptionRepository = {
       listByTenant: async () => [],
       findAccessibleById: async () => undefined,
-      create: async () => { throw new Error('Bank options repository not configured.'); }
+      create: async () => { throw new Error('Bank options repository not configured.'); },
+      update: async () => undefined,
+      delete: async () => false
     },
     private readonly paymentMethods: PaymentMethodOptionRepository = {
       listByTenant: async () => [],
       findAccessibleById: async () => undefined,
-      create: async () => { throw new Error('Payment method options repository not configured.'); }
+      create: async () => { throw new Error('Payment method options repository not configured.'); },
+      update: async () => undefined,
+      delete: async () => false
     }
   ) {}
 
@@ -127,6 +131,24 @@ export class FinanceUseCases {
     return this.banks.create(input);
   }
 
+  async updateBankOption(input: { tenantId: string; bankOptionId: string; name: string }) {
+    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId);
+    if (!option) throw new Error('Bank option not found.');
+    if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default bank options cannot be modified.');
+    const updated = await this.banks.update(input);
+    if (!updated) throw new Error('Bank option not found.');
+    return updated;
+  }
+
+  async deleteBankOption(input: { tenantId: string; bankOptionId: string }) {
+    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId);
+    if (!option) throw new Error('Bank option not found.');
+    if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default bank options cannot be deleted.');
+    const deleted = await this.banks.delete(input);
+    if (!deleted) throw new Error('Bank option not found.');
+    return { deleted: true };
+  }
+
   listPaymentMethodOptions(tenantId: string) {
     return this.paymentMethods.listByTenant(tenantId);
   }
@@ -136,6 +158,33 @@ export class FinanceUseCases {
       ...input,
       code: slugifyPaymentMethodCode(input.name)
     });
+  }
+
+  async updatePaymentMethodOption(input: {
+    tenantId: string;
+    paymentMethodOptionId: string;
+    name: string;
+    kind: PaymentMethodOption['kind'];
+    cardType?: PaymentMethodOption['cardType'];
+  }) {
+    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId);
+    if (!option) throw new Error('Payment method option not found.');
+    if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default payment method options cannot be modified.');
+    const updated = await this.paymentMethods.update({
+      ...input,
+      code: slugifyPaymentMethodCode(input.name)
+    });
+    if (!updated) throw new Error('Payment method option not found.');
+    return updated;
+  }
+
+  async deletePaymentMethodOption(input: { tenantId: string; paymentMethodOptionId: string }) {
+    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId);
+    if (!option) throw new Error('Payment method option not found.');
+    if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default payment method options cannot be deleted.');
+    const deleted = await this.paymentMethods.delete(input);
+    if (!deleted) throw new Error('Payment method option not found.');
+    return { deleted: true };
   }
 
   upsertMonthlyBudget(input: Omit<MonthlyBudget, 'id'>) {

@@ -672,6 +672,94 @@ export const openApiSpec = {
         responses: withUnauthorized(standardResponses({ data: { $ref: '#/components/schemas/BankOption' } }))
       }
     },
+    '/banks/{bankOptionId}': {
+      put: {
+        summary: 'Update custom bank option',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'bankOptionId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Banco personal' }
+        }, ['name']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Bank updated',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { data: { $ref: '#/components/schemas/BankOption' } } }
+              }
+            }
+          },
+          '400': {
+            description: 'Default bank options cannot be modified.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { defaultBank: { value: { error: 'Default bank options cannot be modified.' } } }
+              }
+            }
+          },
+          '404': {
+            description: 'Bank option not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { missingBank: { value: { error: 'Bank option not found.' } } }
+              }
+            }
+          }
+        })
+      },
+      delete: {
+        summary: 'Delete custom bank option',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'bankOptionId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Bank deleted',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { data: { type: 'object', properties: { deleted: { type: 'boolean', example: true } } } } }
+              }
+            }
+          },
+          '400': {
+            description: 'Default or in-use bank options cannot be deleted.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  inUseBank: { value: { error: 'Bank option is in use by existing expenses.' } },
+                  defaultBank: { value: { error: 'Default bank options cannot be deleted.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Bank option not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { missingBank: { value: { error: 'Bank option not found.' } } }
+              }
+            }
+          }
+        })
+      }
+    },
     '/payment-method-options': {
       get: {
         summary: 'List payment method options (system defaults + tenant custom)',
@@ -687,6 +775,96 @@ export const openApiSpec = {
           cardType: { type: 'string', enum: ['credit', 'debit'] }
         }, ['name', 'kind']),
         responses: withUnauthorized(standardResponses({ data: { $ref: '#/components/schemas/PaymentMethodOption' } }))
+      }
+    },
+    '/payment-method-options/{paymentMethodOptionId}': {
+      put: {
+        summary: 'Update custom payment method option',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'paymentMethodOptionId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Tarjeta empresa' },
+          kind: { type: 'string', enum: ['cash', 'card', 'transfer'] },
+          cardType: { type: 'string', enum: ['credit', 'debit'] }
+        }, ['name', 'kind']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Payment method updated',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { data: { $ref: '#/components/schemas/PaymentMethodOption' } } }
+              }
+            }
+          },
+          '400': {
+            description: 'Default payment method options cannot be modified.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { defaultMethod: { value: { error: 'Default payment method options cannot be modified.' } } }
+              }
+            }
+          },
+          '404': {
+            description: 'Payment method option not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { missingMethod: { value: { error: 'Payment method option not found.' } } }
+              }
+            }
+          }
+        })
+      },
+      delete: {
+        summary: 'Delete custom payment method option',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'paymentMethodOptionId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Payment method deleted',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { data: { type: 'object', properties: { deleted: { type: 'boolean', example: true } } } } }
+              }
+            }
+          },
+          '400': {
+            description: 'Default or in-use payment method options cannot be deleted.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  inUseMethod: { value: { error: 'Payment method option is in use by existing expenses.' } },
+                  defaultMethod: { value: { error: 'Default payment method options cannot be deleted.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Payment method option not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { missingMethod: { value: { error: 'Payment method option not found.' } } }
+              }
+            }
+          }
+        })
       }
     },
     '/budgets': {

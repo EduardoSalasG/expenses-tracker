@@ -188,12 +188,28 @@ export class ApiService {
     return this.http.post<BankOption>(`${environment.apiBaseUrl}/banks`, payload);
   }
 
+  updateBankOption(bankOptionId: string, payload: { name: string }) {
+    return this.http.put<BankOption>(`${environment.apiBaseUrl}/banks/${bankOptionId}`, payload);
+  }
+
+  deleteBankOption(bankOptionId: string) {
+    return this.http.delete<{ deleted: true }>(`${environment.apiBaseUrl}/banks/${bankOptionId}`);
+  }
+
   paymentMethodOptions() {
     return this.http.get<PaymentMethodOption[]>(`${environment.apiBaseUrl}/payment-method-options`);
   }
 
   createPaymentMethodOption(payload: { name: string; kind: 'cash' | 'card' | 'transfer'; cardType?: 'credit' | 'debit' }) {
     return this.http.post<PaymentMethodOption>(`${environment.apiBaseUrl}/payment-method-options`, payload);
+  }
+
+  updatePaymentMethodOption(paymentMethodOptionId: string, payload: { name: string; kind: 'cash' | 'card' | 'transfer'; cardType?: 'credit' | 'debit' }) {
+    return this.http.put<PaymentMethodOption>(`${environment.apiBaseUrl}/payment-method-options/${paymentMethodOptionId}`, payload);
+  }
+
+  deletePaymentMethodOption(paymentMethodOptionId: string) {
+    return this.http.delete<{ deleted: true }>(`${environment.apiBaseUrl}/payment-method-options/${paymentMethodOptionId}`);
   }
 
   monthlyBudgets() {

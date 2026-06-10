@@ -15,8 +15,10 @@ import {
   reportWeekStartQuerySchema,
   reportYearQuerySchema,
   reportQuerySchema,
+  updateBankOptionSchema,
   updateExpenseSchema,
-  updateIncomeSchema
+  updateIncomeSchema,
+  updatePaymentMethodOptionSchema
 } from '../schemas.js';
 import { parseBody } from '../utils.js';
 
@@ -147,6 +149,50 @@ export class FinanceController {
     }));
   };
 
+  updateBankOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(updateBankOptionSchema, request.body);
+    const bankOptionId = Array.isArray(request.params.bankOptionId) ? request.params.bankOptionId[0] : request.params.bankOptionId;
+    try {
+      response.json(await this.container.useCases.finance.updateBankOption({
+        tenantId: authRequest.auth.tenantId,
+        bankOptionId,
+        name: body.name
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Bank option not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof Error && (error.message === 'Default bank options cannot be modified.' || error.message === 'Bank option is in use by existing expenses.')) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
+  deleteBankOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const bankOptionId = Array.isArray(request.params.bankOptionId) ? request.params.bankOptionId[0] : request.params.bankOptionId;
+    try {
+      response.json(await this.container.useCases.finance.deleteBankOption({
+        tenantId: authRequest.auth.tenantId,
+        bankOptionId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Bank option not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof Error && (error.message === 'Default bank options cannot be deleted.' || error.message === 'Bank option is in use by existing expenses.')) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
   listPaymentMethodOptions = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     response.json(await this.container.useCases.finance.listPaymentMethodOptions(authRequest.auth.tenantId));
@@ -162,6 +208,52 @@ export class FinanceController {
       cardType: body.cardType,
       isDefault: false
     }));
+  };
+
+  updatePaymentMethodOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(updatePaymentMethodOptionSchema, request.body);
+    const paymentMethodOptionId = Array.isArray(request.params.paymentMethodOptionId) ? request.params.paymentMethodOptionId[0] : request.params.paymentMethodOptionId;
+    try {
+      response.json(await this.container.useCases.finance.updatePaymentMethodOption({
+        tenantId: authRequest.auth.tenantId,
+        paymentMethodOptionId,
+        name: body.name,
+        kind: body.kind,
+        cardType: body.cardType
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Payment method option not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof Error && (error.message === 'Default payment method options cannot be modified.' || error.message === 'Payment method option is in use by existing expenses.')) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
+  deletePaymentMethodOption = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const paymentMethodOptionId = Array.isArray(request.params.paymentMethodOptionId) ? request.params.paymentMethodOptionId[0] : request.params.paymentMethodOptionId;
+    try {
+      response.json(await this.container.useCases.finance.deletePaymentMethodOption({
+        tenantId: authRequest.auth.tenantId,
+        paymentMethodOptionId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Payment method option not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof Error && (error.message === 'Default payment method options cannot be deleted.' || error.message === 'Payment method option is in use by existing expenses.')) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
   };
 
   monthlyBudgets = async (request: Request, response: Response) => {

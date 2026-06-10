@@ -90,6 +90,8 @@ export const bankOptionSchema = z.object({
   name: z.string().min(1)
 });
 
+export const updateBankOptionSchema = bankOptionSchema;
+
 export const paymentMethodOptionSchema = z.object({
   name: z.string().min(1),
   kind: z.enum(['cash', 'card', 'transfer']),
@@ -103,6 +105,8 @@ export const paymentMethodOptionSchema = z.object({
     });
   }
 });
+
+export const updatePaymentMethodOptionSchema = paymentMethodOptionSchema;
 
 export const createExpenseSchema = z.object({
   date: z.string().datetime(),

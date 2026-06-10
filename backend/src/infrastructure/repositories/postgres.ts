@@ -202,6 +202,32 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
     );
     return mapBankOption(result.rows[0]);
   }
+
+  async update(input: { tenantId: string; bankOptionId: string; name: string }) {
+    const result = await this.pool.query(
+      `update bank_options
+       set name = $3,
+           updated_at = now()
+       where id = $1 and tenant_id = $2 and is_default = false
+       returning *`,
+      [input.bankOptionId, input.tenantId, input.name]
+    );
+    return result.rows[0] ? mapBankOption(result.rows[0]) : undefined;
+  }
+
+  async delete(input: { tenantId: string; bankOptionId: string }) {
+    try {
+      const result = await this.pool.query(
+        `delete from bank_options
+         where id = $1 and tenant_id = $2 and is_default = false`,
+        [input.bankOptionId, input.tenantId]
+      );
+      return result.rowCount === 1;
+    } catch (error) {
+      if (isForeignKeyViolation(error)) throw new Error('Bank option is in use by existing expenses.');
+      throw error;
+    }
+  }
 }
 
 export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptionRepository {
@@ -234,6 +260,42 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
       [input.tenantId ?? null, input.code, input.name, input.kind, input.cardType ?? null, input.isDefault]
     );
     return mapPaymentMethodOption(result.rows[0]);
+  }
+
+  async update(input: {
+    tenantId: string;
+    paymentMethodOptionId: string;
+    code: string;
+    name: string;
+    kind: PaymentMethodOption['kind'];
+    cardType?: PaymentMethodOption['cardType'];
+  }) {
+    const result = await this.pool.query(
+      `update payment_method_options
+       set code = $3,
+           name = $4,
+           kind = $5,
+           card_type = $6,
+           updated_at = now()
+       where id = $1 and tenant_id = $2 and is_default = false
+       returning *`,
+      [input.paymentMethodOptionId, input.tenantId, input.code, input.name, input.kind, input.cardType ?? null]
+    );
+    return result.rows[0] ? mapPaymentMethodOption(result.rows[0]) : undefined;
+  }
+
+  async delete(input: { tenantId: string; paymentMethodOptionId: string }) {
+    try {
+      const result = await this.pool.query(
+        `delete from payment_method_options
+         where id = $1 and tenant_id = $2 and is_default = false`,
+        [input.paymentMethodOptionId, input.tenantId]
+      );
+      return result.rowCount === 1;
+    } catch (error) {
+      if (isForeignKeyViolation(error)) throw new Error('Payment method option is in use by existing expenses.');
+      throw error;
+    }
   }
 }
 
@@ -925,5 +987,9 @@ function mapCategoryTotalByPeriod(row: QueryResultRow) {
     currency: row.currency,
     total: Number(row.total)
   };
+}
+
+function isForeignKeyViolation(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23503';
 }
 
