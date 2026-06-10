@@ -154,19 +154,19 @@ export class ApiService {
   }
 
   createExpense(payload: unknown) {
-    return this.http.post(`${environment.apiBaseUrl}/expenses`, payload);
+    return this.http.post<Expense>(`${environment.apiBaseUrl}/expenses`, payload);
   }
 
   updateExpense(expenseId: string, payload: unknown) {
-    return this.http.put(`${environment.apiBaseUrl}/expenses/${expenseId}`, payload);
+    return this.http.put<Expense>(`${environment.apiBaseUrl}/expenses/${expenseId}`, payload);
   }
 
   createIncome(payload: unknown) {
-    return this.http.post(`${environment.apiBaseUrl}/incomes`, payload);
+    return this.http.post<Income>(`${environment.apiBaseUrl}/incomes`, payload);
   }
 
   updateIncome(incomeId: string, payload: unknown) {
-    return this.http.put(`${environment.apiBaseUrl}/incomes/${incomeId}`, payload);
+    return this.http.put<Income>(`${environment.apiBaseUrl}/incomes/${incomeId}`, payload);
   }
 
   incomes(filters: IncomeFilters = {}) {

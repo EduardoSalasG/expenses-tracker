@@ -165,8 +165,11 @@ export class IncomesComponent implements OnInit {
       panelClass: 'brand-dialog-panel',
       autoFocus: false
     });
-    ref.afterClosed().subscribe((saved: boolean) => {
-      if (saved) {
+    ref.afterClosed().subscribe((result: { saved: boolean; income?: Income } | undefined) => {
+      if (result?.saved) {
+        if (result.income) {
+          this.patchIncomeState(result.income);
+        }
         this.snackBar.open(this.t('incomes_saved'), undefined, { duration: 2400 });
         this.loadIncomes();
       }
@@ -181,8 +184,11 @@ export class IncomesComponent implements OnInit {
       autoFocus: false,
       data: { income }
     });
-    ref.afterClosed().subscribe((saved: boolean) => {
-      if (saved) {
+    ref.afterClosed().subscribe((result: { saved: boolean; income?: Income } | undefined) => {
+      if (result?.saved) {
+        if (result.income) {
+          this.patchIncomeState(result.income);
+        }
         this.snackBar.open(this.t('incomes_updated'), undefined, { duration: 2400 });
         this.loadIncomes();
       }
@@ -236,6 +242,10 @@ export class IncomesComponent implements OnInit {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  private patchIncomeState(updatedIncome: Income) {
+    this.incomes.update((items) => items.map((item) => item.id === updatedIncome.id ? updatedIncome : item));
   }
 
   private startOnboarding() {
@@ -364,7 +374,7 @@ export class IncomeCreateDialogComponent {
       ? this.api.updateIncome(this.income()!.id, payload)
       : this.api.createIncome(payload);
     request.subscribe({
-      next: () => this.dialogRef.close(true),
+      next: (income) => this.dialogRef.close({ saved: true, income }),
       error: () => this.saving.set(false)
     });
   }

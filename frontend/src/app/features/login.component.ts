@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -10,10 +10,23 @@ import { I18nService } from '../core/i18n.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, RouterLink],
   template: `
-    <main class="app-surface grid min-h-screen place-items-center px-3 py-6 sm:px-4 sm:py-10">
-      <mat-card class="page-panel w-full max-w-xl p-5 sm:p-7">
+    <div class="app-surface min-h-screen">
+      <header class="border-b border-brand-border/80 bg-brand-surface/90 backdrop-blur">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <a routerLink="/" class="flex items-center gap-3" aria-label="Expenses Tracker home">
+            <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-navy text-sm font-semibold text-white shadow-sm">ET</div>
+            <div>
+              <div class="text-lg font-semibold tracking-tight text-brand-ink">{{ t('app_name') }}</div>
+              <div class="text-xs text-brand-muted">{{ t('landing_tagline') }}</div>
+            </div>
+          </a>
+          <a routerLink="/" class="text-sm font-medium text-brand-blue hover:underline">{{ t('login_back_to_landing') }}</a>
+        </div>
+      </header>
+      <main class="grid min-h-[calc(100vh-76px)] place-items-center px-3 py-6 sm:px-4 sm:py-10">
+        <mat-card class="page-panel w-full max-w-xl p-5 sm:p-7">
         <div class="mb-6">
           <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-brand-navy text-sm font-semibold text-white">ET</div>
           <h1 class="text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('login_title') }}</h1>
@@ -313,8 +326,9 @@ import { I18nService } from '../core/i18n.service';
             </section>
           }
         </form>
-      </mat-card>
-    </main>
+        </mat-card>
+      </main>
+    </div>
   `
 })
 export class LoginComponent implements OnInit {

@@ -204,8 +204,11 @@ export class ExpensesComponent implements OnInit {
       autoFocus: false,
       data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions() }
     });
-    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
+    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
       if (result?.saved) {
+        if (result.expense) {
+          this.patchExpenseState(result.expense);
+        }
         this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
         this.loadExpenses();
       }
@@ -220,8 +223,11 @@ export class ExpensesComponent implements OnInit {
       autoFocus: false,
       data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions(), expense }
     });
-    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
+    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
       if (result?.saved) {
+        if (result.expense) {
+          this.patchExpenseState(result.expense);
+        }
         this.snackBar.open(this.t('expenses_updated'), undefined, { duration: 2400 });
         this.loadExpenses();
       }
@@ -283,6 +289,32 @@ export class ExpensesComponent implements OnInit {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  private patchExpenseState(updatedExpense: Expense) {
+    this.expenses.update((items) => items.map((item) => {
+      if (item.id !== updatedExpense.id) return item;
+      return {
+        ...item,
+        concept: updatedExpense.concept,
+        currency: updatedExpense.currency,
+        categoryId: updatedExpense.categoryId,
+        subcategoryId: updatedExpense.subcategoryId,
+        paymentMethodOptionId: updatedExpense.paymentMethodOptionId,
+        bankOptionId: updatedExpense.bankOptionId,
+        paymentMethod: updatedExpense.paymentMethod,
+        totalAmount: updatedExpense.totalAmount ?? updatedExpense.amount,
+        purchaseDate: updatedExpense.purchaseDate,
+        firstInstallmentDate: updatedExpense.firstInstallmentDate,
+        installmentCount: updatedExpense.installmentCount,
+        amount: (updatedExpense.installmentCount ?? 1) === 1
+          ? (updatedExpense.totalAmount ?? updatedExpense.amount)
+          : item.amount,
+        date: (updatedExpense.installmentCount ?? 1) === 1
+          ? updatedExpense.date
+          : item.date
+      };
+    }));
   }
 
   private startOnboarding() {
@@ -514,7 +546,7 @@ export class ExpenseCreateDialogComponent {
       ? this.api.updateExpense(this.expense()!.id, payload)
       : this.api.createExpense(payload);
     request.subscribe({
-      next: () => this.dialogRef.close({ saved: true, mode: this.expense() ? 'edit' : 'create' }),
+      next: (expense) => this.dialogRef.close({ saved: true, mode: this.expense() ? 'edit' : 'create', expense }),
       error: () => this.saving.set(false)
     });
   }

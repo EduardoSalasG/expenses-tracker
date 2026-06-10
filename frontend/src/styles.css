@@ -236,6 +236,11 @@ table {
   --mat-full-pseudo-checkbox-selected-icon-color: var(--brand-blue);
 }
 
+.mat-mdc-slide-toggle .mdc-label,
+.mat-mdc-slide-toggle .mdc-form-field > label {
+  color: var(--brand-ink) !important;
+}
+
 .mat-mdc-select-panel,
 .mat-mdc-autocomplete-panel {
   background: var(--brand-surface) !important;
@@ -386,6 +391,12 @@ select option:focus {
 .driver-popover-prev-btn,
 .driver-popover-close-btn {
   text-shadow: none !important;
+}
+
+.driver-popover-close-btn {
+  color: var(--brand-ink) !important;
+  opacity: 1 !important;
+  font-size: 1.1rem !important;
 }
 
 .driver-popover-next-btn,
