@@ -407,7 +407,10 @@ function buildRegistrationWelcomeText(language: 'es' | 'en', preferredName: stri
       `${preferredName}, tu cuenta ya está lista.`,
       '',
       'Ya puedes registrar tus gastos e ingresos desde la web.',
-      'Si luego quieres más comodidad, también puedes conectar Telegram desde tu panel.',
+      'Tus siguientes pasos recomendados son:',
+      '1. Entrar al dashboard y revisar tu panel.',
+      '2. Crear o ajustar categorías y presupuestos si lo necesitas.',
+      '3. Conectar Telegram más adelante si quieres registrar por chat.',
       '',
       'Abre tu dashboard aquí:',
       dashboardUrl
@@ -418,7 +421,10 @@ function buildRegistrationWelcomeText(language: 'es' | 'en', preferredName: stri
     `${preferredName}, your account is ready.`,
     '',
     'You can now track expenses and income from the web.',
-    'If you want extra convenience later, you can also connect Telegram from your dashboard.',
+    'Recommended next steps:',
+    '1. Open your dashboard and review your panel.',
+    '2. Create or adjust categories and budgets if needed.',
+    '3. Connect Telegram later if you want to track by chat.',
     '',
     'Open your dashboard here:',
     dashboardUrl
@@ -431,7 +437,13 @@ function buildRegistrationWelcomeHtml(language: 'es' | 'en', preferredName: stri
         preheader: 'Tu cuenta de Expenses Tracker ya está lista',
         eyebrow: 'CUENTA CREADA',
         greeting: `${preferredName}, tu cuenta ya está lista.`,
-        description: 'Ya puedes registrar tus gastos e ingresos desde la web. Si luego quieres más comodidad, también puedes conectar Telegram desde tu panel.',
+        description: 'Ya puedes registrar tus gastos e ingresos desde la web. También puedes dejar lista tu cuenta en pocos pasos.',
+        checklistTitle: 'Siguientes pasos',
+        checklist: [
+          'Entra al dashboard y revisa tu panel inicial.',
+          'Configura categorías, presupuestos o métodos de pago si lo necesitas.',
+          'Conecta Telegram más adelante si quieres registrar movimientos por chat.'
+        ],
         cta: 'Abrir mi dashboard',
         fallback: 'Si el botón no funciona, usa este enlace:',
         signoff: 'Expenses Tracker'
@@ -440,7 +452,13 @@ function buildRegistrationWelcomeHtml(language: 'es' | 'en', preferredName: stri
         preheader: 'Your Expenses Tracker account is ready',
         eyebrow: 'ACCOUNT READY',
         greeting: `${preferredName}, your account is ready.`,
-        description: 'You can now track expenses and income from the web. If you want extra convenience later, you can also connect Telegram from your dashboard.',
+        description: 'You can now track expenses and income from the web. You can also finish setting up your account in a few quick steps.',
+        checklistTitle: 'Next steps',
+        checklist: [
+          'Open your dashboard and review your starting panel.',
+          'Set categories, budgets, or payment methods if you need them.',
+          'Connect Telegram later if you want to track movements by chat.'
+        ],
         cta: 'Open my dashboard',
         fallback: 'If the button does not work, use this link:',
         signoff: 'Expenses Tracker'
@@ -476,7 +494,13 @@ function buildRegistrationWelcomeHtml(language: 'es' | 'en', preferredName: stri
               <td style="background:#ffffff;border:1px solid #d7deea;border-radius:20px;padding:32px;">
                 <div style="color:#2f5be7;font-size:12px;font-weight:700;letter-spacing:0.08em;margin-bottom:14px;">${escapeHtml(copy.eyebrow)}</div>
                 <h1 style="margin:0 0 12px;color:#0f172a;font-size:28px;line-height:1.2;font-weight:700;">${safeName}</h1>
-                <p style="margin:0 0 24px;color:#475569;font-size:16px;line-height:1.6;">${escapeHtml(copy.greeting)} ${escapeHtml(copy.description)}</p>
+                <p style="margin:0 0 20px;color:#475569;font-size:16px;line-height:1.6;">${escapeHtml(copy.greeting)} ${escapeHtml(copy.description)}</p>
+                <div style="margin:0 0 24px;border:1px solid #d7deea;border-radius:16px;background:#f8fbff;padding:16px 18px;">
+                  <div style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:700;">${escapeHtml(copy.checklistTitle)}</div>
+                  <ul style="margin:0;padding-left:18px;color:#475569;font-size:14px;line-height:1.7;">
+                    ${copy.checklist.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+                  </ul>
+                </div>
                 <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 24px;">
                   <tr>
                     <td style="border-radius:999px;background:#2f5be7;">
