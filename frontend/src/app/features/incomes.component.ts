@@ -149,7 +149,12 @@ export class IncomesComponent implements OnInit {
   }
 
   openNewIncomeDialog() {
-    const ref = this.dialog.open(IncomeCreateDialogComponent, { width: '720px', maxWidth: '96vw' });
+    const ref = this.dialog.open(IncomeCreateDialogComponent, {
+      width: 'min(720px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false
+    });
     ref.afterClosed().subscribe((saved: boolean) => {
       if (saved) {
         this.snackBar.open(this.t('incomes_saved'), undefined, { duration: 2400 });
@@ -212,18 +217,56 @@ export class IncomesComponent implements OnInit {
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
-    <h2 class="mb-4 text-xl font-semibold">{{ t('incomes_new') }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
-      <div class="flex justify-end gap-2 lg:col-span-2">
-        <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : t('incomes_save') }}</button>
+    <div class="brand-dialog-shell">
+      <div class="brand-dialog-header">
+        <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ t('incomes_new') }}</h2>
       </div>
-    </form>
-  `
+      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+        <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
+          <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : t('incomes_save') }}</button>
+        </div>
+      </form>
+    </div>
+  `,
+  styles: [`
+    :host {
+      display: block;
+      color: var(--brand-ink);
+    }
+
+    .brand-dialog-shell {
+      display: flex;
+      max-height: calc(100vh - 3rem);
+      flex-direction: column;
+      gap: 1rem;
+      overflow: auto;
+      padding: 1.25rem;
+    }
+
+    .brand-dialog-actions {
+      padding-top: 0.25rem;
+    }
+
+    @media (max-width: 767px) {
+      .brand-dialog-shell {
+        max-height: calc(100vh - 1.5rem);
+        padding: 1rem;
+      }
+
+      .brand-dialog-actions {
+        position: sticky;
+        bottom: 0;
+        margin-top: 0.25rem;
+        padding-top: 0.75rem;
+        background: var(--brand-surface);
+      }
+    }
+  `]
 })
 export class IncomeCreateDialogComponent {
   private readonly fb = inject(FormBuilder);

@@ -182,7 +182,13 @@ export class ExpensesComponent implements OnInit {
   }
 
   openNewExpenseDialog() {
-    const ref = this.dialog.open(ExpenseCreateDialogComponent, { width: '860px', maxWidth: '96vw', data: { categories: this.categories() } });
+    const ref = this.dialog.open(ExpenseCreateDialogComponent, {
+      width: 'min(960px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: { categories: this.categories() }
+    });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
       if (result?.saved) {
         this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
@@ -193,8 +199,10 @@ export class ExpensesComponent implements OnInit {
 
   openEditExpenseDialog(expense: Expense) {
     const ref = this.dialog.open(ExpenseCreateDialogComponent, {
-      width: '860px',
-      maxWidth: '96vw',
+      width: 'min(960px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
       data: { categories: this.categories(), expense }
     });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit' } | undefined) => {
@@ -267,27 +275,69 @@ export class ExpensesComponent implements OnInit {
   standalone: true,
   imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule],
   template: `
-    <h2 class="mb-4 text-xl font-semibold">{{ expense() ? t('expenses_edit') : t('expenses_new') }}</h2>
-    <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-4">
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-      <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentKind"><mat-option value="cash">{{ t('expenses_cash') }}</mat-option><mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option><mat-option value="card">{{ t('expenses_card') }}</mat-option></mat-select></mat-form-field>
-      @if (form.controls.paymentKind.value === 'card' || form.controls.paymentKind.value === 'transfer') {
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><input matInput formControlName="bank"></mat-form-field>
-      }
-      @if (form.controls.paymentKind.value === 'card') {
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_card_type') }}</mat-label><mat-select formControlName="cardType"><mat-option value="debit">{{ t('expenses_debit') }}</mat-option><mat-option value="credit">{{ t('expenses_credit') }}</mat-option></mat-select></mat-form-field>
-      }
-      <div class="flex justify-end gap-2 lg:col-span-4">
-        <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('expenses_saving') : expense() ? t('common_update') : t('expenses_save') }}</button>
+    <div class="brand-dialog-shell">
+      <div class="brand-dialog-header">
+        <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ expense() ? t('expenses_edit') : t('expenses_new') }}</h2>
       </div>
-    </form>
-  `
+      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentKind"><mat-option value="cash">{{ t('expenses_cash') }}</mat-option><mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option><mat-option value="card">{{ t('expenses_card') }}</mat-option></mat-select></mat-form-field>
+        @if (form.controls.paymentKind.value === 'card' || form.controls.paymentKind.value === 'transfer') {
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><input matInput formControlName="bank"></mat-form-field>
+        }
+        @if (form.controls.paymentKind.value === 'card') {
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_card_type') }}</mat-label><mat-select formControlName="cardType"><mat-option value="debit">{{ t('expenses_debit') }}</mat-option><mat-option value="credit">{{ t('expenses_credit') }}</mat-option></mat-select></mat-form-field>
+        }
+        <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
+          <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('expenses_saving') : expense() ? t('common_update') : t('expenses_save') }}</button>
+        </div>
+      </form>
+    </div>
+  `,
+  styles: [`
+    :host {
+      display: block;
+      color: var(--brand-ink);
+    }
+
+    .brand-dialog-shell {
+      display: flex;
+      max-height: calc(100vh - 3rem);
+      flex-direction: column;
+      gap: 1rem;
+      overflow: auto;
+      padding: 1.25rem;
+    }
+
+    .brand-dialog-header {
+      padding-right: 0.5rem;
+    }
+
+    .brand-dialog-actions {
+      padding-top: 0.25rem;
+    }
+
+    @media (max-width: 767px) {
+      .brand-dialog-shell {
+        max-height: calc(100vh - 1.5rem);
+        padding: 1rem;
+      }
+
+      .brand-dialog-actions {
+        position: sticky;
+        bottom: 0;
+        margin-top: 0.25rem;
+        padding-top: 0.75rem;
+        background: var(--brand-surface);
+      }
+    }
+  `]
 })
 export class ExpenseCreateDialogComponent {
   private readonly fb = inject(FormBuilder);

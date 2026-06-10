@@ -44,6 +44,7 @@ When PostgreSQL is already running, use the backend runner:
 ```bash
 pnpm db:migrate
 pnpm db:seed
+pnpm db:export:data
 ```
 
 For an existing local database created before the messaging table rename, run the targeted migration:
@@ -57,6 +58,37 @@ The database is exposed at:
 ```text
 postgres://expenses:expenses@localhost:5433/expenses_tracker
 ```
+
+## Data Migration
+
+To move the current business data to another environment:
+
+1. Run migrations on the target database first.
+2. Export the source data:
+
+```bash
+pnpm db:export:data
+```
+
+By default this writes a data-only SQL dump under `database/backups/`.
+
+To choose a specific file:
+
+```bash
+pnpm db:export:data -- --output database/backups/my-snapshot.sql
+```
+
+3. Import the dump into the target database:
+
+```bash
+pnpm db:import:data -- --input database/backups/my-snapshot.sql
+```
+
+Notes:
+
+- The export excludes `schema_migrations`; the target environment must manage migrations on its own.
+- The import assumes the target database already has the schema created and does not contain conflicting application rows.
+- If `pg_dump` or `psql` are not in `PATH`, set `PG_DUMP_BIN` or `PSQL_BIN` before running the scripts.
 
 ## Query Analysis
 
