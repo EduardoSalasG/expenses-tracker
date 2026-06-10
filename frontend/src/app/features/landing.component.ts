@@ -350,6 +350,16 @@ import { I18nService } from '../core/i18n.service';
           </div>
         </div>
       </section>
+
+      <footer class="border-t border-brand-border/60 bg-brand-surface">
+        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-sm text-brand-muted sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <p>{{ t('landing_footer_copy') }}</p>
+          <nav class="flex flex-wrap items-center gap-4" aria-label="Legal">
+            <a routerLink="/terms" class="hover:text-brand-ink hover:underline">{{ t('landing_footer_terms') }}</a>
+            <a routerLink="/privacy" class="hover:text-brand-ink hover:underline">{{ t('landing_footer_privacy') }}</a>
+          </nav>
+        </div>
+      </footer>
     </main>
   `
 })

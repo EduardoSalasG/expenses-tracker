@@ -8,11 +8,15 @@ import { IncomesComponent } from './features/incomes.component';
 import { BudgetsComponent } from './features/budgets.component';
 import { CategoriesComponent } from './features/categories.component';
 import { SettingsComponent } from './features/settings.component';
+import { TermsComponent } from './features/terms.component';
+import { PrivacyComponent } from './features/privacy.component';
 import { authGuard, guestGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', component: LandingComponent, canActivate: [guestGuard] },
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
+  { path: 'terms', component: TermsComponent },
+  { path: 'privacy', component: PrivacyComponent },
   {
     path: '',
     component: ShellComponent,
