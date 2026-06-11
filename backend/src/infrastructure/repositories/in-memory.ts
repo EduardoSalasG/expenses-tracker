@@ -469,6 +469,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const end = new Date(Date.UTC(year, month - 1 + Math.max(1, months), 1, 0, 0, 0));
     const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
+      if ((expense.installmentCount ?? 1) <= 1) return false;
       const date = new Date(expense.date);
       return date >= start && date < end;
     });

@@ -272,7 +272,7 @@ Category persistence is normalized server-side:
 - `subcategoryId` is stored only when applicable.
 - If an incoming request mistakenly sends a subcategory in `categoryId`, backend rewrites it to canonical root+subcategory format.
 
-Successful Telegram replies always address the user by `preferredName`. Message language follows `users.preferred_language` (`es` or `en`) for OTP, onboarding greeting, save/update confirmations, duplicate confirmations, clarifications, budget status, and report summaries. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`.
+Successful Telegram replies always address the user by `preferredName`. Message language follows `users.preferred_language` (`es` or `en`) for OTP, onboarding greeting, save/update confirmations, duplicate confirmations, clarifications, budget status, and report summaries. Saved expense replies include amount, concept, and the most precise category path available, for example `Food > Groceries`. When an expense is saved in installments, the confirmation also states the installment plan, and the upcoming-installments reporting surface includes only expenses with more than one installment.
 
 Users can also correct recent movements by chat. The correction message may reference a previous confirmation copied into the new message. The interpreter extracts the requested changes and the referenced movement, then the backend searches recent tenant-scoped expenses/incomes before applying changes. If the reference is not clear enough, the backend asks for more context instead of updating a guessed movement.
 

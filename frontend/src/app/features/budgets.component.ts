@@ -12,6 +12,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
+import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
@@ -55,7 +56,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       </div>
     </app-page-header>
 
-    <section class="grid gap-4 lg:grid-cols-3">
+    <section id="budgets-summary" class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
         <div class="text-sm font-medium text-brand-muted">{{ t('budgets_budgeted') }}</div>
         <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ totalBudgetedLabel() }}</div>
@@ -70,7 +71,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       </mat-card>
     </section>
 
-    <mat-card class="page-panel mt-4 p-2">
+    <mat-card id="budgets-form-panel" class="page-panel mt-4 p-2">
       <mat-accordion>
         <mat-expansion-panel [expanded]="!!editingBudgetId()">
           <mat-expansion-panel-header>
@@ -122,7 +123,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       </mat-accordion>
     </mat-card>
 
-    <mat-card class="page-panel mt-4 p-5">
+    <mat-card id="budgets-progress-panel" class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-lg font-semibold">{{ t('budgets_progress') }}</h2>
         <span class="text-sm text-brand-muted">{{ budgetRows().length }} {{ t('budgets_active') }}</span>
@@ -161,6 +162,7 @@ export class BudgetsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly onboarding = inject(OnboardingService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly createCategoryOption = CREATE_CATEGORY_OPTION;
   readonly createSubcategoryOption = CREATE_SUBCATEGORY_OPTION;
@@ -234,6 +236,7 @@ export class BudgetsComponent {
           this.selectedCategoryId.set(firstRoot.id);
         }
         this.loading.set(false);
+        setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
@@ -415,6 +418,26 @@ export class BudgetsComponent {
     const current = this.selectedCategoryId() || this.rootCategories()[0]?.id || '';
     this.form.controls.categoryId.setValue(current);
     this.selectedCategoryId.set(current);
+  }
+
+  private startOnboarding() {
+    void this.onboarding.startOnce('budgets', [
+      {
+        element: '#budgets-summary',
+        title: this.t('onboarding_budgets_title'),
+        description: this.t('onboarding_budgets_desc')
+      },
+      {
+        element: '#budgets-form-panel',
+        title: this.t('onboarding_budgets_form_title'),
+        description: this.t('onboarding_budgets_form_desc')
+      },
+      {
+        element: '#budgets-progress-panel',
+        title: this.t('onboarding_budgets_progress_title'),
+        description: this.t('onboarding_budgets_progress_desc')
+      }
+    ]);
   }
 }
 

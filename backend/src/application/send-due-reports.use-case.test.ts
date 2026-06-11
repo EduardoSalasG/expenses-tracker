@@ -28,6 +28,7 @@ describe('SendDueReportsUseCase', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
+    await users.linkTelegramChatByPhone(user.phoneNumber, 'telegram-1');
     await users.updateReportPreferences(user.id, ['monthly']);
     await categories.ensureDefaults(user.tenantId);
     const category = (await categories.listByTenant(user.tenantId))[0];
@@ -63,7 +64,7 @@ describe('SendDueReportsUseCase', () => {
     expect(result.sent).toBe(1);
     expect(messaging.messages).toEqual([
       {
-        toPhoneNumber: '+56982439041',
+        toPhoneNumber: 'telegram-1',
         body: [
           'Report, Reporte mensual (2026-05)',
           'Ingresos: $100.000',
@@ -94,6 +95,7 @@ describe('SendDueReportsUseCase', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
+    await users.linkTelegramChatByPhone(user.phoneNumber, 'telegram-1');
     await users.updateReportPreferences(user.id, ['monthly']);
     await categories.ensureDefaults(user.tenantId);
     const category = (await categories.listByTenant(user.tenantId))[0];
@@ -149,6 +151,8 @@ describe('SendDueReportsUseCase', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
+    await users.linkTelegramChatByPhone(okUser.phoneNumber, 'telegram-ok');
+    await users.linkTelegramChatByPhone(failingUser.phoneNumber, 'telegram-fail');
     await users.updateReportPreferences(okUser.id, ['monthly']);
     await users.updateReportPreferences(failingUser.id, ['monthly']);
     await categories.ensureDefaults(okUser.tenantId);
@@ -176,7 +180,7 @@ describe('SendDueReportsUseCase', () => {
       paymentMethod: { kind: 'cash' }
     });
 
-    const messaging = new FailingPhoneMessagingProvider('+56911111111');
+    const messaging = new FailingPhoneMessagingProvider('telegram-fail');
     const useCase = new SendDueReportsUseCase(
       users,
       finance,

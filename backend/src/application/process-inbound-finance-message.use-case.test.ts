@@ -280,6 +280,53 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(messaging.messages[0].body).toContain('Categoría: Education > Dance.');
   });
 
+  it('stores installment expenses and confirms the generated quota plan', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-installments',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: '500000 iphone 15, tdc bci, 3 cuotas'
+    });
+
+    expect(result.status).toBe('saved');
+    const rows = await expenses.listRecent(user.tenantId, 10);
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => row.installmentCount === 3)).toBe(true);
+    expect(rows.map((row) => row.installmentNumber)).toEqual([3, 2, 1]);
+    expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto guardado.');
+    expect(messaging.messages.at(-1)?.body).toContain('Cuotas: 3 de $166.667.');
+  });
+
   it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

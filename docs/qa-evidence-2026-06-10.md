@@ -50,6 +50,7 @@ Validated:
 - Budgets
   - permanent budgets listed from `/budgets`
   - inline category/subcategory creation works from the budget form
+  - first-run onboarding now covers the budgets section too
   - spent/progress recalculates for category/subcategory with canonical + legacy-shaped expenses
 - Categories / Settings
   - custom banks and payment methods visible
@@ -66,6 +67,7 @@ Validated:
 - `/start` login-link guidance
 - `/link +phone` account linking
 - natural-language expense save
+- installment expense save (`3 cuotas`) with confirmation message
 - natural-language income save
 - duplicate confirmation flow (`guardar` / `descartar`)
 - update movement by reference
@@ -96,6 +98,7 @@ Specific final checks:
 - `/budgets` documented as canonical endpoint
 - `/budgets/monthly` documented as deprecated alias
 - expense create/update documents installments
+- upcoming installments semantics aligned with multi-installment expenses only
 - error examples present for auth and Telegram link flows
 - delete endpoints documented for expenses and incomes
 - final Swagger audit saved in `docs/swagger-audit-2026-06-10.md`
