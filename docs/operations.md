@@ -142,6 +142,17 @@ Frontend:
 http://localhost:4200/login
 ```
 
+Public locale detection:
+
+```bash
+curl http://localhost:3000/public/context
+```
+
+If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a known IP and verify the backend returns:
+
+- `language: "en"` for United States IPs
+- `language: "es"` for other or unknown countries
+
 ## Production Hardening Notes
 
 - Use `GET /health/live` for container liveness.

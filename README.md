@@ -115,6 +115,8 @@ Release flow:
 ## Registration and Access
 
 - Logged-out visitors land on `/`, a public landing page focused on registration and feature discovery.
+- The public surface (`/`, `/login`, `/terms`, `/privacy`) defaults to English for visitors whose request IP resolves to the United States; otherwise it defaults to Spanish.
+- The landing navbar includes a manual `ES / EN` selector. Manual choice overrides automatic public locale detection for later visits on that browser.
 - The landing header keeps a single login action for existing users.
 - New users can create an account directly from the web with phone number + password.
 - Existing users can also request a one-time email magic link if their account has an email configured.
