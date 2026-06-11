@@ -19,6 +19,12 @@ function timestamp() {
   return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
+function resolveCliPath(filePath: string) {
+  return path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(process.cwd(), '..', filePath);
+}
+
 async function runPgDump(outputPath: string) {
   await mkdir(path.dirname(outputPath), { recursive: true });
 
@@ -51,7 +57,7 @@ async function runPgDump(outputPath: string) {
 
 const requestedOutput = parseArg('--output');
 const defaultOutput = path.resolve(process.cwd(), '..', 'database', 'backups', `expenses-tracker-data-${timestamp()}.sql`);
-const outputPath = requestedOutput ? path.resolve(process.cwd(), '..', requestedOutput) : defaultOutput;
+const outputPath = requestedOutput ? resolveCliPath(requestedOutput) : defaultOutput;
 
 await runPgDump(outputPath);
 logger.info(`Database data export complete: ${outputPath}`);

@@ -103,23 +103,27 @@ pnpm db:export:data
 ```
 
 By default this writes a data-only SQL dump under `database/backups/`.
+You can pass either a repo-relative path or an absolute path with `--output`.
 
 To choose a specific file:
 
 ```bash
 pnpm db:export:data -- --output database/backups/my-snapshot.sql
+pnpm db:export:data -- --output C:\\backups\\expenses-tracker-prod.sql
 ```
 
 3. Import the dump into the target database:
 
 ```bash
 pnpm db:import:data -- --input database/backups/my-snapshot.sql
+pnpm db:import:data -- --input C:\\backups\\expenses-tracker-prod.sql
 ```
 
 Notes:
 
 - The export excludes `schema_migrations`; the target environment must manage migrations on its own.
 - The import assumes the target database already has the schema created and does not contain conflicting application rows.
+- Import runs in a single transaction, so a failing row rolls back the whole data load instead of leaving a partial import behind.
 - If `pg_dump` or `psql` are not in `PATH`, set `PG_DUMP_BIN` or `PSQL_BIN` before running the scripts.
 
 ## Query Analysis

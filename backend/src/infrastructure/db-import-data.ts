@@ -17,11 +17,18 @@ async function ensureFileExists(filePath: string) {
   await access(filePath);
 }
 
+function resolveCliPath(filePath: string) {
+  return path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(process.cwd(), '..', filePath);
+}
+
 async function runPsql(inputPath: string) {
   const executable = process.env.PSQL_BIN || 'psql';
   const args = [
     '--set',
     'ON_ERROR_STOP=1',
+    '--single-transaction',
     `--dbname=${config.databaseUrl}`,
     `--file=${inputPath}`
   ];
@@ -46,7 +53,7 @@ if (!inputArg) {
   throw new Error('Expected --input <path-to-sql-dump>.');
 }
 
-const inputPath = path.resolve(process.cwd(), '..', inputArg);
+const inputPath = resolveCliPath(inputArg);
 await ensureFileExists(inputPath);
 await runPsql(inputPath);
 logger.info(`Database data import complete: ${inputPath}`);
