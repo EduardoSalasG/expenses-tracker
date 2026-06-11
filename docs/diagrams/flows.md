@@ -5,14 +5,14 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 ## Index
 
 - [OTP Login](otp-login.mmd): Telegram OTP fallback request, verification, user creation, onboarding greeting, category seeding, and token storage.
-- [Telegram Expense Capture](whatsapp-expense-capture.mmd): Legacy file name kept for compatibility; current flow is Telegram inbound messaging, registered-user validation, interpretation, pending draft clarification, expense/income persistence, chat-based movement correction, and finance answers.
+- [Telegram Expense Capture](whatsapp-expense-capture.mmd): Current Telegram inbound messaging flow. The file keeps its historical name only to avoid breaking existing doc links; the content reflects registered-user validation, interpretation, pending draft clarification, expense/income persistence, chat-based movement correction, and finance answers.
 - [Message Interpretation](message-interpretation.mmd): Provider-agnostic LLM/deterministic intent extraction before backend validation, including referenced movement corrections.
 - [Manual Expense Creation](manual-expense-creation.mmd): Authenticated frontend expense form submission and tenant-scoped save.
 - [Income Creation](income-creation.mmd): Authenticated frontend income form submission and tenant-scoped save.
 - [Category Management](category-management.mmd): Tenant-scoped main category and subcategory creation.
 - [Monthly Budget Flow](monthly-budget-flow.mmd): Permanent category/subcategory budget upsert from the dashboard, with inline category creation support.
 - [Report Generation](report-generation.mmd): Dashboard report request, period reads, and totals in the tenant working currency.
-- [Telegram Report Delivery](whatsapp-report-delivery.mmd): Legacy file name kept for compatibility; current flow is scheduled one-shot worker selection and Telegram summary delivery.
+- [Telegram Report Delivery](whatsapp-report-delivery.mmd): Current Telegram report delivery flow. The file keeps its historical name only to avoid breaking existing doc links; the content reflects scheduled one-shot worker selection and Telegram summary delivery.
 - [Profile Settings](profile-settings.mmd): Current user profile edits and report preference updates.
 - [Tenant-Scoped Request Flow](tenant-scoped-request-flow.mmd): JWT tenant extraction and repository-level tenant filtering.
 - [Database and Report Query Flow](database-report-query-flow.mmd): Decision path for direct SQL vs PostgreSQL functions and query analysis updates.

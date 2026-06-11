@@ -53,8 +53,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 
 ## Routes
 
-- `/`: public landing page for logged-out visitors. The header exposes login for existing users, while the rest of the page is optimized for registration/conversion.
-- `/`: public landing page for logged-out visitors. It defaults to `en` for United States visitors and `es` for the rest, based on backend IP geolocation. The navbar exposes manual `ES / EN` switching, which overrides the auto-selected public locale.
+- `/`: public landing page for logged-out visitors. The header exposes login for existing users, while the rest of the page is optimized for registration/conversion. It defaults to `en` for United States visitors and `es` for the rest, based on backend IP geolocation. The navbar exposes manual `ES / EN` switching, which overrides the auto-selected public locale.
 - `/login`: web-native login/registration. Existing users choose password login or email magic link. New users register in two steps: first lead capture (`name + email`), then full account data. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation and editing from a modal, with inline category, subcategory, bank, and payment-method creation directly from the related selects; also includes filtered history, delete, and auto-refresh after save.
