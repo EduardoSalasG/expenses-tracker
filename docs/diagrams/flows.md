@@ -10,7 +10,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Manual Expense Creation](manual-expense-creation.mmd): Authenticated frontend expense form submission and tenant-scoped save.
 - [Income Creation](income-creation.mmd): Authenticated frontend income form submission and tenant-scoped save.
 - [Category Management](category-management.mmd): Tenant-scoped main category and subcategory creation.
-- [Monthly Budget Flow](monthly-budget-flow.mmd): Monthly category budget upsert from the dashboard.
+- [Monthly Budget Flow](monthly-budget-flow.mmd): Permanent category/subcategory budget upsert from the dashboard, with inline category creation support.
 - [Report Generation](report-generation.mmd): Dashboard report request, period reads, and totals in the tenant working currency.
 - [Telegram Report Delivery](whatsapp-report-delivery.mmd): Legacy file name kept for compatibility; current flow is scheduled one-shot worker selection and Telegram summary delivery.
 - [Profile Settings](profile-settings.mmd): Current user profile edits and report preference updates.

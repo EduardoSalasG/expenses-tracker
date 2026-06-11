@@ -49,6 +49,7 @@ Validated:
   - more-filters expandable works
 - Budgets
   - permanent budgets listed from `/budgets`
+  - inline category/subcategory creation works from the budget form
   - spent/progress recalculates for category/subcategory with canonical + legacy-shaped expenses
 - Categories / Settings
   - custom banks and payment methods visible

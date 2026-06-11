@@ -4,15 +4,20 @@ sequenceDiagram
   participant API
   participant DB
   User->>Frontend: Select month
-  Frontend->>API: GET /budgets/monthly?month=YYYY-MM
+  Frontend->>API: GET /budgets
   Frontend->>API: GET /reports for month
-  API->>DB: Read tenant budgets and expenses
+  API->>DB: Read permanent tenant budgets and month expenses
   API-->>Frontend: Budgets and month spending
   Frontend->>Frontend: Calculate remaining amount and progress
   User->>Frontend: Set category or subcategory budget
-  Frontend->>API: PUT /budgets/monthly
-  API->>API: Validate month/category/amount
-  API->>DB: Upsert tenant monthly budget
+  opt Missing category or subcategory
+    Frontend->>API: POST /categories
+    API->>DB: Create tenant category or subcategory
+    API-->>Frontend: New category option
+  end
+  Frontend->>API: PUT /budgets
+  API->>API: Validate category/subcategory/amount
+  API->>DB: Upsert permanent tenant budget
   API-->>Frontend: Saved budget
-  Frontend->>API: Reload monthly budgets
+  Frontend->>API: Reload permanent budgets
   API-->>Frontend: Updated budget progress

@@ -128,6 +128,10 @@ For all routes above:
 - success examples are present
 - validation/business-rule examples are present where applicable
 - auth error example is present
+- the contract is aligned with the current private UI flows:
+  - expense create/edit can create category, subcategory, bank, and payment method inline
+  - budget create/edit can create category and subcategory inline
+  - incomes do not expose category/bank/payment-method selects because the current income model does not include those fields
 
 ## Reports and messaging
 
@@ -158,3 +162,4 @@ For the Telegram webhook:
 - The contract is now aligned with Telegram as the active messaging channel.
 - Deprecated budget aliases remain documented for backward compatibility.
 - Swagger already reflects manual edit/delete flows for expenses and incomes.
+- The remaining legacy `/budgets/monthly` references are explicitly deprecated compatibility aliases, not the canonical product flow.

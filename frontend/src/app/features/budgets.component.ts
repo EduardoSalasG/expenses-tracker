@@ -1,8 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, Inject, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
@@ -22,6 +24,9 @@ interface BudgetRow {
   progress: number;
 }
 
+const CREATE_CATEGORY_OPTION = '__create_category__';
+const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
+
 @Component({
   selector: 'app-budgets',
   standalone: true,
@@ -29,7 +34,9 @@ interface BudgetRow {
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,
+    MatDialogModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatSelectModule,
@@ -76,6 +83,7 @@ interface BudgetRow {
             @for (category of rootCategories(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
+            <mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option>
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
@@ -84,6 +92,9 @@ interface BudgetRow {
             <mat-option [value]="''">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
+            }
+            @if (selectedCategoryId()) {
+              <mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
@@ -149,7 +160,10 @@ interface BudgetRow {
 export class BudgetsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly i18n = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
   readonly t = (key: string) => this.i18n.t(key);
+  readonly createCategoryOption = CREATE_CATEGORY_OPTION;
+  readonly createSubcategoryOption = CREATE_SUBCATEGORY_OPTION;
   readonly selectedMonth = signal(currentMonth());
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
@@ -178,8 +192,17 @@ export class BudgetsComponent {
   constructor(private readonly api: ApiService) {
     this.selectedCategoryId.set(this.form.controls.categoryId.value);
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
+      if (categoryId === CREATE_CATEGORY_OPTION) {
+        queueMicrotask(() => this.createCategoryInline());
+        return;
+      }
       this.selectedCategoryId.set(categoryId);
       this.form.controls.subcategoryId.setValue('');
+    });
+    this.form.controls.subcategoryId.valueChanges.subscribe((subcategoryId) => {
+      if (subcategoryId === CREATE_SUBCATEGORY_OPTION) {
+        queueMicrotask(() => this.createSubcategoryInline());
+      }
     });
     this.loadMonth();
   }
@@ -257,6 +280,64 @@ export class BudgetsComponent {
     this.form.patchValue({ amount: 0, subcategoryId: '' });
   }
 
+  async createCategoryInline() {
+    const ref = this.dialog.open(QuickCreateOptionDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: {
+        title: this.t('expenses_create_category'),
+        label: this.t('expenses_category_name'),
+        actionText: this.t('common_save')
+      }
+    });
+    const result = await firstDialogResult<{ name: string } | undefined>(ref);
+    if (!result?.name) {
+      this.restoreCategorySelection();
+      return;
+    }
+    this.api.createCategory({ name: result.name, parentId: undefined }).subscribe({
+      next: (category) => {
+        this.categories.update((items) => sortCategories([...items, category]));
+        this.form.controls.categoryId.setValue(category.id);
+        this.selectedCategoryId.set(category.id);
+      },
+      error: () => this.restoreCategorySelection()
+    });
+  }
+
+  async createSubcategoryInline() {
+    const parentId = this.selectedCategoryId();
+    if (!parentId) {
+      this.form.controls.subcategoryId.setValue('');
+      return;
+    }
+    const ref = this.dialog.open(QuickCreateOptionDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: {
+        title: this.t('expenses_create_subcategory'),
+        label: this.t('expenses_subcategory_name'),
+        actionText: this.t('common_save')
+      }
+    });
+    const result = await firstDialogResult<{ name: string } | undefined>(ref);
+    if (!result?.name) {
+      this.form.controls.subcategoryId.setValue('');
+      return;
+    }
+    this.api.createCategory({ name: result.name, parentId }).subscribe({
+      next: (category) => {
+        this.categories.update((items) => sortCategories([...items, category]));
+        this.form.controls.subcategoryId.setValue(category.id);
+      },
+      error: () => this.form.controls.subcategoryId.setValue('')
+    });
+  }
+
   formatMoney(currency: string, amount: number) {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
@@ -329,6 +410,52 @@ export class BudgetsComponent {
       .map(([currency, amount]) => this.formatMoney(currency, amount))
       .join(' | ');
   }
+
+  private restoreCategorySelection() {
+    const current = this.selectedCategoryId() || this.rootCategories()[0]?.id || '';
+    this.form.controls.categoryId.setValue(current);
+    this.selectedCategoryId.set(current);
+  }
+}
+
+@Component({
+  selector: 'app-budget-quick-create-option-dialog',
+  standalone: true,
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  template: `
+    <div class="brand-dialog-shell !max-h-[calc(100vh-8rem)] !p-5">
+      <div class="brand-dialog-header">
+        <h2 class="m-0 text-xl font-semibold text-brand-ink">{{ data.title }}</h2>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ data.label }}</mat-label>
+          <input matInput formControlName="name">
+        </mat-form-field>
+        <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button mat-button type="button" (click)="dialogRef.close()">{{ t('common_cancel') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ data.actionText }}</button>
+        </div>
+      </form>
+    </div>
+  `
+})
+export class QuickCreateOptionDialogComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
+  readonly form = this.fb.nonNullable.group({
+    name: ['', Validators.required]
+  });
+
+  constructor(
+    readonly dialogRef: MatDialogRef<QuickCreateOptionDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) readonly data: { title: string; label: string; actionText: string }
+  ) {}
+
+  submit() {
+    this.dialogRef.close({ name: this.form.controls.name.value.trim() });
+  }
 }
 
 function currentMonth() {
@@ -340,4 +467,18 @@ function monthRange(month: string) {
   const from = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
   const to = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
   return { from: from.toISOString(), to: to.toISOString() };
+}
+
+function sortCategories(categories: Category[]) {
+  return [...categories].sort((left, right) => {
+    if (!left.parentId && right.parentId) return -1;
+    if (left.parentId && !right.parentId) return 1;
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function firstDialogResult<T>(dialogRef: MatDialogRef<unknown, T>) {
+  return new Promise<T | undefined>((resolve) => {
+    dialogRef.afterClosed().subscribe((result) => resolve(result));
+  });
 }

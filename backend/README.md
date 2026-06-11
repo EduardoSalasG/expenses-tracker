@@ -140,7 +140,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /expenses` creates manual expenses. Telegram-created expenses use the same persistence model after parsing and validation, but always use the user's preferred currency instead of treating currency as message input.
 
-`PUT /expenses/:expenseId` updates a manual expense. The web app uses it to edit date, concept, category/subcategory, payment method, and amount from the expense history.
+`PUT /expenses/:expenseId` updates a manual expense. The web app uses it to edit date, concept, category/subcategory, payment method, bank, and amount from the expense history.
 
 `DELETE /expenses/:expenseId` removes an expense from the authenticated tenant.
 
@@ -160,7 +160,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `PUT /budgets` creates or updates a permanent category budget. Budgets can target a whole category or an optional subcategory.
 
-Canonical endpoint is `/budgets`. Legacy compatibility aliases `GET/PUT /budgets/monthly` are deprecated and controlled by `LEGACY_BUDGETS_ENDPOINTS_ENABLED`.
+Canonical endpoint is `/budgets`. Legacy compatibility aliases `GET/PUT /budgets/monthly` are deprecated and controlled by `LEGACY_BUDGETS_ENDPOINTS_ENABLED`. The budget screen also supports inline category/subcategory creation from the same form.
 
 ## Report API
 
@@ -193,6 +193,8 @@ Additional aggregate endpoints:
 ## Payment Catalog API
 
 The app now uses parameterized payment catalogs. System defaults are global, and tenants can add their own options.
+
+The web app consumes these catalogs directly in expense creation/edit forms and lets the user create a missing category, subcategory, bank, or payment method inline from the related select without leaving the modal.
 
 `GET /banks` lists global default banks plus tenant-specific custom banks.
 

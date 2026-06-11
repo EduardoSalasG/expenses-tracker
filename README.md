@@ -53,6 +53,7 @@ Notes:
 - `pnpm db:migrate` is the required step for any new environment and now also loads the system-default bank and payment-method catalogs.
 - `pnpm db:seed` is optional and only creates local demo/admin users plus their default categories.
 - Real business data should be moved with `pnpm db:export:data` / `pnpm db:import:data`, not with seed scripts.
+- Expense forms support inline creation of missing categories, subcategories, banks, and payment methods. Budget forms support inline category/subcategory creation in the same flow.
 
 ## Docker
 
