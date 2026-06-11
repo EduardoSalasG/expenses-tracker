@@ -400,6 +400,7 @@ export class ExpensesComponent implements OnInit {
 
     .brand-dialog-shell {
       display: flex;
+      height: 100%;
       max-height: calc(100vh - 3rem);
       flex-direction: column;
       gap: 1rem;
@@ -417,6 +418,7 @@ export class ExpensesComponent implements OnInit {
 
     @media (max-width: 767px) {
       .brand-dialog-shell {
+        height: 100%;
         max-height: calc(100vh - 1.5rem);
         padding: 1rem;
       }
