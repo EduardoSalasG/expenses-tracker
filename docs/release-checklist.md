@@ -58,13 +58,20 @@ Use this checklist for every production promotion from `dev` to `main`.
   - `/auth/magic-link/request`
   - `/auth/magic-link/consume`
   - `/auth/telegram/registration-link`
+  - `/auth/telegram/link-token`
   - `/auth/telegram/consume-link-token`
   - `/webhooks/telegram`
+- Verify finance maintenance flows:
+  - `PUT /expenses/{expenseId}`
+  - `DELETE /expenses/{expenseId}`
+  - `PUT /incomes/{incomeId}`
+  - `DELETE /incomes/{incomeId}`
 - Update:
   - `backend/README.md`
   - `frontend/README.md` (if UI/flow/env changed)
   - `docs/diagrams/*.mmd` / `docs/diagrams/flows.md` for flow changes
   - `database/query-analysis.md` if SQL/functions/index usage changed
+  - `docs/swagger-audit-YYYY-MM-DD.md` when a final endpoint-by-endpoint pass is completed
 
 ## 6) Production promotion
 

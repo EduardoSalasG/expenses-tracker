@@ -704,6 +704,35 @@ export const openApiSpec = {
             }
           }
         })
+      },
+      delete: {
+        summary: 'Delete expense',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'expenseId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Expense UUID' }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Expense deleted',
+            content: {
+              'application/json': {
+                examples: {
+                  deleted: { value: { deleted: true } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Expense not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingExpense: { value: { error: 'Expense not found.' } }
+                }
+              }
+            }
+          }
+        })
       }
     },
     '/expenses/recent': authenticatedGet('List recent expenses'),
@@ -838,6 +867,35 @@ export const openApiSpec = {
             }
           },
           '404': { description: 'Income not found', content: { 'application/json': { examples: { missingIncome: { value: { error: 'Income not found.' } } } } } }
+        })
+      },
+      delete: {
+        summary: 'Delete income',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'incomeId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Income UUID' }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Income deleted',
+            content: {
+              'application/json': {
+                examples: {
+                  deleted: { value: { deleted: true } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Income not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingIncome: { value: { error: 'Income not found.' } }
+                }
+              }
+            }
+          }
         })
       }
     },

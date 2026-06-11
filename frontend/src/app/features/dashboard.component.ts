@@ -175,10 +175,10 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
 
-      <section id="dashboard-charts" class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section id="dashboard-charts" class="mt-4 grid gap-4 xl:grid-cols-3">
         <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-lg font-semibold">{{ t('dashboard_cash_flow_currency') }}</h2>
+            <h2 class="text-lg font-semibold">{{ t('dashboard_income_vs_expenses') }}</h2>
           </div>
           <div class="h-64 sm:h-72">
             <canvas #currencyChart aria-label="Cash flow by currency chart"></canvas>
@@ -191,9 +191,7 @@ interface CategoryVariationRow {
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
           </div>
         </mat-card>
-      </section>
 
-      <section class="mt-4">
         <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="text-lg font-semibold">{{ t('dashboard_expenses_by_subcategory') }}</h2>

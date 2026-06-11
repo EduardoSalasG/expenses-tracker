@@ -10,10 +10,12 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
 
   app.post('/expenses', auth, asyncHandler(controller.createExpense));
   app.put('/expenses/:expenseId', auth, asyncHandler(controller.updateExpense));
+  app.delete('/expenses/:expenseId', auth, asyncHandler(controller.deleteExpense));
   app.get('/expenses', auth, asyncHandler(controller.listExpenses));
   app.get('/expenses/recent', auth, asyncHandler(controller.recentExpenses));
   app.post('/incomes', auth, asyncHandler(controller.createIncome));
   app.put('/incomes/:incomeId', auth, asyncHandler(controller.updateIncome));
+  app.delete('/incomes/:incomeId', auth, asyncHandler(controller.deleteIncome));
   app.get('/incomes', auth, asyncHandler(controller.listIncomes));
   app.get('/categories', auth, asyncHandler(controller.listCategories));
   app.post('/categories', auth, asyncHandler(controller.createCategory));

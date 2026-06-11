@@ -3,6 +3,10 @@ import type { CurrencyTotalByPeriod } from './expense.repository.js';
 
 export interface IncomeRepository {
   create(input: Omit<Income, 'id'>): Promise<Income>;
+  delete(input: {
+    tenantId: TenantId;
+    incomeId: string;
+  }): Promise<boolean>;
   update(input: {
     tenantId: TenantId;
     incomeId: string;

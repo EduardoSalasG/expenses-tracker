@@ -101,10 +101,16 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                   <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
                   <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                   <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
-                    <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
-                      <mat-icon>edit</mat-icon>
-                      {{ t('common_edit') }}
-                    </button>
+                    <div class="flex flex-wrap justify-end gap-2">
+                      <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
+                        <mat-icon>edit</mat-icon>
+                        {{ t('common_edit') }}
+                      </button>
+                      <button mat-stroked-button type="button" class="!border-rose-500/40 !text-rose-300" (click)="deleteIncome(income)">
+                        <mat-icon>delete</mat-icon>
+                        {{ t('common_delete') }}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               }
@@ -195,6 +201,19 @@ export class IncomesComponent implements OnInit {
     });
   }
 
+  deleteIncome(income: Income) {
+    if (!window.confirm(this.t('incomes_delete_confirm'))) return;
+    this.api.deleteIncome(income.id).subscribe({
+      next: () => {
+        this.incomes.update((items) => items.filter((item) => item.id !== income.id));
+        this.snackBar.open(this.t('incomes_deleted'), undefined, { duration: 2400 });
+      },
+      error: () => {
+        this.snackBar.open(this.t('incomes_delete_error'), undefined, { duration: 2800 });
+      }
+    });
+  }
+
   loadIncomes() {
     this.loading.set(true);
     this.error.set('');
@@ -277,11 +296,20 @@ export class IncomesComponent implements OnInit {
 @Component({
   selector: 'app-income-create-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatIconModule],
   template: `
     <div class="brand-dialog-shell">
-      <div class="brand-dialog-header">
+      <div class="brand-dialog-header flex items-start justify-between gap-4">
         <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ income() ? t('common_edit') : t('incomes_new') }}</h2>
+        <button
+          mat-icon-button
+          type="button"
+          class="shrink-0 !text-brand-muted"
+          [attr.aria-label]="t('common_close')"
+          (click)="dialogRef.close(false)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">

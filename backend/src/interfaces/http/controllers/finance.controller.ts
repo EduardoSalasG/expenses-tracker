@@ -66,6 +66,23 @@ export class FinanceController {
     }
   };
 
+  deleteExpense = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const expenseId = Array.isArray(request.params.expenseId) ? request.params.expenseId[0] : request.params.expenseId;
+    try {
+      response.json(await this.container.useCases.finance.deleteExpense({
+        tenantId: authRequest.auth.tenantId,
+        expenseId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Expense not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
   listExpenses = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = expenseQuerySchema.parse(request.query);
@@ -100,6 +117,23 @@ export class FinanceController {
         ...body,
         incomeId,
         tenantId: authRequest.auth.tenantId
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Income not found.') {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
+  };
+
+  deleteIncome = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const incomeId = Array.isArray(request.params.incomeId) ? request.params.incomeId[0] : request.params.incomeId;
+    try {
+      response.json(await this.container.useCases.finance.deleteIncome({
+        tenantId: authRequest.auth.tenantId,
+        incomeId
       }));
     } catch (error) {
       if (error instanceof Error && error.message === 'Income not found.') {

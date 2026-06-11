@@ -15,6 +15,10 @@ export interface CategoryTotalByPeriod {
 
 export interface ExpenseRepository {
   create(input: Omit<Expense, 'id'>): Promise<Expense>;
+  delete(input: {
+    tenantId: TenantId;
+    expenseId: string;
+  }): Promise<boolean>;
   update(input: {
     tenantId: TenantId;
     expenseId: string;

@@ -310,6 +310,26 @@ import { I18nService } from '../core/i18n.service';
       <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
         <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
           <div class="max-w-2xl">
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_testimonials_title') }}</h2>
+            <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_testimonials_subtitle') }}</p>
+          </div>
+          <div class="mt-8 grid gap-4 lg:grid-cols-3">
+            @for (testimonial of testimonials; track testimonial.quote) {
+              <article class="rounded-xl border border-brand-border bg-brand-surface p-5 shadow-sm">
+                <p class="text-base leading-7 text-brand-ink">“{{ testimonial.quote }}”</p>
+                <div class="mt-4 border-t border-brand-border pt-4">
+                  <p class="font-semibold text-brand-ink">{{ testimonial.name }}</p>
+                  <p class="text-sm text-brand-muted">{{ testimonial.role }}</p>
+                </div>
+              </article>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="border-y border-brand-border/60 bg-brand-surface-muted/55">
+        <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+          <div class="max-w-2xl">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ t('landing_faq_title') }}</h2>
             <p class="mt-3 text-base leading-7 text-brand-muted">{{ t('landing_faq_subtitle') }}</p>
           </div>
@@ -403,6 +423,12 @@ export class LandingComponent implements OnInit {
     { icon: 'shield', title: this.t('landing_trust_1_title'), description: this.t('landing_trust_1_desc') },
     { icon: 'devices', title: this.t('landing_trust_2_title'), description: this.t('landing_trust_2_desc') },
     { icon: 'insights', title: this.t('landing_trust_3_title'), description: this.t('landing_trust_3_desc') }
+  ];
+
+  readonly testimonials = [
+    { quote: this.t('landing_testimonial_1_quote'), name: this.t('landing_testimonial_1_name'), role: this.t('landing_testimonial_1_role') },
+    { quote: this.t('landing_testimonial_2_quote'), name: this.t('landing_testimonial_2_name'), role: this.t('landing_testimonial_2_role') },
+    { quote: this.t('landing_testimonial_3_quote'), name: this.t('landing_testimonial_3_name'), role: this.t('landing_testimonial_3_role') }
   ];
 
   readonly previewMetrics = [

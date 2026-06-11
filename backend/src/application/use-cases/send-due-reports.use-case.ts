@@ -20,13 +20,18 @@ export class SendDueReportsUseCase {
     const failed = [];
 
     for (const user of users) {
+      if (!user.telegramChatId) {
+        skipped.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId, reason: 'telegram_not_linked' });
+        continue;
+      }
+
       const reserved = await this.dispatches.reserve({
         tenantId: user.tenantId,
         userId: user.id,
         frequency,
         periodFrom: period.from,
         periodTo: period.to,
-        channel: 'whatsapp'
+        channel: 'telegram'
       });
       if (!reserved) {
         skipped.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId, reason: 'already_sent' });
@@ -36,13 +41,13 @@ export class SendDueReportsUseCase {
       try {
         const report = await this.finance.report(user.tenantId, period.from, period.to);
         const body = `${user.preferredName}, ${formatReportMessage(frequency, period.label, report, user.preferredLanguage ?? 'es')}`;
-        await this.messaging.sendText(user.phoneNumber, body, { channel: 'whatsapp' });
+        await this.messaging.sendText(user.telegramChatId, body, { channel: 'telegram' });
         await this.dispatches.markSent({
           userId: user.id,
           frequency,
           periodFrom: period.from,
           periodTo: period.to,
-          channel: 'whatsapp'
+          channel: 'telegram'
         });
         sent.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId });
       } catch (error) {
@@ -52,7 +57,7 @@ export class SendDueReportsUseCase {
           frequency,
           periodFrom: period.from,
           periodTo: period.to,
-          channel: 'whatsapp',
+          channel: 'telegram',
           errorMessage: message
         });
         failed.push({ userId: user.id, phoneNumber: user.phoneNumber, tenantId: user.tenantId, error: message });

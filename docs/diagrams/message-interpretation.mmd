@@ -1,11 +1,11 @@
 sequenceDiagram
-  participant WhatsApp
+  participant Telegram
   participant API
   participant Port as MessageInterpreterPort
   participant LLM as GitHub Models / OpenAI-compatible provider
   participant Fallback as Deterministic interpreter
   participant UseCase
-  WhatsApp->>API: Text message
+  Telegram->>API: Text message
   API->>Port: interpret(message, user, category tree, now)
   alt provider configured with API key
     Port->>LLM: Chat completions JSON request

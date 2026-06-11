@@ -127,6 +127,8 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /auth/telegram/registration-link` is an optional convenience flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration or links Telegram in the web app without asking for the Telegram chat id manually.
 
+`POST /auth/telegram/link-token` generates a short-lived one-time token for a known Telegram chat id. The bot uses it to build a secure web login link after `/start`.
+
 `POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
 
 - If the Telegram chat is already linked to a user, the endpoint returns `linkedUser: true` plus access token, refresh token, and user snapshot. The frontend should create the session immediately and skip OTP.
@@ -140,6 +142,8 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `PUT /expenses/:expenseId` updates a manual expense. The web app uses it to edit date, concept, category/subcategory, payment method, and amount from the expense history.
 
+`DELETE /expenses/:expenseId` removes an expense from the authenticated tenant.
+
 ## Income API
 
 `GET /incomes` lists tenant-scoped incomes with optional `from`, `to`, `currency`, and `limit` query parameters.
@@ -147,6 +151,8 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 `POST /incomes` creates income records such as salary, refunds, and other personal money-in events.
 
 `PUT /incomes/:incomeId` updates date, amount, currency, and concept for an existing income record.
+
+`DELETE /incomes/:incomeId` removes an income from the authenticated tenant.
 
 ## Budget API
 
@@ -231,6 +237,7 @@ The final auth/messaging pass must explicitly cover:
 - `POST /auth/magic-link/request`
 - `POST /auth/magic-link/consume`
 - `POST /auth/telegram/registration-link`
+- `POST /auth/telegram/link-token`
 - `POST /auth/telegram/consume-link-token`
 - `POST /auth/otp/request`
 - `POST /auth/otp/verify`
@@ -270,6 +277,12 @@ Users can also correct recent movements by chat. The correction message may refe
 Supported correction fields:
 - Expense: amount, concept, category/subcategory.
 - Income: amount, concept.
+
+Supported correction channels:
+- Telegram linked chat messages.
+- Replying or referring to a previous saved movement text block.
+
+Due reports are currently delivered through Telegram when the user has a linked Telegram chat and at least one report frequency enabled in Settings.
 
 Example:
 

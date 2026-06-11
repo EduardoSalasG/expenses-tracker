@@ -17,6 +17,11 @@ import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
+const CREATE_CATEGORY_OPTION = '__create_category__';
+const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
+const CREATE_BANK_OPTION = '__create_bank__';
+const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
+
 @Component({
   selector: 'app-expenses',
   standalone: true,
@@ -132,10 +137,16 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                 <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
                 <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
                 <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
-                  <button mat-stroked-button type="button" (click)="openEditExpenseDialog(expense)">
-                    <mat-icon>edit</mat-icon>
-                    {{ t('common_edit') }}
-                  </button>
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button mat-stroked-button type="button" (click)="openEditExpenseDialog(expense)">
+                      <mat-icon>edit</mat-icon>
+                      {{ t('common_edit') }}
+                    </button>
+                    <button mat-stroked-button type="button" class="!border-rose-500/40 !text-rose-300" (click)="deleteExpense(expense)">
+                      <mat-icon>delete</mat-icon>
+                      {{ t('common_delete') }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             } @empty {
@@ -230,6 +241,19 @@ export class ExpensesComponent implements OnInit {
         }
         this.snackBar.open(this.t('expenses_updated'), undefined, { duration: 2400 });
         this.loadExpenses();
+      }
+    });
+  }
+
+  deleteExpense(expense: Expense) {
+    if (!window.confirm(this.t('expenses_delete_confirm'))) return;
+    this.api.deleteExpense(expense.id).subscribe({
+      next: () => {
+        this.expenses.update((items) => items.filter((item) => item.id !== expense.id));
+        this.snackBar.open(this.t('expenses_deleted'), undefined, { duration: 2400 });
+      },
+      error: () => {
+        this.snackBar.open(this.t('expenses_delete_error'), undefined, { duration: 2800 });
       }
     });
   }
@@ -346,11 +370,20 @@ export class ExpensesComponent implements OnInit {
 @Component({
   selector: 'app-expense-create-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule, MatSlideToggleModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCardModule, MatSlideToggleModule, MatIconModule],
   template: `
     <div class="brand-dialog-shell">
-      <div class="brand-dialog-header">
+      <div class="brand-dialog-header flex items-start justify-between gap-4">
         <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ expense() ? t('expenses_edit') : t('expenses_new') }}</h2>
+        <button
+          mat-icon-button
+          type="button"
+          class="shrink-0 !text-brand-muted"
+          [attr.aria-label]="t('common_close')"
+          (click)="dialogRef.close(false)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
@@ -358,14 +391,14 @@ export class ExpensesComponent implements OnInit {
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
-            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}</mat-select></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           }
           <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
-            <mat-slide-toggle formControlName="installmentsEnabled">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
+            <mat-slide-toggle formControlName="installmentsEnabled" class="!text-brand-ink">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
             @if (form.controls.installmentsEnabled.value) {
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <mat-form-field appearance="outline">
@@ -429,9 +462,14 @@ export class ExpenseCreateDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ApiService);
   private readonly i18n = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
   readonly t = (key: string) => this.i18n.t(key);
   readonly saving = signal(false);
   readonly installmentOptions = Array.from({ length: 24 }, (_, index) => index + 1);
+  readonly createCategoryOption = CREATE_CATEGORY_OPTION;
+  readonly createSubcategoryOption = CREATE_SUBCATEGORY_OPTION;
+  readonly createBankOption = CREATE_BANK_OPTION;
+  readonly createPaymentMethodOption = CREATE_PAYMENT_METHOD_OPTION;
   readonly categories = signal<Category[]>([]);
   readonly bankOptions = signal<BankOption[]>([]);
   readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
@@ -495,12 +533,30 @@ export class ExpenseCreateDialogComponent {
       }
     }
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
+      if (categoryId === CREATE_CATEGORY_OPTION) {
+        queueMicrotask(() => this.createCategoryInline());
+        return;
+      }
       this.selectedCategoryId.set(categoryId);
       this.form.controls.subcategoryId.setValue('');
     });
+    this.form.controls.subcategoryId.valueChanges.subscribe((subcategoryId) => {
+      if (subcategoryId === CREATE_SUBCATEGORY_OPTION) {
+        queueMicrotask(() => this.createSubcategoryInline());
+      }
+    });
     this.form.controls.paymentMethodOptionId.valueChanges.subscribe(() => {
+      if (this.form.controls.paymentMethodOptionId.value === CREATE_PAYMENT_METHOD_OPTION) {
+        queueMicrotask(() => this.createPaymentMethodInline());
+        return;
+      }
       if (this.selectedPaymentMethodKind() === 'cash') {
         this.form.controls.bankOptionId.setValue('');
+      }
+    });
+    this.form.controls.bankOptionId.valueChanges.subscribe((bankOptionId) => {
+      if (bankOptionId === CREATE_BANK_OPTION) {
+        queueMicrotask(() => this.createBankInline());
       }
     });
     this.form.controls.installmentsEnabled.valueChanges.subscribe((enabled) => {
@@ -550,6 +606,226 @@ export class ExpenseCreateDialogComponent {
   paymentMethodOptionLabel(option: PaymentMethodOption) {
     return option.isDefault ? translatePaymentMethodOption(this.t, option) : option.name;
   }
+
+  async createCategoryInline() {
+    const ref = this.dialog.open(QuickCreateOptionDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: {
+        title: this.t('expenses_create_category'),
+        label: this.t('expenses_category_name'),
+        actionText: this.t('common_save')
+      }
+    });
+    const result = await firstDialogResult<{ name: string } | undefined>(ref);
+    if (!result?.name) {
+      this.restoreCategorySelection();
+      return;
+    }
+    this.api.createCategory({ name: result.name, parentId: undefined }).subscribe({
+      next: (category) => {
+        this.categories.update((items) => sortCategories([...items, category]));
+        this.form.controls.categoryId.setValue(category.id);
+        this.selectedCategoryId.set(category.id);
+      },
+      error: () => this.restoreCategorySelection()
+    });
+  }
+
+  async createSubcategoryInline() {
+    const parentId = this.selectedCategoryId();
+    if (!parentId) {
+      this.form.controls.subcategoryId.setValue('');
+      return;
+    }
+    const ref = this.dialog.open(QuickCreateOptionDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: {
+        title: this.t('expenses_create_subcategory'),
+        label: this.t('expenses_subcategory_name'),
+        actionText: this.t('common_save')
+      }
+    });
+    const result = await firstDialogResult<{ name: string } | undefined>(ref);
+    if (!result?.name) {
+      this.form.controls.subcategoryId.setValue('');
+      return;
+    }
+    this.api.createCategory({ name: result.name, parentId }).subscribe({
+      next: (category) => {
+        this.categories.update((items) => sortCategories([...items, category]));
+        this.form.controls.subcategoryId.setValue(category.id);
+      },
+      error: () => this.form.controls.subcategoryId.setValue('')
+    });
+  }
+
+  async createBankInline() {
+    const ref = this.dialog.open(QuickCreateOptionDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false,
+      data: {
+        title: this.t('expenses_create_bank'),
+        label: this.t('expenses_bank_name'),
+        actionText: this.t('common_save')
+      }
+    });
+    const result = await firstDialogResult<{ name: string } | undefined>(ref);
+    if (!result?.name) {
+      this.form.controls.bankOptionId.setValue('');
+      return;
+    }
+    this.api.createBankOption({ name: result.name }).subscribe({
+      next: (bank) => {
+        this.bankOptions.update((items) => sortNamedOptions([...items, bank]));
+        this.form.controls.bankOptionId.setValue(bank.id);
+      },
+      error: () => this.form.controls.bankOptionId.setValue('')
+    });
+  }
+
+  async createPaymentMethodInline() {
+    const ref = this.dialog.open(QuickCreatePaymentMethodDialogComponent, {
+      width: 'min(420px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false
+    });
+    const result = await firstDialogResult<{ name: string; kind: 'cash' | 'card' | 'transfer'; cardType?: 'credit' | 'debit' } | undefined>(ref);
+    if (!result?.name) {
+      this.restorePaymentMethodSelection();
+      return;
+    }
+    this.api.createPaymentMethodOption(result).subscribe({
+      next: (option) => {
+        this.paymentMethodOptions.update((items) => sortNamedOptions([...items, option]));
+        this.form.controls.paymentMethodOptionId.setValue(option.id);
+      },
+      error: () => this.restorePaymentMethodSelection()
+    });
+  }
+
+  private restoreCategorySelection() {
+    const current = this.expense()?.categoryId ?? this.rootCategories()[0]?.id ?? '';
+    this.form.controls.categoryId.setValue(current);
+    this.selectedCategoryId.set(current);
+  }
+
+  private restorePaymentMethodSelection() {
+    const fallback = this.expense()?.paymentMethodOptionId
+      ?? this.paymentMethodOptions().find((option) => option.code === 'cash')?.id
+      ?? this.paymentMethodOptions()[0]?.id
+      ?? '';
+    this.form.controls.paymentMethodOptionId.setValue(fallback);
+  }
+}
+
+@Component({
+  selector: 'app-quick-create-option-dialog',
+  standalone: true,
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  template: `
+    <div class="brand-dialog-shell !max-h-[calc(100vh-8rem)] !p-5">
+      <div class="brand-dialog-header">
+        <h2 class="m-0 text-xl font-semibold text-brand-ink">{{ data.title }}</h2>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ data.label }}</mat-label>
+          <input matInput formControlName="name">
+        </mat-form-field>
+        <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button mat-button type="button" (click)="dialogRef.close()">{{ t('common_cancel') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ data.actionText }}</button>
+        </div>
+      </form>
+    </div>
+  `
+})
+export class QuickCreateOptionDialogComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
+  readonly form = this.fb.nonNullable.group({
+    name: ['', Validators.required]
+  });
+
+  constructor(
+    readonly dialogRef: MatDialogRef<QuickCreateOptionDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) readonly data: { title: string; label: string; actionText: string }
+  ) {}
+
+  submit() {
+    this.dialogRef.close({ name: this.form.controls.name.value.trim() });
+  }
+}
+
+@Component({
+  selector: 'app-quick-create-payment-method-dialog',
+  standalone: true,
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  template: `
+    <div class="brand-dialog-shell !max-h-[calc(100vh-8rem)] !p-5">
+      <div class="brand-dialog-header">
+        <h2 class="m-0 text-xl font-semibold text-brand-ink">{{ t('expenses_create_payment_method') }}</h2>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ t('expenses_payment_method_name') }}</mat-label>
+          <input matInput formControlName="name">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ t('expenses_payment_method') }}</mat-label>
+          <mat-select formControlName="kind">
+            <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
+            <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
+            <mat-option value="card">{{ t('expenses_card') }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        @if (form.controls.kind.value === 'card') {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_card_type') }}</mat-label>
+            <mat-select formControlName="cardType">
+              <mat-option value="debit">{{ t('expenses_debit') }}</mat-option>
+              <mat-option value="credit">{{ t('expenses_credit') }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        }
+        <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button mat-button type="button" (click)="dialogRef.close()">{{ t('common_cancel') }}</button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ t('common_save') }}</button>
+        </div>
+      </form>
+    </div>
+  `
+})
+export class QuickCreatePaymentMethodDialogComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly i18n = inject(I18nService);
+  readonly t = (key: string) => this.i18n.t(key);
+  readonly form = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    kind: ['cash' as 'cash' | 'card' | 'transfer', Validators.required],
+    cardType: ['debit' as 'credit' | 'debit']
+  });
+
+  constructor(readonly dialogRef: MatDialogRef<QuickCreatePaymentMethodDialogComponent>) {}
+
+  submit() {
+    const value = this.form.getRawValue();
+    this.dialogRef.close({
+      name: value.name.trim(),
+      kind: value.kind,
+      cardType: value.kind === 'card' ? value.cardType : undefined
+    });
+  }
 }
 
 function toDateInputValue(date: Date) {
@@ -593,6 +869,29 @@ function normalizeLabel(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase();
+}
+
+function sortCategories(categories: Category[]) {
+  return [...categories].sort((left, right) => {
+    if (!left.parentId && right.parentId) return -1;
+    if (left.parentId && !right.parentId) return 1;
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function sortNamedOptions<T extends { isDefault?: boolean; name: string }>(items: T[]) {
+  return [...items].sort((left, right) => {
+    if ((left.isDefault ?? false) !== (right.isDefault ?? false)) {
+      return (left.isDefault ?? false) ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function firstDialogResult<T>(dialogRef: MatDialogRef<unknown, T>) {
+  return new Promise<T | undefined>((resolve) => {
+    dialogRef.afterClosed().subscribe((result) => resolve(result));
+  });
 }
 
 function translatePaymentMethodOption(t: (key: string) => string, option: PaymentMethodOption) {

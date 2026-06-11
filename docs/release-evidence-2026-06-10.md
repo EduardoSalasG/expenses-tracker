@@ -22,8 +22,10 @@ This document records the executed evidence for promotion flow and post-deploy v
   - magic links
   - Telegram link-token flows
   - expense installments
+  - expense and income edit/delete flows
   - permanent budgets
   - Telegram webhook
+- Endpoint-by-endpoint Swagger audit saved in `docs/swagger-audit-2026-06-10.md`.
 - READMEs aligned with Telegram-only messaging and web-first auth.
 - Release checklist, operations, architecture, and flow index aligned with current product state.
 

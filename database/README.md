@@ -19,7 +19,7 @@ The database image is built from `database/Dockerfile`. On first container start
 - `14-005-messaging-pending-drafts.sql`
 - `15-006-split-user-names.sql`
 - `16-007-expand-default-categories.sql`
-- `17-008-rename-whatsapp-messaging-tables.sql`
+- `17-008-rename-messaging-tables.sql` (legacy file name retained in the repo as `008_rename_whatsapp_messaging_tables.sql`)
 - `18-009-reporting-aggregates-by-tenant.sql`
 - `19-010-report-dispatches.sql`
 - `20-001-demo-seed.sql`
@@ -82,7 +82,7 @@ pnpm db:export:data
 For an existing local database created before the messaging table rename, run the targeted migration:
 
 ```bash
-pnpm db:migrate:messaging
+pnpm db:migrate:messaging-rename
 ```
 
 The database is exposed at:

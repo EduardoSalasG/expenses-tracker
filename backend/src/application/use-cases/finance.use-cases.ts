@@ -76,6 +76,12 @@ export class FinanceUseCases {
     return updated;
   }
 
+  async deleteExpense(input: { tenantId: string; expenseId: string }) {
+    const deleted = await this.expenses.delete(input);
+    if (!deleted) throw new Error('Expense not found.');
+    return { deleted: true };
+  }
+
   listExpenses(input: {
     tenantId: string;
     from?: string;
@@ -107,6 +113,12 @@ export class FinanceUseCases {
     const updated = await this.incomes.update(input);
     if (!updated) throw new Error('Income not found.');
     return updated;
+  }
+
+  async deleteIncome(input: { tenantId: string; incomeId: string }) {
+    const deleted = await this.incomes.delete(input);
+    if (!deleted) throw new Error('Income not found.');
+    return { deleted: true };
   }
 
   listIncomes(input: {

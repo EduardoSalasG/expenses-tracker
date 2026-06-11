@@ -36,13 +36,16 @@ Validated:
   - shared selected month from dashboard
   - `+` button opens modal
   - save success shows toast and closes modal
+  - inline category/subcategory/bank/payment-method creation from the modal
   - edit modal updates amount/concept/date/category/payment method
+  - delete action removes records from the history list
   - more-filters expandable works
 - Incomes
   - shared selected month from dashboard
   - `+` button opens modal
   - save success shows toast and closes modal
   - edit flow updates amount/concept/date
+  - delete action removes records from the history list
   - more-filters expandable works
 - Budgets
   - permanent budgets listed from `/budgets`
@@ -65,6 +68,10 @@ Validated:
 - natural-language income save
 - duplicate confirmation flow (`guardar` / `descartar`)
 - update movement by reference
+  - amount change
+  - concept change
+  - category/subcategory change
+  - previous-message reference
 - `/commands` and `/help`
 - unlinked-user guidance
 
@@ -89,6 +96,8 @@ Specific final checks:
 - `/budgets/monthly` documented as deprecated alias
 - expense create/update documents installments
 - error examples present for auth and Telegram link flows
+- delete endpoints documented for expenses and incomes
+- final Swagger audit saved in `docs/swagger-audit-2026-06-10.md`
 
 ## 4) Release checklist status
 

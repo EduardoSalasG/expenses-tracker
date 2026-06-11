@@ -72,7 +72,7 @@ MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, an
 
 ## Messaging Providers
 
-Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure composes concrete providers through `ChannelMessagingRouter`, so use cases can request outbound messaging by channel without knowing provider APIs. Telegram is the active adapter and owns Telegram-specific webhook extraction and optional secret-token verification. The Telegram HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. The same boundary is ready for additional providers such as WhatsApp later, without changing use-case contracts.
+Application use cases depend on provider-neutral messaging ports: `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure composes concrete providers through `ChannelMessagingRouter`, so use cases can request outbound messaging by channel without knowing provider APIs. Telegram is the active adapter and owns Telegram-specific webhook extraction and optional secret-token verification. The Telegram HTTP controller forwards extracted `InboundTextMessage` batches to `InboundMessagingService`, which invokes the provider-neutral finance-message use case. The same boundary is ready for additional providers later, without changing use-case contracts.
 
 ## Operational Hardening
 

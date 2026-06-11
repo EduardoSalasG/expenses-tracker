@@ -320,6 +320,13 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     return buildProjectedExpenses(expense)[0];
   }
 
+  async delete(input: { tenantId: string; expenseId: string }) {
+    const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
+    if (index === -1) return false;
+    this.expenses.splice(index, 1);
+    return true;
+  }
+
   async update(input: {
     tenantId: string;
     expenseId: string;
@@ -483,6 +490,13 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     const income = { ...input, id: randomUUID() };
     this.incomes.push(income);
     return income;
+  }
+
+  async delete(input: { tenantId: string; incomeId: string }) {
+    const index = this.incomes.findIndex((income) => income.tenantId === input.tenantId && income.id === input.incomeId);
+    if (index === -1) return false;
+    this.incomes.splice(index, 1);
+    return true;
   }
 
   async update(input: {

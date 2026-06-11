@@ -397,6 +397,15 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     }
   }
 
+  async delete(input: { tenantId: string; expenseId: string }) {
+    const result = await this.pool.query(
+      `delete from expenses
+       where tenant_id = $1 and id = $2`,
+      [input.tenantId, input.expenseId]
+    );
+    return result.rowCount === 1;
+  }
+
   async update(input: {
     tenantId: string;
     expenseId: string;
@@ -592,6 +601,15 @@ export class PostgresIncomeRepository implements IncomeRepository {
       [input.tenantId, input.userId, input.date, input.amount, input.currency, input.concept]
     );
     return mapIncome(result.rows[0]);
+  }
+
+  async delete(input: { tenantId: string; incomeId: string }) {
+    const result = await this.pool.query(
+      `delete from incomes
+       where tenant_id = $1 and id = $2`,
+      [input.tenantId, input.incomeId]
+    );
+    return result.rowCount === 1;
   }
 
   async update(input: {

@@ -79,7 +79,7 @@ export function createMessageInterpreter(config: AppConfig, logger: Logger): Mes
 
 function systemPrompt() {
   return [
-    'You interpret WhatsApp messages for a consumer personal finance tracker.',
+    'You interpret chat messages for a consumer personal finance tracker.',
     'Return only valid JSON. Do not include markdown.',
     'Supported intents: create_expense, create_income, update_movement, ask_report, ask_budget_status, unknown.',
     'Never infer currency from arbitrary words. Currency is tenant configuration, not a message-level input. Omit currency unless the message contains an explicit ISO currency code or currency symbol.',

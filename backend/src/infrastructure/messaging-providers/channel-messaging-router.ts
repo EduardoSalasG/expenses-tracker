@@ -4,7 +4,7 @@ import type { MessagingProvider } from '../../application/ports.js';
 export class ChannelMessagingRouter implements MessagingProvider {
   constructor(
     private readonly providers: Partial<Record<MessagingChannel, MessagingProvider>>,
-    private readonly fallbackChannel: MessagingChannel = 'whatsapp'
+    private readonly fallbackChannel: MessagingChannel = 'telegram'
   ) {}
 
   sendText(toPhoneNumber: string, body: string, options?: { channel?: MessagingChannel }): Promise<unknown> {

@@ -4,12 +4,12 @@ sequenceDiagram
   participant API
   participant Users
   participant OTP
-  participant WhatsApp
+  participant Telegram
   User->>Frontend: Enter phone number
   Frontend->>API: POST /auth/otp/request
   API->>Users: Find user by phone
   API->>OTP: Store code with expiry
-  API->>WhatsApp: Send OTP
+  API->>Telegram: Send OTP
   API-->>Frontend: sent + requiresRegistration
   alt Existing user
     User->>Frontend: Enter code
@@ -22,7 +22,7 @@ sequenceDiagram
     API->>Users: Load existing profile
   else New user
     API->>Users: Create user and tenant from registration fields
-    API->>WhatsApp: Send greeting and usage instructions
+    API->>Telegram: Send greeting and usage instructions
   end
   API->>API: Seed default categories if needed
   API-->>Frontend: Access token, refresh token, and user

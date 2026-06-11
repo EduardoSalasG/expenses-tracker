@@ -161,12 +161,20 @@ export class ApiService {
     return this.http.put<Expense>(`${environment.apiBaseUrl}/expenses/${expenseId}`, payload);
   }
 
+  deleteExpense(expenseId: string) {
+    return this.http.delete<{ deleted: true }>(`${environment.apiBaseUrl}/expenses/${expenseId}`);
+  }
+
   createIncome(payload: unknown) {
     return this.http.post<Income>(`${environment.apiBaseUrl}/incomes`, payload);
   }
 
   updateIncome(incomeId: string, payload: unknown) {
     return this.http.put<Income>(`${environment.apiBaseUrl}/incomes/${incomeId}`, payload);
+  }
+
+  deleteIncome(incomeId: string) {
+    return this.http.delete<{ deleted: true }>(`${environment.apiBaseUrl}/incomes/${incomeId}`);
   }
 
   incomes(filters: IncomeFilters = {}) {
@@ -182,7 +190,7 @@ export class ApiService {
   }
 
   createCategory(payload: unknown) {
-    return this.http.post(`${environment.apiBaseUrl}/categories`, payload);
+    return this.http.post<Category>(`${environment.apiBaseUrl}/categories`, payload);
   }
 
   bankOptions() {

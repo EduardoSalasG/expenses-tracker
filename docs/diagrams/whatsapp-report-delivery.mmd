@@ -5,7 +5,7 @@ sequenceDiagram
   participant Worker
   participant API
   participant DB
-  participant WhatsApp
+  participant Telegram
   User->>Frontend: Select report frequencies
   Frontend->>API: PUT /report-preferences
   API->>DB: Save tenant user preferences
@@ -13,7 +13,7 @@ sequenceDiagram
   Worker->>API: Execute SendDueReports use case
   API->>DB: Find users with matching preference
   API->>DB: Generate tenant report
-  API->>WhatsApp: Send report summary
+  API->>Telegram: Send report summary
   API-->>Worker: Sent/skipped/failed summary + duration
   alt Failed recipients > 0
     Worker-->>Scheduler: Exit code 1 (alert/retry path)

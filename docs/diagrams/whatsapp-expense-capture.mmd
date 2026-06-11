@@ -1,20 +1,20 @@
 sequenceDiagram
   actor User
-  participant WhatsApp
+  participant Telegram
   participant API
   participant Interpreter
   participant DB
-  User->>WhatsApp: Send finance message or question
-  WhatsApp->>WhatsApp: Allow only registered/test-approved senders
-  WhatsApp->>API: POST /webhooks/whatsapp
+  User->>Telegram: Send finance message or question
+  Telegram->>Telegram: Require linked or registered sender
+  Telegram->>API: POST /webhooks/telegram
   API->>DB: Reserve provider message id
   alt message id already processed
-    API-->>WhatsApp: 200 OK without duplicate expense
+    API-->>Telegram: 200 OK without duplicate expense
   else new message id
   API->>DB: Find user by phone number
   alt sender is not registered
     API->>DB: Mark audit as unknown_user
-    API-->>WhatsApp: 200 OK without processing
+    API-->>Telegram: 200 OK without processing
   else registered sender
     API->>DB: Check active pending draft
     alt pending draft exists
@@ -25,7 +25,7 @@ sequenceDiagram
       alt possible recent duplicate
         API->>DB: Mark audit as needs_confirmation
         API->>DB: Upsert duplicate confirmation draft
-        API->>WhatsApp: Ask user to guardar or descartar
+        API->>Telegram: Ask user to guardar or descartar
       else not duplicate
         API->>Interpreter: Interpret intent and structured fields
         Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
@@ -34,25 +34,25 @@ sequenceDiagram
     alt missing or ambiguous data
       API->>DB: Mark audit as needs_confirmation
       API->>DB: Upsert pending draft for user
-      API->>WhatsApp: Ask for clarification
+      API->>Telegram: Ask for clarification
     else update referenced movement
       API->>DB: Read recent tenant-scoped expenses/incomes
       API->>API: Match by referenced amount, concept, category, and movement type
       API->>DB: Update amount, concept, or category when match is confident
       API->>DB: Mark audit as saved
-      API->>WhatsApp: Confirm updated movement
+      API->>Telegram: Confirm updated movement
     else create expense
       API->>DB: Insert expense scoped by tenant using preferred currency
       API->>DB: Mark audit as saved
-      API->>WhatsApp: Confirm saved expense
+      API->>Telegram: Confirm saved expense
     else create income
       API->>DB: Insert income scoped by tenant using preferred currency
       API->>DB: Mark audit as saved
-      API->>WhatsApp: Confirm saved income
+      API->>Telegram: Confirm saved income
     else ask report or budget status
       API->>DB: Read tenant-scoped report or budget data
       API->>DB: Mark audit as saved
-      API->>WhatsApp: Reply with calculated answer
+      API->>Telegram: Reply with calculated answer
     end
   end
   end

@@ -427,6 +427,196 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(messaging.messages.at(-1)?.body).toContain('Categoría: Food > Restaurants.');
   });
 
+  it('updates expense amount and concept from a Telegram correction', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
+    if (!food) throw new Error('Missing Food category in test defaults.');
+    await expenses.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-06T00:00:00.000Z',
+      amount: 25000,
+      currency: 'CLP',
+      concept: 'sushi burger',
+      categoryId: food.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:05:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-update-expense-amount-concept',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: [
+        'Cambia este gasto a 30.000 y concepto cena sushi burger',
+        'Monto: $25.000.',
+        'Concepto: sushi burger.',
+        'Categoría: Food.'
+      ].join('\n')
+    });
+
+    expect(result.status).toBe('expense_updated');
+    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    expect(updated.amount).toBe(30000);
+    expect(updated.concept).toContain('cena sushi burger');
+    expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto actualizado.');
+    expect(messaging.messages.at(-1)?.body).toContain('Monto: $30.000.');
+    expect(messaging.messages.at(-1)?.body).toContain('Concepto: cena sushi burger.');
+  });
+
+  it('updates expense category and subcategory from a Telegram correction', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
+    if (!education) throw new Error('Missing Education category in test defaults.');
+    await expenses.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-06T00:00:00.000Z',
+      amount: 14000,
+      currency: 'CLP',
+      concept: 'Hamburguesas',
+      categoryId: education.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:05:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-update-expense-category',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: [
+        'Cambia la categoría de este gasto a restaurantes',
+        'Monto: $14.000.',
+        'Concepto: Hamburguesas.',
+        'Categoría: Education.'
+      ].join('\n')
+    });
+
+    expect(result.status).toBe('expense_updated');
+    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
+    const restaurants = tenantCategories.find((category) => category.name === 'Restaurants' && category.parentId === food?.id);
+    expect(updated.categoryId).toBe(food?.id);
+    expect(updated.subcategoryId).toBe(restaurants?.id);
+    expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto actualizado.');
+    expect(messaging.messages.at(-1)?.body).toContain('Categoría: Food > Restaurants.');
+  });
+
+  it('updates a referenced recent income from a Telegram correction', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    await incomes.create({
+      tenantId: user.tenantId,
+      userId: user.id,
+      date: '2026-05-03T00:00:00.000Z',
+      amount: 1200000,
+      currency: 'CLP',
+      concept: 'Sueldo'
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      new InMemoryExpenseRepository(),
+      incomes,
+      new InMemoryBudgetRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:05:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-update-income',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: [
+        'Cambia este ingreso a 1.250.000 y concepto sueldo mayo',
+        'Monto: $1.200.000.',
+        'Concepto: Sueldo.'
+      ].join('\n')
+    });
+
+    expect(result.status).toBe('income_updated');
+    const [updated] = await incomes.listRecent(user.tenantId, 10);
+    expect(updated.amount).toBe(1250000);
+    expect(updated.concept).toContain('sueldo mayo');
+    expect(messaging.messages.at(-1)?.body).toContain('Vane, Ingreso actualizado.');
+    expect(messaging.messages.at(-1)?.body).toContain('Monto: $1.250.000.');
+    expect(messaging.messages.at(-1)?.body).toContain('Concepto: sueldo mayo.');
+  });
+
   it('answers budget remaining when the user asks how much money is left', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

@@ -175,7 +175,7 @@ function parseAmountAfterChangeVerb(message: string) {
 }
 
 function parseConceptAfterChangeVerb(message: string) {
-  const match = message.match(/\b(?:concepto|concept)\s+(?:a|to|por|en)\s+([^\n.]+)/i);
+  const match = message.match(/\b(?:concepto|concept)(?:\s+(?:a|to|por|en))?\s+([^\n.]+)/i);
   return match?.[1]?.trim();
 }
 

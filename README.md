@@ -4,6 +4,8 @@ Consumer expenses tracker with web-first access, optional Telegram capture, Post
 
 Telegram expense capture is intended for registered users only and works as an optional convenience channel. The web app is fully usable without Telegram.
 
+Linked Telegram users can also correct recent expenses and incomes by chat, including amount, concept, and expense category/subcategory changes.
+
 Telegram messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; GitHub Models with `deepseek/DeepSeek-V3-0324` or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
 
 ## Repository
