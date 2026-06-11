@@ -283,11 +283,13 @@ export class IncomesComponent implements OnInit {
       <div class="brand-dialog-header">
         <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ income() ? t('common_edit') : t('incomes_new') }}</h2>
       </div>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+      <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
+        <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+        </div>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">{{ saving() ? t('incomes_saving') : income() ? t('common_update') : t('incomes_save') }}</button>
@@ -306,7 +308,7 @@ export class IncomesComponent implements OnInit {
       max-height: calc(100vh - 3rem);
       flex-direction: column;
       gap: 1rem;
-      overflow: auto;
+      overflow: hidden;
       padding: 1.25rem;
     }
 
@@ -318,14 +320,6 @@ export class IncomesComponent implements OnInit {
       .brand-dialog-shell {
         max-height: calc(100vh - 1.5rem);
         padding: 1rem;
-      }
-
-      .brand-dialog-actions {
-        position: sticky;
-        bottom: 0;
-        margin-top: 0.25rem;
-        padding-top: 0.75rem;
-        background: var(--brand-surface);
       }
     }
   `]

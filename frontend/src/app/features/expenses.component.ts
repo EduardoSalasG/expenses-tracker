@@ -352,36 +352,38 @@ export class ExpensesComponent implements OnInit {
       <div class="brand-dialog-header">
         <h2 class="m-0 text-2xl font-semibold text-brand-ink">{{ expense() ? t('expenses_edit') : t('expenses_new') }}</h2>
       </div>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 lg:grid-cols-2">
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}</mat-select></mat-form-field>
-        @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}</mat-select></mat-form-field>
-        }
-        <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
-          <mat-slide-toggle formControlName="installmentsEnabled">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
-          @if (form.controls.installmentsEnabled.value) {
-            <div class="mt-4 grid gap-4 md:grid-cols-2">
-              <mat-form-field appearance="outline">
-                <mat-label>{{ t('expenses_installment_count') }}</mat-label>
-                <mat-select formControlName="installmentCount">
-                  @for (count of installmentOptions; track count) {
-                    <mat-option [value]="count">{{ count }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ t('expenses_first_installment_date') }}</mat-label>
-                <input matInput type="date" formControlName="firstInstallmentDate">
-              </mat-form-field>
-            </div>
-            <p class="m-0 text-sm text-brand-muted">{{ t('expenses_installments_help') }}</p>
+      <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
+        <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}</mat-select></mat-form-field>
+          @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
+            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}</mat-select></mat-form-field>
           }
+          <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
+            <mat-slide-toggle formControlName="installmentsEnabled">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
+            @if (form.controls.installmentsEnabled.value) {
+              <div class="mt-4 grid gap-4 md:grid-cols-2">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('expenses_installment_count') }}</mat-label>
+                  <mat-select formControlName="installmentCount">
+                    @for (count of installmentOptions; track count) {
+                      <mat-option [value]="count">{{ count }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('expenses_first_installment_date') }}</mat-label>
+                  <input matInput type="date" formControlName="firstInstallmentDate">
+                </mat-form-field>
+              </div>
+              <p class="m-0 text-sm text-brand-muted">{{ t('expenses_installments_help') }}</p>
+            }
+          </div>
         </div>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>
@@ -401,7 +403,7 @@ export class ExpensesComponent implements OnInit {
       max-height: calc(100vh - 3rem);
       flex-direction: column;
       gap: 1rem;
-      overflow: auto;
+      overflow: hidden;
       padding: 1.25rem;
     }
 
@@ -417,14 +419,6 @@ export class ExpensesComponent implements OnInit {
       .brand-dialog-shell {
         max-height: calc(100vh - 1.5rem);
         padding: 1rem;
-      }
-
-      .brand-dialog-actions {
-        position: sticky;
-        bottom: 0;
-        margin-top: 0.25rem;
-        padding-top: 0.75rem;
-        background: var(--brand-surface);
       }
     }
   `]

@@ -120,6 +120,33 @@ body {
   --mdc-theme-text-primary-on-background: var(--brand-ink);
 }
 
+.mat-mdc-form-field .mdc-text-field--outlined {
+  background: var(--brand-surface) !important;
+  border-radius: 12px !important;
+}
+
+.mat-mdc-form-field .mdc-notched-outline__notch {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.mat-mdc-form-field .mdc-floating-label {
+  padding-inline: 0.3rem;
+  background: var(--brand-surface);
+  border-radius: 999px;
+}
+
+.mat-mdc-form-field .mat-mdc-form-field-infix {
+  min-height: 56px;
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+
+.mat-mdc-form-field .mat-mdc-select-trigger,
+.mat-mdc-form-field .mdc-text-field__input {
+  line-height: 1.25;
+}
+
 .mat-mdc-card.page-panel {
   --mdc-elevated-card-container-color: var(--brand-surface);
   --mdc-outlined-card-container-color: var(--brand-surface);
@@ -263,6 +290,28 @@ table {
 
 .brand-dialog-panel .mat-mdc-dialog-container {
   padding: 0 !important;
+}
+
+.brand-dialog-form {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.brand-dialog-fields {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.brand-dialog-actions {
+  flex-shrink: 0;
+  border-top: 1px solid var(--brand-border);
+  background: var(--brand-surface);
+  padding-top: 1rem;
 }
 
 .mat-mdc-form-field-error {
@@ -811,5 +860,9 @@ select option:focus {
     max-width: calc(100vw - 1rem) !important;
     max-height: calc(100vh - 1rem) !important;
     border-radius: 14px !important;
+  }
+
+  .brand-dialog-fields {
+    padding-right: 0;
   }
 }
