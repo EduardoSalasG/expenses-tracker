@@ -102,6 +102,7 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 - `GET /health`: backward-compatible health endpoint.
 - `GET /health/live`: liveness probe.
 - `GET /health/ready`: readiness probe (checks DB connectivity when PostgreSQL repositories are enabled).
+- `GET /public/context`: public locale helper for landing/login/legal pages. Resolves `language: en` when the request IP maps to the United States; otherwise defaults to `es`.
 
 ## Auth API
 

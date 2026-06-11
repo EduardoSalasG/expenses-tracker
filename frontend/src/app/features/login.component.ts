@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
+import { PublicContextService } from '../core/public-context.service';
 
 @Component({
   selector: 'app-login',
@@ -360,14 +361,21 @@ export class LoginComponent implements OnInit {
     private readonly auth: AuthService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    private readonly publicContext: PublicContextService
   ) {
     this.form.controls.preferredLanguage.setValue(this.i18n.language());
   }
 
   ngOnInit() {
-    this.i18n.usePublicSpanish();
-    this.form.controls.preferredLanguage.setValue('es');
+    if (!this.i18n.hasSavedLanguagePreference()) {
+      this.i18n.usePublicDefault();
+      this.publicContext.getContext().subscribe((context) => {
+        this.i18n.usePublicLanguage(context.language);
+        this.form.controls.preferredLanguage.setValue(this.i18n.language());
+      });
+    }
+    this.form.controls.preferredLanguage.setValue(this.i18n.language());
     const mode = this.route.snapshot.queryParamMap.get('mode');
     if (mode === 'register') {
       this.mode.set('register');

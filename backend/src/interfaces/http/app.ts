@@ -10,6 +10,7 @@ import { registerRoutes } from './routes/index.js';
 
 export function createApp(container: AppContainer) {
   const app = express();
+  app.set('trust proxy', true);
   app.use(helmet());
   // In dev, when exposing the API via ngrok, the Origin will be the ngrok domain.
   // Allow configuring multiple allowed origins via comma-separated FRONTEND_ORIGIN.

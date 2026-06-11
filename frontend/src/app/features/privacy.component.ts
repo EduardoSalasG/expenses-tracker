@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { I18nService } from '../core/i18n.service';
+import { PublicContextService } from '../core/public-context.service';
 
 type PrivacySection = { heading: string; body: string[] };
 
@@ -49,6 +50,7 @@ export class PrivacyComponent implements OnInit {
   private readonly titleService = inject(Title);
   private readonly meta = inject(Meta);
   private readonly i18n = inject(I18nService);
+  private readonly publicContext = inject(PublicContextService);
 
   readonly title = computed(() => this.i18n.language() === 'es' ? 'Privacidad de datos' : 'Privacy notice');
   readonly description = computed(() =>
@@ -135,11 +137,22 @@ export class PrivacyComponent implements OnInit {
   ));
 
   ngOnInit() {
-    this.titleService.setTitle(`${this.title()} | Expenses Tracker`);
-    this.meta.updateTag({ name: 'description', content: this.description() });
+    if (!this.i18n.hasSavedLanguagePreference()) {
+      this.i18n.usePublicDefault();
+      this.publicContext.getContext().subscribe((context) => {
+        this.i18n.usePublicLanguage(context.language);
+        this.applyMetadata();
+      });
+    }
+    this.applyMetadata();
   }
 
   t(key: string) {
     return this.i18n.t(key);
+  }
+
+  private applyMetadata() {
+    this.titleService.setTitle(`${this.title()} | Expenses Tracker`);
+    this.meta.updateTag({ name: 'description', content: this.description() });
   }
 }

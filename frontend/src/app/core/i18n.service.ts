@@ -1017,6 +1017,16 @@ const dictionaries: Record<Language, Record<string, string>> = {
 export class I18nService {
   readonly language = signal<Language>(this.detectInitialLanguage());
 
+  hasSavedLanguagePreference() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved === 'es' || saved === 'en';
+  }
+
+  savedLanguage() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved === 'es' || saved === 'en' ? saved : null;
+  }
+
   t(key: string) {
     return dictionaries[this.language()][key] ?? dictionaries.en[key] ?? key;
   }
@@ -1027,9 +1037,24 @@ export class I18nService {
     document.documentElement.lang = language;
   }
 
-  usePublicSpanish() {
-    this.language.set('es');
-    document.documentElement.lang = 'es';
+  syncDocumentLanguage() {
+    document.documentElement.lang = this.language();
+  }
+
+  usePublicDefault() {
+    const language = this.detectPublicLanguage();
+    this.language.set(language);
+    document.documentElement.lang = language;
+  }
+
+  usePublicLanguage(language?: string | null) {
+    if (language === 'es' || language === 'en') {
+      this.language.set(language);
+      document.documentElement.lang = language;
+      return;
+    }
+
+    this.usePublicDefault();
   }
 
   applyUserPreference(language?: string | null) {
@@ -1041,6 +1066,10 @@ export class I18nService {
   private detectInitialLanguage(): Language {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'es' || saved === 'en') return saved;
+    return this.detectPublicLanguage();
+  }
+
+  private detectPublicLanguage(): Language {
     const browser = navigator.language.toLowerCase();
     return browser.startsWith('es') ? 'es' : 'en';
   }

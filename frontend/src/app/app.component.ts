@@ -10,6 +10,6 @@ import { I18nService } from './core/i18n.service';
 })
 export class AppComponent {
   constructor(private readonly i18n: I18nService) {
-    this.i18n.setLanguage(this.i18n.language());
+    this.i18n.syncDocumentLanguage();
   }
 }

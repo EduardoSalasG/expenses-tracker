@@ -115,6 +115,44 @@ export const openApiSpec = {
         }
       }
     },
+    '/public/context': {
+      get: {
+        summary: 'Resolve public locale context',
+        description: 'Public helper used by landing/login/legal pages to choose a default language from the request IP. If the request resolves to United States, language defaults to English; otherwise Spanish.',
+        responses: {
+          '200': {
+            description: 'Public locale context resolved',
+            content: {
+              'application/json': {
+                examples: {
+                  unitedStates: {
+                    value: {
+                      ip: '8.8.8.8',
+                      countryCode: 'US',
+                      language: 'en'
+                    }
+                  },
+                  chile: {
+                    value: {
+                      ip: '190.22.150.185',
+                      countryCode: 'CL',
+                      language: 'es'
+                    }
+                  },
+                  unknown: {
+                    value: {
+                      ip: null,
+                      countryCode: null,
+                      language: 'es'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     '/auth/otp/request': {
       post: {
         summary: 'Request Telegram OTP (fallback flow)',
