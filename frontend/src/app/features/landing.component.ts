@@ -56,7 +56,7 @@ import { PublicContextService } from '../core/public-context.service';
               [queryParams]="{ mode: 'register' }"
               class="landing-nav-register flex-1 sm:flex-none"
             >
-              {{ t('landing_register') }}
+              {{ t('landing_register_short') }}
             </a>
           </nav>
         </div>
@@ -82,22 +82,22 @@ import { PublicContextService } from '../core/public-context.service';
             </div>
             <div class="landing-cta-group mt-8 flex flex-col gap-3 sm:flex-row">
               <a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="!h-12 !px-6">
-                {{ t('landing_register') }}
+                {{ t('landing_register_short') }}
               </a>
             </div>
             <p class="mt-3 text-sm text-brand-muted">{{ t('landing_cta_support') }}</p>
             <ul class="mt-8 grid gap-3 text-sm text-brand-muted sm:grid-cols-3">
-              <li class="flex items-start gap-2">
-                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">chat</mat-icon>
-                <span>{{ t('landing_proof_messaging') }}</span>
+              <li class="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-2">
+                <mat-icon class="landing-inline-icon !h-5 !w-5 self-start !text-brand-blue">chat</mat-icon>
+                <span class="block leading-6">{{ t('landing_proof_messaging') }}</span>
               </li>
-              <li class="flex items-start gap-2">
-                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">savings</mat-icon>
-                <span>{{ t('landing_proof_budget') }}</span>
+              <li class="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-2">
+                <mat-icon class="landing-inline-icon !h-5 !w-5 self-start !text-brand-blue">savings</mat-icon>
+                <span class="block leading-6">{{ t('landing_proof_budget') }}</span>
               </li>
-              <li class="flex items-start gap-2">
-                <mat-icon class="landing-inline-icon !h-5 !w-5 !text-brand-blue">monitoring</mat-icon>
-                <span>{{ t('landing_proof_reports') }}</span>
+              <li class="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-2">
+                <mat-icon class="landing-inline-icon !h-5 !w-5 self-start !text-brand-blue">monitoring</mat-icon>
+                <span class="block leading-6">{{ t('landing_proof_reports') }}</span>
               </li>
             </ul>
           </div>
@@ -222,7 +222,7 @@ import { PublicContextService } from '../core/public-context.service';
                           <p class="font-medium text-brand-ink">{{ variation.category }}</p>
                           <p class="text-sm text-brand-muted">{{ variation.detail }}</p>
                         </div>
-                        <span class="text-sm font-semibold" [class.text-emerald-500]="variation.positive" [class.text-rose-400]="!variation.positive">
+                        <span class="shrink-0 self-start whitespace-nowrap text-right text-sm font-semibold" [class.text-emerald-500]="variation.positive" [class.text-rose-400]="!variation.positive">
                           {{ variation.delta }}
                         </span>
                       </li>

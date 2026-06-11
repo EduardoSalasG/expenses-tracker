@@ -123,38 +123,28 @@ body {
 .mat-mdc-form-field .mdc-text-field--outlined {
   background: var(--brand-surface) !important;
   border-radius: 12px !important;
-  overflow: hidden;
 }
 
-.mat-mdc-form-field .mdc-notched-outline__notch {
-  border-left: none !important;
-  border-right: none !important;
+.mat-mdc-form-field .mdc-floating-label {
+  padding-inline: 0.35rem;
+  background: var(--brand-surface);
+  border-radius: 999px;
 }
 
 .mat-mdc-form-field .mdc-notched-outline__leading,
 .mat-mdc-form-field .mdc-notched-outline__trailing,
 .mat-mdc-form-field .mdc-notched-outline__notch {
-  min-width: 0 !important;
+  border-color: var(--brand-border) !important;
 }
 
 .mat-mdc-form-field .mdc-notched-outline__leading {
-  border-right: none !important;
-  min-width: 12px !important;
+  border-top-left-radius: 12px !important;
+  border-bottom-left-radius: 12px !important;
 }
 
 .mat-mdc-form-field .mdc-notched-outline__trailing {
-  border-left: none !important;
-}
-
-.mat-mdc-form-field .mdc-notched-outline__notch {
-  border-left: none !important;
-  border-right: none !important;
-}
-
-.mat-mdc-form-field .mdc-floating-label {
-  padding-inline: 0.3rem;
-  background: var(--brand-surface);
-  border-radius: 999px;
+  border-top-right-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
 }
 
 .mat-mdc-form-field .mat-mdc-form-field-infix {
@@ -333,7 +323,7 @@ table {
   flex: 1 1 auto;
   overflow: auto;
   padding-right: 0.25rem;
-  padding-bottom: 0.25rem;
+  padding-bottom: 6rem;
 }
 
 .brand-dialog-actions {
@@ -894,11 +884,17 @@ select option:focus {
   .brand-dialog-panel .mdc-dialog__surface {
     width: calc(100vw - 1rem) !important;
     max-width: calc(100vw - 1rem) !important;
-    max-height: calc(100vh - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
     border-radius: 14px !important;
   }
 
   .brand-dialog-fields {
     padding-right: 0;
+    padding-bottom: 7rem;
+  }
+
+  .brand-dialog-actions {
+    padding-top: 0.85rem;
+    padding-bottom: 0.5rem;
   }
 }
