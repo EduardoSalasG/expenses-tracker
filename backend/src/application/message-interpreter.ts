@@ -292,7 +292,7 @@ const CATEGORY_INFERENCE_RULES = [
   { pattern: /\b(doctor|medico|medico|consulta|appointment|cita)\b/, categoryName: 'Health', subcategoryName: 'Appointments' },
   { pattern: /\b(examen|procedimiento|procedure|procedures)\b/, categoryName: 'Health', subcategoryName: 'Procedures' },
   { pattern: /\b(gimnasio|gym|deporte|sports|sport)\b/, categoryName: 'Health', subcategoryName: 'Sports' },
-  { pattern: /\b(clase|clases|curso|academia|taller|bachata|salsa|dance class)\b/, categoryName: 'Education', subcategoryName: 'Dance' },
+  { pattern: /\b(clase|clases|curso|academia|taller|bachata|salsa|dance class)\b/, categoryName: 'Education' },
   { pattern: /\b(teatro|theater|cine|concierto|show)\b/, categoryName: 'Entertainment', subcategoryName: 'Theater' },
   { pattern: /\b(telefono|phone|celular|internet|plan)\b/, categoryName: 'Services', subcategoryName: 'Phone' },
   { pattern: /\b(regalo|gift|gifts)\b/, categoryName: 'Other', subcategoryName: 'Gifts' }

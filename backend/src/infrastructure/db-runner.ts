@@ -1,10 +1,30 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createPool } from './database.js';
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger();
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFilePath);
+
+function resolveExistingPath(relativeTarget: string) {
+  const candidates = [
+    path.resolve(process.cwd(), '..', relativeTarget),
+    path.resolve(process.cwd(), relativeTarget),
+    path.resolve(currentDirectory, '..', '..', '..', relativeTarget),
+    path.resolve(currentDirectory, '..', '..', relativeTarget)
+  ];
+
+  const resolved = candidates.find((candidate) => existsSync(candidate));
+  if (!resolved) {
+    throw new Error(`Could not resolve path for ${relativeTarget}`);
+  }
+
+  return resolved;
+}
 
 async function ensureSchemaMigrationsTable(pool: ReturnType<typeof createPool>) {
   await pool.query(`
@@ -50,7 +70,7 @@ async function migrationLooksApplied(pool: ReturnType<typeof createPool>, file: 
 async function runSqlDirectory(directory: string, options: { trackApplied?: boolean } = {}) {
   const config = loadConfig();
   const pool = createPool(config);
-  const absoluteDirectory = path.resolve(process.cwd(), '..', directory);
+  const absoluteDirectory = resolveExistingPath(directory);
   const files = (await readdir(absoluteDirectory))
     .filter((file) => file.endsWith('.sql'))
     .sort();
@@ -109,7 +129,7 @@ async function runSqlDirectory(directory: string, options: { trackApplied?: bool
 async function runSqlFile(filePath: string) {
   const config = loadConfig();
   const pool = createPool(config);
-  const fullPath = path.resolve(process.cwd(), '..', filePath);
+  const fullPath = resolveExistingPath(filePath);
 
   try {
     const sql = await readFile(fullPath, 'utf8');
@@ -124,6 +144,9 @@ const command = process.argv[2];
 
 if (command === 'migrate') {
   await runSqlDirectory('database/migrations', { trackApplied: true });
+} else if (command === 'bootstrap') {
+  await runSqlDirectory('database/migrations', { trackApplied: true });
+  await runSqlDirectory('database/bootstrap');
 } else if (command === 'seed') {
   await runSqlDirectory('database/seeds');
 } else if (command === 'migrate:file') {
@@ -133,5 +156,5 @@ if (command === 'migrate') {
   }
   await runSqlFile(filePath);
 } else {
-  throw new Error('Expected command: migrate, migrate:file, or seed.');
+  throw new Error('Expected command: bootstrap, migrate, migrate:file, or seed.');
 }

@@ -4,32 +4,27 @@ PostgreSQL schema, seed data, functions, and query analysis notes.
 
 Important behavior:
 
-- `pnpm db:migrate` creates and evolves schema objects only.
-- `pnpm db:seed` is optional and only loads demo/local bootstrap data.
+- `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
+- `pnpm db:bootstrap` is the canonical setup command for a brand-new database. It runs migrations and then inserts the system-owned default category catalog.
+- `pnpm db:seed` is optional and only loads demo/local sample data.
 - A brand-new production database is **not** auto-filled with demo users or business data just because the backend starts.
 
 ## Docker Image
 
 The database image is built from `database/Dockerfile`. On first container startup, PostgreSQL executes:
 
-- `10-001-initial-schema.sql`
-- `11-002-messaging-message-id-idempotency.sql`
-- `12-003-report-preferences-index.sql`
-- `13-004-transfer-payment-method.sql`
-- `14-005-messaging-pending-drafts.sql`
-- `15-006-split-user-names.sql`
-- `16-007-expand-default-categories.sql`
-- `17-008-rename-messaging-tables.sql` (legacy file name retained in the repo as `008_rename_whatsapp_messaging_tables.sql`)
-- `18-009-reporting-aggregates-by-tenant.sql`
-- `19-010-report-dispatches.sql`
-- `20-001-demo-seed.sql`
+- every file under `database/migrations/`
+- every file under `database/bootstrap/`
+
+It does **not** run demo seed data automatically.
+
+`database/bootstrap/001_system_defaults.sql` ensures a fixed `system` tenant exists and owns the canonical default category tree. User tenants receive copies of that tree through `seed_default_categories(tenant_id)`.
 
 The optional demo seed creates:
 
 - Demo consumer user: `+56912345678`, `demo@example.com`
 - Admin user: `+56900000000`, `admin@example.com`
-- Default category tree for both tenants, including Food/Groceries, Food/Restaurants, Transport/Uber, Education/Dance, Services/Phone, and related consumer categories
-- Compatibility login role: `postgres` / `postgres`, useful for older local `.env` files
+- Tenant copies of the default category tree for both demo users, including Food/Groceries, Food/Restaurants, Transport/Uber, Services/Phone, Other/Gifts, and related consumer categories
 
 The seed does **not** create expenses, incomes, budgets, or tenant business data.
 
@@ -59,6 +54,28 @@ Migration `018_payment_catalogs_and_income_editing.sql` creates the global defau
 
 Those defaults come from migrations, not from the demo seed. Users can also create tenant-specific banks and payment methods later from the app.
 
+System default categories currently include these roots:
+
+- Food
+- Transport
+- Housing
+- Health
+- Education
+- Services
+- Entertainment
+- Other
+
+System default subcategories currently include:
+
+- Food: Groceries, Restaurants
+- Transport: Public Transport, Uber
+- Housing: Rent
+- Health: Appointments, Medicines, Procedures, Sports
+- Education: Work
+- Services: Phone
+- Entertainment: Theater
+- Other: Gifts
+
 Provider clarification state is stored in `messaging_pending_drafts` with one active draft per tenant/user/channel.
 
 Users store `first_name`, `last_name`, and `preferred_name`. `preferred_name` is the display/communication name used by the app when addressing the user.
@@ -74,10 +91,17 @@ docker compose up --build
 When PostgreSQL is already running, use the backend runner:
 
 ```bash
+pnpm db:bootstrap
 pnpm db:migrate
 pnpm db:seed
 pnpm db:export:data
 ```
+
+Use cases:
+
+- `pnpm db:bootstrap`: new environment from zero
+- `pnpm db:migrate`: existing environment upgrade
+- `pnpm db:seed`: optional local/demo sample users
 
 For an existing local database created before the messaging table rename, run the targeted migration:
 

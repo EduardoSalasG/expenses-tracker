@@ -47,14 +47,15 @@ pnpm --filter @expenses-tracker/backend dev
 Run SQL files from `database/migrations` in order, then optional seeds from `database/seeds`.
 
 ```bash
-pnpm db:migrate
+pnpm db:bootstrap
 pnpm db:seed
 ```
 
 Behavior summary:
 
-- `pnpm db:migrate` is the required step for any new environment and loads schema + default system catalogs.
-- `pnpm db:seed` is optional and only loads local/demo users plus their default categories.
+- `pnpm db:migrate` applies incremental schema/data migrations to an existing database.
+- `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the default category catalog used to seed user tenants.
+- `pnpm db:seed` is optional and only loads local/demo users plus tenant copies of the default categories.
 - Starting the backend against an empty production database does not auto-run demo seed data.
 
 Query choices and index rationale are documented in `database/query-analysis.md`. Use `EXPLAIN (ANALYZE, BUFFERS)` before changing report or dashboard queries.

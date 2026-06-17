@@ -1,11 +1,3 @@
-do $$
-begin
-  if not exists (select 1 from pg_roles where rolname = 'postgres') then
-    create role postgres with login password 'postgres';
-  end if;
-end;
-$$;
-
 select upsert_user_by_phone('+56912345678', 'Demo', 'User', 'Demo', 'demo@example.com', 'Chile', 'CLP');
 
 select upsert_user_by_phone('+56900000000', 'Admin', 'User', 'Admin', 'admin@example.com', 'Chile', 'CLP');

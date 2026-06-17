@@ -234,7 +234,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     }]);
   });
 
-  it('assigns dance classes to education dance when available', async () => {
+  it('assigns dance classes to education when dance is not part of the default taxonomy', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
@@ -272,12 +272,11 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const [expense] = await expenses.listRecent(user.tenantId, 10);
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
-    const dance = tenantCategories.find((category) => category.name === 'Dance' && category.parentId === education?.id);
     expect(expense.categoryId).toBe(education?.id);
-    expect(expense.subcategoryId).toBe(dance?.id);
+    expect(expense.subcategoryId).toBeUndefined();
     expect(messaging.messages[0].body).toContain('Test, Gasto guardado.');
     expect(messaging.messages[0].body).toContain('Monto: $20.000.');
-    expect(messaging.messages[0].body).toContain('Categoría: Education > Dance.');
+    expect(messaging.messages[0].body).toContain('Categoría: Education.');
   });
 
   it('stores installment expenses and confirms the generated quota plan', async () => {

@@ -198,8 +198,8 @@ const DEFAULT_CATEGORY_TREE = [
   { name: 'Transport', subcategories: ['Public Transport', 'Uber'] },
   { name: 'Housing', subcategories: ['Rent'] },
   { name: 'Health', subcategories: ['Appointments', 'Medicines', 'Procedures', 'Sports'] },
-  { name: 'Entertainment', subcategories: ['Dance', 'Theater'] },
-  { name: 'Education', subcategories: ['Dance', 'Work'] },
+  { name: 'Entertainment', subcategories: ['Theater'] },
+  { name: 'Education', subcategories: ['Work'] },
   { name: 'Services', subcategories: ['Phone'] },
   { name: 'Other', subcategories: ['Gifts'] }
 ];
