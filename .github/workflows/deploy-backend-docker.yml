@@ -87,9 +87,23 @@ jobs:
                 --password-stdin
 
               docker compose pull expenses-tracker-backend
-              docker compose run --rm expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
-              docker compose up -d expenses-tracker-backend
-              curl -fsS http://127.0.0.1:3000/health > /dev/null
+              docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
+              docker compose up -d --force-recreate --remove-orphans expenses-tracker-backend
+
+              for attempt in $(seq 1 30); do
+                if curl -fsS http://127.0.0.1:3000/health > /dev/null; then
+                  break
+                fi
+
+                if [ "$attempt" -eq 30 ]; then
+                  echo "Backend failed health check after deploy."
+                  docker compose ps
+                  docker logs --tail=200 expenses-tracker-backend || true
+                  exit 1
+                fi
+
+                sleep 2
+              done
 
               docker image prune -f
           EOF
