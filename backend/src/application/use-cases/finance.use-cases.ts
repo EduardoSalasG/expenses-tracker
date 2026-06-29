@@ -1,9 +1,12 @@
 import type { BankOption, Category, Expense, Income, MonthlyBudget, PaymentMethodOption } from '../../domain/index.js';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, PaymentMethodOptionRepository } from '../ports.js';
 import { normalizeCategorySelection } from '../services/category-normalization.service.js';
+import { PaymentSelectionService } from '../services/payment-selection.service.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
 
 export class FinanceUseCases {
+  private readonly paymentSelections: PaymentSelectionService;
+
   constructor(
     private readonly expenses: ExpenseRepository,
     private readonly incomes: IncomeRepository,
@@ -23,7 +26,9 @@ export class FinanceUseCases {
       update: async () => undefined,
       delete: async () => false
     }
-  ) {}
+  ) {
+    this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
+  }
 
   async createExpense(input: Omit<Expense, 'id'> & { paymentMethodOptionId?: string; bankOptionId?: string }) {
     const categories = await this.categories.listByTenant(input.tenantId);
@@ -264,37 +269,7 @@ export class FinanceUseCases {
     tenantId: string,
     input: { paymentMethod: Expense['paymentMethod']; paymentMethodOptionId?: string; bankOptionId?: string }
   ) {
-    let paymentMethod = input.paymentMethod;
-    let paymentMethodOptionId = input.paymentMethodOptionId;
-    let bankOptionId = input.bankOptionId;
-
-    if (paymentMethodOptionId) {
-      const option = await this.paymentMethods.findAccessibleById(tenantId, paymentMethodOptionId);
-      if (!option) throw new Error('Payment method option not found.');
-      paymentMethod = {
-        kind: option.kind,
-        cardType: option.cardType,
-        bank: paymentMethod.bank
-      };
-    }
-
-    if (bankOptionId) {
-      const bank = await this.banks.findAccessibleById(tenantId, bankOptionId);
-      if (!bank) throw new Error('Bank option not found.');
-      paymentMethod = {
-        ...paymentMethod,
-        bank: bank.name
-      };
-    } else if (paymentMethod.kind === 'cash') {
-      bankOptionId = undefined;
-      paymentMethod = { kind: 'cash' };
-    }
-
-    return {
-      paymentMethod,
-      paymentMethodOptionId,
-      bankOptionId
-    };
+    return this.paymentSelections.resolve(tenantId, input);
   }
 }
 

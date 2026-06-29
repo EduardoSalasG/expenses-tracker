@@ -94,6 +94,8 @@ export function createContainer(config: AppConfig) {
     expenses,
     incomes,
     budgets,
+    banks,
+    paymentMethodOptions,
     messageAudits,
     pendingDrafts,
     messaging,

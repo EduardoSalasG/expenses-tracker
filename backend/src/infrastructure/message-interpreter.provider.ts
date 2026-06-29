@@ -135,17 +135,17 @@ function normalizeInterpretedPayload(payload: unknown) {
 
 function paymentMethodFromText(value: string) {
   const lower = value.toLowerCase();
-  const bank = lower.match(/\b(?:desde|de|with|from|banco)?\s*(bci|santander|banco de chile|itau|itaú|scotiabank|falabella|estado)\b/)?.[1];
+  const bank = lower.match(/\b(?:desde|de|with|from|banco)?\s*(bci|bancoestado|banco estado|be|santander|banco de chile|itau|itaú|scotiabank|falabella|estado)\b/)?.[1];
 
   if (/\b(transferencia|transfer|transf)\b/.test(lower)) {
     return { kind: 'transfer', bank };
   }
 
-  if (/\b(tdc|credito|crédito|credit)\b/.test(lower)) {
+  if (/\b(tdc|tc|credito|crédito|credit)\b/.test(lower)) {
     return { kind: 'card', cardType: 'credit', bank };
   }
 
-  if (/\b(tdd|debito|débito|debit)\b/.test(lower)) {
+  if (/\b(tdd|td|debito|débito|debit)\b/.test(lower)) {
     return { kind: 'card', cardType: 'debit', bank };
   }
 

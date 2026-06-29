@@ -12,6 +12,7 @@
     "db:migrate:messaging-rename": "tsx src/infrastructure/db-runner.ts migrate:file database/migrations/008_rename_whatsapp_messaging_tables.sql",
     "db:seed": "tsx src/infrastructure/db-runner.ts seed",
     "db:export:data": "tsx src/infrastructure/db-export-data.ts",
+    "db:export:tenant": "tsx src/infrastructure/db-export-tenant-data.ts",
     "db:import:data": "tsx src/infrastructure/db-import-data.ts",
     "db:register-test-user": "tsx src/infrastructure/register-test-user.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",

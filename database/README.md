@@ -7,6 +7,7 @@ Important behavior:
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
 - `pnpm db:bootstrap` is the canonical setup command for a brand-new database. It runs migrations and then inserts the system-owned default category catalog.
 - `pnpm db:seed` is optional and only loads demo/local sample data.
+- `pnpm db:export:tenant` exports one user tenant only, so local personal data can be moved to production without dumping the entire database.
 - A brand-new production database is **not** auto-filled with demo users or business data just because the backend starts.
 
 ## Docker Image
@@ -95,6 +96,7 @@ pnpm db:bootstrap
 pnpm db:migrate
 pnpm db:seed
 pnpm db:export:data
+pnpm db:export:tenant
 ```
 
 Use cases:
@@ -102,6 +104,7 @@ Use cases:
 - `pnpm db:bootstrap`: new environment from zero
 - `pnpm db:migrate`: existing environment upgrade
 - `pnpm db:seed`: optional local/demo sample users
+- `pnpm db:export:tenant`: export only one tenant/user dataset
 
 For an existing local database created before the messaging table rename, run the targeted migration:
 
@@ -136,6 +139,17 @@ pnpm db:export:data -- --output database/backups/my-snapshot.sql
 pnpm db:export:data -- --output C:\\backups\\expenses-tracker-prod.sql
 ```
 
+To move only your own tenant instead of the whole database:
+
+```bash
+pnpm db:export:tenant -- --phone +56982439041
+pnpm db:export:tenant -- --email you@example.com
+pnpm db:export:tenant -- --tenant-id 11111111-1111-1111-1111-111111111111
+pnpm db:export:tenant -- --phone +56982439041 --output database/backups/my-tenant.sql
+```
+
+That export includes tenant, users, categories, custom banks/payment methods, expenses, installments, incomes, budgets, messaging audit rows, pending drafts, and report dispatch history. It intentionally excludes transient auth/link tables such as OTP, email magic-link tokens, Telegram link tokens, and registration leads.
+
 3. Import the dump into the target database:
 
 ```bash
@@ -146,9 +160,11 @@ pnpm db:import:data -- --input C:\\backups\\expenses-tracker-prod.sql
 Notes:
 
 - The export excludes `schema_migrations`; the target environment must manage migrations on its own.
+- Tenant-scoped export assumes the target database is already initialized with `pnpm db:bootstrap`.
 - The import assumes the target database already has the schema created and does not contain conflicting application rows.
 - Import runs in a single transaction, so a failing row rolls back the whole data load instead of leaving a partial import behind.
-- If `pg_dump` or `psql` are not in `PATH`, set `PG_DUMP_BIN` or `PSQL_BIN` before running the scripts.
+- Full-database export still depends on `pg_dump`. If it is not in `PATH`, set `PG_DUMP_BIN` before running `db:export:data`.
+- SQL import now runs through the backend Node/PostgreSQL connection, so no local `psql` binary is required.
 
 ## Query Analysis
 

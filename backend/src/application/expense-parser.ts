@@ -56,16 +56,18 @@ function parsePaymentMethod(lowerMessage: string): PaymentMethod | undefined {
 
   const cardType = /\b(credit|credito|crédito|tdc|tarjeta de credito|tarjeta de crédito)\b/.test(lowerMessage)
     ? 'credit'
-    : /\b(debit|debito|débito|tdd|tarjeta de debito|tarjeta de débito)\b/.test(lowerMessage)
+    : /\b(debit|debito|débito|tdd|td|tarjeta de debito|tarjeta de débito)\b/.test(lowerMessage)
       ? 'debit'
       : undefined;
+  const normalizedCardType = cardType
+    ?? (/\b(tc)\b/.test(lowerMessage) ? 'credit' : /\b(td)\b/.test(lowerMessage) ? 'debit' : undefined);
 
-  if (cardType || /\b(card|tarjeta)\b/.test(lowerMessage)) {
+  if (normalizedCardType || /\b(card|tarjeta)\b/.test(lowerMessage)) {
     return {
       kind: 'card',
-      cardType,
+      cardType: normalizedCardType,
       bank: extractBank(lowerMessage, [
-        /\b(?:tdc|tdd|card|tarjeta|credito|crédito|debito|débito)\s+([a-z0-9 -]+)/,
+        /\b(?:tdc|tc|tdd|td|card|tarjeta|credito|crédito|debito|débito)\s+([a-z0-9 -]+)/,
         /\b(?:bank|banco)\s+([a-z0-9 -]+)/
       ])
     };
@@ -87,7 +89,7 @@ function cleanConcept(value: string) {
     .replace(/\b(cash|efectivo)\b/gi, '')
     .replace(/\b(transferencia|transfer|transf)\s+(desde|de|por|con)\s+[a-z0-9 -]+/gi, '')
     .replace(/\b[a-z0-9]+\s+(transferencia|transfer|transf)\b/gi, '')
-    .replace(/\b(tdc|tdd|card|tarjeta|credito|crédito|debito|débito)\s+[a-z0-9 -]+/gi, '')
+    .replace(/\b(tdc|tc|tdd|td|card|tarjeta|credito|crédito|debito|débito)\s+[a-z0-9 -]+/gi, '')
     .replace(/\b(credit|debit)\b/gi, '')
     .replace(/\b\d+\s*(cuotas|cuota|installments?|meses?)\b/gi, '')
     .replace(/\b(en|a)\s+\d+\s*(cuotas|cuota|installments?)\b/gi, '')

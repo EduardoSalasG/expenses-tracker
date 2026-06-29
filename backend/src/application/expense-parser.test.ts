@@ -31,6 +31,14 @@ describe('parseExpenseMessage', () => {
     expect(parsed.paymentMethod).toEqual({ kind: 'card', cardType: 'credit', bank: 'bci' });
   });
 
+  it('understands card and bank acronyms beyond the exact catalog names', () => {
+    const credit = parseExpenseMessage('25.000 polera paris, tc bancoestado', 'CLP');
+    const debit = parseExpenseMessage('18.000 uber, td be', 'CLP');
+
+    expect(credit.paymentMethod).toEqual({ kind: 'card', cardType: 'credit', bank: 'bancoestado' });
+    expect(debit.paymentMethod).toEqual({ kind: 'card', cardType: 'debit', bank: 'be' });
+  });
+
   it('does not infer currency from the tail of Spanish words', () => {
     const parsed = parseExpenseMessage('Ingreso de sueldo 1200000 Bci transferencia', 'CLP');
 

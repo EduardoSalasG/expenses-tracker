@@ -17,6 +17,7 @@
     "db:migrate:messaging": "pnpm --filter @expenses-tracker/backend db:migrate:messaging",
     "db:seed": "pnpm --filter @expenses-tracker/backend db:seed",
     "db:export:data": "pnpm --filter @expenses-tracker/backend db:export:data",
+    "db:export:tenant": "pnpm --filter @expenses-tracker/backend db:export:tenant",
     "db:import:data": "pnpm --filter @expenses-tracker/backend db:import:data",
     "reports:docker:daily": "docker compose run --rm -e REPORT_FREQUENCY=daily report-worker",
     "reports:docker:weekly": "docker compose run --rm -e REPORT_FREQUENCY=weekly report-worker",
