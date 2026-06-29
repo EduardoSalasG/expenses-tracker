@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ProcessInboundFinanceMessageUseCase } from './use-cases.js';
 import {
+  InMemoryBankOptionRepository,
   InMemoryCategoryRepository,
   InMemoryBudgetRepository,
   InMemoryExpenseRepository,
   InMemoryIncomeRepository,
   InMemoryUserRepository,
   InMemoryMessagingMessageAuditRepository,
-  InMemoryMessagingPendingDraftRepository
+  InMemoryMessagingPendingDraftRepository,
+  InMemoryPaymentMethodOptionRepository
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter } from './message-interpreter.js';
 import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
@@ -21,6 +23,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryExpenseRepository(),
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       audits,
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
@@ -65,6 +69,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       audits,
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
@@ -110,6 +116,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       audits,
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -163,6 +171,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       incomes,
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       audits,
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
@@ -202,6 +212,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -234,10 +246,11 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     }]);
   });
 
-  it('assigns dance classes to education when dance is not part of the default taxonomy', async () => {
+  it('asks for category instead of defaulting when it cannot identify one confidently', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Test',
@@ -254,8 +267,10 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
-      new InMemoryMessagingPendingDraftRepository(),
+      drafts,
       messaging,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') },
@@ -268,15 +283,141 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       message: '20.000 clases de bachata bsoul mayo, transferencia desde bci'
     });
 
-    expect(result.status).toBe('saved');
-    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    expect(result.status).toBe('needs_confirmation');
+    expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(0);
+    expect(messaging.messages[0].body.toLowerCase()).toContain('no pude identificar con suficiente certeza la categoría');
+    const pending = await drafts.findActive(user.tenantId, user.id, new Date('2026-05-06T00:00:00.000Z'));
+    expect(pending?.missingFields).toContain('category');
+  });
+
+  it('asks the user to disambiguate duplicate subcategories before saving', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
-    expect(expense.categoryId).toBe(education?.id);
-    expect(expense.subcategoryId).toBeUndefined();
-    expect(messaging.messages[0].body).toContain('Test, Gasto guardado.');
-    expect(messaging.messages[0].body).toContain('Monto: $20.000.');
-    expect(messaging.messages[0].body).toContain('Categoría: Education.');
+    const entertainment = tenantCategories.find((category) => category.name === 'Entertainment' && !category.parentId);
+    if (!education || !entertainment) throw new Error('Missing root categories for duplicate subcategory test.');
+    await categories.create({ tenantId: user.tenantId, name: 'Dance', parentId: education.id, isDefault: false });
+    await categories.create({ tenantId: user.tenantId, name: 'Dance', parentId: entertainment.id, isDefault: false });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      drafts,
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const first = await useCase.execute({
+      providerMessageId: 'wamid.ambiguous-1',
+      fromPhoneNumber: '+56982439041',
+      message: '20.000 clases bsoul, transferencia desde bci'
+    });
+    const second = await useCase.execute({
+      providerMessageId: 'wamid.ambiguous-2',
+      fromPhoneNumber: '+56982439041',
+      message: 'Dance'
+    });
+    const third = await useCase.execute({
+      providerMessageId: 'wamid.ambiguous-3',
+      fromPhoneNumber: '+56982439041',
+      message: '1'
+    });
+
+    expect(first.status).toBe('needs_confirmation');
+    expect(second.status).toBe('needs_confirmation');
+    expect(messaging.messages.at(-2)?.body).toContain('Encontré más de una categoría coincidente');
+    expect(third.status).toBe('saved');
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    expect(expense.subcategoryId).toBeDefined();
+  });
+
+  it('offers to create a category when it does not exist and saves after creation', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      drafts,
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const first = await useCase.execute({
+      providerMessageId: 'wamid.create-category-1',
+      fromPhoneNumber: '+56982439041',
+      message: '20.000 pilates, transferencia desde bci'
+    });
+    const second = await useCase.execute({
+      providerMessageId: 'wamid.create-category-2',
+      fromPhoneNumber: '+56982439041',
+      message: 'Pilates'
+    });
+    const third = await useCase.execute({
+      providerMessageId: 'wamid.create-category-3',
+      fromPhoneNumber: '+56982439041',
+      message: 'sí'
+    });
+    const fourth = await useCase.execute({
+      providerMessageId: 'wamid.create-category-4',
+      fromPhoneNumber: '+56982439041',
+      message: 'subcategoría de Health'
+    });
+
+    expect(first.status).toBe('needs_confirmation');
+    expect(second.status).toBe('needs_confirmation');
+    expect(messaging.messages.at(-3)?.body).toContain('No encontré "Pilates"');
+    expect(third.status).toBe('needs_confirmation');
+    expect(messaging.messages.at(-2)?.body).toContain('¿Cómo quieres crear "Pilates"');
+    expect(fourth.status).toBe('saved');
+    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const health = tenantCategories.find((category) => category.name === 'Health' && !category.parentId);
+    const pilates = tenantCategories.find((category) => category.name === 'Pilates' && category.parentId === health?.id);
+    expect(pilates).toBeDefined();
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    expect(expense.categoryId).toBe(health?.id);
+    expect(expense.subcategoryId).toBe(pilates?.id);
   });
 
   it('stores installment expenses and confirms the generated quota plan', async () => {
@@ -300,6 +441,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -314,7 +457,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: 'tg:999',
       providerUserId: '999',
       replyTo: '999',
-      message: '500000 iphone 15, tdc bci, 3 cuotas'
+      message: '500000 supermercado, tdc bci, 3 cuotas'
     });
 
     expect(result.status).toBe('saved');
@@ -345,6 +488,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryExpenseRepository(),
       incomes,
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
@@ -383,6 +528,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       drafts,
       new NoopMessagingProvider(),
@@ -401,13 +548,19 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: '+56982439041',
       message: 'transferencia desde bci'
     });
+    const third = await useCase.execute({
+      providerMessageId: 'wamid.pending-3',
+      fromPhoneNumber: '+56982439041',
+      message: 'Education'
+    });
 
     expect(first.status).toBe('needs_confirmation');
-    expect(second.status).toBe('saved');
+    expect(second.status).toBe('needs_confirmation');
+    expect(third.status).toBe('saved');
     const [expense] = await expenses.listRecent(user.tenantId, 10);
     expect(expense.amount).toBe(20000);
     expect(expense.concept).toBe('clases de bachata bsoul mayo');
-    expect(expense.paymentMethod).toEqual({ kind: 'transfer', bank: 'bci', cardType: undefined });
+    expect(expense.paymentMethod).toEqual({ kind: 'transfer', bank: 'Banco de Crédito e Inversiones', cardType: undefined });
     expect(await drafts.findActive(user.tenantId, user.id, new Date('2026-05-06T00:00:00.000Z'))).toBeUndefined();
   });
 
@@ -444,6 +597,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -507,6 +662,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -572,6 +729,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       new InMemoryIncomeRepository(),
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -633,6 +792,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryExpenseRepository(),
       incomes,
       new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -715,6 +876,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       expenses,
       incomes,
       budgets,
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       messaging,
@@ -739,6 +902,60 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(messaging.messages.at(-1)?.body).toContain('- Food:');
     expect(messaging.messages.at(-1)?.body).toContain('  - Gastado $35.000 de $100.000.');
     expect(messaging.messages.at(-1)?.body).toContain('  - Disponible: $65.000.');
+  });
+
+  it('resolves bank and payment method aliases to catalog references when saving inbound expenses', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const banks = new InMemoryBankOptionRepository();
+    const paymentMethods = new InMemoryPaymentMethodOptionRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '999');
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      banks,
+      paymentMethods,
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-bank-alias',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:999',
+      providerUserId: '999',
+      replyTo: '999',
+      message: '25.000 supermercado, tc bci'
+    });
+
+    expect(result.status).toBe('saved');
+    const [expense] = await expenses.listRecent(user.tenantId, 10);
+    const bankOptions = await banks.listByTenant(user.tenantId);
+    const paymentOptions = await paymentMethods.listByTenant(user.tenantId);
+    expect(expense.paymentMethod).toEqual({
+      kind: 'card',
+      cardType: 'credit',
+      bank: 'Banco de Crédito e Inversiones'
+    });
+    expect(expense.bankOptionId).toBe(bankOptions.find((item) => item.name === 'Banco de Crédito e Inversiones')?.id);
+    expect(expense.paymentMethodOptionId).toBe(paymentOptions.find((item) => item.name === 'Tarjeta de crédito')?.id);
   });
 });
 

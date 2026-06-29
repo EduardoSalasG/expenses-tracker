@@ -60,7 +60,8 @@ export function missingFieldsFor(interpreted: InterpretedMessage) {
     return [
       interpreted.amount === undefined ? 'amount' : undefined,
       interpreted.concept ? undefined : 'concept',
-      interpreted.paymentMethod ? undefined : 'paymentMethod'
+      interpreted.paymentMethod ? undefined : 'paymentMethod',
+      interpreted.categoryName ? undefined : 'category'
     ].filter((field): field is string => Boolean(field));
   }
 
@@ -80,6 +81,7 @@ export function clarificationMessage(missingFields: string[], language: Language
       amount: 'amount',
       concept: 'concept',
       paymentMethod: 'payment method',
+      category: 'category or subcategory',
       intent: 'whether it is an expense, income, report, or budget query'
     };
     const missing = missingFields.map((field) => labels[field] ?? field).join(', ');
@@ -90,6 +92,7 @@ export function clarificationMessage(missingFields: string[], language: Language
     amount: 'monto',
     concept: 'concepto',
     paymentMethod: 'medio de pago',
+    category: 'categoría o subcategoría',
     intent: 'si es gasto, ingreso, reporte o presupuesto'
   };
   const missing = missingFields.map((field) => labels[field] ?? field).join(', ');

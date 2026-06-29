@@ -56,6 +56,7 @@ Behavior summary:
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing database.
 - `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the default category catalog used to seed user tenants.
 - `pnpm db:seed` is optional and only loads local/demo users plus tenant copies of the default categories.
+- `pnpm db:export:tenant -- --phone +569XXXXXXXXX` exports one tenant/user dataset for promotion into another environment.
 - Starting the backend against an empty production database does not auto-run demo seed data.
 
 Query choices and index rationale are documented in `database/query-analysis.md`. Use `EXPLAIN (ANALYZE, BUFFERS)` before changing report or dashboard queries.
@@ -267,7 +268,15 @@ Ingreso de sueldo 1200000 Bci transferencia
 
 For Telegram-created movements, currency comes from `users.preferred_currency`. The backend ignores hallucinated or ambiguous currency values returned by the interpreter and formats CLP replies as `$20.000`.
 
-Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic fallback matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, gifts, and dance classes.
+Expense category assignment uses the tenant category tree. The LLM receives root categories with their subcategories and should return category/subcategory names from that list. The backend also applies deterministic matching for common phrases such as groceries, restaurants, Uber, rent, medicines, phone, and gifts.
+
+When category assignment is not specific enough, the backend does not default silently to a generic category:
+
+- if the category/subcategory is unclear, it asks the user to specify it;
+- if the reply matches more than one subcategory path, it asks the user to disambiguate, for example `Education > Dance` vs `Entertainment > Dance`;
+- if the reply does not match any existing tenant category, it asks whether the user wants to create it and then asks whether it should be a root category or a subcategory under an existing root.
+
+This clarification flow works in Spanish and English replies, using the tenant category catalog already accessible to that user.
 
 Category persistence is normalized server-side:
 - `categoryId` is always stored as the root category id.

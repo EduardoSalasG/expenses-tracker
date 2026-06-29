@@ -77,6 +77,19 @@ export interface MessageInterpreterContext {
   now: Date;
 }
 
+export type CategoryInferenceSource =
+  | 'exact_subcategory'
+  | 'exact_category'
+  | 'heuristic_subcategory'
+  | 'heuristic_category'
+  | 'none';
+
+export interface CategoryInferenceResult {
+  categoryName?: string;
+  subcategoryName?: string;
+  source: CategoryInferenceSource;
+}
+
 export class DeterministicMessageInterpreter {
   async interpret(message: string, context: MessageInterpreterContext): Promise<InterpretedMessage> {
     const lower = message.trim().toLowerCase();
@@ -227,6 +240,14 @@ export function categoryByInterpretedName(
 }
 
 export function inferCategoryFromText(categories: Category[], text: string) {
+  const candidate = inferCategoryCandidateFromText(categories, text);
+  return {
+    categoryName: candidate.categoryName,
+    subcategoryName: candidate.subcategoryName
+  };
+}
+
+export function inferCategoryCandidateFromText(categories: Category[], text: string): CategoryInferenceResult {
   const normalized = normalizeName(text);
   const exactSubcategory = categories
     .filter((category) => category.parentId)
@@ -235,7 +256,8 @@ export function inferCategoryFromText(categories: Category[], text: string) {
     const parent = categories.find((category) => category.id === exactSubcategory.parentId);
     return {
       categoryName: parent?.name,
-      subcategoryName: exactSubcategory.name
+      subcategoryName: exactSubcategory.name,
+      source: 'exact_subcategory'
     };
   }
 
@@ -243,7 +265,7 @@ export function inferCategoryFromText(categories: Category[], text: string) {
     .filter((category) => !category.parentId)
     .find((category) => tokenIncludes(normalized, normalizeName(category.name)));
   if (exactRoot) {
-    return { categoryName: exactRoot.name };
+    return { categoryName: exactRoot.name, source: 'exact_category' };
   }
 
   for (const rule of CATEGORY_INFERENCE_RULES) {
@@ -252,13 +274,14 @@ export function inferCategoryFromText(categories: Category[], text: string) {
       if (matched.category) {
         return {
           categoryName: matched.category.name,
-          subcategoryName: matched.subcategory?.name
+          subcategoryName: matched.subcategory?.name,
+          source: matched.subcategory ? 'heuristic_subcategory' : 'heuristic_category'
         };
       }
     }
   }
 
-  return {};
+  return { source: 'none' };
 }
 
 function findCategory(categories: Category[], name?: string, allowSubcategory = true) {
@@ -292,7 +315,6 @@ const CATEGORY_INFERENCE_RULES = [
   { pattern: /\b(doctor|medico|medico|consulta|appointment|cita)\b/, categoryName: 'Health', subcategoryName: 'Appointments' },
   { pattern: /\b(examen|procedimiento|procedure|procedures)\b/, categoryName: 'Health', subcategoryName: 'Procedures' },
   { pattern: /\b(gimnasio|gym|deporte|sports|sport)\b/, categoryName: 'Health', subcategoryName: 'Sports' },
-  { pattern: /\b(clase|clases|curso|academia|taller|bachata|salsa|dance class)\b/, categoryName: 'Education' },
   { pattern: /\b(teatro|theater|cine|concierto|show)\b/, categoryName: 'Entertainment', subcategoryName: 'Theater' },
   { pattern: /\b(telefono|phone|celular|internet|plan)\b/, categoryName: 'Services', subcategoryName: 'Phone' },
   { pattern: /\b(regalo|gift|gifts)\b/, categoryName: 'Other', subcategoryName: 'Gifts' }

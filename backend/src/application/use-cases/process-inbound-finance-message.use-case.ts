@@ -8,10 +8,20 @@ import type {
   MessagingMessageAuditRepository,
   MessagingPendingDraftRepository,
   MessagingProvider,
+  BankOptionRepository,
   MessageInterpreterPort,
+  PaymentMethodOptionRepository,
   UserRepository
 } from '../ports.js';
-import { categoryByInterpretedName, inferCategoryFromText, interpretedMessageSchema, isCompleteExpense, isCompleteIncome, type InterpretedMessage } from '../message-interpreter.js';
+import {
+  categoryByInterpretedName,
+  inferCategoryCandidateFromText,
+  inferCategoryFromText,
+  interpretedMessageSchema,
+  isCompleteExpense,
+  isCompleteIncome,
+  type InterpretedMessage
+} from '../message-interpreter.js';
 import {
   clarificationMessage,
   canStoreDraft,
@@ -29,23 +39,30 @@ import {
   totalsByCurrency
 } from '../services/reporting.service.js';
 import { normalizeCategorySelection } from '../services/category-normalization.service.js';
+import { PaymentSelectionService } from '../services/payment-selection.service.js';
 
 export class ProcessInboundFinanceMessageUseCase {
+  private readonly paymentSelections: PaymentSelectionService;
+
   constructor(
     private readonly users: UserRepository,
     private readonly categories: CategoryRepository,
     private readonly expenses: ExpenseRepository,
     private readonly incomes: IncomeRepository,
     private readonly budgets: BudgetRepository,
+    banks: BankOptionRepository,
+    paymentMethods: PaymentMethodOptionRepository,
     private readonly messageAudits: MessagingMessageAuditRepository,
     private readonly pendingDrafts: MessagingPendingDraftRepository,
     private readonly messaging: MessagingProvider,
     private readonly interpreter: MessageInterpreterPort,
     private readonly clock: Clock,
     private readonly options: { frontendPublicOrigin: string }
-  ) {}
+  ) {
+    this.paymentSelections = new PaymentSelectionService(banks, paymentMethods);
+  }
 
-  async execute(input: InboundTextMessage) {
+  async execute(input: InboundTextMessage): Promise<{ status: string; missingFields?: string[]; [key: string]: unknown }> {
     if (input.channel === 'telegram' && input.providerUserId && isTelegramLinkCommand(input.message)) {
       const phoneNumber = extractPhoneNumberFromLinkCommand(input.message);
       if (!phoneNumber) {
@@ -140,6 +157,21 @@ export class ProcessInboundFinanceMessageUseCase {
     const saved = await this.trySaveInterpreted(input, user, categories, interpreted);
     if (saved) return saved;
 
+    if (shouldStartCategorySelection(interpreted)) {
+      await this.storeCustomDraft(input, user, {
+        kind: 'category_selection',
+        originalMessage: input.message,
+        expenseDraft: interpreted
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
     if (canStoreDraft(interpreted)) {
       await this.storePendingDraft(input, user, interpreted);
     }
@@ -202,6 +234,22 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: missingFieldsFor(interpretedOriginal) };
     }
 
+    if (isCategorySelectionDraft(draft)) {
+      return this.processCategorySelectionDraft(input, user, categories, draft);
+    }
+
+    if (isCategoryDisambiguationDraft(draft)) {
+      return this.processCategoryDisambiguationDraft(input, user, categories, draft);
+    }
+
+    if (isCategoryCreationConfirmDraft(draft)) {
+      return this.processCategoryCreationConfirmDraft(input, user, categories, draft);
+    }
+
+    if (isCategoryCreationDetailsDraft(draft)) {
+      return this.processCategoryCreationDetailsDraft(input, user, categories, draft);
+    }
+
     if (isCancelMessage(input.message)) {
       await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
       await this.auditMessage(input, {
@@ -226,6 +274,21 @@ export class ProcessInboundFinanceMessageUseCase {
     }, user, categories, merged, { clearDraft: true });
     if (completed) return completed;
 
+    if (shouldStartCategorySelection(merged)) {
+      await this.storeCustomDraft(input, user, {
+        kind: 'category_selection',
+        originalMessage,
+        expenseDraft: merged
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
     await this.storePendingDraft(input, user, merged);
     const missingFields = missingFieldsFor(merged);
     await this.auditMessage(input, {
@@ -235,6 +298,268 @@ export class ProcessInboundFinanceMessageUseCase {
     });
     await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
     return { status: 'needs_confirmation' as const, missingFields };
+  }
+
+  private async processCategorySelectionDraft(
+    input: InboundTextMessage,
+    user: User,
+    categories: Category[],
+    draft: CategorySelectionDraft
+  ) {
+    if (isCancelMessage(input.message)) {
+      await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'failed'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
+      return { status: 'draft_cancelled' as const };
+    }
+
+    const resolution = resolveCategoryInput(categories, input.message);
+    if (resolution.kind === 'matched') {
+      const completedDraft = {
+        ...draft.expenseDraft,
+        categoryName: resolution.category.name,
+        subcategoryName: resolution.subcategory?.name,
+        missingFields: missingFieldsFor({
+          ...draft.expenseDraft,
+          categoryName: resolution.category.name,
+          subcategoryName: resolution.subcategory?.name
+        }),
+        needsConfirmation: false
+      } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
+
+      const result = await this.trySaveInterpreted(
+        { ...input, message: `${draft.originalMessage} | ${input.message}` },
+        user,
+        categories,
+        completedDraft,
+        { clearDraft: true }
+      );
+      if (result) return result;
+
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    if (resolution.kind === 'ambiguous') {
+      await this.storeCustomDraft(input, user, {
+        kind: 'category_disambiguation',
+        originalMessage: draft.originalMessage,
+        expenseDraft: draft.expenseDraft,
+        options: resolution.options.map((option) => ({
+          categoryId: option.category.id,
+          subcategoryId: option.subcategory?.id
+        }))
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, ambiguousCategoryMessage(user, resolution.options), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    const requestedName = resolution.kind === 'not_found' ? resolution.requestedName : titleCaseCategoryName(input.message.trim());
+    await this.storeCustomDraft(input, user, {
+      kind: 'category_creation_confirm',
+      originalMessage: draft.originalMessage,
+      expenseDraft: draft.expenseDraft,
+      requestedName
+    });
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'needs_confirmation'
+    });
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryNotFoundMessage(user, requestedName), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+  }
+
+  private async processCategoryDisambiguationDraft(
+    input: InboundTextMessage,
+    user: User,
+    categories: Category[],
+    draft: CategoryDisambiguationDraft
+  ) {
+    if (isCancelMessage(input.message)) {
+      await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'failed'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
+      return { status: 'draft_cancelled' as const };
+    }
+
+    const selected = selectAmbiguousCategoryOption(categories, draft.options, input.message);
+    if (!selected) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(
+        user,
+        input.replyTo ?? input.fromPhoneNumber,
+        ambiguousCategoryReminderMessage(user, hydrateCategoryOptions(categories, draft.options)),
+        input.channel
+      );
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    const completedDraft = {
+      ...draft.expenseDraft,
+      categoryName: selected.category.name,
+      subcategoryName: selected.subcategory?.name,
+      missingFields: missingFieldsFor({
+        ...draft.expenseDraft,
+        categoryName: selected.category.name,
+        subcategoryName: selected.subcategory?.name
+      }),
+      needsConfirmation: false
+    } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
+
+    const result = await this.trySaveInterpreted(
+      { ...input, message: `${draft.originalMessage} | ${input.message}` },
+      user,
+      categories,
+      completedDraft,
+      { clearDraft: true }
+    );
+    if (result) return result;
+
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'needs_confirmation'
+    });
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+  }
+
+  private async processCategoryCreationConfirmDraft(
+    input: InboundTextMessage,
+    user: User,
+    categories: Category[],
+    draft: CategoryCreationConfirmDraft
+  ) {
+    if (isCancelMessage(input.message) || isNegativeMessage(input.message)) {
+      await this.storeCustomDraft(input, user, {
+        kind: 'category_selection',
+        originalMessage: draft.originalMessage,
+        expenseDraft: draft.expenseDraft
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryRetryMessage(user), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    if (!isAffirmativeSelection(input.message)) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryCreateConfirmReminderMessage(user, draft.requestedName), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    await this.storeCustomDraft(input, user, {
+      kind: 'category_creation_details',
+      originalMessage: draft.originalMessage,
+      expenseDraft: draft.expenseDraft,
+      requestedName: draft.requestedName
+    });
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'needs_confirmation'
+    });
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryCreateDetailsMessage(user, draft.requestedName, categories), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+  }
+
+  private async processCategoryCreationDetailsDraft(
+    input: InboundTextMessage,
+    user: User,
+    categories: Category[],
+    draft: CategoryCreationDetailsDraft
+  ) {
+    if (isCancelMessage(input.message)) {
+      await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'failed'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
+      return { status: 'draft_cancelled' as const };
+    }
+
+    const createRequest = parseCategoryCreationDetails(categories, input.message, draft.requestedName);
+    if (!createRequest) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryCreateDetailsReminderMessage(user, draft.requestedName, categories), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    }
+
+    const created = await this.categories.create({
+      tenantId: user.tenantId,
+      name: draft.requestedName,
+      parentId: createRequest.parentId,
+      isDefault: false
+    });
+    const refreshedCategories = await this.categories.listByTenant(user.tenantId);
+    const category = createRequest.parentId
+      ? refreshedCategories.find((item) => item.id === createRequest.parentId)
+      : created;
+    const subcategory = createRequest.parentId ? created : undefined;
+    const completedDraft = {
+      ...draft.expenseDraft,
+      categoryName: category?.name,
+      subcategoryName: subcategory?.name,
+      missingFields: missingFieldsFor({
+        ...draft.expenseDraft,
+        categoryName: category?.name,
+        subcategoryName: subcategory?.name
+      }),
+      needsConfirmation: false
+    } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
+
+    const result = await this.trySaveInterpreted(
+      { ...input, message: `${draft.originalMessage} | ${input.message}` },
+      user,
+      refreshedCategories,
+      completedDraft,
+      { clearDraft: true }
+    );
+    if (result) return result;
+
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'needs_confirmation'
+    });
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, refreshedCategories), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
   }
 
   private async trySaveInterpreted(
@@ -403,18 +728,38 @@ export class ProcessInboundFinanceMessageUseCase {
       return undefined;
     }
 
-    const inferredCategory = inferCategoryFromText(categories, input.message);
+    const inferredCategory = inferCategoryCandidateFromText(categories, input.message);
     const matchedCategory = categoryByInterpretedName(
       categories,
       interpreted.categoryName ?? inferredCategory.categoryName,
       interpreted.subcategoryName ?? inferredCategory.subcategoryName
     );
-    const category = matchedCategory.category ?? categories.find((item) => !item.parentId) ?? categories[0];
-    if (!category) {
-      throw new Error('No category is available for this tenant.');
+
+    const categoryReliability = assessCategoryReliability(categories, input.message, interpreted, inferredCategory);
+    if (!matchedCategory.category || categoryReliability === 'needs_selection') {
+      await this.storeCustomDraft(input, user, {
+        kind: 'category_selection',
+        originalMessage: input.message,
+        expenseDraft: {
+          ...interpreted,
+          missingFields: ['category'],
+          needsConfirmation: true
+        }
+      });
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
+    const category = matchedCategory.category;
     const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
+    const paymentSelection = await this.paymentSelections.resolve(user.tenantId, {
+      paymentMethod: interpreted.paymentMethod
+    });
 
     const expense = await this.expenses.create({
       tenantId: user.tenantId,
@@ -429,7 +774,9 @@ export class ProcessInboundFinanceMessageUseCase {
       installmentCount: interpreted.installmentCount ?? 1,
       firstInstallmentDate: this.clock.now().toISOString(),
       purchaseDate: this.clock.now().toISOString(),
-      paymentMethod: interpreted.paymentMethod,
+      paymentMethod: paymentSelection.paymentMethod,
+      paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
+      bankOptionId: paymentSelection.bankOptionId,
       originalMessage: input.message
     });
 
@@ -455,6 +802,22 @@ export class ProcessInboundFinanceMessageUseCase {
       originalMessage: input.message,
       draft: interpreted,
       missingFields: missingFieldsFor(interpreted),
+      expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString(),
+      channel: input.channel
+    });
+  }
+
+  private storeCustomDraft(
+    input: InboundTextMessage,
+    user: User,
+    draft: CategorySelectionDraft | CategoryDisambiguationDraft | CategoryCreationConfirmDraft | CategoryCreationDetailsDraft
+  ) {
+    return this.pendingDrafts.upsert({
+      tenantId: user.tenantId,
+      userId: user.id,
+      originalMessage: draft.originalMessage,
+      draft,
+      missingFields: ['category'],
       expiresAt: new Date(this.clock.now().getTime() + 30 * 60 * 1000).toISOString(),
       channel: input.channel
     });
@@ -511,6 +874,320 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 }
 
+type ExpenseDraft = Extract<InterpretedMessage, { intent: 'create_expense' }>;
+
+interface CategorySelectionDraft {
+  kind: 'category_selection';
+  originalMessage: string;
+  expenseDraft: ExpenseDraft;
+}
+
+interface CategoryDisambiguationDraft {
+  kind: 'category_disambiguation';
+  originalMessage: string;
+  expenseDraft: ExpenseDraft;
+  options: Array<{ categoryId: string; subcategoryId?: string }>;
+}
+
+interface CategoryCreationConfirmDraft {
+  kind: 'category_creation_confirm';
+  originalMessage: string;
+  expenseDraft: ExpenseDraft;
+  requestedName: string;
+}
+
+interface CategoryCreationDetailsDraft {
+  kind: 'category_creation_details';
+  originalMessage: string;
+  expenseDraft: ExpenseDraft;
+  requestedName: string;
+}
+
+function shouldStartCategorySelection(interpreted: InterpretedMessage): interpreted is ExpenseDraft {
+  return interpreted.intent === 'create_expense'
+    && interpreted.amount !== undefined
+    && Boolean(interpreted.concept)
+    && Boolean(interpreted.paymentMethod)
+    && !interpreted.categoryName;
+}
+
+function assessCategoryReliability(
+  categories: Category[],
+  message: string,
+  interpreted: ExpenseDraft,
+  inferred: ReturnType<typeof inferCategoryCandidateFromText>
+) {
+  if (!interpreted.categoryName) return 'needs_selection' as const;
+  if (interpreted.subcategoryName) return 'matched' as const;
+
+  const normalizedMessage = normalizeLookup(message);
+  const normalizedCategory = normalizeLookup(interpreted.categoryName);
+  if (tokenIncludesNormalized(normalizedMessage, normalizedCategory)) {
+    return 'matched' as const;
+  }
+
+  if (
+    inferred.source === 'heuristic_subcategory' &&
+    inferred.categoryName === interpreted.categoryName &&
+    inferred.subcategoryName === interpreted.subcategoryName
+  ) {
+    return 'matched' as const;
+  }
+
+  const matched = categoryByInterpretedName(categories, interpreted.categoryName, interpreted.subcategoryName);
+  if (!matched.category) return 'needs_selection' as const;
+
+  return 'needs_selection' as const;
+}
+
+function resolveCategoryInput(categories: Category[], input: string) {
+  const normalizedInput = cleanupCategoryReply(input);
+  const byPath = matchCategoryPath(categories, normalizedInput);
+  if (byPath) return { kind: 'matched' as const, category: byPath.category, subcategory: byPath.subcategory };
+
+  const roots = categories.filter((category) => !category.parentId);
+  const root = roots.find((category) => categoryAliases(category.name).has(normalizedInput));
+  if (root) return { kind: 'matched' as const, category: root };
+
+  const subcategories = categories.filter((category) => category.parentId);
+  const exactSubcategories = subcategories
+    .filter((subcategory) => categoryAliases(subcategory.name).has(normalizedInput))
+    .map((subcategory) => ({
+      subcategory,
+      category: categories.find((category) => category.id === subcategory.parentId)!
+    }));
+
+  if (exactSubcategories.length === 1) {
+    return {
+      kind: 'matched' as const,
+      category: exactSubcategories[0].category,
+      subcategory: exactSubcategories[0].subcategory
+    };
+  }
+
+  if (exactSubcategories.length > 1) {
+    return {
+      kind: 'ambiguous' as const,
+      options: exactSubcategories
+    };
+  }
+
+  return {
+    kind: 'not_found' as const,
+    requestedName: titleCaseCategoryName(normalizedInput || input.trim())
+  };
+}
+
+function hydrateCategoryOptions(categories: Category[], options: Array<{ categoryId: string; subcategoryId?: string }>): Array<{ category: Category; subcategory?: Category }> {
+  const hydrated: Array<{ category: Category; subcategory?: Category }> = [];
+  for (const option of options) {
+    const category = categories.find((item) => item.id === option.categoryId);
+    if (!category) continue;
+    const subcategory = option.subcategoryId ? categories.find((item) => item.id === option.subcategoryId) : undefined;
+    hydrated.push({ category, subcategory });
+  }
+  return hydrated;
+}
+
+function selectAmbiguousCategoryOption(
+  categories: Category[],
+  options: Array<{ categoryId: string; subcategoryId?: string }>,
+  input: string
+) {
+  const trimmed = input.trim();
+  const numeric = Number(trimmed);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= options.length) {
+    const selected = options[numeric - 1];
+    const category = categories.find((item) => item.id === selected.categoryId);
+    if (!category) return undefined;
+    const subcategory = selected.subcategoryId ? categories.find((item) => item.id === selected.subcategoryId) : undefined;
+    return { category, subcategory };
+  }
+
+  const byPath = matchCategoryPath(categories, cleanupCategoryReply(input));
+  if (byPath) {
+    const found = options.find((option) => option.categoryId === byPath.category.id && option.subcategoryId === byPath.subcategory?.id);
+    if (found) return byPath;
+  }
+
+  return undefined;
+}
+
+function parseCategoryCreationDetails(categories: Category[], input: string, requestedName: string) {
+  const normalized = normalizeLookup(input);
+  if (/\b(root|main|principal|categoria principal|categoría principal|category)\b/.test(normalized) && !/\bsub\b/.test(normalized)) {
+    return { parentId: undefined as string | undefined };
+  }
+
+  const roots = categories.filter((category) => !category.parentId);
+  const parent = roots.find((category) => {
+    for (const alias of categoryAliases(category.name)) {
+      if (normalized.includes(alias)) return true;
+    }
+    return false;
+  });
+  if (!parent) return undefined;
+
+  if (/\b(subcategory|subcategoria|subcategoría|under|de|en|in)\b/.test(normalized)) {
+    return { parentId: parent.id };
+  }
+
+  if (normalizeLookup(requestedName) !== normalized) {
+    return { parentId: parent.id };
+  }
+
+  return undefined;
+}
+
+function matchCategoryPath(categories: Category[], normalizedInput: string) {
+  const compact = normalizedInput
+    .replace(/\s*>\s*/g, '>')
+    .replace(/\s*\/\s*/g, '/')
+    .trim();
+  if (!compact) return undefined;
+
+  const separators = ['>', '/'];
+  for (const separator of separators) {
+    if (compact.includes(separator)) {
+      const [left, right] = compact.split(separator).map((part) => part.trim()).filter(Boolean);
+      if (!left || !right) continue;
+      const category = categories.find((item) => !item.parentId && categoryAliases(item.name).has(left));
+      const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item.name).has(right));
+      if (category && subcategory) return { category, subcategory };
+    }
+  }
+
+  const explicit = compact.match(/^(.*?)\s+(?:de|in|under|en)\s+(.*?)$/);
+  if (!explicit) return undefined;
+  const subName = explicit[1]?.trim();
+  const categoryName = explicit[2]?.trim();
+  const category = categories.find((item) => !item.parentId && categoryAliases(item.name).has(categoryName));
+  const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item.name).has(subName));
+  if (category && subcategory) return { category, subcategory };
+  return undefined;
+}
+
+function cleanupCategoryReply(input: string) {
+  return normalizeLookup(
+    input
+      .replace(/^(la\s+)?(categoria|categoría|subcategory|subcategor[ií]a|category)\s*(es|:)?\s*/i, '')
+      .trim()
+  );
+}
+
+function titleCaseCategoryName(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function normalizeLookup(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9>\/]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function categoryAliases(name: string) {
+  const normalized = normalizeLookup(name);
+  const aliases = new Set([normalized]);
+
+  switch (normalized) {
+    case 'food':
+      aliases.add('comida');
+      aliases.add('alimentacion');
+      break;
+    case 'groceries':
+      aliases.add('supermercado');
+      aliases.add('abarrotes');
+      break;
+    case 'restaurants':
+      aliases.add('restaurantes');
+      aliases.add('restaurant');
+      break;
+    case 'transport':
+      aliases.add('transporte');
+      break;
+    case 'public transport':
+      aliases.add('transporte publico');
+      aliases.add('transporte publico');
+      aliases.add('metro');
+      aliases.add('micro');
+      break;
+    case 'uber':
+      aliases.add('cabify');
+      aliases.add('didi');
+      break;
+    case 'housing':
+      aliases.add('vivienda');
+      aliases.add('hogar');
+      break;
+    case 'rent':
+      aliases.add('arriendo');
+      aliases.add('renta');
+      break;
+    case 'health':
+      aliases.add('salud');
+      break;
+    case 'appointments':
+      aliases.add('citas');
+      aliases.add('consultas');
+      break;
+    case 'medicines':
+      aliases.add('medicinas');
+      aliases.add('medicamentos');
+      aliases.add('remedios');
+      break;
+    case 'procedures':
+      aliases.add('procedimientos');
+      break;
+    case 'sports':
+      aliases.add('deportes');
+      break;
+    case 'entertainment':
+      aliases.add('entretenimiento');
+      aliases.add('diversion');
+      break;
+    case 'theater':
+      aliases.add('teatro');
+      aliases.add('cine');
+      break;
+    case 'education':
+      aliases.add('educacion');
+      break;
+    case 'services':
+      aliases.add('servicios');
+      break;
+    case 'phone':
+      aliases.add('telefono');
+      aliases.add('celular');
+      break;
+    case 'other':
+      aliases.add('otros');
+      break;
+    case 'gifts':
+      aliases.add('regalos');
+      aliases.add('regalo');
+      break;
+  }
+
+  return aliases;
+}
+
+function tokenIncludesNormalized(text: string, token: string) {
+  return new RegExp(`\\b${escapeRegExp(token)}\\b`).test(text);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
   const category = categories.find((item) => item.id === categoryId);
   const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;
@@ -554,6 +1231,76 @@ function updateTargetNotFoundMessage(user: User) {
   return user.preferredLanguage === 'en'
     ? 'I could not identify the movement to update with enough confidence. Please resend the exact amount and concept of the original movement.'
     : 'No encontré con suficiente certeza el movimiento a modificar. Reenvíame el monto y concepto exactos del movimiento original.';
+}
+
+function categoryClarificationMessage(user: User, categories: Category[]) {
+  const roots = categories.filter((category) => !category.parentId).map((category) => category.name).sort((a, b) => a.localeCompare(b));
+  if (user.preferredLanguage === 'en') {
+    return [
+      'I could not identify the category for this movement with enough confidence.',
+      `Reply with an existing category or subcategory, for example: ${roots.slice(0, 5).join(', ')}.`
+    ].join('\n');
+  }
+  return [
+    'No pude identificar con suficiente certeza la categoría de este movimiento.',
+    `Responde con una categoría o subcategoría existente, por ejemplo: ${roots.slice(0, 5).join(', ')}.`
+  ].join('\n');
+}
+
+function ambiguousCategoryMessage(user: User, options: Array<{ category: Category; subcategory?: Category }>) {
+  const lines = options.map((option, index) => `${index + 1}. ${option.category.name}${option.subcategory ? ` > ${option.subcategory.name}` : ''}`);
+  if (user.preferredLanguage === 'en') {
+    return [
+      'I found more than one matching category. Reply with the number or the full path:',
+      ...lines
+    ].join('\n');
+  }
+  return [
+    'Encontré más de una categoría coincidente. Responde con el número o la ruta completa:',
+    ...lines
+  ].join('\n');
+}
+
+function ambiguousCategoryReminderMessage(user: User, options: Array<{ category: Category; subcategory?: Category }>) {
+  return ambiguousCategoryMessage(user, options);
+}
+
+function categoryNotFoundMessage(user: User, requestedName: string) {
+  return user.preferredLanguage === 'en'
+    ? `I could not find "${requestedName}". Do you want to create it? Reply yes or no.`
+    : `No encontré "${requestedName}". ¿Quieres crearla? Responde sí o no.`;
+}
+
+function categoryRetryMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'Ok. Send me another existing category or subcategory.'
+    : 'Ok. Envíame otra categoría o subcategoría existente.';
+}
+
+function categoryCreateConfirmReminderMessage(user: User, requestedName: string) {
+  return user.preferredLanguage === 'en'
+    ? `Reply yes to create "${requestedName}" or no to choose another category.`
+    : `Responde sí para crear "${requestedName}" o no para elegir otra categoría.`;
+}
+
+function categoryCreateDetailsMessage(user: User, requestedName: string, categories: Category[]) {
+  const rootExamples = categories.filter((item) => !item.parentId).map((item) => item.name).slice(0, 5).join(', ');
+  if (user.preferredLanguage === 'en') {
+    return [
+      `How should I create "${requestedName}"?`,
+      '- Reply "root category" to create it as a main category.',
+      `- Reply "subcategory under Food" to create it below an existing category. Available examples: ${rootExamples}.`
+    ].join('\n');
+  }
+  return [
+    `¿Cómo quieres crear "${requestedName}"?`,
+    '- Responde "categoría principal" para crearla como categoría raíz.',
+    `- Responde "subcategoría de Food" para crearla debajo de una categoría existente. Ejemplos disponibles: ${rootExamples}.`
+  ].join('\n');
+}
+
+function categoryCreateDetailsReminderMessage(user: User, requestedName: string, categories: Category[]) {
+  return categoryCreateDetailsMessage(user, requestedName, categories);
 }
 
 function incomeSavedMessage(user: User, income: Income) {
@@ -665,6 +1412,22 @@ function normalize(value: string) {
   return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+function isCategorySelectionDraft(draft: unknown): draft is CategorySelectionDraft {
+  return Boolean(draft && typeof draft === 'object' && 'kind' in draft && draft.kind === 'category_selection');
+}
+
+function isCategoryDisambiguationDraft(draft: unknown): draft is CategoryDisambiguationDraft {
+  return Boolean(draft && typeof draft === 'object' && 'kind' in draft && draft.kind === 'category_disambiguation');
+}
+
+function isCategoryCreationConfirmDraft(draft: unknown): draft is CategoryCreationConfirmDraft {
+  return Boolean(draft && typeof draft === 'object' && 'kind' in draft && draft.kind === 'category_creation_confirm');
+}
+
+function isCategoryCreationDetailsDraft(draft: unknown): draft is CategoryCreationDetailsDraft {
+  return Boolean(draft && typeof draft === 'object' && 'kind' in draft && draft.kind === 'category_creation_details');
+}
+
 function isDuplicateConfirmationDraft(draft: unknown): draft is { kind: 'duplicate_confirmation'; originalMessage: string } {
   return Boolean(
     draft &&
@@ -678,6 +1441,14 @@ function isDuplicateConfirmationDraft(draft: unknown): draft is { kind: 'duplica
 
 function isDuplicateSaveMessage(message: string) {
   return /^(guardar|guardalo|guárdalo|guardar igual|save|save it|save anyway|si|sí|ok|okay|dale|confirmo|confirmar|yes|yep)$/i.test(message.trim());
+}
+
+function isAffirmativeSelection(message: string) {
+  return /^(si|sí|yes|y|ok|okay|dale|crear|create)$/i.test(message.trim());
+}
+
+function isNegativeMessage(message: string) {
+  return /^(no|nop|nope)$/i.test(message.trim());
 }
 
 function isTelegramLinkCommand(message: string) {

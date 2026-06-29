@@ -31,10 +31,22 @@ sequenceDiagram
         Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
       end
     end
-    alt missing or ambiguous data
+    alt missing data
       API->>DB: Mark audit as needs_confirmation
       API->>DB: Upsert pending draft for user
       API->>Telegram: Ask for clarification
+    else category unclear, ambiguous, or missing
+      API->>DB: Mark audit as needs_confirmation
+      API->>DB: Upsert category clarification draft
+      API->>Telegram: Ask for exact category or subcategory
+      alt duplicate subcategory name
+        User->>Telegram: Reply "Dance"
+        API->>Telegram: Ask to choose exact path (Education > Dance / Entertainment > Dance)
+      else category does not exist
+        User->>Telegram: Reply with non-existing category name
+        API->>Telegram: Ask whether to create it and whether it is root or child category
+        API->>DB: Create tenant-scoped category or subcategory when confirmed
+      end
     else update referenced movement
       API->>DB: Read recent tenant-scoped expenses/incomes
       API->>API: Match by referenced amount, concept, category, and movement type

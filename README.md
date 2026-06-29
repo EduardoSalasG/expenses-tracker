@@ -5,6 +5,7 @@ Consumer expenses tracker with web-first access, optional Telegram capture, Post
 Telegram expense capture is intended for registered users only and works as an optional convenience channel. The web app is fully usable without Telegram.
 
 Linked Telegram users can also correct recent expenses and incomes by chat, including amount, concept, and expense category/subcategory changes.
+When the backend cannot identify an expense category with enough confidence, it does not default silently. Instead, it asks the user to specify the category/subcategory, handles ambiguous matches such as duplicated subcategory names, and can create a new category or subcategory through the same chat flow.
 
 Telegram messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; GitHub Models with `deepseek/DeepSeek-V3-0324` or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
 
@@ -53,7 +54,7 @@ Notes:
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
 - `pnpm db:bootstrap` is the canonical command for a brand-new database. It runs migrations and then ensures the system-owned default category catalog exists.
 - `pnpm db:seed` is optional and only creates local demo/admin users plus tenant copies of the default categories.
-- Real business data should be moved with `pnpm db:export:data` / `pnpm db:import:data`, not with seed scripts.
+- Real business data should be moved with `pnpm db:export:tenant` / `pnpm db:import:data` for one user tenant, or `pnpm db:export:data` for a full database dump.
 - Expense forms support inline creation of missing categories, subcategories, banks, and payment methods. Budget forms support inline category/subcategory creation in the same flow.
 
 ## Docker
