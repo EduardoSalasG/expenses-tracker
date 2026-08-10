@@ -25,30 +25,14 @@ export class ChatCompletionsMessageInterpreter implements MessageInterpreterPort
       const response = await fetch(`${this.config.messageInterpreterBaseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: buildInterpreterHeaders(this.config),
-        body: JSON.stringify({
-          model: this.config.messageInterpreterModel,
-          temperature: this.config.messageInterpreterTemperature,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: systemPrompt() },
-            {
-              role: 'user',
-              content: JSON.stringify({
-                message,
-                user: {
-                  countryOfResidence: context.user.countryOfResidence,
-                  preferredCurrency: context.user.preferredCurrency
-                },
-                categories: categoryOptions(context.categories),
-                now: context.now.toISOString()
-              })
-            }
-          ]
-        })
+        body: JSON.stringify(buildChatCompletionPayload(this.config, message, context))
       });
 
       if (!response.ok) {
-        this.logger.warn('Message interpreter provider failed.', { status: response.status });
+        this.logger.warn('Message interpreter provider failed.', {
+          status: response.status,
+          body: await safeJson(response)
+        });
         return this.fallback.interpret(message, context);
       }
 
@@ -93,28 +77,203 @@ function buildInterpreterHeaders(config: AppConfig) {
   return headers;
 }
 
+function buildChatCompletionPayload(config: AppConfig, message: string, context: MessageInterpreterContext) {
+  return {
+    model: config.messageInterpreterModel,
+    temperature: config.messageInterpreterTemperature,
+    messages: [
+      { role: 'system', content: systemPrompt() },
+      ...fewShotMessages(context),
+      {
+        role: 'user',
+        content: JSON.stringify({
+          task: 'interpret_finance_message',
+          inputMessage: message,
+          user: {
+            countryOfResidence: context.user.countryOfResidence,
+            preferredCurrency: context.user.preferredCurrency,
+            preferredLanguage: context.user.preferredLanguage
+          },
+          categories: categoryOptions(context.categories),
+          banks: bankOptions(context.banks),
+          paymentMethodOptions: paymentMethodOptions(context.paymentMethodOptions),
+          now: context.now.toISOString(),
+          outputContract: {
+            returnOnlyJson: true,
+            allowedIntents: [
+              'create_expense',
+              'create_income',
+              'update_movement',
+              'ask_report',
+              'ask_budget_status',
+              'unknown'
+            ],
+            notes: [
+              'Preserve the concept exactly as the user wrote it whenever possible.',
+              'Do not invent banks, categories, or subcategories outside the supplied options.',
+              'If a field is uncertain, omit it, add it to missingFields when relevant, and set needsConfirmation true.'
+            ]
+          }
+        })
+      }
+    ]
+  };
+}
+
 function systemPrompt() {
   return [
-    'You interpret chat messages for a consumer personal finance tracker.',
-    'Return only valid JSON. Do not include markdown.',
+    'You interpret direct user messages for a personal finance tracker.',
+    'Return only valid JSON and no markdown, comments, prose, or fences.',
     'Supported intents: create_expense, create_income, update_movement, ask_report, ask_budget_status, unknown.',
-    'Never infer currency from arbitrary words. Currency is tenant configuration, not a message-level input. Omit currency unless the message contains an explicit ISO currency code or currency symbol.',
-    'Understand natural Spanish and English personal finance phrases.',
-    'Examples: "Ingreso de sueldo 1200000 Bci transferencia" is create_income with amount 1200000 and concept "sueldo".',
-    'Examples: "20.000 clases de bachata bsoul mayo, transferencia desde bci" is create_expense with amount 20000, concept "clases de bachata bsoul mayo", paymentMethod transfer, bank "bci".',
-    'Examples: "25.000 polera paris, tdc bci" is create_expense with amount 25000, concept "polera paris", paymentMethod card, cardType credit, bank "bci".',
-    'For create_expense include amount, concept, paymentMethod, optional categoryName/subcategoryName. paymentMethod must be an object, never a string.',
-    'paymentMethod object examples: {"kind":"cash"}, {"kind":"transfer","bank":"bci"}, {"kind":"card","cardType":"credit","bank":"bci"}. For tdc use credit card; for tdd use debit card.',
-    'For create_income include amount and concept. Words like sueldo, salario, ingreso, paid, salary indicate income.',
-    'For ask_report choose period daily, weekly, monthly, or yearly.',
-    'For ask_budget_status include month as YYYY-MM when possible.',
-    'For update_movement, extract fields the user wants to change into amount, concept, categoryName, subcategoryName. Use movementType expense or income when stated.',
-    'For update_movement, extract the referenced previous movement into referenceAmount, referenceConcept, and referenceCategoryName when the user pasted a previous confirmation or describes the old movement.',
-    'Example update: "Cambia la categoría de este gasto a restaurantes Monto: $14.000. Concepto: Hamburguesas. Categoría: Education." means update_movement, movementType expense, categoryName Food, subcategoryName Restaurants, referenceAmount 14000, referenceConcept Hamburguesas, referenceCategoryName Education.',
-    'Set needsConfirmation true and missingFields when required data is ambiguous.',
-    'Use categoryName and subcategoryName only from the supplied category list when confident.',
-    'When a supplied category has subcategories, prefer the most specific matching subcategory.'
+    'Think silently and return the final JSON only.',
+    'Preserve the original concept wording. Do not shorten, rewrite, translate, or normalize the concept unless the user explicitly asked to update it.',
+    'The user currency is tenant-level configuration. Do not infer a different currency from arbitrary words like "sueldo", "mayo", or merchant names.',
+    'Only set currency when the message includes an explicit ISO code or unmistakable symbol.',
+    'Use categoryName and subcategoryName only from the supplied category list.',
+    'When a supplied category has subcategories, choose the most specific valid match available.',
+    'Use payment methods only from the supplied paymentMethodOptions. Normalize informal phrases like tdc to credit card, tdd to debit card, transferencia to transfer, efectivo to cash.',
+    'Use banks only from the supplied bank list. Match abbreviations and aliases conservatively, for example BCI to Banco de Credito e Inversiones.',
+    'If the bank is not clearly stated or no supplied bank matches, omit bank.',
+    'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
+    'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
+    'If information is missing or ambiguous for a create or update intent, set needsConfirmation true and populate missingFields with concise field identifiers.'
   ].join(' ');
+}
+
+function fewShotMessages(context: MessageInterpreterContext) {
+  const categoryPayload = categoryOptions(context.categories);
+  const bankPayload = bankOptions(context.banks);
+  const paymentPayload = paymentMethodOptions(context.paymentMethodOptions);
+
+  return [
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: '20.000 clases de bachata bsoul mayo, transferencia desde bci',
+        user: {
+          countryOfResidence: context.user.countryOfResidence,
+          preferredCurrency: context.user.preferredCurrency,
+          preferredLanguage: context.user.preferredLanguage
+        },
+        categories: categoryPayload,
+        banks: bankPayload,
+        paymentMethodOptions: paymentPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'create_expense',
+        confidence: 0.96,
+        amount: 20000,
+        concept: 'clases de bachata bsoul mayo',
+        installmentCount: 1,
+        categoryName: 'Education',
+        subcategoryName: 'Dance',
+        paymentMethod: {
+          kind: 'transfer',
+          bank: 'Banco de Crédito e Inversiones'
+        },
+        missingFields: [],
+        needsConfirmation: false
+      })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: '25.000 polera paris, tdc bci, 3 cuotas',
+        user: {
+          countryOfResidence: context.user.countryOfResidence,
+          preferredCurrency: context.user.preferredCurrency,
+          preferredLanguage: context.user.preferredLanguage
+        },
+        categories: categoryPayload,
+        banks: bankPayload,
+        paymentMethodOptions: paymentPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'create_expense',
+        confidence: 0.93,
+        amount: 25000,
+        concept: 'polera paris',
+        installmentCount: 3,
+        categoryName: 'Clothing',
+        subcategoryName: 'Clothes',
+        paymentMethod: {
+          kind: 'card',
+          cardType: 'credit',
+          bank: 'Banco de Crédito e Inversiones'
+        },
+        missingFields: [],
+        needsConfirmation: false
+      })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: 'Ingreso de sueldo 1200000 bci transferencia',
+        user: {
+          countryOfResidence: context.user.countryOfResidence,
+          preferredCurrency: context.user.preferredCurrency,
+          preferredLanguage: context.user.preferredLanguage
+        },
+        categories: categoryPayload,
+        banks: bankPayload,
+        paymentMethodOptions: paymentPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'create_income',
+        confidence: 0.95,
+        amount: 1200000,
+        concept: 'sueldo',
+        missingFields: [],
+        needsConfirmation: false
+      })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: 'Cambia la categoría de este gasto a restaurantes\nMonto: $14.000.\nConcepto: Hamburguesas.\nCategoría: Education.',
+        user: {
+          countryOfResidence: context.user.countryOfResidence,
+          preferredCurrency: context.user.preferredCurrency,
+          preferredLanguage: context.user.preferredLanguage
+        },
+        categories: categoryPayload,
+        banks: bankPayload,
+        paymentMethodOptions: paymentPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'update_movement',
+        confidence: 0.9,
+        movementType: 'expense',
+        categoryName: 'Food',
+        subcategoryName: 'Restaurants',
+        referenceAmount: 14000,
+        referenceConcept: 'Hamburguesas',
+        referenceCategoryName: 'Education',
+        missingFields: [],
+        needsConfirmation: false
+      })
+    }
+  ];
 }
 
 function categoryOptions(categories: MessageInterpreterContext['categories']) {
@@ -124,12 +283,20 @@ function categoryOptions(categories: MessageInterpreterContext['categories']) {
       name: category.name,
       subcategories: categories
         .filter((subcategory) => subcategory.parentId === category.id)
-        .map((subcategory) => subcategory.name),
-      examples: `${category.name}${categories.some((subcategory) => subcategory.parentId === category.id) ? ` > ${categories
-        .filter((subcategory) => subcategory.parentId === category.id)
         .map((subcategory) => subcategory.name)
-        .join(', ')}` : ''}`
     }));
+}
+
+function bankOptions(banks: MessageInterpreterContext['banks']) {
+  return banks.map((bank) => bank.name);
+}
+
+function paymentMethodOptions(options: MessageInterpreterContext['paymentMethodOptions']) {
+  return options.map((option) => ({
+    name: option.name,
+    kind: option.kind,
+    cardType: option.cardType
+  }));
 }
 
 function extractJson(content: string) {
@@ -174,4 +341,13 @@ function paymentMethodFromText(value: string) {
   }
 
   return value;
+}
+
+async function safeJson(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }

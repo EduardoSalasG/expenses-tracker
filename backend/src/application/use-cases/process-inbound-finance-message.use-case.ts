@@ -50,8 +50,8 @@ export class ProcessInboundFinanceMessageUseCase {
     private readonly expenses: ExpenseRepository,
     private readonly incomes: IncomeRepository,
     private readonly budgets: BudgetRepository,
-    banks: BankOptionRepository,
-    paymentMethods: PaymentMethodOptionRepository,
+    private readonly banks: BankOptionRepository,
+    private readonly paymentMethods: PaymentMethodOptionRepository,
     private readonly messageAudits: MessagingMessageAuditRepository,
     private readonly pendingDrafts: MessagingPendingDraftRepository,
     private readonly messaging: MessagingProvider,
@@ -59,7 +59,7 @@ export class ProcessInboundFinanceMessageUseCase {
     private readonly clock: Clock,
     private readonly options: { frontendPublicOrigin: string }
   ) {
-    this.paymentSelections = new PaymentSelectionService(banks, paymentMethods);
+    this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
 
   async execute(input: InboundTextMessage): Promise<{ status: string; missingFields?: string[]; [key: string]: unknown }> {
@@ -109,7 +109,8 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'ignored_unregistered_sender' as const };
     }
 
-    const categories = await this.categories.listByTenant(user.tenantId);
+    const interpreterContext = await this.buildInterpreterContext(user);
+    const categories = interpreterContext.categories;
     const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft) {
       return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
@@ -144,11 +145,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'duplicate_needs_confirmation' as const };
     }
 
-    const interpreted = await this.interpreter.interpret(input.message, {
-      user,
-      categories,
-      now: this.clock.now()
-    });
+    const interpreted = await this.interpreter.interpret(input.message, interpreterContext);
 
     if (interpreted.intent === 'update_movement') {
       return this.updateMovement(input, user, categories, interpreted);
@@ -214,11 +211,10 @@ export class ProcessInboundFinanceMessageUseCase {
         return { status: 'needs_confirmation' as const, missingFields: ['duplicate_confirmation'] };
       }
 
-      const interpretedOriginal = await this.interpreter.interpret(draft.originalMessage, {
-        user,
-        categories,
-        now: this.clock.now()
-      });
+      const interpretedOriginal = await this.interpreter.interpret(
+        draft.originalMessage,
+        await this.buildInterpreterContext(user, categories)
+      );
       const saved = await this.trySaveInterpreted({
         ...input,
         message: draft.originalMessage
@@ -261,11 +257,10 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'draft_cancelled' as const };
     }
 
-    const interpretedReply = await this.interpreter.interpret(input.message, {
-      user,
-      categories,
-      now: this.clock.now()
-    });
+    const interpretedReply = await this.interpreter.interpret(
+      input.message,
+      await this.buildInterpreterContext(user, categories)
+    );
     const pending = interpretedMessageSchema.parse(draft);
     const merged = mergePendingDraft(pending, interpretedReply, input.message);
     const completed = await this.trySaveInterpreted({
@@ -298,6 +293,22 @@ export class ProcessInboundFinanceMessageUseCase {
     });
     await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
     return { status: 'needs_confirmation' as const, missingFields };
+  }
+
+  private async buildInterpreterContext(user: User, categoriesOverride?: Category[]) {
+    const categories = categoriesOverride ?? await this.categories.listByTenant(user.tenantId);
+    const [banks, paymentMethodOptions] = await Promise.all([
+      this.banks.listByTenant(user.tenantId),
+      this.paymentMethods.listByTenant(user.tenantId)
+    ]);
+
+    return {
+      user,
+      categories,
+      banks,
+      paymentMethodOptions,
+      now: this.clock.now()
+    };
   }
 
   private async processCategorySelectionDraft(

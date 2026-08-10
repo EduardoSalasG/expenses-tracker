@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Category, PaymentMethod, ReportFrequency, User } from '../domain/index.js';
+import type { BankOption, PaymentMethodOption } from '../domain/finance/types.js';
 import { parseExpenseMessage } from './expense-parser.js';
 
 export const interpretedMessageSchema = z.discriminatedUnion('intent', [
@@ -74,6 +75,8 @@ export type InterpretedMessage = z.infer<typeof interpretedMessageSchema>;
 export interface MessageInterpreterContext {
   user: User;
   categories: Category[];
+  banks: BankOption[];
+  paymentMethodOptions: PaymentMethodOption[];
   now: Date;
 }
 

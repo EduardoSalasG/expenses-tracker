@@ -29,6 +29,7 @@ describe('loadConfig', () => {
     vi.resetModules();
     vi.stubEnv('MESSAGE_INTERPRETER_PROVIDER', 'openrouter');
     vi.stubEnv('MESSAGE_INTERPRETER_BASE_URL', '');
+    vi.stubEnv('MESSAGE_INTERPRETER_MODEL', 'deepseek/DeepSeek-V3-0324');
 
     const { loadConfig } = await import('./config.js');
     const config = loadConfig();
