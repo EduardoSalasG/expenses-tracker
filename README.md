@@ -22,6 +22,7 @@ Telegram messages are interpreted through a provider-agnostic `MessageInterprete
 Every behavior change must keep documentation aligned:
 
 - API changes update Swagger/OpenAPI and `backend/README.md`.
+- API changes also update `docs/postman/expenses-tracker.postman_collection.json`.
 - Frontend route, workflow, or env changes update `frontend/README.md`.
 - Domain, architecture, or persistence changes update `docs/diagrams/flows.md`.
 - Database query changes update `database/query-analysis.md` when performance or index usage matters.
@@ -154,6 +155,7 @@ See:
 - [QA Evidence 2026-06-11](docs/qa-evidence-2026-06-11.md)
 - [Release Evidence 2026-06-11](docs/release-evidence-2026-06-11.md)
 - [Swagger Audit 2026-06-11](docs/swagger-audit-2026-06-11.md)
+- [Postman Collection](docs/postman/expenses-tracker.postman_collection.json)
 - [Post-Deploy QA Template](docs/post-deploy-qa-template.md)
 - [Flow Diagrams](docs/diagrams/flows.md)
 - [Database Query Analysis](database/query-analysis.md)

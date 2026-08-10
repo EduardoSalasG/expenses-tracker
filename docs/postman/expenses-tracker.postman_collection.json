@@ -1,0 +1,768 @@
+{
+  "info": {
+    "_postman_id": "2f9170b4-6340-49d2-b11c-1d9f5e53d8f0",
+    "name": "Expenses Tracker API",
+    "description": "Colección Postman del backend activo de Expenses Tracker. Fuente de verdad: rutas Express registradas en backend/src/interfaces/http/routes y health/docs en backend/src/interfaces/http/app.ts. Debe mantenerse alineada cada vez que se agregue, modifique o elimine un endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "phoneNumber", "value": "+56982439041" },
+    { "key": "telegramChatId", "value": "123456789" },
+    { "key": "telegramWebhookSecret", "value": "telegram-webhook-secret-token" },
+    { "key": "expenseId", "value": "00000000-0000-0000-0000-000000000001" },
+    { "key": "incomeId", "value": "00000000-0000-0000-0000-000000000002" },
+    { "key": "categoryId", "value": "00000000-0000-0000-0000-000000000003" },
+    { "key": "subcategoryId", "value": "00000000-0000-0000-0000-000000000004" },
+    { "key": "bankOptionId", "value": "00000000-0000-0000-0000-000000000005" },
+    { "key": "paymentMethodOptionId", "value": "00000000-0000-0000-0000-000000000006" },
+    { "key": "magicLinkToken", "value": "replace-with-real-magic-link-token" },
+    { "key": "telegramLinkToken", "value": "replace-with-real-telegram-link-token" }
+  ],
+  "item": [
+    {
+      "name": "Health and Public",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "Health Live",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/live"
+          }
+        },
+        {
+          "name": "Health Ready",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/ready"
+          }
+        },
+        {
+          "name": "Public Context",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/context"
+          }
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/docs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Eduardo\",\n  \"email\": \"eduardo@example.com\",\n  \"preferredLanguage\": \"es\",\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register/lead"
+          }
+        },
+        {
+          "name": "Register Web",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"password\": \"Secret123!\",\n  \"firstName\": \"Eduardo\",\n  \"lastName\": \"Salas\",\n  \"preferredName\": \"Eduardo\",\n  \"email\": \"eduardo@example.com\",\n  \"countryOfResidence\": \"Chile\",\n  \"preferredCurrency\": \"CLP\",\n  \"preferredLanguage\": \"es\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login Web",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"password\": \"Secret123!\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Request Magic Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/magic-link/request"
+          }
+        },
+        {
+          "name": "Consume Magic Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{magicLinkToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/magic-link/consume"
+          }
+        },
+        {
+          "name": "Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"telegramChatId\": \"{{telegramChatId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/request"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"code\": \"123456\",\n  \"firstName\": \"Eduardo\",\n  \"lastName\": \"Salas\",\n  \"preferredName\": \"Eduardo\",\n  \"email\": \"eduardo@example.com\",\n  \"countryOfResidence\": \"Chile\",\n  \"preferredCurrency\": \"CLP\",\n  \"preferredLanguage\": \"es\",\n  \"telegramChatId\": \"{{telegramChatId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/otp/verify"
+          }
+        },
+        {
+          "name": "Refresh Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Create Telegram Link Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chatId\": \"{{telegramChatId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/telegram/link-token"
+          }
+        },
+        {
+          "name": "Create Telegram Registration Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/telegram/registration-link"
+          }
+        },
+        {
+          "name": "Consume Telegram Link Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{telegramLinkToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/telegram/consume-link-token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/me"
+          }
+        },
+        {
+          "name": "Update Me",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Eduardo\",\n  \"lastName\": \"Salas\",\n  \"preferredName\": \"Edu\",\n  \"email\": \"eduardo@example.com\",\n  \"countryOfResidence\": \"Chile\",\n  \"preferredCurrency\": \"CLP\",\n  \"preferredLanguage\": \"es\"\n}"
+            },
+            "url": "{{baseUrl}}/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-10T12:00:00.000Z\",\n  \"amount\": 25000,\n  \"currency\": \"CLP\",\n  \"concept\": \"Lunch at Tavelli\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"subcategoryId\": \"{{subcategoryId}}\",\n  \"paymentMethodOptionId\": \"{{paymentMethodOptionId}}\",\n  \"bankOptionId\": \"{{bankOptionId}}\",\n  \"installmentCount\": 1,\n  \"paymentMethod\": {\n    \"kind\": \"card\",\n    \"bank\": \"BCI\",\n    \"cardType\": \"credit\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/expenses"
+          }
+        },
+        {
+          "name": "Update Expense",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-10T12:00:00.000Z\",\n  \"amount\": 27000,\n  \"currency\": \"CLP\",\n  \"concept\": \"Lunch at Tavelli updated\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"subcategoryId\": \"{{subcategoryId}}\",\n  \"paymentMethodOptionId\": \"{{paymentMethodOptionId}}\",\n  \"bankOptionId\": \"{{bankOptionId}}\",\n  \"installmentCount\": 1,\n  \"paymentMethod\": {\n    \"kind\": \"card\",\n    \"bank\": \"BCI\",\n    \"cardType\": \"credit\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/expenses/{{expenseId}}"
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/expenses/{{expenseId}}"
+          }
+        },
+        {
+          "name": "List Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/expenses?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&limit=50"
+          }
+        },
+        {
+          "name": "Recent Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/expenses/recent?limit=5"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Incomes",
+      "item": [
+        {
+          "name": "Create Income",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-01T12:00:00.000Z\",\n  \"amount\": 1200000,\n  \"currency\": \"CLP\",\n  \"concept\": \"Monthly salary\"\n}"
+            },
+            "url": "{{baseUrl}}/incomes"
+          }
+        },
+        {
+          "name": "Update Income",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-01T12:00:00.000Z\",\n  \"amount\": 1240000,\n  \"currency\": \"CLP\",\n  \"concept\": \"Monthly salary updated\"\n}"
+            },
+            "url": "{{baseUrl}}/incomes/{{incomeId}}"
+          }
+        },
+        {
+          "name": "Delete Income",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/incomes/{{incomeId}}"
+          }
+        },
+        {
+          "name": "List Incomes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/incomes?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&limit=50"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories and Catalogs",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pets\"\n}"
+            },
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "Create Subcategory",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Vet\",\n  \"parentId\": \"{{categoryId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "List Banks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/banks"
+          }
+        },
+        {
+          "name": "Create Bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Banco Demo\"\n}"
+            },
+            "url": "{{baseUrl}}/banks"
+          }
+        },
+        {
+          "name": "Update Bank",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Banco Demo Renombrado\"\n}"
+            },
+            "url": "{{baseUrl}}/banks/{{bankOptionId}}"
+          }
+        },
+        {
+          "name": "Delete Bank",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/banks/{{bankOptionId}}"
+          }
+        },
+        {
+          "name": "List Payment Method Options",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/payment-method-options"
+          }
+        },
+        {
+          "name": "Create Payment Method Option",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tarjeta empresa\",\n  \"kind\": \"card\",\n  \"cardType\": \"credit\"\n}"
+            },
+            "url": "{{baseUrl}}/payment-method-options"
+          }
+        },
+        {
+          "name": "Update Payment Method Option",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tarjeta empresa actualizada\",\n  \"kind\": \"card\",\n  \"cardType\": \"credit\"\n}"
+            },
+            "url": "{{baseUrl}}/payment-method-options/{{paymentMethodOptionId}}"
+          }
+        },
+        {
+          "name": "Delete Payment Method Option",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/payment-method-options/{{paymentMethodOptionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Budgets and Reports",
+      "item": [
+        {
+          "name": "List Budgets",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/budgets"
+          }
+        },
+        {
+          "name": "Upsert Budget",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"subcategoryId\": \"{{subcategoryId}}\",\n  \"amount\": 250000,\n  \"currency\": \"CLP\"\n}"
+            },
+            "url": "{{baseUrl}}/budgets"
+          }
+        },
+        {
+          "name": "List Budgets Legacy",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/budgets/monthly"
+          }
+        },
+        {
+          "name": "Upsert Budget Legacy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"subcategoryId\": \"{{subcategoryId}}\",\n  \"amount\": 250000,\n  \"currency\": \"CLP\"\n}"
+            },
+            "url": "{{baseUrl}}/budgets/monthly"
+          }
+        },
+        {
+          "name": "Report Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z"
+          }
+        },
+        {
+          "name": "Yearly Expenses Monthly Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/expenses/yearly-monthly?year=2026"
+          }
+        },
+        {
+          "name": "Monthly Expenses Daily Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/expenses/monthly-daily?month=2026-08"
+          }
+        },
+        {
+          "name": "Weekly Expenses Daily Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/expenses/weekly-daily?weekStart=2026-08-10"
+          }
+        },
+        {
+          "name": "Upcoming Expense Installments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/expenses/upcoming-installments?month=2026-08&months=6"
+          }
+        },
+        {
+          "name": "Yearly Incomes Monthly Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/incomes/yearly-monthly?year=2026"
+          }
+        },
+        {
+          "name": "Monthly Incomes Daily Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/incomes/monthly-daily?month=2026-08"
+          }
+        },
+        {
+          "name": "Expense Category Totals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/reports/expenses/category-totals?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z"
+          }
+        },
+        {
+          "name": "Update Report Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": [\"monthly\", \"yearly\"]\n}"
+            },
+            "url": "{{baseUrl}}/report-preferences"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Telegram Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-telegram-bot-api-secret-token", "value": "{{telegramWebhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": 10000,\n  \"message\": {\n    \"message_id\": 1365,\n    \"date\": 1788890000,\n    \"chat\": {\n      \"id\": {{telegramChatId}},\n      \"type\": \"private\"\n    },\n    \"text\": \"Gaste 25000 en almuerzo con tarjeta bci\",\n    \"from\": {\n      \"id\": 123456789,\n      \"is_bot\": false,\n      \"first_name\": \"Eduardo\"\n    }\n  }\n}"
+            },
+            "url": "{{baseUrl}}/webhooks/telegram"
+          }
+        }
+      ]
+    }
+  ]
+}

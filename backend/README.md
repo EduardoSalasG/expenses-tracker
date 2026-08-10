@@ -234,6 +234,7 @@ http://localhost:3000/api/docs
 When running through Docker Compose, the backend is exposed at the same URL.
 
 Every public endpoint must include request/response schemas, status codes, auth requirements, and error examples.
+Postman import collection lives at `docs/postman/expenses-tracker.postman_collection.json` and must be updated in the same change whenever any endpoint is added, removed, renamed, or its contract changes.
 The final auth/messaging pass must explicitly cover:
 
 - `POST /auth/register/lead`
