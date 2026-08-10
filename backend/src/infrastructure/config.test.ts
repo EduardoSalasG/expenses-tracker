@@ -4,6 +4,8 @@ describe('loadConfig', () => {
   it('parses string false as false for USE_IN_MEMORY_REPOSITORIES', async () => {
     vi.resetModules();
     vi.stubEnv('USE_IN_MEMORY_REPOSITORIES', 'false');
+    vi.stubEnv('MESSAGE_INTERPRETER_PROVIDER', 'deterministic');
+    vi.stubEnv('MESSAGE_INTERPRETER_BASE_URL', '');
 
     const { loadConfig } = await import('./config.js');
 
@@ -14,6 +16,8 @@ describe('loadConfig', () => {
   it('parses string true as true for USE_IN_MEMORY_REPOSITORIES', async () => {
     vi.resetModules();
     vi.stubEnv('USE_IN_MEMORY_REPOSITORIES', 'true');
+    vi.stubEnv('MESSAGE_INTERPRETER_PROVIDER', 'deterministic');
+    vi.stubEnv('MESSAGE_INTERPRETER_BASE_URL', '');
 
     const { loadConfig } = await import('./config.js');
 
@@ -21,16 +25,30 @@ describe('loadConfig', () => {
     vi.unstubAllEnvs();
   });
 
-  it('supports GitHub Models as the message interpreter provider', async () => {
+  it('supports OpenRouter as the message interpreter provider', async () => {
+    vi.resetModules();
+    vi.stubEnv('MESSAGE_INTERPRETER_PROVIDER', 'openrouter');
+    vi.stubEnv('MESSAGE_INTERPRETER_BASE_URL', '');
+
+    const { loadConfig } = await import('./config.js');
+    const config = loadConfig();
+
+    expect(config.messageInterpreterProvider).toBe('openrouter');
+    expect(config.messageInterpreterBaseUrl).toBe('https://openrouter.ai/api/v1');
+    expect(config.messageInterpreterModel).toBe('deepseek/DeepSeek-V3-0324');
+    vi.unstubAllEnvs();
+  });
+
+  it('keeps GitHub Models as a legacy-compatible provider alias', async () => {
     vi.resetModules();
     vi.stubEnv('MESSAGE_INTERPRETER_PROVIDER', 'github-models');
+    vi.stubEnv('MESSAGE_INTERPRETER_BASE_URL', '');
 
     const { loadConfig } = await import('./config.js');
     const config = loadConfig();
 
     expect(config.messageInterpreterProvider).toBe('github-models');
     expect(config.messageInterpreterBaseUrl).toBe('https://models.github.ai/inference');
-    expect(config.messageInterpreterModel).toBe('deepseek/DeepSeek-V3-0324');
     vi.unstubAllEnvs();
   });
 

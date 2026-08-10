@@ -8,7 +8,7 @@ import {
 } from '../application/message-interpreter.js';
 import type { AppConfig } from './config.js';
 
-export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPort {
+export class ChatCompletionsMessageInterpreter implements MessageInterpreterPort {
   private readonly fallback = new DeterministicMessageInterpreter();
 
   constructor(
@@ -24,10 +24,7 @@ export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPor
     try {
       const response = await fetch(`${this.config.messageInterpreterBaseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
-        headers: {
-          authorization: `Bearer ${this.config.messageInterpreterApiKey}`,
-          'content-type': 'application/json'
-        },
+        headers: buildInterpreterHeaders(this.config),
         body: JSON.stringify({
           model: this.config.messageInterpreterModel,
           temperature: this.config.messageInterpreterTemperature,
@@ -70,11 +67,30 @@ export class OpenAiCompatibleMessageInterpreter implements MessageInterpreterPor
 }
 
 export function createMessageInterpreter(config: AppConfig, logger: Logger): MessageInterpreterPort {
-  if (config.messageInterpreterProvider === 'openai-compatible' || config.messageInterpreterProvider === 'github-models') {
-    return new OpenAiCompatibleMessageInterpreter(config, logger);
+  if (
+    config.messageInterpreterProvider === 'openai-compatible' ||
+    config.messageInterpreterProvider === 'openrouter' ||
+    config.messageInterpreterProvider === 'github-models'
+  ) {
+    return new ChatCompletionsMessageInterpreter(config, logger);
   }
 
   return new DeterministicMessageInterpreter();
+}
+
+function buildInterpreterHeaders(config: AppConfig) {
+  const headers: Record<string, string> = {
+    authorization: `Bearer ${config.messageInterpreterApiKey}`,
+    'content-type': 'application/json'
+  };
+
+  if (config.messageInterpreterProvider === 'openrouter') {
+    const referer = config.messageInterpreterHttpReferer || config.frontendPublicOrigin;
+    if (referer) headers['HTTP-Referer'] = referer;
+    if (config.messageInterpreterAppName) headers['X-Title'] = config.messageInterpreterAppName;
+  }
+
+  return headers;
 }
 
 function systemPrompt() {

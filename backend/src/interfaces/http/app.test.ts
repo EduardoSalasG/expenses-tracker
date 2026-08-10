@@ -164,6 +164,8 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     messageInterpreterBaseUrl: 'https://api.deepseek.com',
     messageInterpreterModel: 'deepseek-chat',
     messageInterpreterTemperature: 0.1,
+    messageInterpreterHttpReferer: '',
+    messageInterpreterAppName: 'Expenses Tracker',
     otpDebugResponseEnabled: false,
     frontendOrigin: 'http://localhost:4200',
     frontendOrigins: ['http://localhost:4200'],

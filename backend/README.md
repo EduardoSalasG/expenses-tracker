@@ -32,11 +32,13 @@ pnpm --filter @expenses-tracker/backend dev
 - `RESEND_API_KEY`: Resend API key used to send email magic links.
 - `RESEND_API_BASE_URL`: Resend REST API base URL (`https://api.resend.com`).
 - `RESEND_FROM_EMAIL`: verified sender used for magic-link emails.
-- `MESSAGE_INTERPRETER_PROVIDER`: `deterministic`, `github-models`, or `openai-compatible`.
-- `MESSAGE_INTERPRETER_API_KEY`: API key for the selected LLM provider. For GitHub Models, use a GitHub token with Models access. Leave empty to fall back to deterministic parsing.
-- `MESSAGE_INTERPRETER_BASE_URL`: chat completions base URL. GitHub Models uses `https://models.github.ai/inference`.
-- `MESSAGE_INTERPRETER_MODEL`: model name. For the planned GitHub Models setup, use `deepseek/DeepSeek-V3-0324`.
+- `MESSAGE_INTERPRETER_PROVIDER`: `deterministic`, `openrouter`, or `openai-compatible`. `github-models` is still accepted as a legacy alias during migration.
+- `MESSAGE_INTERPRETER_API_KEY`: API key for the selected LLM provider. Leave empty to fall back to deterministic parsing.
+- `MESSAGE_INTERPRETER_BASE_URL`: chat completions base URL. OpenRouter uses `https://openrouter.ai/api/v1`.
+- `MESSAGE_INTERPRETER_MODEL`: model name. Current recommended setup uses `deepseek/DeepSeek-V3-0324`.
 - `MESSAGE_INTERPRETER_TEMPERATURE`: low value recommended for structured financial extraction.
+- `MESSAGE_INTERPRETER_HTTP_REFERER`: optional site URL sent as `HTTP-Referer` when provider is OpenRouter. If omitted, backend falls back to `FRONTEND_ORIGIN` public URL.
+- `MESSAGE_INTERPRETER_APP_NAME`: optional app name sent as `X-Title` when provider is OpenRouter.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
 - `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list.
 - `TELEGRAM_BOT_USERNAME`: bot username without the leading `@`. Required for generating Telegram registration deep links from the web.
@@ -257,7 +259,7 @@ The active messaging webhook is Telegram only:
 POST /webhooks/telegram
 ```
 
-Inbound text is interpreted through the `MessageInterpreterPort`. The default deterministic interpreter supports basic expense, income, report, and budget-status intents. Set `MESSAGE_INTERPRETER_PROVIDER=github-models` with a GitHub token, `MESSAGE_INTERPRETER_BASE_URL=https://models.github.ai/inference`, and `MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324` to use GitHub Models. Use `openai-compatible` for another chat completions provider with the same request shape. The provider only proposes structured JSON; the backend still validates required fields, tenant scope, categories, and persistence rules before saving or replying.
+Inbound text is interpreted through the `MessageInterpreterPort`. The default deterministic interpreter supports basic expense, income, report, and budget-status intents. Set `MESSAGE_INTERPRETER_PROVIDER=openrouter`, `MESSAGE_INTERPRETER_BASE_URL=https://openrouter.ai/api/v1`, and `MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324` to use OpenRouter. Use `openai-compatible` for another chat completions provider with the same request shape. The provider only proposes structured JSON; the backend still validates required fields, tenant scope, categories, and persistence rules before saving or replying.
 
 Natural Telegram examples:
 

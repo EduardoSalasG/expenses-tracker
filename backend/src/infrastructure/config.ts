@@ -34,11 +34,13 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().default(''),
   RESEND_API_BASE_URL: z.string().url().default('https://api.resend.com'),
   RESEND_FROM_EMAIL: z.string().default(''),
-  MESSAGE_INTERPRETER_PROVIDER: z.enum(['deterministic', 'openai-compatible', 'github-models']).default('deterministic'),
+  MESSAGE_INTERPRETER_PROVIDER: z.enum(['deterministic', 'openai-compatible', 'openrouter', 'github-models']).default('deterministic'),
   MESSAGE_INTERPRETER_API_KEY: z.string().default(''),
-  MESSAGE_INTERPRETER_BASE_URL: z.string().url().default('https://models.github.ai/inference'),
+  MESSAGE_INTERPRETER_BASE_URL: z.string().default(''),
   MESSAGE_INTERPRETER_MODEL: z.string().default('deepseek/DeepSeek-V3-0324'),
   MESSAGE_INTERPRETER_TEMPERATURE: optionalNumberEnvSchema(0.1).pipe(z.number().min(0).max(2)),
+  MESSAGE_INTERPRETER_HTTP_REFERER: z.string().default(''),
+  MESSAGE_INTERPRETER_APP_NAME: z.string().default('Expenses Tracker'),
   OTP_DEBUG_RESPONSE_ENABLED: booleanEnvSchema.default(false),
   FRONTEND_ORIGIN: z.string().default('http://localhost:4200'),
   USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false),
@@ -74,9 +76,14 @@ export function loadConfig() {
     resendFromEmail: env.RESEND_FROM_EMAIL,
     messageInterpreterProvider: env.MESSAGE_INTERPRETER_PROVIDER,
     messageInterpreterApiKey: env.MESSAGE_INTERPRETER_API_KEY,
-    messageInterpreterBaseUrl: env.MESSAGE_INTERPRETER_BASE_URL,
+    messageInterpreterBaseUrl: resolveMessageInterpreterBaseUrl(
+      env.MESSAGE_INTERPRETER_PROVIDER,
+      env.MESSAGE_INTERPRETER_BASE_URL
+    ),
     messageInterpreterModel: env.MESSAGE_INTERPRETER_MODEL,
     messageInterpreterTemperature: env.MESSAGE_INTERPRETER_TEMPERATURE,
+    messageInterpreterHttpReferer: env.MESSAGE_INTERPRETER_HTTP_REFERER,
+    messageInterpreterAppName: env.MESSAGE_INTERPRETER_APP_NAME,
     otpDebugResponseEnabled: env.OTP_DEBUG_RESPONSE_ENABLED,
     frontendOrigin: env.FRONTEND_ORIGIN,
     frontendOrigins,
@@ -119,5 +126,22 @@ function isLocalhostOrigin(value: string) {
     return ['localhost', '127.0.0.1'].includes(url.hostname);
   } catch {
     return false;
+  }
+}
+
+function resolveMessageInterpreterBaseUrl(
+  provider: 'deterministic' | 'openai-compatible' | 'openrouter' | 'github-models',
+  configuredBaseUrl: string
+) {
+  const explicitBaseUrl = configuredBaseUrl.trim();
+  if (explicitBaseUrl) return explicitBaseUrl;
+
+  switch (provider) {
+    case 'openrouter':
+      return 'https://openrouter.ai/api/v1';
+    case 'github-models':
+      return 'https://models.github.ai/inference';
+    default:
+      return 'https://openrouter.ai/api/v1';
   }
 }
