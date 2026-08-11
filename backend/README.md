@@ -110,6 +110,7 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 
 - Normal text updates as primary inbound input.
 - Help commands: `/commands` and `/help` return the available bot commands, an example for each one, and the type of reply the bot will send.
+- Account discovery commands: `/accounts` (or `/cuentas`) lists the personal/shared accounts the user can access and marks the active one for that chat; `/current` (or `/actual`) tells the user which account is active right now.
 - Account linking command: `/link +569XXXXXXXX` (or `/vincular +569XXXXXXXX`) to bind a Telegram chat id to a previously registered user phone.
 - Optional webhook secret verification via `x-telegram-bot-api-secret-token` when `TELEGRAM_WEBHOOK_SECRET_TOKEN` is configured.
 
@@ -364,6 +365,14 @@ Help command example:
 
 ```text
 /commands
+```
+
+Account-context command examples:
+
+```text
+/accounts
+/current
+/Casa comun
 ```
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.

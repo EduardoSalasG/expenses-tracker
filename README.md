@@ -66,6 +66,7 @@ Shared accounts are already available in the foundation stage:
 - personal and shared financial accounts
 - invitations and membership management
 - Telegram account switching
+- Telegram account discovery commands (`/accounts`, `/current`, `/AccountName`)
 - web account switching
 - dashboard and financial modules scoped by the active account
 

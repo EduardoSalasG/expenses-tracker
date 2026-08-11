@@ -98,6 +98,36 @@ export class InboundMessagingService {
           });
           continue;
         }
+
+        if (isAccountsRequest(message.message)) {
+          const accountMessage = await this.buildTelegramAccountsMessage(message.providerUserId ?? message.replyTo);
+          await this.container.messaging.sendText(
+            message.replyTo,
+            accountMessage,
+            { channel: 'telegram' }
+          );
+          this.container.logger.info('Telegram accounts command processed.', {
+            channel: batch.channel,
+            replyTo: message.replyTo,
+            command: 'accounts'
+          });
+          continue;
+        }
+
+        if (isCurrentAccountRequest(message.message)) {
+          const currentMessage = await this.buildTelegramCurrentAccountMessage(message.providerUserId ?? message.replyTo);
+          await this.container.messaging.sendText(
+            message.replyTo,
+            currentMessage,
+            { channel: 'telegram' }
+          );
+          this.container.logger.info('Telegram current account command processed.', {
+            channel: batch.channel,
+            replyTo: message.replyTo,
+            command: 'current'
+          });
+          continue;
+        }
       }
 
       const result = await this.container.useCases.processInboundFinanceMessage.execute({
@@ -133,6 +163,40 @@ export class InboundMessagingService {
     const user = await this.container.users.findByTelegramChatId(chatId);
     return user?.preferredLanguage ?? 'es';
   }
+
+  private async buildTelegramAccountsMessage(chatId?: string) {
+    const linkedUser = await this.resolveLinkedTelegramUser(chatId);
+    if (!linkedUser) return telegramUnlinkedShortMessage('es');
+
+    const [accounts, current] = await Promise.all([
+      this.container.useCases.financialAccounts.listAccounts(linkedUser.id),
+      this.container.useCases.financialAccounts.resolveMessagingContext({
+        userId: linkedUser.id,
+        channel: 'telegram',
+        providerUserId: chatId
+      })
+    ]);
+
+    return buildTelegramAccountsMessage(linkedUser.preferredLanguage, accounts, current.account.id);
+  }
+
+  private async buildTelegramCurrentAccountMessage(chatId?: string) {
+    const linkedUser = await this.resolveLinkedTelegramUser(chatId);
+    if (!linkedUser) return telegramUnlinkedShortMessage('es');
+
+    const current = await this.container.useCases.financialAccounts.resolveMessagingContext({
+      userId: linkedUser.id,
+      channel: 'telegram',
+      providerUserId: chatId
+    });
+
+    return buildTelegramCurrentAccountMessage(linkedUser.preferredLanguage, current.account.name);
+  }
+
+  private async resolveLinkedTelegramUser(chatId?: string) {
+    if (!chatId) return undefined;
+    return this.container.users.findByTelegramChatId(chatId);
+  }
 }
 
 function getStartPayload(message: string) {
@@ -153,6 +217,14 @@ function isWebAccessRequest(message: string) {
 
 function isCommandsRequest(message: string) {
   return /^\/(?:commands|help)\b/i.test(message.trim());
+}
+
+function isAccountsRequest(message: string) {
+  return /^\/(?:accounts|cuentas)\b/i.test(message.trim());
+}
+
+function isCurrentAccountRequest(message: string) {
+  return /^\/(?:current|actual)\b/i.test(message.trim());
 }
 
 function buildTelegramStartMessage(linkUrl: string) {
@@ -216,7 +288,15 @@ function buildTelegramCommandsMessage(language: 'es' | 'en') {
       'Example command: Change the category of this expense to restaurants',
       'Example reply: I update the movement and confirm the new values.',
       '',
-      '8) Confirm or discard duplicates',
+      '8) Review your available accounts',
+      'Command: /accounts',
+      'Example reply: I list your personal/shared accounts and mark the active one.',
+      '',
+      '9) Check the current account for this chat',
+      'Command: /current',
+      'Example reply: I tell you which account is active and how to switch.',
+      '',
+      '10) Confirm or discard duplicates',
       'Example command: save',
       'Example reply: I keep the movement even if it looks duplicated.',
       'Example command: discard',
@@ -257,7 +337,15 @@ function buildTelegramCommandsMessage(language: 'es' | 'en') {
     'Ejemplo de comando: Cambia la categoría de este gasto a restaurantes',
     'Ejemplo de respuesta: actualizo el movimiento y te confirmo los nuevos datos.',
     '',
-    '8) Confirmar o descartar duplicados',
+    '8) Revisar tus cuentas disponibles',
+    'Comando: /accounts',
+    'Ejemplo de respuesta: te listo tus cuentas personales/compartidas y marco la activa.',
+    '',
+    '9) Ver la cuenta actual de este chat',
+    'Comando: /current',
+    'Ejemplo de respuesta: te digo qué cuenta está activa y cómo cambiarla.',
+    '',
+    '10) Confirmar o descartar duplicados',
     'Ejemplo de comando: guardar',
     'Ejemplo de respuesta: mantengo el movimiento aunque parezca duplicado.',
     'Ejemplo de comando: descartar',
@@ -265,4 +353,46 @@ function buildTelegramCommandsMessage(language: 'es' | 'en') {
     '',
     'Tip: también puedes escribir como lo harías normalmente. Yo interpreto el movimiento y te pregunto si falta algo.'
   ].join('\n');
+}
+
+function telegramUnlinkedShortMessage(language: 'es' | 'en') {
+  return language === 'en'
+    ? 'Your Telegram is not linked yet. First connect it from the web or send /link with your registered phone number.'
+    : 'Tu Telegram aún no está vinculado. Primero conéctalo desde la web o envía /link con tu teléfono registrado.';
+}
+
+function buildTelegramAccountsMessage(
+  language: 'es' | 'en',
+  accounts: Array<{ account: { id: string; name: string; type: 'personal' | 'shared' }; role: 'owner' | 'admin' | 'member' }>,
+  currentAccountId: string
+) {
+  const lines = accounts.map(({ account, role }) => {
+    const currentMarker = account.id === currentAccountId ? (language === 'en' ? ' [active]' : ' [activa]') : '';
+    const typeLabel = language === 'en'
+      ? account.type === 'personal' ? 'personal' : 'shared'
+      : account.type === 'personal' ? 'personal' : 'compartida';
+    return `- ${account.name}${currentMarker} · ${typeLabel} · ${role}`;
+  });
+
+  if (language === 'en') {
+    return [
+      'These are your available accounts in Telegram:',
+      ...lines,
+      '',
+      'To switch, send /AccountName exactly as it appears above.'
+    ].join('\n');
+  }
+
+  return [
+    'Estas son tus cuentas disponibles en Telegram:',
+    ...lines,
+    '',
+    'Para cambiar, envía /NombreCuenta tal como aparece arriba.'
+  ].join('\n');
+}
+
+function buildTelegramCurrentAccountMessage(language: 'es' | 'en', accountName: string) {
+  return language === 'en'
+    ? `The active account for this chat is "${accountName}". Use /accounts to view all available accounts and /AccountName to switch.`
+    : `La cuenta activa de este chat es "${accountName}". Usa /accounts para ver tus cuentas disponibles y /NombreCuenta para cambiar.`;
 }
