@@ -11,7 +11,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountContextService } from '../core/account-context.service';
-import { ApiService, type BankOption, type CurrentUser, type PaymentMethodOption, type ReportFrequency } from '../core/api.service';
+import {
+  ApiService,
+  type BankOption,
+  type CurrentUser,
+  type FinancialAccountMemberBalance,
+  type FinancialAccountSettlement,
+  type PaymentMethodOption,
+  type ReportFrequency
+} from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
@@ -407,6 +415,131 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 }
               </div>
             </div>
+
+            @if (selectedMembership()?.account?.type === 'shared') {
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="font-medium text-brand-ink">{{ t('accounts_balances_title') }}</h3>
+                    <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_balances_hint') }}</p>
+                  </div>
+                  @if (balancesLoading()) {
+                    <span class="text-sm text-brand-muted">{{ t('common_loading') }}</span>
+                  }
+                </div>
+                <div class="grid gap-2">
+                  @for (balance of accountBalances(); track balance.userId + balance.currency) {
+                    <div class="flex items-center justify-between gap-3 rounded border border-brand-border/70 px-3 py-3">
+                      <div class="min-w-0">
+                        <div class="truncate font-medium text-brand-ink">{{ memberDisplayName(balance.userId, balance.preferredName) }}</div>
+                        <div class="mt-1 text-sm text-brand-muted">{{ balance.currency }}</div>
+                      </div>
+                      <div
+                        class="text-right text-sm font-semibold"
+                        [class.text-emerald-300]="balance.netAmount > 0"
+                        [class.text-rose-300]="balance.netAmount < 0"
+                        [class.text-brand-muted]="balance.netAmount === 0">
+                        {{ formatMoney(balance.currency, balance.netAmount) }}
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="text-sm text-brand-muted">{{ t('accounts_balances_empty') }}</div>
+                  }
+                </div>
+              </div>
+
+              <form
+                [formGroup]="settlementForm"
+                (ngSubmit)="createSettlement()"
+                class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+              >
+                <div>
+                  <div class="text-sm font-medium text-brand-ink">{{ t('accounts_settlement_title') }}</div>
+                  <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_settlement_hint') }}</p>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_settlement_paid_by') }}</mat-label>
+                    <mat-select formControlName="paidByUserId">
+                      @for (member of activeSharedMembers(); track member.userId) {
+                        <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_settlement_received_by') }}</mat-label>
+                    <mat-select formControlName="receivedByUserId">
+                      @for (member of activeSharedMembers(); track member.userId) {
+                        <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_currency') }}</mat-label>
+                    <input matInput formControlName="currency" maxlength="3" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('expenses_amount') }}</mat-label>
+                    <input matInput type="number" formControlName="amount" />
+                  </mat-form-field>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_settlement_date') }}</mat-label>
+                    <input matInput type="date" formControlName="settledAt" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_settlement_note') }}</mat-label>
+                    <input matInput formControlName="note" />
+                  </mat-form-field>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="settlementForm.invalid || savingSettlement()">
+                    {{ t('accounts_settlement_action') }}
+                  </button>
+                </div>
+              </form>
+
+              <app-feedback-banner [message]="settlementMessage()" [tone]="feedbackTone(settlementMessage())" />
+
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="font-medium text-brand-ink">{{ t('accounts_settlement_history_title') }}</h3>
+                    <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_settlement_history_hint') }}</p>
+                  </div>
+                  @if (settlementsLoading()) {
+                    <span class="text-sm text-brand-muted">{{ t('common_loading') }}</span>
+                  }
+                </div>
+                <div class="grid gap-2">
+                  @for (settlement of accountSettlements(); track settlement.id) {
+                    <div class="rounded border border-brand-border/70 px-3 py-3">
+                      <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div class="font-medium text-brand-ink">
+                            {{ settlementDirectionLabel(settlement) }}
+                          </div>
+                          <div class="mt-1 text-sm text-brand-muted">
+                            {{ formatDate(settlement.settledAt) }}
+                            @if (settlement.note) {
+                              · {{ settlement.note }}
+                            }
+                          </div>
+                        </div>
+                        <div class="text-right text-sm font-semibold text-brand-ink">
+                          {{ formatMoney(settlement.currency, settlement.amount) }}
+                        </div>
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="text-sm text-brand-muted">{{ t('accounts_settlement_history_empty') }}</div>
+                  }
+                </div>
+              </div>
+            }
           </section>
         </div>
       </mat-card>
@@ -486,6 +619,12 @@ export class SettingsComponent {
   readonly savingAccount = signal(false);
   readonly savingInvitation = signal(false);
   readonly selectedAccountId = signal<string | null>(null);
+  readonly accountBalances = signal<FinancialAccountMemberBalance[]>([]);
+  readonly accountSettlements = signal<FinancialAccountSettlement[]>([]);
+  readonly balancesLoading = signal(false);
+  readonly settlementsLoading = signal(false);
+  readonly savingSettlement = signal(false);
+  readonly settlementMessage = signal('');
   private invitationTokenProcessed = false;
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
@@ -521,6 +660,14 @@ export class SettingsComponent {
     email: ['', [Validators.required, Validators.email]],
     phoneNumber: [''],
     role: ['member' as 'owner' | 'admin' | 'member', Validators.required]
+  });
+  readonly settlementForm = this.fb.nonNullable.group({
+    paidByUserId: ['', Validators.required],
+    receivedByUserId: ['', Validators.required],
+    currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    settledAt: [toDateInputValue(new Date()), Validators.required],
+    note: ['']
   });
 
   constructor(
@@ -576,7 +723,7 @@ export class SettingsComponent {
             next: (context) => {
               this.selectedAccountId.set(context.current.account.id);
               this.renameAccountForm.reset({ name: context.current.account.name });
-              this.loadMembers();
+              this.loadSharedAccountData();
               this.maybeAcceptInvitationFromRoute();
             },
             error: () => {}
@@ -585,7 +732,7 @@ export class SettingsComponent {
           const currentAccount = this.accountService.currentAccount();
           this.selectedAccountId.set(currentAccount?.id ?? null);
           this.renameAccountForm.reset({ name: currentAccount?.name ?? '' });
-          this.loadMembers();
+          this.loadSharedAccountData();
           this.maybeAcceptInvitationFromRoute();
         }
         this.loading.set(false);
@@ -616,7 +763,7 @@ export class SettingsComponent {
     this.selectedAccountId.set(accountId);
     const selected = this.selectedMembership();
     this.renameAccountForm.reset({ name: selected?.account.name ?? '' });
-    this.loadMembers();
+    this.loadSharedAccountData();
   }
 
   createAccount() {
@@ -712,7 +859,7 @@ export class SettingsComponent {
     if (!confirm(this.t('accounts_remove_confirm'))) return;
     this.api.removeAccountMember(membership.account.id, memberUserId).subscribe({
       next: () => {
-        this.loadMembers();
+        this.loadSharedAccountData();
         this.snackBar.open(this.t('accounts_remove_success'), undefined, { duration: 2400 });
       },
       error: () => {
@@ -898,10 +1045,129 @@ export class SettingsComponent {
     return message.includes('No se pudo') || message.includes('Could not') ? 'error' : 'success';
   }
 
-  private loadMembers() {
-    const accountId = this.selectedAccountId();
+  activeSharedMembers() {
+    return this.accountService.members().filter((member) => member.status === 'active');
+  }
+
+  memberDisplayName(userId: string, fallback: string) {
+    return this.accountService.members().find((member) => member.userId === userId)?.preferredName ?? fallback;
+  }
+
+  settlementDirectionLabel(settlement: FinancialAccountSettlement) {
+    const paidBy = settlement.paidByPreferredName ?? this.memberDisplayName(settlement.paidByUserId, '');
+    const receivedBy = settlement.receivedByPreferredName ?? this.memberDisplayName(settlement.receivedByUserId, '');
+    return this.t('accounts_settlement_direction')
+      .replace('{paidBy}', paidBy)
+      .replace('{receivedBy}', receivedBy);
+  }
+
+  formatMoney(currency: string, amount: number) {
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    if (currency.toUpperCase() === 'CLP') {
+      return `${amount < 0 ? '-' : ''}$${Math.abs(Number(amount)).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+    }
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  formatDate(value: string) {
+    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+  }
+
+  createSettlement() {
+    const membership = this.selectedMembership();
+    if (!membership || membership.account.type !== 'shared' || this.settlementForm.invalid) return;
+    const value = this.settlementForm.getRawValue();
+    this.savingSettlement.set(true);
+    this.settlementMessage.set('');
+    this.api.createAccountSettlement(membership.account.id, {
+      paidByUserId: value.paidByUserId,
+      receivedByUserId: value.receivedByUserId,
+      currency: value.currency.toUpperCase(),
+      amount: Number(value.amount),
+      settledAt: startOfDay(value.settledAt),
+      note: value.note || undefined
+    }).subscribe({
+      next: (settlement) => {
+        this.accountSettlements.update((items) => [settlement, ...items]);
+        this.settlementForm.reset({
+          paidByUserId: '',
+          receivedByUserId: '',
+          currency: membership.account.currency,
+          amount: 0,
+          settledAt: toDateInputValue(new Date()),
+          note: ''
+        });
+        this.savingSettlement.set(false);
+        this.settlementMessage.set(this.t('accounts_settlement_success'));
+        this.loadBalances(membership.account.id);
+      },
+      error: () => {
+        this.savingSettlement.set(false);
+        this.settlementMessage.set(this.t('accounts_settlement_error'));
+      }
+    });
+  }
+
+  private loadSharedAccountData() {
+    const selected = this.selectedMembership();
+    const accountId = selected?.account.id;
     if (!accountId) return;
-    this.accountService.refreshMembers(accountId).subscribe({ error: () => {} });
+    this.accountService.refreshMembers(accountId).subscribe({
+      next: () => this.handleSharedAccountSelection(),
+      error: () => this.handleSharedAccountSelection()
+    });
+  }
+
+  private handleSharedAccountSelection() {
+    const selected = this.selectedMembership();
+    if (!selected) return;
+    if (selected.account.type !== 'shared') {
+      this.accountBalances.set([]);
+      this.accountSettlements.set([]);
+      this.settlementMessage.set('');
+      return;
+    }
+
+    const preferredCurrency = selected.account.currency;
+    const currentUser = this.user();
+    const activeMembers = this.activeSharedMembers();
+    this.settlementForm.patchValue({
+      paidByUserId: this.settlementForm.controls.paidByUserId.value || currentUser?.id || activeMembers[0]?.userId || '',
+      receivedByUserId: this.settlementForm.controls.receivedByUserId.value || activeMembers.find((member) => member.userId !== currentUser?.id)?.userId || '',
+      currency: preferredCurrency
+    });
+
+    this.loadBalances(selected.account.id);
+    this.loadSettlements(selected.account.id);
+  }
+
+  private loadBalances(accountId: string) {
+    this.balancesLoading.set(true);
+    this.api.listAccountBalances(accountId).subscribe({
+      next: (balances) => {
+        this.accountBalances.set(balances);
+        this.balancesLoading.set(false);
+      },
+      error: () => {
+        this.accountBalances.set([]);
+        this.balancesLoading.set(false);
+      }
+    });
+  }
+
+  private loadSettlements(accountId: string) {
+    this.settlementsLoading.set(true);
+    this.api.listAccountSettlements(accountId).subscribe({
+      next: (settlements) => {
+        this.accountSettlements.set(settlements);
+        this.settlementsLoading.set(false);
+      },
+      error: () => {
+        this.accountSettlements.set([]);
+        this.settlementsLoading.set(false);
+      }
+    });
   }
 
   private maybeAcceptInvitationFromRoute() {
@@ -916,7 +1182,7 @@ export class SettingsComponent {
           next: () => {
             this.selectedAccountId.set(membership.account.id);
             this.renameAccountForm.reset({ name: membership.account.name });
-            this.loadMembers();
+            this.loadSharedAccountData();
             this.accountMessage.set(this.t('accounts_invite_accept_success'));
             void this.router.navigate([], {
               relativeTo: this.route,
@@ -988,4 +1254,12 @@ function upsertSortedPaymentMethod(options: PaymentMethodOption[], updated: Paym
   const next = options.filter((option) => option.id !== updated.id);
   next.push(updated);
   return next.sort(sortPaymentOptions);
+}
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfDay(date: string) {
+  return new Date(`${date}T00:00:00.000`).toISOString();
 }

@@ -3,6 +3,7 @@ import type { AppContainer } from '../../../infrastructure/container.js';
 import type { AuthenticatedRequest } from '../middleware.js';
 import {
   createFinancialAccountInvitationSchema,
+  createFinancialAccountSettlementSchema,
   createFinancialAccountSchema,
   selectFinancialAccountSchema,
   updateFinancialAccountSchema,
@@ -57,6 +58,37 @@ export class ProfileController {
       authRequest.auth.userId,
       readRouteParam(request, 'accountId')
     ));
+  };
+
+  listAccountBalances = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    response.json(await this.container.useCases.financialAccounts.listBalances(
+      authRequest.auth.userId,
+      readRouteParam(request, 'accountId')
+    ));
+  };
+
+  listAccountSettlements = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    response.json(await this.container.useCases.financialAccounts.listSettlements(
+      authRequest.auth.userId,
+      readRouteParam(request, 'accountId')
+    ));
+  };
+
+  createAccountSettlement = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(createFinancialAccountSettlementSchema, request.body);
+    response.status(201).json(await this.container.useCases.financialAccounts.createSettlement({
+      actorUserId: authRequest.auth.userId,
+      financialAccountId: readRouteParam(request, 'accountId'),
+      paidByUserId: body.paidByUserId,
+      receivedByUserId: body.receivedByUserId,
+      currency: body.currency,
+      amount: body.amount,
+      settledAt: body.settledAt,
+      note: body.note
+    }));
   };
 
   createInvitation = async (request: Request, response: Response) => {

@@ -99,6 +99,15 @@ export const createFinancialAccountInvitationSchema = z.object({
   role: z.enum(['owner', 'admin', 'member']).default('member')
 });
 
+export const createFinancialAccountSettlementSchema = z.object({
+  paidByUserId: z.string().uuid(),
+  receivedByUserId: z.string().uuid(),
+  currency: z.string().length(3).transform((value) => value.toUpperCase()),
+  amount: z.number().positive(),
+  settledAt: z.string().datetime(),
+  note: z.string().trim().max(500).optional()
+});
+
 export const acceptFinancialAccountInvitationSchema = z.object({
   token: z.string().uuid()
 });

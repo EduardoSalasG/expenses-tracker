@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import type { Category, Expense, Income, InboundTextMessage, User } from '../../domain/index.js';
+import type {
+  Category,
+  Expense,
+  FinancialAccountMemberProfile,
+  FinancialAccountSettlement,
+  Income,
+  InboundTextMessage,
+  User
+} from '../../domain/index.js';
 import type {
   BudgetRepository,
   CategoryRepository,
@@ -180,6 +188,7 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const interpreterContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId);
     const categories = interpreterContext.categories;
+    const financialAccount = interpreterContext.financialAccount;
     const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft) {
       return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
@@ -212,6 +221,11 @@ export class ProcessInboundFinanceMessageUseCase {
       });
       await this.reply(user, input.replyTo ?? input.fromPhoneNumber, duplicateDetectedMessage(user), input.channel);
       return { status: 'duplicate_needs_confirmation' as const };
+    }
+
+    if (financialAccount.type === 'shared') {
+      const settlementHandled = await this.tryProcessSettlementCommand(input, user, financialAccount.id);
+      if (settlementHandled) return settlementHandled;
     }
 
     const interpreted = await this.interpreter.interpret(input.message, interpreterContext);
@@ -903,19 +917,27 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const category = matchedCategory.category;
     const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
-    const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
+    const financialAccount = await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId);
+    const financialAccountId = financialAccount.id;
     const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccountId, {
       paymentMethod: interpreted.paymentMethod
     });
+    const sharedExpensePayload = financialAccount.type === 'shared'
+      ? await this.resolveSharedExpensePayload(user, financialAccountId, input.message, interpreted.amount)
+      : {
+        paidByUserId: user.id,
+        allocationMode: 'payer' as const,
+        allocations: [{ owedByUserId: user.id, amount: interpreted.amount }]
+      };
 
     const expense = await this.expenses.create({
       tenantId: user.tenantId,
       financialAccountId,
       userId: user.id,
       createdByUserId: user.id,
-      paidByUserId: user.id,
-      allocationMode: 'payer',
-      allocations: [{ owedByUserId: user.id, amount: interpreted.amount }],
+      paidByUserId: sharedExpensePayload.paidByUserId,
+      allocationMode: sharedExpensePayload.allocationMode,
+      allocations: sharedExpensePayload.allocations,
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
       totalAmount: interpreted.amount,
@@ -989,6 +1011,40 @@ export class ProcessInboundFinanceMessageUseCase {
       incomes,
       expenseTotalsByCurrency: totalsByCurrency(expenses),
       incomeTotalsByCurrency: totalsByCurrency(incomes)
+    };
+  }
+
+  private async tryProcessSettlementCommand(input: InboundTextMessage, user: User, financialAccountId: string) {
+    const members = (await this.financialAccounts.listMembers(financialAccountId)).filter((member) => member.status === 'active');
+    const parsed = parseSettlementCommand(input.message, members, user.id);
+    if (!parsed) return undefined;
+
+    const settlement = await this.financialAccounts.createSettlement({
+      financialAccountId,
+      recordedByUserId: user.id,
+      paidByUserId: parsed.paidByUserId,
+      receivedByUserId: parsed.receivedByUserId,
+      currency: user.preferredCurrency,
+      amount: parsed.amount,
+      settledAt: this.clock.now().toISOString(),
+      note: parsed.note
+    });
+    await this.auditMessage(input, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      parsingStatus: 'saved'
+    });
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, settlementSavedMessage(user, members, settlement), input.channel);
+    return { status: 'settlement_saved' as const, settlement };
+  }
+
+  private async resolveSharedExpensePayload(user: User, financialAccountId: string, message: string, amount: number) {
+    const members = (await this.financialAccounts.listMembers(financialAccountId)).filter((member) => member.status === 'active');
+    const parsed = parseSharedExpenseInstruction(message, members, user.id, amount);
+    return parsed ?? {
+      paidByUserId: user.id,
+      allocationMode: 'payer' as const,
+      allocations: [{ owedByUserId: user.id, amount }]
     };
   }
 
@@ -1341,11 +1397,136 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseSettlementCommand(
+  message: string,
+  members: FinancialAccountMemberProfile[],
+  actorUserId: string
+) {
+  const normalized = normalizeLookup(message);
+  if (!/^\/settle\b/.test(normalized) && !/\b(liquide|liquide|liquide|liquidar|pague|pague|pague a|pagado a|settled)\b/.test(normalized)) {
+    return undefined;
+  }
+
+  const amount = extractAmountFromText(message);
+  if (!amount) return undefined;
+
+  const target = findMemberMention(
+    members.filter((member) => member.userId !== actorUserId),
+    normalized
+  );
+  if (!target) return undefined;
+
+  const note = message.trim();
+  return {
+    paidByUserId: actorUserId,
+    receivedByUserId: target.userId,
+    amount,
+    note
+  };
+}
+
+function parseSharedExpenseInstruction(
+  message: string,
+  members: FinancialAccountMemberProfile[],
+  actorUserId: string,
+  amount: number
+) {
+  const normalized = normalizeLookup(message);
+  const actorIncludedMembers = members.filter((member) => member.userId !== actorUserId);
+
+  const halfWith = normalized.match(/\b(?:mitad|half|50\s*50)\s+(?:con|with)\s+(.+)$/);
+  if (halfWith) {
+    const target = findMemberMention(actorIncludedMembers, normalizeLookup(halfWith[1] ?? ''));
+    if (!target) return undefined;
+    return {
+      paidByUserId: actorUserId,
+      allocationMode: 'equal' as const,
+      allocations: splitAmountEqually(amount, uniqueUserIds([actorUserId, target.userId]))
+    };
+  }
+
+  const between = normalized.match(/\b(?:entre|split con|split with|con)\s+(.+)$/);
+  if (!between) return undefined;
+
+  const namedMembers = findMentionedMembers(actorIncludedMembers, normalizeLookup(between[1] ?? ''));
+  if (!namedMembers.length) return undefined;
+
+  return {
+    paidByUserId: actorUserId,
+    allocationMode: 'equal' as const,
+    allocations: splitAmountEqually(amount, uniqueUserIds([actorUserId, ...namedMembers.map((member) => member.userId)]))
+  };
+}
+
+function extractAmountFromText(message: string) {
+  const match = message.match(/(?:\$|clp\s*)?(\d{1,3}(?:[.\s]\d{3})+|\d+)(?:,\d+)?/i);
+  if (!match) return undefined;
+  return Number(match[1].replace(/[.\s]/g, ''));
+}
+
+function findMemberMention(members: FinancialAccountMemberProfile[], normalizedText: string) {
+  return members.find((member) => memberLookupNames(member).some((name) => tokenIncludesNormalized(normalizedText, name)));
+}
+
+function findMentionedMembers(members: FinancialAccountMemberProfile[], normalizedText: string) {
+  return members.filter((member) => memberLookupNames(member).some((name) => tokenIncludesNormalized(normalizedText, name)));
+}
+
+function memberLookupNames(member: FinancialAccountMemberProfile) {
+  const names = [
+    member.preferredName,
+    member.firstName,
+    member.lastName,
+    [member.firstName, member.lastName].filter(Boolean).join(' '),
+    member.phoneNumber
+  ]
+    .map((value) => normalizeLookup(value ?? ''))
+    .filter(Boolean);
+
+  return [...new Set(names)];
+}
+
+function uniqueUserIds(userIds: string[]) {
+  return [...new Set(userIds)];
+}
+
+function splitAmountEqually(amount: number, userIds: string[]) {
+  if (!userIds.length) return [];
+  const totalCents = Math.round(Number(amount) * 100);
+  const base = Math.floor(totalCents / userIds.length);
+  let remainder = totalCents - (base * userIds.length);
+  return userIds.map((userId) => {
+    const share = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return { owedByUserId: userId, amount: share / 100 };
+  });
+}
+
 function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
   const category = categories.find((item) => item.id === categoryId);
   const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;
   if (subcategory) return `${category?.name ?? 'Uncategorized'} > ${subcategory.name}`;
   return category?.name ?? 'Uncategorized';
+}
+
+function settlementSavedMessage(
+  user: User,
+  members: FinancialAccountMemberProfile[],
+  settlement: FinancialAccountSettlement
+) {
+  const receivedBy = members.find((member) => member.userId === settlement.receivedByUserId)?.preferredName ?? settlement.receivedByPreferredName ?? '';
+  if (user.preferredLanguage === 'en') {
+    return [
+      'Settlement saved.',
+      `Amount: ${formatMoney(settlement.currency, settlement.amount, 'en')}.`,
+      `You paid ${receivedBy}.`
+    ].join('\n');
+  }
+  return [
+    'Liquidación guardada.',
+    `Monto: ${formatMoney(settlement.currency, settlement.amount, 'es')}.`,
+    `Le pagaste a ${receivedBy}.`
+  ].join('\n');
 }
 
 function duplicateDetectedMessage(user: User) {
@@ -1802,6 +1983,37 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
     },
     async countActiveOwners() {
       return 1;
+    },
+    async listBalances(financialAccountId: string) {
+      const account = await this.findById(financialAccountId);
+      if (!account) return [];
+      return [{
+        financialAccountId,
+        userId: account.createdByUserId,
+        firstName: '',
+        lastName: '',
+        preferredName: '',
+        currency: account.currency,
+        netAmount: 0
+      }];
+    },
+    async listSettlements() {
+      return [];
+    },
+    async createSettlement(input) {
+      return {
+        id: randomUUID(),
+        financialAccountId: input.financialAccountId,
+        recordedByUserId: input.recordedByUserId,
+        paidByUserId: input.paidByUserId,
+        receivedByUserId: input.receivedByUserId,
+        currency: input.currency,
+        amount: input.amount,
+        settledAt: input.settledAt,
+        note: input.note,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString()
+      };
     },
     async createInvitation(input) {
       return {

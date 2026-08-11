@@ -62,6 +62,33 @@ export interface FinancialAccountInvitation {
   updatedAt: string;
 }
 
+export interface FinancialAccountMemberBalance {
+  financialAccountId: FinancialAccountId;
+  userId: UserId;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  currency: CurrencyCode;
+  netAmount: number;
+}
+
+export interface FinancialAccountSettlement {
+  id: string;
+  financialAccountId: FinancialAccountId;
+  recordedByUserId: UserId;
+  paidByUserId: UserId;
+  receivedByUserId: UserId;
+  currency: CurrencyCode;
+  amount: number;
+  settledAt: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  paidByPreferredName?: string;
+  receivedByPreferredName?: string;
+  recordedByPreferredName?: string;
+}
+
 export interface MessagingChannelContext {
   id: string;
   channel: MessagingChannel;

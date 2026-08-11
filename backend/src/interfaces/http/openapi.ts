@@ -1410,6 +1410,214 @@ export const openApiSpec = {
         responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
       }
     },
+    '/accounts/:accountId/balances': {
+      get: {
+        summary: 'List shared-account balances by member',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Shared-account balances',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                          userId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          preferredName: 'Eduardo',
+                          firstName: 'Eduardo',
+                          lastName: 'Salas',
+                          currency: 'CLP',
+                          netAmount: 6000
+                        },
+                        {
+                          financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                          userId: '24466a6f-9f55-47f1-a2fb-c4fb253c3bf0',
+                          preferredName: 'Vane',
+                          firstName: 'Vanessa',
+                          lastName: 'Perez',
+                          currency: 'CLP',
+                          netAmount: -6000
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid operation',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  personalOnly: { value: { error: 'This operation is only available for shared accounts.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/:accountId/settlements': {
+      get: {
+        summary: 'List shared-account settlements',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Shared-account settlements',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          id: '73bf3563-8c36-43d2-9f7a-a2a19a996546',
+                          financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                          recordedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          paidByUserId: '24466a6f-9f55-47f1-a2fb-c4fb253c3bf0',
+                          receivedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          paidByPreferredName: 'Vane',
+                          receivedByPreferredName: 'Eduardo',
+                          recordedByPreferredName: 'Eduardo',
+                          currency: 'CLP',
+                          amount: 4000,
+                          settledAt: '2026-08-12T00:00:00.000Z',
+                          note: 'Transferencia parcial'
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid operation',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  personalOnly: { value: { error: 'This operation is only available for shared accounts.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      },
+      post: {
+        summary: 'Record a shared-account settlement',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        requestBody: jsonBody({
+          paidByUserId: { type: 'string', format: 'uuid' },
+          receivedByUserId: { type: 'string', format: 'uuid' },
+          currency: { type: 'string', example: 'CLP' },
+          amount: { type: 'number', example: 4000 },
+          settledAt: { type: 'string', format: 'date-time' },
+          note: { type: 'string', example: 'Transferencia parcial' }
+        }, ['paidByUserId', 'receivedByUserId', 'currency', 'amount', 'settledAt']),
+        responses: withUnauthorized({
+          '201': {
+            description: 'Settlement recorded',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      data: {
+                        id: '73bf3563-8c36-43d2-9f7a-a2a19a996546',
+                        financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                        recordedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                        paidByUserId: '24466a6f-9f55-47f1-a2fb-c4fb253c3bf0',
+                        receivedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                        currency: 'CLP',
+                        amount: 4000,
+                        settledAt: '2026-08-12T00:00:00.000Z',
+                        note: 'Transferencia parcial'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or membership error',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  sameMember: { value: { error: 'Settlement payer and receiver must be different members.' } },
+                  invalidPayer: { value: { error: 'Settlement payer must be an active member of the shared account.' } },
+                  invalidReceiver: { value: { error: 'Settlement receiver must be an active member of the shared account.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
     '/report-preferences': {
       put: {
         summary: 'Update report preferences',

@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -10,7 +10,16 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { ApiService, type BankOption, type Category, type Expense, type PaymentMethodOption } from '../core/api.service';
+import {
+  ApiService,
+  type BankOption,
+  type Category,
+  type Expense,
+  type FinancialAccountMemberProfile,
+  type FinancialAccountMembership,
+  type PaymentMethodOption
+} from '../core/api.service';
+import { AccountContextService } from '../core/account-context.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -167,11 +176,13 @@ export class ExpensesComponent implements OnInit {
   private readonly periodState = inject(PeriodStateService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly accountService = inject(AccountContextService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly bankOptions = signal<BankOption[]>([]);
   readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
   readonly expenses = signal<Expense[]>([]);
+  readonly currentUserId = signal('');
   readonly loading = signal(false);
   readonly error = signal('');
   readonly filtersOpen = signal(false);
@@ -191,6 +202,11 @@ export class ExpensesComponent implements OnInit {
     this.api.categories().subscribe((categories) => this.categories.set(categories));
     this.api.bankOptions().subscribe((banks) => this.bankOptions.set(banks));
     this.api.paymentMethodOptions().subscribe((options) => this.paymentMethodOptions.set(options));
+    this.api.me().subscribe({ next: (user) => this.currentUserId.set(user.id) });
+    const currentMembership = this.accountService.currentMembership();
+    if (currentMembership?.account.type === 'shared') {
+      this.accountService.refreshMembers(currentMembership.account.id).subscribe({ error: () => {} });
+    }
     const monthRange = this.range();
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
     this.loadExpenses();
@@ -216,7 +232,14 @@ export class ExpensesComponent implements OnInit {
       maxWidth: 'calc(100vw - 1.5rem)',
       panelClass: 'brand-dialog-panel',
       autoFocus: false,
-      data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions() }
+      data: {
+        categories: this.categories(),
+        bankOptions: this.bankOptions(),
+        paymentMethodOptions: this.paymentMethodOptions(),
+        accountMembership: this.accountService.currentMembership(),
+        accountMembers: this.accountService.members(),
+        currentUserId: this.currentUserId()
+      }
     });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
       if (result?.saved) {
@@ -235,7 +258,15 @@ export class ExpensesComponent implements OnInit {
       maxWidth: 'calc(100vw - 1.5rem)',
       panelClass: 'brand-dialog-panel',
       autoFocus: false,
-      data: { categories: this.categories(), bankOptions: this.bankOptions(), paymentMethodOptions: this.paymentMethodOptions(), expense }
+      data: {
+        categories: this.categories(),
+        bankOptions: this.bankOptions(),
+        paymentMethodOptions: this.paymentMethodOptions(),
+        accountMembership: this.accountService.currentMembership(),
+        accountMembers: this.accountService.members(),
+        currentUserId: this.currentUserId(),
+        expense
+      }
     });
     ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
       if (result?.saved) {
@@ -400,6 +431,41 @@ export class ExpensesComponent implements OnInit {
           @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
             <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           }
+          @if (isSharedAccount()) {
+            <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
+              <div class="grid gap-4 md:grid-cols-2">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('expenses_split_paid_by') }}</mat-label>
+                  <mat-select formControlName="paidByUserId">
+                    @for (member of sharedMembers(); track member.userId) {
+                      <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('expenses_split_mode') }}</mat-label>
+                  <mat-select formControlName="allocationMode">
+                    <mat-option value="payer">{{ t('expenses_split_mode_payer') }}</mat-option>
+                    <mat-option value="equal">{{ t('expenses_split_mode_equal') }}</mat-option>
+                    <mat-option value="custom">{{ t('expenses_split_mode_custom') }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              @if (form.controls.allocationMode.value === 'custom') {
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                  @for (member of sharedMembers(); track member.userId) {
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ member.preferredName }}</mat-label>
+                      <input matInput type="number" [formControl]="allocationControl(member.userId)" />
+                    </mat-form-field>
+                  }
+                </div>
+                <p class="m-0 text-sm text-brand-muted">{{ t('expenses_split_custom_help') }}</p>
+              } @else {
+                <p class="m-0 text-sm text-brand-muted">{{ t('expenses_split_help') }}</p>
+              }
+            </div>
+          }
           <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
             <mat-slide-toggle formControlName="installmentsEnabled" class="!text-brand-ink">{{ t('expenses_installments_toggle') }}</mat-slide-toggle>
             @if (form.controls.installmentsEnabled.value) {
@@ -477,6 +543,9 @@ export class ExpenseCreateDialogComponent {
   readonly bankOptions = signal<BankOption[]>([]);
   readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
   readonly expense = signal<Expense | null>(null);
+  readonly accountMembership = signal<FinancialAccountMembership | null>(null);
+  readonly sharedMembers = signal<FinancialAccountMemberProfile[]>([]);
+  readonly currentUserId = signal('');
   readonly selectedCategoryId = signal('');
   readonly selectedPaymentMethodKind = computed(() => this.selectedPaymentMethodOption()?.kind ?? 'cash');
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
@@ -491,19 +560,34 @@ export class ExpenseCreateDialogComponent {
     subcategoryId: [''],
     paymentMethodOptionId: ['', Validators.required],
     bankOptionId: [''],
+    paidByUserId: [''],
+    allocationMode: ['payer' as 'payer' | 'equal' | 'custom'],
     installmentsEnabled: [false],
     installmentCount: [1, [Validators.required, Validators.min(1), Validators.max(24)]],
     firstInstallmentDate: [toDateInputValue(new Date()), Validators.required]
   });
+  readonly allocationControls = new Map<string, FormControl<number>>();
 
   constructor(
     readonly dialogRef: MatDialogRef<ExpenseCreateDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) data: { categories: Category[]; bankOptions: BankOption[]; paymentMethodOptions: PaymentMethodOption[]; expense?: Expense }
+    @Inject(MAT_DIALOG_DATA) data: {
+      categories: Category[];
+      bankOptions: BankOption[];
+      paymentMethodOptions: PaymentMethodOption[];
+      accountMembership?: FinancialAccountMembership | null;
+      accountMembers?: FinancialAccountMemberProfile[];
+      currentUserId?: string;
+      expense?: Expense;
+    }
   ) {
     this.categories.set(data.categories ?? []);
     this.bankOptions.set(data.bankOptions ?? []);
     this.paymentMethodOptions.set(data.paymentMethodOptions ?? []);
+    this.accountMembership.set(data.accountMembership ?? null);
+    this.sharedMembers.set((data.accountMembers ?? []).filter((member) => member.status === 'active'));
+    this.currentUserId.set(data.currentUserId ?? '');
     this.expense.set(data.expense ?? null);
+    this.initializeAllocationControls();
     const existingExpense = data.expense;
     if (existingExpense) {
       const paymentMethodOptionId = existingExpense.paymentMethodOptionId
@@ -519,10 +603,13 @@ export class ExpenseCreateDialogComponent {
         subcategoryId: existingExpense.subcategoryId ?? '',
         paymentMethodOptionId: paymentMethodOptionId ?? '',
         bankOptionId: bankOptionId ?? '',
+        paidByUserId: existingExpense.paidByUserId ?? data.currentUserId ?? '',
+        allocationMode: existingExpense.allocationMode ?? 'payer',
         installmentsEnabled: (existingExpense.installmentCount ?? 1) > 1,
         installmentCount: existingExpense.installmentCount ?? 1,
         firstInstallmentDate: toDateInputValue(new Date(existingExpense.firstInstallmentDate ?? existingExpense.date))
       });
+      this.fillAllocationControls(existingExpense);
       this.selectedCategoryId.set(existingExpense.categoryId);
     } else {
       const firstRoot = this.rootCategories()[0];
@@ -533,6 +620,11 @@ export class ExpenseCreateDialogComponent {
       }
       if (defaultPaymentMethod) {
         this.form.controls.paymentMethodOptionId.setValue(defaultPaymentMethod.id);
+      }
+      if (this.isSharedAccount()) {
+        this.form.controls.paidByUserId.setValue(data.currentUserId ?? this.sharedMembers()[0]?.userId ?? '');
+        this.form.controls.allocationMode.setValue('payer');
+        this.fillEqualOrPayerAllocationControls('payer');
       }
     }
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {
@@ -568,6 +660,27 @@ export class ExpenseCreateDialogComponent {
         this.form.controls.firstInstallmentDate.setValue(this.form.controls.date.value);
       }
     });
+    this.form.controls.allocationMode.valueChanges.subscribe((mode) => {
+      if (!this.isSharedAccount()) return;
+      if (mode === 'custom') {
+        this.fillEqualOrPayerAllocationControls('custom');
+        return;
+      }
+      this.fillEqualOrPayerAllocationControls(mode);
+    });
+    this.form.controls.amount.valueChanges.subscribe(() => {
+      if (!this.isSharedAccount()) return;
+      const mode = this.form.controls.allocationMode.value;
+      if (mode !== 'custom') {
+        this.fillEqualOrPayerAllocationControls(mode);
+      }
+    });
+    this.form.controls.paidByUserId.valueChanges.subscribe(() => {
+      if (!this.isSharedAccount()) return;
+      if (this.form.controls.allocationMode.value === 'payer') {
+        this.fillEqualOrPayerAllocationControls('payer');
+      }
+    });
     this.form.controls.date.valueChanges.subscribe((date) => {
       if (!this.form.controls.installmentsEnabled.value) {
         this.form.controls.firstInstallmentDate.setValue(date);
@@ -584,6 +697,7 @@ export class ExpenseCreateDialogComponent {
       return;
     }
     this.saving.set(true);
+    const allocations = this.buildAllocations();
     const payload = {
       date: startOfDay(value.date),
       amount: Number(value.amount),
@@ -593,6 +707,9 @@ export class ExpenseCreateDialogComponent {
       subcategoryId: value.subcategoryId || undefined,
       paymentMethodOptionId: selectedPaymentMethod.id,
       bankOptionId: value.bankOptionId || undefined,
+      paidByUserId: this.isSharedAccount() ? value.paidByUserId || undefined : undefined,
+      allocationMode: this.isSharedAccount() ? value.allocationMode : undefined,
+      allocations: this.isSharedAccount() ? allocations : undefined,
       installmentCount: value.installmentsEnabled ? Number(value.installmentCount) : 1,
       firstInstallmentDate: startOfDay(value.installmentsEnabled ? value.firstInstallmentDate : value.date),
       paymentMethod: paymentMethodPayload(selectedPaymentMethod, selectedBank)
@@ -608,6 +725,14 @@ export class ExpenseCreateDialogComponent {
 
   paymentMethodOptionLabel(option: PaymentMethodOption) {
     return option.isDefault ? translatePaymentMethodOption(this.t, option) : option.name;
+  }
+
+  isSharedAccount() {
+    return this.accountMembership()?.account.type === 'shared' && this.sharedMembers().length > 0;
+  }
+
+  allocationControl(userId: string) {
+    return this.allocationControls.get(userId) ?? new FormControl(0, { nonNullable: true });
   }
 
   async createCategoryInline() {
@@ -727,6 +852,58 @@ export class ExpenseCreateDialogComponent {
       ?? this.paymentMethodOptions()[0]?.id
       ?? '';
     this.form.controls.paymentMethodOptionId.setValue(fallback);
+  }
+
+  private initializeAllocationControls() {
+    for (const member of this.sharedMembers()) {
+      this.allocationControls.set(member.userId, new FormControl(0, { nonNullable: true }));
+    }
+  }
+
+  private fillAllocationControls(expense: Expense) {
+    const allocations = expense.allocations ?? [];
+    for (const member of this.sharedMembers()) {
+      const amount = allocations.find((allocation) => allocation.owedByUserId === member.userId)?.amount ?? 0;
+      this.allocationControl(member.userId).setValue(amount, { emitEvent: false });
+    }
+  }
+
+  private fillEqualOrPayerAllocationControls(mode: 'payer' | 'equal' | 'custom') {
+    const amount = Number(this.form.controls.amount.value || 0);
+    if (!amount) return;
+    if (mode === 'custom') return;
+    const members = this.sharedMembers();
+    const payerId = this.form.controls.paidByUserId.value;
+    if (mode === 'payer') {
+      for (const member of members) {
+        this.allocationControl(member.userId).setValue(member.userId === payerId ? amount : 0, { emitEvent: false });
+      }
+      return;
+    }
+    const split = splitAmountEqually(amount, members.map((member) => member.userId));
+    for (const allocation of split) {
+      this.allocationControl(allocation.owedByUserId).setValue(allocation.amount, { emitEvent: false });
+    }
+  }
+
+  private buildAllocations() {
+    if (!this.isSharedAccount()) return undefined;
+    const mode = this.form.controls.allocationMode.value;
+    const members = this.sharedMembers();
+    const amount = Number(this.form.controls.amount.value || 0);
+    const payerId = this.form.controls.paidByUserId.value;
+    if (mode === 'payer') {
+      return payerId ? [{ owedByUserId: payerId, amount }] : [];
+    }
+    if (mode === 'equal') {
+      return splitAmountEqually(amount, members.map((member) => member.userId));
+    }
+    return members
+      .map((member) => ({
+        owedByUserId: member.userId,
+        amount: Number(this.allocationControl(member.userId).value || 0)
+      }))
+      .filter((allocation) => allocation.amount > 0);
   }
 }
 
@@ -894,6 +1071,18 @@ function sortNamedOptions<T extends { isDefault?: boolean; name: string }>(items
 function firstDialogResult<T>(dialogRef: MatDialogRef<unknown, T>) {
   return new Promise<T | undefined>((resolve) => {
     dialogRef.afterClosed().subscribe((result) => resolve(result));
+  });
+}
+
+function splitAmountEqually(amount: number, userIds: string[]) {
+  if (!userIds.length) return [];
+  const totalCents = Math.round(Number(amount) * 100);
+  const base = Math.floor(totalCents / userIds.length);
+  let remainder = totalCents - (base * userIds.length);
+  return userIds.map((userId) => {
+    const share = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return { owedByUserId: userId, amount: share / 100 };
   });
 }
 

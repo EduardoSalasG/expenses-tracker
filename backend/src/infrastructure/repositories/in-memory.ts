@@ -26,8 +26,10 @@ import type {
   Expense,
   FinancialAccount,
   FinancialAccountInvitation,
+  FinancialAccountMemberBalance,
   FinancialAccountMember,
   FinancialAccountMemberProfile,
+  FinancialAccountSettlement,
   Income,
   MessagingChannelContext,
   MonthlyBudget,
@@ -171,8 +173,12 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
   private readonly members: FinancialAccountMember[] = [];
   private readonly invitations = new Map<string, FinancialAccountInvitation>();
   private readonly messagingContexts = new Map<string, MessagingChannelContext>();
+  private readonly settlements = new Map<string, FinancialAccountSettlement>();
 
-  constructor(private readonly users?: UserRepository) {}
+  constructor(
+    private readonly users?: UserRepository,
+    private readonly expenseReader?: Pick<InMemoryExpenseRepository, 'listAllByFinancialAccount'>
+  ) {}
 
   async ensurePersonalAccount(userId: string) {
     const existing = [...this.accounts.values()].find((account) => account.createdByUserId === userId && account.type === 'personal');
@@ -302,6 +308,83 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
       member.status === 'active' &&
       member.role === 'owner'
     ).length;
+  }
+
+  async listBalances(financialAccountId: string) {
+    const account = this.accounts.get(financialAccountId);
+    if (!account) return [];
+
+    const expenses = await this.expenseReader?.listAllByFinancialAccount(financialAccountId) ?? [];
+    const balances = new Map<string, number>();
+
+    for (const expense of expenses) {
+      if (!expense.allocations?.length || !expense.paidByUserId) continue;
+      for (const allocation of expense.allocations) {
+        if (allocation.owedByUserId === expense.paidByUserId) continue;
+        balances.set(allocation.owedByUserId, roundMoney((balances.get(allocation.owedByUserId) ?? 0) - allocation.amount));
+        balances.set(expense.paidByUserId, roundMoney((balances.get(expense.paidByUserId) ?? 0) + allocation.amount));
+      }
+    }
+
+    for (const settlement of [...this.settlements.values()].filter((item) => item.financialAccountId === financialAccountId)) {
+      balances.set(settlement.paidByUserId, roundMoney((balances.get(settlement.paidByUserId) ?? 0) + settlement.amount));
+      balances.set(settlement.receivedByUserId, roundMoney((balances.get(settlement.receivedByUserId) ?? 0) - settlement.amount));
+    }
+
+    const members = await this.listMembers(financialAccountId);
+    return members
+      .filter((member) => member.status === 'active')
+      .map((member) => ({
+        financialAccountId,
+        userId: member.userId,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        preferredName: member.preferredName,
+        currency: account.currency,
+        netAmount: roundMoney(balances.get(member.userId) ?? 0)
+      } satisfies FinancialAccountMemberBalance));
+  }
+
+  async listSettlements(financialAccountId: string) {
+    return [...this.settlements.values()]
+      .filter((settlement) => settlement.financialAccountId === financialAccountId)
+      .sort((left, right) => right.settledAt.localeCompare(left.settledAt) || right.createdAt.localeCompare(left.createdAt));
+  }
+
+  async createSettlement(input: {
+    financialAccountId: string;
+    recordedByUserId: string;
+    paidByUserId: string;
+    receivedByUserId: string;
+    currency: string;
+    amount: number;
+    settledAt: string;
+    note?: string;
+  }) {
+    const [payer, receiver, recorder] = await Promise.all([
+      this.users?.findById(input.paidByUserId),
+      this.users?.findById(input.receivedByUserId),
+      this.users?.findById(input.recordedByUserId)
+    ]);
+    const now = new Date().toISOString();
+    const settlement: FinancialAccountSettlement = {
+      id: randomUUID(),
+      financialAccountId: input.financialAccountId,
+      recordedByUserId: input.recordedByUserId,
+      paidByUserId: input.paidByUserId,
+      receivedByUserId: input.receivedByUserId,
+      currency: input.currency,
+      amount: roundMoney(input.amount),
+      settledAt: input.settledAt,
+      note: input.note,
+      createdAt: now,
+      updatedAt: now,
+      paidByPreferredName: payer?.preferredName,
+      receivedByPreferredName: receiver?.preferredName,
+      recordedByPreferredName: recorder?.preferredName
+    };
+    this.settlements.set(settlement.id, settlement);
+    return settlement;
   }
 
   async createInvitation(input: {
@@ -585,6 +668,15 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
 
 export class InMemoryExpenseRepository implements ExpenseRepository {
   private readonly expenses: Expense[] = [];
+
+  async listAllByFinancialAccount(financialAccountId: string) {
+    return this.expenses
+      .filter((expense) => expense.financialAccountId === financialAccountId)
+      .map((expense) => ({
+        ...expense,
+        allocations: expense.allocations?.map((allocation) => ({ ...allocation }))
+      }));
+  }
 
   async create(input: Omit<Expense, 'id'>) {
     const installmentCount = Math.max(1, input.installmentCount ?? 1);
@@ -1064,6 +1156,10 @@ function addMonthsClamped(date: Date, months: number) {
 
 function sortProjectedExpenses(a: Expense, b: Expense) {
   return b.date.localeCompare(a.date) || (a.installmentNumber ?? 1) - (b.installmentNumber ?? 1);
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 export class InMemoryBudgetRepository implements BudgetRepository {

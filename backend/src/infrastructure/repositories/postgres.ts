@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberProfile, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberProfile, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -357,6 +357,155 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
       [financialAccountId]
     );
     return Number(result.rows[0]?.total ?? 0);
+  }
+
+  async listBalances(financialAccountId: string) {
+    const result = await this.pool.query(
+      `with active_members as (
+         select
+           fam.financial_account_id,
+           fam.user_id,
+           u.first_name,
+           u.last_name,
+           u.preferred_name
+         from financial_account_members fam
+         join users u on u.id = fam.user_id
+         where fam.financial_account_id = $1
+           and fam.status = 'active'
+       ),
+       flow_entries as (
+         select
+           ea.owed_by_user_id as user_id,
+           e.currency,
+           -ea.amount::numeric as delta
+         from expense_allocations ea
+         join expenses e on e.id = ea.expense_id
+         where ea.financial_account_id = $1
+           and e.paid_by_user_id is not null
+           and ea.owed_by_user_id <> e.paid_by_user_id
+         union all
+         select
+           e.paid_by_user_id as user_id,
+           e.currency,
+           ea.amount::numeric as delta
+         from expense_allocations ea
+         join expenses e on e.id = ea.expense_id
+         where ea.financial_account_id = $1
+           and e.paid_by_user_id is not null
+           and ea.owed_by_user_id <> e.paid_by_user_id
+         union all
+         select
+           fas.paid_by_user_id as user_id,
+           fas.currency,
+           fas.amount::numeric as delta
+         from financial_account_settlements fas
+         where fas.financial_account_id = $1
+         union all
+         select
+           fas.received_by_user_id as user_id,
+           fas.currency,
+           -fas.amount::numeric as delta
+         from financial_account_settlements fas
+         where fas.financial_account_id = $1
+       ),
+       currencies as (
+         select distinct currency from flow_entries
+         union
+         select currency from financial_accounts where id = $1
+       )
+       select
+         am.financial_account_id,
+         am.user_id,
+         am.first_name,
+         am.last_name,
+         am.preferred_name,
+         c.currency,
+         coalesce(sum(fe.delta), 0)::numeric as net_amount
+       from active_members am
+       cross join currencies c
+       left join flow_entries fe
+         on fe.user_id = am.user_id
+        and fe.currency = c.currency
+       group by
+         am.financial_account_id,
+         am.user_id,
+         am.first_name,
+         am.last_name,
+         am.preferred_name,
+         c.currency
+       order by am.preferred_name asc, c.currency asc`,
+      [financialAccountId]
+    );
+    return result.rows.map(mapFinancialAccountMemberBalance);
+  }
+
+  async listSettlements(financialAccountId: string) {
+    const result = await this.pool.query(
+      `select
+         fas.*,
+         payer.preferred_name as paid_by_preferred_name,
+         receiver.preferred_name as received_by_preferred_name,
+         recorder.preferred_name as recorded_by_preferred_name
+       from financial_account_settlements fas
+       join users payer on payer.id = fas.paid_by_user_id
+       join users receiver on receiver.id = fas.received_by_user_id
+       join users recorder on recorder.id = fas.recorded_by_user_id
+       where fas.financial_account_id = $1
+       order by fas.settled_at desc, fas.created_at desc`,
+      [financialAccountId]
+    );
+    return result.rows.map(mapFinancialAccountSettlement);
+  }
+
+  async createSettlement(input: {
+    financialAccountId: string;
+    recordedByUserId: string;
+    paidByUserId: string;
+    receivedByUserId: string;
+    currency: string;
+    amount: number;
+    settledAt: string;
+    note?: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into financial_account_settlements (
+         financial_account_id,
+         recorded_by_user_id,
+         paid_by_user_id,
+         received_by_user_id,
+         currency,
+         amount,
+         settled_at,
+         note
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       returning *`,
+      [
+        input.financialAccountId,
+        input.recordedByUserId,
+        input.paidByUserId,
+        input.receivedByUserId,
+        input.currency,
+        input.amount,
+        input.settledAt,
+        input.note ?? null
+      ]
+    );
+
+    const joined = await this.pool.query(
+      `select
+         fas.*,
+         payer.preferred_name as paid_by_preferred_name,
+         receiver.preferred_name as received_by_preferred_name,
+         recorder.preferred_name as recorded_by_preferred_name
+       from financial_account_settlements fas
+       join users payer on payer.id = fas.paid_by_user_id
+       join users receiver on receiver.id = fas.received_by_user_id
+       join users recorder on recorder.id = fas.recorded_by_user_id
+       where fas.id = $1`,
+      [result.rows[0].id]
+    );
+    return mapFinancialAccountSettlement(joined.rows[0]);
   }
 
   async createInvitation(input: {
@@ -1653,6 +1802,37 @@ function mapFinancialAccountInvitation(row: QueryResultRow): FinancialAccountInv
     acceptedAt: row.accepted_at ? toIsoString(row.accepted_at) : undefined,
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at)
+  };
+}
+
+function mapFinancialAccountMemberBalance(row: QueryResultRow): FinancialAccountMemberBalance {
+  return {
+    financialAccountId: row.financial_account_id,
+    userId: row.user_id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    preferredName: row.preferred_name,
+    currency: row.currency,
+    netAmount: Number(row.net_amount)
+  };
+}
+
+function mapFinancialAccountSettlement(row: QueryResultRow): FinancialAccountSettlement {
+  return {
+    id: row.id,
+    financialAccountId: row.financial_account_id,
+    recordedByUserId: row.recorded_by_user_id,
+    paidByUserId: row.paid_by_user_id,
+    receivedByUserId: row.received_by_user_id,
+    currency: row.currency,
+    amount: Number(row.amount),
+    settledAt: toIsoString(row.settled_at),
+    note: row.note ?? undefined,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+    paidByPreferredName: row.paid_by_preferred_name ?? undefined,
+    receivedByPreferredName: row.received_by_preferred_name ?? undefined,
+    recordedByPreferredName: row.recorded_by_preferred_name ?? undefined
   };
 }
 

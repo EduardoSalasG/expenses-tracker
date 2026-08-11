@@ -71,9 +71,11 @@ export function createContainer(config: AppConfig) {
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
-  const financialAccounts = pool ? new PostgresFinancialAccountRepository(pool) : new InMemoryFinancialAccountRepository(users);
   const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
+  const financialAccounts = pool
+    ? new PostgresFinancialAccountRepository(pool)
+    : new InMemoryFinancialAccountRepository(users, expenses as InMemoryExpenseRepository);
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();

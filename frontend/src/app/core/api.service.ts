@@ -44,6 +44,33 @@ export interface FinancialAccountMemberProfile {
   phoneNumber: string;
 }
 
+export interface FinancialAccountMemberBalance {
+  financialAccountId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  currency: string;
+  netAmount: number;
+}
+
+export interface FinancialAccountSettlement {
+  id: string;
+  financialAccountId: string;
+  recordedByUserId: string;
+  paidByUserId: string;
+  receivedByUserId: string;
+  currency: string;
+  amount: number;
+  settledAt: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  paidByPreferredName?: string;
+  receivedByPreferredName?: string;
+  recordedByPreferredName?: string;
+}
+
 export interface FinancialAccountInvitation {
   id: string;
   financialAccountId: string;
@@ -93,6 +120,10 @@ export interface Expense {
   date: string;
   amount: number;
   totalAmount?: number;
+  financialAccountId?: string;
+  paidByUserId?: string;
+  allocationMode?: 'payer' | 'equal' | 'custom';
+  allocations?: Array<{ owedByUserId: string; amount: number }>;
   currency: string;
   concept: string;
   categoryId: string;
@@ -373,6 +404,28 @@ export class ApiService {
 
   listAccountMembers(accountId: string) {
     return this.http.get<FinancialAccountMemberProfile[]>(`${environment.apiBaseUrl}/accounts/${accountId}/members`);
+  }
+
+  listAccountBalances(accountId: string) {
+    return this.http.get<FinancialAccountMemberBalance[]>(`${environment.apiBaseUrl}/accounts/${accountId}/balances`);
+  }
+
+  listAccountSettlements(accountId: string) {
+    return this.http.get<FinancialAccountSettlement[]>(`${environment.apiBaseUrl}/accounts/${accountId}/settlements`);
+  }
+
+  createAccountSettlement(
+    accountId: string,
+    payload: {
+      paidByUserId: string;
+      receivedByUserId: string;
+      currency: string;
+      amount: number;
+      settledAt: string;
+      note?: string;
+    }
+  ) {
+    return this.http.post<FinancialAccountSettlement>(`${environment.apiBaseUrl}/accounts/${accountId}/settlements`, payload);
   }
 
   createAccountInvitation(accountId: string, payload: { email: string; phoneNumber?: string; role?: FinancialAccountMemberRole }) {

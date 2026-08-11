@@ -4,6 +4,7 @@ import type {
   Category,
   FinancialAccount,
   FinancialAccountInvitation,
+  FinancialAccountSettlement,
   FinancialAccountMemberProfile,
   MonthlyBudget,
   PaymentMethodOption,
@@ -100,6 +101,58 @@ export class FinancialAccountsUseCases {
   async listMembers(actorUserId: string, financialAccountId: string) {
     await this.requireMember(actorUserId, financialAccountId);
     return this.financialAccounts.listMembers(financialAccountId);
+  }
+
+  async listBalances(actorUserId: string, financialAccountId: string) {
+    const membership = await this.requireMember(actorUserId, financialAccountId);
+    this.requireSharedAccount(membership.account);
+    return this.financialAccounts.listBalances(financialAccountId);
+  }
+
+  async listSettlements(actorUserId: string, financialAccountId: string) {
+    const membership = await this.requireMember(actorUserId, financialAccountId);
+    this.requireSharedAccount(membership.account);
+    return this.financialAccounts.listSettlements(financialAccountId);
+  }
+
+  async createSettlement(input: {
+    actorUserId: string;
+    financialAccountId: string;
+    paidByUserId: string;
+    receivedByUserId: string;
+    currency: string;
+    amount: number;
+    settledAt: string;
+    note?: string;
+  }): Promise<FinancialAccountSettlement> {
+    const membership = await this.requireMember(input.actorUserId, input.financialAccountId);
+    this.requireSharedAccount(membership.account);
+
+    if (input.paidByUserId === input.receivedByUserId) {
+      throw new Error('Settlement payer and receiver must be different members.');
+    }
+
+    const [payer, receiver] = await Promise.all([
+      this.financialAccounts.findMember(input.financialAccountId, input.paidByUserId),
+      this.financialAccounts.findMember(input.financialAccountId, input.receivedByUserId)
+    ]);
+    if (!payer || payer.status !== 'active') {
+      throw new Error('Settlement payer must be an active member of the shared account.');
+    }
+    if (!receiver || receiver.status !== 'active') {
+      throw new Error('Settlement receiver must be an active member of the shared account.');
+    }
+
+    return this.financialAccounts.createSettlement({
+      financialAccountId: input.financialAccountId,
+      recordedByUserId: input.actorUserId,
+      paidByUserId: input.paidByUserId,
+      receivedByUserId: input.receivedByUserId,
+      currency: input.currency,
+      amount: input.amount,
+      settledAt: input.settledAt,
+      note: input.note
+    });
   }
 
   async inviteMember(input: {
@@ -262,6 +315,12 @@ export class FinancialAccountsUseCases {
       throw new Error('You do not have permission to manage this financial account.');
     }
     return membership;
+  }
+
+  private requireSharedAccount(account: FinancialAccount) {
+    if (account.type !== 'shared') {
+      throw new Error('This operation is only available for shared accounts.');
+    }
   }
 
   private async cloneScopeData(input: {

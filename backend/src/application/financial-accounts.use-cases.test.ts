@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { FinanceUseCases } from './use-cases/finance.use-cases.js';
 import { FinancialAccountsUseCases } from './use-cases/financial-accounts.use-cases.js';
 import {
   InMemoryBankOptionRepository,
   InMemoryBudgetRepository,
   InMemoryCategoryRepository,
+  InMemoryExpenseRepository,
   InMemoryFinancialAccountRepository,
+  InMemoryIncomeRepository,
   InMemoryPaymentMethodOptionRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
@@ -248,5 +251,117 @@ describe('FinancialAccountsUseCases', () => {
     });
     expect(resolvedMissing.account.id).toBe(personal.id);
     expect(resolvedMissing.role).toBe('owner');
+  });
+
+  it('computes shared-account balances and applies settlements', async () => {
+    const users = new InMemoryUserRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const categories = new InMemoryCategoryRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const banks = new InMemoryBankOptionRepository();
+    const paymentMethods = new InMemoryPaymentMethodOptionRepository();
+    const useCases = new FinancialAccountsUseCases(financialAccounts, categories, budgets, banks, paymentMethods, users);
+    const finance = new FinanceUseCases(
+      expenses,
+      new InMemoryIncomeRepository(),
+      budgets,
+      categories,
+      banks,
+      paymentMethods,
+      financialAccounts
+    );
+
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111111',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+    const member = await users.upsertByPhoneNumber({
+      phoneNumber: '+56922222222',
+      firstName: 'Vane',
+      lastName: 'Pérez',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'vane@example.com',
+      preferredLanguage: 'es'
+    });
+
+    const personal = await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await useCases.createSharedAccount({
+      userId: owner.id,
+      tenantId: owner.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Depto',
+      currency: 'CLP'
+    });
+    await financialAccounts.upsertMember({
+      financialAccountId: shared.account.id,
+      userId: member.id,
+      role: 'member',
+      status: 'active'
+    });
+    const category = await categories.create({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Food',
+      isDefault: false
+    });
+
+    await finance.createExpense({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      userId: owner.id,
+      createdByUserId: owner.id,
+      paidByUserId: owner.id,
+      date: '2026-08-11T00:00:00.000Z',
+      amount: 20000,
+      currency: 'CLP',
+      concept: 'Cena',
+      categoryId: category.id,
+      allocationMode: 'equal',
+      paymentMethod: { kind: 'card', bank: 'Banco de Crédito e Inversiones', cardType: 'credit' }
+    });
+
+    const balancesBefore = await useCases.listBalances(owner.id, shared.account.id);
+    expect(balancesBefore).toEqual([
+      expect.objectContaining({ userId: owner.id, netAmount: 10000, currency: 'CLP' }),
+      expect.objectContaining({ userId: member.id, netAmount: -10000, currency: 'CLP' })
+    ]);
+
+    const settlement = await useCases.createSettlement({
+      actorUserId: owner.id,
+      financialAccountId: shared.account.id,
+      paidByUserId: member.id,
+      receivedByUserId: owner.id,
+      currency: 'CLP',
+      amount: 4000,
+      settledAt: '2026-08-12T00:00:00.000Z',
+      note: 'Transferencia parcial'
+    });
+
+    expect(settlement.amount).toBe(4000);
+    expect(settlement.paidByUserId).toBe(member.id);
+
+    const balancesAfter = await useCases.listBalances(owner.id, shared.account.id);
+    expect(balancesAfter).toEqual([
+      expect.objectContaining({ userId: owner.id, netAmount: 6000, currency: 'CLP' }),
+      expect.objectContaining({ userId: member.id, netAmount: -6000, currency: 'CLP' })
+    ]);
+
+    const settlements = await useCases.listSettlements(owner.id, shared.account.id);
+    expect(settlements).toHaveLength(1);
+    expect(settlements[0]).toEqual(expect.objectContaining({
+      paidByUserId: member.id,
+      receivedByUserId: owner.id,
+      amount: 4000,
+      note: 'Transferencia parcial'
+    }));
   });
 });

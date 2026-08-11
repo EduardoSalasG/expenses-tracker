@@ -2,9 +2,11 @@ import type {
   FinancialAccount,
   FinancialAccountId,
   FinancialAccountInvitation,
+  FinancialAccountMemberBalance,
   FinancialAccountMember,
   FinancialAccountMemberProfile,
   FinancialAccountMemberRole,
+  FinancialAccountSettlement,
   MessagingChannelContext,
   TenantId,
   UserId
@@ -41,6 +43,18 @@ export interface FinancialAccountRepository {
   }): Promise<FinancialAccountMember>;
   removeMember(financialAccountId: FinancialAccountId, userId: UserId): Promise<boolean>;
   countActiveOwners(financialAccountId: FinancialAccountId): Promise<number>;
+  listBalances(financialAccountId: FinancialAccountId): Promise<FinancialAccountMemberBalance[]>;
+  listSettlements(financialAccountId: FinancialAccountId): Promise<FinancialAccountSettlement[]>;
+  createSettlement(input: {
+    financialAccountId: FinancialAccountId;
+    recordedByUserId: UserId;
+    paidByUserId: UserId;
+    receivedByUserId: UserId;
+    currency: string;
+    amount: number;
+    settledAt: string;
+    note?: string;
+  }): Promise<FinancialAccountSettlement>;
   createInvitation(input: {
     financialAccountId: FinancialAccountId;
     invitedByUserId?: UserId;

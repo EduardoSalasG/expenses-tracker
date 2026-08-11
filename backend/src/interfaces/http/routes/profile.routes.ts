@@ -14,6 +14,9 @@ export function registerProfileRoutes(app: Express, container: AppContainer) {
   app.post('/accounts', auth, asyncHandler(controller.createAccount));
   app.patch('/accounts/:accountId', auth, asyncHandler(controller.updateAccount));
   app.get('/accounts/:accountId/members', auth, asyncHandler(controller.listAccountMembers));
+  app.get('/accounts/:accountId/balances', auth, asyncHandler(controller.listAccountBalances));
+  app.get('/accounts/:accountId/settlements', auth, asyncHandler(controller.listAccountSettlements));
+  app.post('/accounts/:accountId/settlements', auth, asyncHandler(controller.createAccountSettlement));
   app.post('/accounts/:accountId/invitations', auth, asyncHandler(controller.createInvitation));
   app.post('/accounts/invitations/:token/accept', auth, asyncHandler(controller.acceptInvitation));
   app.delete('/accounts/:accountId/members/:memberUserId', auth, asyncHandler(controller.removeMember));
