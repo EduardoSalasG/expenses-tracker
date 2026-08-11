@@ -19,7 +19,24 @@ import type {
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
 } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
+import type {
+  BankOption,
+  Category,
+  ConversationPendingDraft,
+  Expense,
+  FinancialAccount,
+  FinancialAccountInvitation,
+  FinancialAccountMember,
+  FinancialAccountMemberProfile,
+  Income,
+  MessagingChannelContext,
+  MonthlyBudget,
+  PaymentMethodOption,
+  RegistrationLead,
+  ReportFrequency,
+  User,
+  UserAuthRecord
+} from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -151,13 +168,17 @@ export class InMemoryRegistrationLeadRepository implements RegistrationLeadRepos
 
 export class InMemoryFinancialAccountRepository implements FinancialAccountRepository {
   private readonly accounts = new Map<string, FinancialAccount>();
-  private readonly memberships: FinancialAccountMembershipRecord[] = [];
+  private readonly members: FinancialAccountMember[] = [];
+  private readonly invitations = new Map<string, FinancialAccountInvitation>();
+  private readonly messagingContexts = new Map<string, MessagingChannelContext>();
+
+  constructor(private readonly users?: UserRepository) {}
 
   async ensurePersonalAccount(userId: string) {
     const existing = [...this.accounts.values()].find((account) => account.createdByUserId === userId && account.type === 'personal');
     if (existing) {
-      if (!this.memberships.some((membership) => membership.account.id === existing.id && membership.role === 'owner')) {
-        this.memberships.push({ account: existing, role: 'owner' });
+      if (!this.members.some((member) => member.financialAccountId === existing.id && member.userId === userId && member.status === 'active')) {
+        this.members.push(this.buildMember(existing.id, userId, 'owner', 'active', new Date().toISOString()));
       }
       return existing;
     }
@@ -173,18 +194,34 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
       updatedAt: new Date().toISOString()
     };
     this.accounts.set(account.id, account);
-    this.memberships.push({ account, role: 'owner' });
+    this.members.push(this.buildMember(account.id, userId, 'owner', 'active', new Date().toISOString()));
     return account;
   }
 
   async findAccessibleById(userId: string, financialAccountId: string) {
     await this.ensurePersonalAccount(userId);
-    return this.memberships.find((membership) => membership.account.id === financialAccountId && membership.account.createdByUserId === userId);
+    const account = this.accounts.get(financialAccountId);
+    const member = this.members.find((membership) =>
+      membership.financialAccountId === financialAccountId &&
+      membership.userId === userId &&
+      membership.status === 'active'
+    );
+    return account && member ? { account, role: member.role } : undefined;
   }
 
   async listAccessibleByUser(userId: string) {
-    const personal = await this.ensurePersonalAccount(userId);
-    return this.memberships.filter((membership) => membership.account.createdByUserId === userId || membership.account.id === personal.id);
+    await this.ensurePersonalAccount(userId);
+    return this.members
+      .filter((member) => member.userId === userId && member.status === 'active')
+      .map((member) => {
+        const account = this.accounts.get(member.financialAccountId);
+        return account ? { account, role: member.role } : undefined;
+      })
+      .filter((membership): membership is FinancialAccountMembershipRecord => Boolean(membership));
+  }
+
+  async findById(financialAccountId: string) {
+    return this.accounts.get(financialAccountId);
   }
 
   async createSharedAccount(input: {
@@ -205,8 +242,172 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
     };
     const membership = { account, role: 'owner' as const };
     this.accounts.set(account.id, account);
-    this.memberships.push(membership);
+    this.members.push(this.buildMember(account.id, input.createdByUserId, 'owner', 'active', new Date().toISOString()));
     return membership;
+  }
+
+  async updateSharedAccountName(input: { financialAccountId: string; name: string }) {
+    const account = this.accounts.get(input.financialAccountId);
+    if (!account || account.type !== 'shared') return undefined;
+    const updated = { ...account, name: input.name, updatedAt: new Date().toISOString() };
+    this.accounts.set(updated.id, updated);
+    return updated;
+  }
+
+  async listMembers(financialAccountId: string) {
+    const users = await Promise.all(this.members
+      .filter((member) => member.financialAccountId === financialAccountId)
+      .map(async (member) => {
+        const user = await this.users?.findById(member.userId);
+        return this.buildMemberProfile(member, user);
+      }));
+    return users;
+  }
+
+  async findMember(financialAccountId: string, userId: string) {
+    return this.members.find((member) => member.financialAccountId === financialAccountId && member.userId === userId);
+  }
+
+  async upsertMember(input: {
+    financialAccountId: string;
+    userId: string;
+    role: 'owner' | 'admin' | 'member';
+    status: 'active' | 'invited' | 'removed';
+    joinedAt?: string;
+  }) {
+    const existingIndex = this.members.findIndex((member) => member.financialAccountId === input.financialAccountId && member.userId === input.userId);
+    const member = this.buildMember(input.financialAccountId, input.userId, input.role, input.status, input.joinedAt, existingIndex >= 0 ? this.members[existingIndex].id : undefined);
+    if (existingIndex >= 0) {
+      this.members[existingIndex] = { ...member, createdAt: this.members[existingIndex].createdAt };
+    } else {
+      this.members.push(member);
+    }
+    return existingIndex >= 0 ? this.members[existingIndex] : member;
+  }
+
+  async removeMember(financialAccountId: string, userId: string) {
+    const existingIndex = this.members.findIndex((member) => member.financialAccountId === financialAccountId && member.userId === userId);
+    if (existingIndex < 0) return false;
+    this.members[existingIndex] = {
+      ...this.members[existingIndex],
+      status: 'removed',
+      updatedAt: new Date().toISOString()
+    };
+    return true;
+  }
+
+  async countActiveOwners(financialAccountId: string) {
+    return this.members.filter((member) =>
+      member.financialAccountId === financialAccountId &&
+      member.status === 'active' &&
+      member.role === 'owner'
+    ).length;
+  }
+
+  async createInvitation(input: {
+    financialAccountId: string;
+    invitedByUserId?: string;
+    email: string;
+    phoneNumber?: string;
+    role: 'owner' | 'admin' | 'member';
+    token: string;
+    expiresAt: string;
+  }) {
+    const invitation: FinancialAccountInvitation = {
+      id: randomUUID(),
+      financialAccountId: input.financialAccountId,
+      invitedByUserId: input.invitedByUserId,
+      email: input.email.trim().toLowerCase(),
+      phoneNumber: input.phoneNumber,
+      role: input.role,
+      token: input.token,
+      status: 'pending',
+      expiresAt: input.expiresAt,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.invitations.set(invitation.token, invitation);
+    return invitation;
+  }
+
+  async findPendingInvitationByToken(token: string, now: string) {
+    const invitation = this.invitations.get(token);
+    if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < now) return undefined;
+    return invitation;
+  }
+
+  async markInvitationAccepted(token: string, acceptedAt: string) {
+    const invitation = this.invitations.get(token);
+    if (!invitation) return;
+    this.invitations.set(token, {
+      ...invitation,
+      status: 'accepted',
+      acceptedAt,
+      updatedAt: acceptedAt
+    });
+  }
+
+  async findMessagingContext(channel: 'whatsapp' | 'telegram', providerUserId: string) {
+    return this.messagingContexts.get(`${channel}:${providerUserId}`);
+  }
+
+  async upsertMessagingContext(input: {
+    channel: 'whatsapp' | 'telegram';
+    providerUserId: string;
+    userId: string;
+    financialAccountId: string;
+  }) {
+    const key = `${input.channel}:${input.providerUserId}`;
+    const existing = this.messagingContexts.get(key);
+    const context: MessagingChannelContext = {
+      id: existing?.id ?? randomUUID(),
+      channel: input.channel,
+      providerUserId: input.providerUserId,
+      userId: input.userId,
+      financialAccountId: input.financialAccountId,
+      updatedAt: new Date().toISOString()
+    };
+    this.messagingContexts.set(key, context);
+    return context;
+  }
+
+  private buildMember(
+    financialAccountId: string,
+    userId: string,
+    role: FinancialAccountMember['role'],
+    status: FinancialAccountMember['status'],
+    joinedAt?: string,
+    id: string = randomUUID()
+  ): FinancialAccountMember {
+    const now = new Date().toISOString();
+    return {
+      id,
+      financialAccountId,
+      userId,
+      role,
+      status,
+      joinedAt,
+      createdAt: now,
+      updatedAt: now
+    };
+  }
+
+  private buildMemberProfile(member: FinancialAccountMember, user?: User): FinancialAccountMemberProfile {
+    return {
+      memberId: member.id,
+      financialAccountId: member.financialAccountId,
+      userId: member.userId,
+      role: member.role,
+      status: member.status,
+      joinedAt: member.joinedAt,
+      createdAt: member.createdAt,
+      updatedAt: member.updatedAt,
+      firstName: user?.firstName ?? '',
+      lastName: user?.lastName ?? '',
+      preferredName: user?.preferredName ?? '',
+      email: user?.email,
+      phoneNumber: user?.phoneNumber ?? ''
+    };
   }
 }
 

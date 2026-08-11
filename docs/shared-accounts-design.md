@@ -263,3 +263,20 @@ After backfill:
 5. Telegram context switching
 6. shared account reporting
 7. Splitwise-style allocation and settlements
+
+## Current Status
+
+Implemented in backend as of August 11, 2026:
+
+- schema foundation and backfill support
+- repository support for memberships, invitations, and messaging contexts
+- shared account creation and rename
+- member listing and member removal
+- invitation creation and acceptance
+- Telegram account-context switching with `/AccountName`
+
+Still pending:
+
+- frontend shared-account management flows
+- shared-account reporting views
+- Splitwise-style allocations, balances, and settlements

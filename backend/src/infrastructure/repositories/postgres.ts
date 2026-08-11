@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberProfile, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -220,6 +220,14 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
     return result.rows.map(mapFinancialAccountMembership);
   }
 
+  async findById(financialAccountId: string) {
+    const result = await this.pool.query(
+      `select * from financial_accounts where id = $1 limit 1`,
+      [financialAccountId]
+    );
+    return result.rows[0] ? mapFinancialAccount(result.rows[0]) : undefined;
+  }
+
   async createSharedAccount(input: {
     tenantId: string;
     createdByUserId: string;
@@ -252,6 +260,187 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
     } finally {
       client.release();
     }
+  }
+
+  async updateSharedAccountName(input: { financialAccountId: string; name: string }) {
+    const result = await this.pool.query(
+      `update financial_accounts
+       set name = $2,
+           updated_at = now()
+       where id = $1
+         and type = 'shared'
+       returning *`,
+      [input.financialAccountId, input.name]
+    );
+    return result.rows[0] ? mapFinancialAccount(result.rows[0]) : undefined;
+  }
+
+  async listMembers(financialAccountId: string) {
+    const result = await this.pool.query(
+      `select
+         fam.id as member_id,
+         fam.financial_account_id,
+         fam.user_id,
+         fam.role,
+         fam.status,
+         fam.joined_at,
+         fam.created_at,
+         fam.updated_at,
+         u.first_name,
+         u.last_name,
+         u.preferred_name,
+         u.email,
+         u.phone_number
+       from financial_account_members fam
+       join users u on u.id = fam.user_id
+       where fam.financial_account_id = $1
+       order by fam.created_at asc`,
+      [financialAccountId]
+    );
+    return result.rows.map(mapFinancialAccountMemberProfile);
+  }
+
+  async findMember(financialAccountId: string, userId: string) {
+    const result = await this.pool.query(
+      `select * from financial_account_members
+       where financial_account_id = $1 and user_id = $2
+       limit 1`,
+      [financialAccountId, userId]
+    );
+    return result.rows[0] ? mapFinancialAccountMember(result.rows[0]) : undefined;
+  }
+
+  async upsertMember(input: {
+    financialAccountId: string;
+    userId: string;
+    role: 'owner' | 'admin' | 'member';
+    status: 'active' | 'invited' | 'removed';
+    joinedAt?: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into financial_account_members (
+         financial_account_id, user_id, role, status, joined_at
+       )
+       values ($1, $2, $3, $4, $5)
+       on conflict (financial_account_id, user_id)
+       do update set
+         role = excluded.role,
+         status = excluded.status,
+         joined_at = coalesce(financial_account_members.joined_at, excluded.joined_at),
+         updated_at = now()
+       returning *`,
+      [input.financialAccountId, input.userId, input.role, input.status, input.joinedAt ?? null]
+    );
+    return mapFinancialAccountMember(result.rows[0]);
+  }
+
+  async removeMember(financialAccountId: string, userId: string) {
+    const result = await this.pool.query(
+      `update financial_account_members
+       set status = 'removed',
+           updated_at = now()
+       where financial_account_id = $1
+         and user_id = $2
+         and status <> 'removed'`,
+      [financialAccountId, userId]
+    );
+    return result.rowCount === 1;
+  }
+
+  async countActiveOwners(financialAccountId: string) {
+    const result = await this.pool.query(
+      `select count(*)::int as total
+       from financial_account_members
+       where financial_account_id = $1
+         and status = 'active'
+         and role = 'owner'`,
+      [financialAccountId]
+    );
+    return Number(result.rows[0]?.total ?? 0);
+  }
+
+  async createInvitation(input: {
+    financialAccountId: string;
+    invitedByUserId?: string;
+    email: string;
+    phoneNumber?: string;
+    role: 'owner' | 'admin' | 'member';
+    token: string;
+    expiresAt: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into financial_account_invitations (
+         financial_account_id, invited_by_user_id, email, phone_number, role, token, status, expires_at
+       )
+       values ($1, $2, $3, $4, $5, $6, 'pending', $7)
+       returning *`,
+      [
+        input.financialAccountId,
+        input.invitedByUserId ?? null,
+        input.email.trim().toLowerCase(),
+        input.phoneNumber ?? null,
+        input.role,
+        input.token,
+        input.expiresAt
+      ]
+    );
+    return mapFinancialAccountInvitation(result.rows[0]);
+  }
+
+  async findPendingInvitationByToken(token: string, now: string) {
+    const result = await this.pool.query(
+      `select *
+       from financial_account_invitations
+       where token = $1
+         and status = 'pending'
+         and expires_at >= $2
+       limit 1`,
+      [token, now]
+    );
+    return result.rows[0] ? mapFinancialAccountInvitation(result.rows[0]) : undefined;
+  }
+
+  async markInvitationAccepted(token: string, acceptedAt: string) {
+    await this.pool.query(
+      `update financial_account_invitations
+       set status = 'accepted',
+           accepted_at = $2,
+           updated_at = now()
+       where token = $1`,
+      [token, acceptedAt]
+    );
+  }
+
+  async findMessagingContext(channel: 'whatsapp' | 'telegram', providerUserId: string) {
+    const result = await this.pool.query(
+      `select * from messaging_channel_contexts
+       where channel = $1 and provider_user_id = $2
+       limit 1`,
+      [channel, providerUserId]
+    );
+    return result.rows[0] ? mapMessagingChannelContext(result.rows[0]) : undefined;
+  }
+
+  async upsertMessagingContext(input: {
+    channel: 'whatsapp' | 'telegram';
+    providerUserId: string;
+    userId: string;
+    financialAccountId: string;
+  }) {
+    const result = await this.pool.query(
+      `insert into messaging_channel_contexts (
+         channel, provider_user_id, user_id, financial_account_id
+       )
+       values ($1, $2, $3, $4)
+       on conflict (channel, provider_user_id)
+       do update set
+         user_id = excluded.user_id,
+         financial_account_id = excluded.financial_account_id,
+         updated_at = now()
+       returning *`,
+      [input.channel, input.providerUserId, input.userId, input.financialAccountId]
+    );
+    return mapMessagingChannelContext(result.rows[0]);
   }
 }
 
@@ -1384,6 +1573,65 @@ function mapFinancialAccountMembership(row: QueryResultRow): FinancialAccountMem
   return {
     account: mapFinancialAccount(row),
     role: row.membership_role
+  };
+}
+
+function mapFinancialAccountMember(row: QueryResultRow): FinancialAccountMember {
+  return {
+    id: row.id,
+    financialAccountId: row.financial_account_id,
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    joinedAt: row.joined_at ? toIsoString(row.joined_at) : undefined,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at)
+  };
+}
+
+function mapFinancialAccountMemberProfile(row: QueryResultRow): FinancialAccountMemberProfile {
+  return {
+    memberId: row.member_id,
+    financialAccountId: row.financial_account_id,
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    joinedAt: row.joined_at ? toIsoString(row.joined_at) : undefined,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+    firstName: row.first_name,
+    lastName: row.last_name,
+    preferredName: row.preferred_name,
+    email: row.email ?? undefined,
+    phoneNumber: row.phone_number
+  };
+}
+
+function mapFinancialAccountInvitation(row: QueryResultRow): FinancialAccountInvitation {
+  return {
+    id: row.id,
+    financialAccountId: row.financial_account_id,
+    invitedByUserId: row.invited_by_user_id ?? undefined,
+    email: row.email,
+    phoneNumber: row.phone_number ?? undefined,
+    role: row.role,
+    token: row.token,
+    status: row.status,
+    expiresAt: toIsoString(row.expires_at),
+    acceptedAt: row.accepted_at ? toIsoString(row.accepted_at) : undefined,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at)
+  };
+}
+
+function mapMessagingChannelContext(row: QueryResultRow): MessagingChannelContext {
+  return {
+    id: row.id,
+    channel: row.channel,
+    providerUserId: row.provider_user_id,
+    userId: row.user_id,
+    financialAccountId: row.financial_account_id,
+    updatedAt: toIsoString(row.updated_at)
   };
 }
 

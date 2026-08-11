@@ -12,6 +12,11 @@ export function registerProfileRoutes(app: Express, container: AppContainer) {
   app.put('/me', auth, asyncHandler(controller.updateMe));
   app.get('/accounts', auth, asyncHandler(controller.listAccounts));
   app.post('/accounts', auth, asyncHandler(controller.createAccount));
+  app.patch('/accounts/:accountId', auth, asyncHandler(controller.updateAccount));
+  app.get('/accounts/:accountId/members', auth, asyncHandler(controller.listAccountMembers));
+  app.post('/accounts/:accountId/invitations', auth, asyncHandler(controller.createInvitation));
+  app.post('/accounts/invitations/:token/accept', auth, asyncHandler(controller.acceptInvitation));
+  app.delete('/accounts/:accountId/members/:memberUserId', auth, asyncHandler(controller.removeMember));
   app.get('/me/account-context', auth, asyncHandler(controller.getAccountContext));
   app.put('/me/account-context', auth, asyncHandler(controller.updateAccountContext));
 }

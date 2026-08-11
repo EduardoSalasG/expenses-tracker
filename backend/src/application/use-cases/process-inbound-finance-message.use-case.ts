@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Category, Expense, Income, InboundTextMessage, User } from '../../domain/index.js';
 import type {
   BudgetRepository,
@@ -172,7 +173,12 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'ignored_unregistered_sender' as const };
     }
 
-    const interpreterContext = await this.buildInterpreterContext(user);
+    if (input.channel === 'telegram' && input.providerUserId && isTelegramAccountSwitchCommand(input.message)) {
+      const switched = await this.switchTelegramFinancialAccount(user, input);
+      if (switched) return switched;
+    }
+
+    const interpreterContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId);
     const categories = interpreterContext.categories;
     const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft) {
@@ -276,7 +282,7 @@ export class ProcessInboundFinanceMessageUseCase {
 
       const interpretedOriginal = await this.interpreter.interpret(
         draft.originalMessage,
-        await this.buildInterpreterContext(user, categories)
+        await this.buildInterpreterContext(user, categories, input.channel, input.providerUserId)
       );
       const saved = await this.trySaveInterpreted({
         ...input,
@@ -322,7 +328,7 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const interpretedReply = await this.interpreter.interpret(
       input.message,
-      await this.buildInterpreterContext(user, categories)
+      await this.buildInterpreterContext(user, categories, input.channel, input.providerUserId)
     );
     const pending = interpretedMessageSchema.parse(draft);
     const merged = mergePendingDraft(pending, interpretedReply, input.message);
@@ -358,8 +364,13 @@ export class ProcessInboundFinanceMessageUseCase {
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
-  private async buildInterpreterContext(user: User, categoriesOverride?: Category[]) {
-    const financialAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
+  private async buildInterpreterContext(
+    user: User,
+    categoriesOverride?: Category[],
+    channel: 'whatsapp' | 'telegram' = 'whatsapp',
+    providerUserId?: string
+  ) {
+    const financialAccount = await this.resolveFinancialAccountContext(user, channel, providerUserId);
     const categories = categoriesOverride ?? await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const [banks, paymentMethodOptions] = await Promise.all([
       this.banks.listByTenant(user.tenantId, financialAccount.id),
@@ -374,6 +385,54 @@ export class ProcessInboundFinanceMessageUseCase {
       paymentMethodOptions,
       now: this.clock.now()
     };
+  }
+
+  private async resolveFinancialAccountContext(
+    user: User,
+    channel: 'whatsapp' | 'telegram',
+    providerUserId?: string
+  ) {
+    if (providerUserId) {
+      const context = await this.financialAccounts.findMessagingContext(channel, providerUserId);
+      if (context?.userId === user.id) {
+        const membership = await this.financialAccounts.findAccessibleById(user.id, context.financialAccountId);
+        if (membership) return membership.account;
+      }
+    }
+
+    return this.financialAccounts.ensurePersonalAccount(user.id);
+  }
+
+  private async switchTelegramFinancialAccount(user: User, input: InboundTextMessage) {
+    const accountName = extractTelegramAccountName(input.message);
+    if (!accountName || !input.providerUserId) return undefined;
+
+    const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
+    const matched = memberships.find((membership) => normalize(membership.account.name) === normalize(accountName));
+    if (!matched) {
+      await this.reply(
+        user,
+        input.replyTo ?? input.fromPhoneNumber,
+        telegramAccountSwitchNotFoundMessage(user, memberships.map((membership) => membership.account.name)),
+        input.channel
+      );
+      return { status: 'account_context_not_found' as const };
+    }
+
+    await this.financialAccounts.upsertMessagingContext({
+      channel: 'telegram',
+      providerUserId: input.providerUserId,
+      userId: user.id,
+      financialAccountId: matched.account.id
+    });
+
+    await this.reply(
+      user,
+      input.replyTo ?? input.fromPhoneNumber,
+      telegramAccountSwitchSuccessMessage(user, matched.account.name),
+      input.channel
+    );
+    return { status: 'account_context_updated' as const, financialAccountId: matched.account.id };
   }
 
   private async processCategorySelectionDraft(
@@ -651,8 +710,9 @@ export class ProcessInboundFinanceMessageUseCase {
 
     if (interpreted.intent === 'ask_report') {
       const period = reportPeriod(interpreted.period, this.clock.now());
+      const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
       const report = filterReportByCategory(
-        await this.report(user.tenantId, user.id, period.from, period.to),
+        await this.report(user.tenantId, user.id, period.from, period.to, financialAccountId),
         categories,
         interpreted.categoryName
       );
@@ -669,10 +729,10 @@ export class ProcessInboundFinanceMessageUseCase {
     if (interpreted.intent === 'ask_budget_status') {
       const month = interpreted.month ?? this.clock.now().toISOString().slice(0, 7);
       const { from, to } = monthPeriod(month);
-      const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
+      const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
       const [budgets, report] = await Promise.all([
         this.budgets.listMonthly(user.tenantId, financialAccountId),
-        this.report(user.tenantId, user.id, from, to)
+        this.report(user.tenantId, user.id, from, to, financialAccountId)
       ]);
       const budgetMessage = formatBudgetStatusMessage(
         month,
@@ -706,7 +766,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return undefined;
     }
 
-    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
+    const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
     const income = await this.incomes.create({
       tenantId: user.tenantId,
       financialAccountId,
@@ -742,7 +802,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
     }
 
-    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
+    const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
     const [recentExpenses, recentIncomes] = await Promise.all([
       interpreted.movementType === 'income'
         ? Promise.resolve([])
@@ -843,7 +903,7 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const category = matchedCategory.category;
     const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
-    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
+    const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
     const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccountId, {
       paymentMethod: interpreted.paymentMethod
     });
@@ -913,11 +973,11 @@ export class ProcessInboundFinanceMessageUseCase {
     });
   }
 
-  private async report(tenantId: string, userId: string, from: string, to: string) {
-    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(userId)).id;
+  private async report(tenantId: string, userId: string, from: string, to: string, financialAccountId?: string) {
+    const resolvedFinancialAccountId = financialAccountId ?? (await this.financialAccounts.ensurePersonalAccount(userId)).id;
     const [expenses, incomes] = await Promise.all([
-      this.expenses.listByPeriod(tenantId, financialAccountId, from, to),
-      this.incomes.listByPeriod(tenantId, financialAccountId, from, to)
+      this.expenses.listByPeriod(tenantId, resolvedFinancialAccountId, from, to),
+      this.incomes.listByPeriod(tenantId, resolvedFinancialAccountId, from, to)
     ]);
 
     return {
@@ -1546,6 +1606,15 @@ function isTelegramLinkCommand(message: string) {
   return /^\/(link|vincular)\b/i.test(message.trim());
 }
 
+function isTelegramAccountSwitchCommand(message: string) {
+  const trimmed = message.trim();
+  return /^\/[^\s/][^\s]*$/.test(trimmed) && !/^\/(link|vincular)$/i.test(trimmed);
+}
+
+function extractTelegramAccountName(message: string) {
+  return message.trim().replace(/^\//, '').trim();
+}
+
 function extractPhoneNumberFromLinkCommand(message: string) {
   const match = message.match(/\+?\d{8,15}/);
   if (!match) return undefined;
@@ -1599,6 +1668,28 @@ function telegramUnlinkedMessage() {
   return 'Tu Telegram aun no esta vinculado. Envia /link +569XXXXXXXX con tu telefono registrado.';
 }
 
+function telegramAccountSwitchSuccessMessage(user: User, accountName: string) {
+  return user.preferredLanguage === 'en'
+    ? `Done. From now on I will use the account "${accountName}" in this chat.`
+    : `Listo. Desde ahora usaré la cuenta "${accountName}" en este chat.`;
+}
+
+function telegramAccountSwitchNotFoundMessage(user: User, accountNames: string[]) {
+  if (user.preferredLanguage === 'en') {
+    return [
+      'I could not find that account in your accessible accounts.',
+      `Available accounts: ${accountNames.join(', ')}.`,
+      'Use /AccountName to switch.'
+    ].join('\n');
+  }
+
+  return [
+    'No encontré esa cuenta dentro de las cuentas a las que tienes acceso.',
+    `Cuentas disponibles: ${accountNames.join(', ')}.`,
+    'Usa /NombreCuenta para cambiar.'
+  ].join('\n');
+}
+
 function isFinancialAccountRepository(value: FinancialAccountRepository | CategoryRepository): value is FinancialAccountRepository {
   return typeof (value as FinancialAccountRepository).ensurePersonalAccount === 'function';
 }
@@ -1626,6 +1717,20 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
       const account = await this.ensurePersonalAccount(userId);
       return [{ account, role: 'owner' as const }];
     },
+    async findById(financialAccountId: string) {
+      return financialAccountId.startsWith('fallback-account-') || financialAccountId.startsWith('shared-')
+        ? {
+          id: financialAccountId,
+          tenantId: financialAccountId.replace(/^fallback-account-|^shared-/, ''),
+          type: financialAccountId.startsWith('shared-') ? 'shared' : 'personal',
+          name: financialAccountId.startsWith('shared-') ? 'Shared account' : 'Personal',
+          currency: 'CLP',
+          createdByUserId: financialAccountId.replace(/^fallback-account-|^shared-/, ''),
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString()
+        }
+        : undefined;
+    },
     async createSharedAccount(input: { tenantId: string; createdByUserId: string; name: string; currency: string }) {
       return {
         account: {
@@ -1639,6 +1744,95 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
           updatedAt: new Date(0).toISOString()
         },
         role: 'owner' as const
+      };
+    },
+    async updateSharedAccountName(input: { financialAccountId: string; name: string }) {
+      const account = await this.findById(input.financialAccountId);
+      if (!account) return undefined;
+      return { ...account, name: input.name };
+    },
+    async listMembers(financialAccountId: string) {
+      const account = await this.findById(financialAccountId);
+      if (!account) return [];
+      return [{
+        memberId: `member-${account.createdByUserId}`,
+        financialAccountId: account.id,
+        userId: account.createdByUserId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: new Date(0).toISOString(),
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+        firstName: '',
+        lastName: '',
+        preferredName: '',
+        phoneNumber: ''
+      }];
+    },
+    async findMember(financialAccountId: string, userId: string) {
+      const account = await this.findById(financialAccountId);
+      if (!account || account.createdByUserId !== userId) return undefined;
+      return {
+        id: `member-${userId}`,
+        financialAccountId,
+        userId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: new Date(0).toISOString(),
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString()
+      };
+    },
+    async upsertMember(input) {
+      return {
+        id: `member-${input.userId}`,
+        financialAccountId: input.financialAccountId,
+        userId: input.userId,
+        role: input.role,
+        status: input.status,
+        joinedAt: input.joinedAt,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString()
+      };
+    },
+    async removeMember() {
+      return true;
+    },
+    async countActiveOwners() {
+      return 1;
+    },
+    async createInvitation(input) {
+      return {
+        id: randomUUID(),
+        financialAccountId: input.financialAccountId,
+        invitedByUserId: input.invitedByUserId,
+        email: input.email,
+        phoneNumber: input.phoneNumber,
+        role: input.role,
+        token: input.token,
+        status: 'pending',
+        expiresAt: input.expiresAt,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString()
+      };
+    },
+    async findPendingInvitationByToken() {
+      return undefined;
+    },
+    async markInvitationAccepted() {
+      return undefined;
+    },
+    async findMessagingContext() {
+      return undefined;
+    },
+    async upsertMessagingContext(input) {
+      return {
+        id: `context-${input.channel}-${input.providerUserId}`,
+        channel: input.channel,
+        providerUserId: input.providerUserId,
+        userId: input.userId,
+        financialAccountId: input.financialAccountId,
+        updatedAt: new Date(0).toISOString()
       };
     }
   };

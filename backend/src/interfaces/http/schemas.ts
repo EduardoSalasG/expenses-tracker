@@ -85,8 +85,22 @@ export const createFinancialAccountSchema = z.object({
   currency: z.string().length(3).transform((value) => value.toUpperCase())
 });
 
+export const updateFinancialAccountSchema = z.object({
+  name: z.string().min(1)
+});
+
 export const selectFinancialAccountSchema = z.object({
   financialAccountId: z.string().uuid()
+});
+
+export const createFinancialAccountInvitationSchema = z.object({
+  email: z.string().email(),
+  phoneNumber: phoneNumberSchema.optional(),
+  role: z.enum(['owner', 'admin', 'member']).default('member')
+});
+
+export const acceptFinancialAccountInvitationSchema = z.object({
+  token: z.string().uuid()
 });
 
 export const paymentMethodSchema = z.discriminatedUnion('kind', [

@@ -71,7 +71,7 @@ export function createContainer(config: AppConfig) {
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
-  const financialAccounts = pool ? new PostgresFinancialAccountRepository(pool) : new InMemoryFinancialAccountRepository();
+  const financialAccounts = pool ? new PostgresFinancialAccountRepository(pool) : new InMemoryFinancialAccountRepository(users);
   const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
@@ -97,7 +97,8 @@ export function createContainer(config: AppConfig) {
     categories,
     budgets,
     banks,
-    paymentMethodOptions
+    paymentMethodOptions,
+    users
   );
   const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
     users,
