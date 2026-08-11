@@ -2,8 +2,8 @@
 
 ## Shared Accounts and Splitwise-Like Flow
 
-Current product scope keeps one personal financial context per user plus optional Telegram capture.
-Next major domain expansion is shared accounts with progressive Splitwise-style behavior.
+Shared accounts are already implemented as the current Splitwise-style MVP.
+The next roadmap now focuses on deepening that experience instead of introducing the foundation for the first time.
 
 ### Phase 1: Shared Account Foundation
 
@@ -80,8 +80,13 @@ Implemented in backend and frontend as of August 11, 2026:
 - account-scoped dashboard and reports through the existing analytics views after switching the active account
 - shared expense allocation persistence with payer, equal split, and custom split modes
 - allocation-aware expense editing foundation, including proportional rescaling for existing custom splits when amount changes
-
-Still pending for the Splitwise expansion:
-
 - balances by member
-- settlements and reconciliation flows
+- settlement suggestions derived from current balances
+- shared-account settlement creation and settlement history
+- Telegram shared-account settlement commands and natural-language shared split capture
+
+Still pending for the next shared-account expansion:
+
+- richer settlement UX in more surfaces beyond Settings
+- shared-account monthly summaries and alerts
+- more advanced split presets such as percentages and saved rules

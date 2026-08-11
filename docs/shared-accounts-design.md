@@ -266,7 +266,7 @@ After backfill:
 
 ## Current Status
 
-Implemented in backend as of August 11, 2026:
+Implemented in backend and frontend as of August 11, 2026:
 
 - schema foundation and backfill support
 - repository support for memberships, invitations, and messaging contexts
@@ -279,7 +279,14 @@ Implemented in backend as of August 11, 2026:
 - frontend shared-account management in Settings
 - invitation link generation and authenticated invitation acceptance flow
 - account-scoped dashboard/reporting through the active financial account context
+- split allocations with payer attribution, equal split, and custom split persistence
+- balances by member
+- suggested settlements derived from current balances
+- recorded settlements and settlement history
+- Telegram shared-account split and settlement handling
 
 Still pending:
 
-- Splitwise-style allocations, balances, and settlements
+- richer shared-account summaries and alerts
+- more advanced split presets such as percentage-based templates
+- broader debt-resolution UX beyond the current Settings surface

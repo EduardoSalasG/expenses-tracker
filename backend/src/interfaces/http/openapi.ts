@@ -613,6 +613,462 @@ export const openApiSpec = {
         
       }
     },
+    '/accounts': {
+      get: {
+        summary: 'List accessible financial accounts',
+        security: [{ bearerAuth: [] }],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Accessible personal and shared accounts',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          account: {
+                            id: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                            tenantId: 'tenant-id',
+                            type: 'personal',
+                            name: 'Personal',
+                            currency: 'CLP'
+                          },
+                          role: 'owner'
+                        },
+                        {
+                          account: {
+                            id: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                            tenantId: 'tenant-id',
+                            type: 'shared',
+                            name: 'Casa común',
+                            currency: 'CLP'
+                          },
+                          role: 'admin'
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      },
+      post: {
+        summary: 'Create shared account',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Casa común' },
+          currency: { type: 'string', example: 'CLP' }
+        }, ['name', 'currency']),
+        responses: withUnauthorized({
+          '201': {
+            description: 'Shared account created',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      data: {
+                        account: {
+                          id: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                          tenantId: 'tenant-id',
+                          type: 'shared',
+                          name: 'Casa común',
+                          currency: 'CLP'
+                        },
+                        role: 'owner'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/:accountId': {
+      patch: {
+        summary: 'Rename shared account',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        requestBody: jsonBody({
+          name: { type: 'string', example: 'Viaje a Brasil' }
+        }, ['name']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Shared account updated',
+            content: {
+              'application/json': {
+                examples: {
+                  updated: {
+                    value: {
+                      data: {
+                        id: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                        tenantId: 'tenant-id',
+                        type: 'shared',
+                        name: 'Viaje a Brasil',
+                        currency: 'CLP'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or authorization error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } },
+                  forbidden: { value: { error: 'You do not have permission to manage this financial account.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/:accountId/members': {
+      get: {
+        summary: 'List shared-account members',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Shared-account members',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          financialAccountId: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                          userId: 'owner-user-id',
+                          preferredName: 'Eduardo',
+                          firstName: 'Eduardo',
+                          lastName: 'Salas',
+                          role: 'owner',
+                          status: 'active',
+                          joinedAt: '2026-08-11T12:00:00.000Z'
+                        },
+                        {
+                          financialAccountId: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                          userId: 'member-user-id',
+                          preferredName: 'Vane',
+                          firstName: 'Vanessa',
+                          lastName: 'Perez',
+                          role: 'member',
+                          status: 'active',
+                          joinedAt: '2026-08-11T12:05:00.000Z'
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/:accountId/invitations': {
+      post: {
+        summary: 'Create shared-account invitation',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        requestBody: jsonBody({
+          email: { type: 'string', example: 'vane@example.com' },
+          phoneNumber: { type: 'string', example: '+56982439041' },
+          role: { type: 'string', enum: ['owner', 'admin', 'member'], example: 'member' }
+        }, ['email']),
+        responses: withUnauthorized({
+          '201': {
+            description: 'Invitation created',
+            content: {
+              'application/json': {
+                examples: {
+                  created: {
+                    value: {
+                      data: {
+                        id: 'invitation-id',
+                        financialAccountId: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                        invitedByUserId: 'owner-user-id',
+                        email: 'vane@example.com',
+                        phoneNumber: '+56982439041',
+                        role: 'member',
+                        token: 'd7d2aa47-64f6-4c5b-a710-84d0308c18df',
+                        status: 'pending',
+                        expiresAt: '2026-08-18T12:00:00.000Z'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or authorization error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } },
+                  forbidden: { value: { error: 'You do not have permission to manage this financial account.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/invitations/:token/accept': {
+      post: {
+        summary: 'Accept shared-account invitation',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'token',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Invitation accepted',
+            content: {
+              'application/json': {
+                examples: {
+                  accepted: {
+                    value: {
+                      data: {
+                        invitation: {
+                          id: 'invitation-id',
+                          financialAccountId: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                          email: 'vane@example.com',
+                          role: 'member',
+                          token: 'd7d2aa47-64f6-4c5b-a710-84d0308c18df',
+                          status: 'accepted'
+                        },
+                        membership: {
+                          account: {
+                            id: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                            tenantId: 'tenant-id',
+                            type: 'shared',
+                            name: 'Casa común',
+                            currency: 'CLP'
+                          },
+                          role: 'member'
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invitation validation error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidInvitation: { value: { error: 'Invitation not found or expired.' } },
+                  wrongUser: { value: { error: 'Invitation does not belong to the authenticated user.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/accounts/:accountId/members/:memberUserId': {
+      delete: {
+        summary: 'Remove shared-account member',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          },
+          {
+            in: 'path',
+            name: 'memberUserId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Member removed',
+            content: {
+              'application/json': {
+                examples: {
+                  removed: { value: { data: { success: true } } }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or authorization error',
+            content: {
+              'application/json': {
+                examples: {
+                  keepOwner: { value: { error: 'The account must keep at least one active owner.' } },
+                  forbidden: { value: { error: 'Only an owner can remove another owner.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Member or account not found',
+            content: {
+              'application/json': {
+                examples: {
+                  missingMember: { value: { error: 'Member not found.' } },
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
+    '/me/account-context': {
+      get: {
+        summary: 'Get current financial account context',
+        security: [{ bearerAuth: [] }],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Current and accessible accounts',
+            content: {
+              'application/json': {
+                examples: {
+                  current: {
+                    value: {
+                      data: {
+                        current: {
+                          account: {
+                            id: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                            tenantId: 'tenant-id',
+                            type: 'personal',
+                            name: 'Personal',
+                            currency: 'CLP'
+                          },
+                          role: 'owner'
+                        },
+                        accounts: []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+      },
+      put: {
+        summary: 'Switch current financial account context',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({
+          financialAccountId: { type: 'string', format: 'uuid' }
+        }, ['financialAccountId']),
+        responses: withUnauthorized({
+          '200': {
+            description: 'Context switched and tokens renewed',
+            content: {
+              'application/json': {
+                examples: {
+                  switched: {
+                    value: {
+                      data: {
+                        account: {
+                          id: '9ea9d36b-3438-425f-a69f-b6c473922453',
+                          tenantId: 'tenant-id',
+                          type: 'shared',
+                          name: 'Casa común',
+                          currency: 'CLP'
+                        },
+                        accounts: [],
+                        accessToken: 'jwt-access-token',
+                        refreshToken: 'jwt-refresh-token'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation or authorization error',
+            content: {
+              'application/json': {
+                examples: {
+                  invalidPayload: { value: { error: 'Validation failed.' } },
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
     '/expenses': {
       get: {
         summary: 'List expenses with filters',

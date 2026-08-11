@@ -61,7 +61,7 @@ Notes:
 
 ## Shared Accounts Status
 
-Shared accounts are already available in the foundation stage:
+Shared accounts are available as the current Splitwise-style MVP:
 
 - personal and shared financial accounts
 - invitations and membership management
@@ -69,12 +69,17 @@ Shared accounts are already available in the foundation stage:
 - Telegram account discovery commands (`/accounts`, `/current`, `/AccountName`)
 - web account switching
 - dashboard and financial modules scoped by the active account
+- shared-account expense capture from web and Telegram
+- payer attribution plus equal and custom split allocation persistence
+- balances by member
+- suggested settlements
+- recorded settlements and settlement history
 
-Pending major work for the Splitwise-style expansion:
+Next likely expansion after this MVP:
 
-- per-member allocations
-- balances
-- settlements
+- percentage-based split presets and smarter recurring rules
+- monthly summaries and alerts for shared accounts
+- richer debt-resolution UX on the web dashboard
 
 ## Docker
 
@@ -172,9 +177,9 @@ See:
 - [Roadmap](docs/roadmap.md)
 - [Operations](docs/operations.md)
 - [Release Checklist](docs/release-checklist.md)
-- [QA Evidence 2026-06-11](docs/qa-evidence-2026-06-11.md)
-- [Release Evidence 2026-06-11](docs/release-evidence-2026-06-11.md)
-- [Swagger Audit 2026-06-11](docs/swagger-audit-2026-06-11.md)
+- [QA Evidence 2026-08-11](docs/qa-evidence-2026-08-11.md)
+- [Release Evidence 2026-08-11](docs/release-evidence-2026-08-11.md)
+- [Swagger Audit 2026-08-11](docs/swagger-audit-2026-08-11.md)
 - [Postman Collection](docs/postman/expenses-tracker.postman_collection.json)
 - [Post-Deploy QA Template](docs/post-deploy-qa-template.md)
 - [Flow Diagrams](docs/diagrams/flows.md)

@@ -103,8 +103,17 @@ The backend already supports:
 - account-context switching for authenticated web sessions
 - Telegram account-context switching
 - account-scoped expenses, incomes, budgets, categories, banks, payment methods, and reports
+- shared-account expense capture from web and Telegram
+- payer attribution plus equal/custom split persistence
+- balances by member
+- suggested settlements
+- recorded settlements and settlement history
 
-Current pending work in this domain is the Splitwise-style layer: per-member allocations, balances, and settlements.
+The remaining roadmap after this MVP is product refinement rather than missing foundation:
+
+- richer shared-account summaries and alerts
+- friendlier debt-resolution UX on the web dashboard
+- additional split presets such as percentage-based templates
 
 Telegram routes are available at `POST /webhooks/telegram` and support:
 
