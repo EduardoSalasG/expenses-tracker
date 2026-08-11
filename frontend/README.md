@@ -56,10 +56,10 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 - `/`: public landing page for logged-out visitors. The header exposes login for existing users, while the rest of the page is optimized for registration/conversion. It defaults to `en` for United States visitors and `es` for the rest, based on backend IP geolocation. The navbar exposes manual `ES / EN` switching, which overrides the auto-selected public locale.
 - `/login`: web-native login/registration. Existing users choose password login or email magic link. New users register in two steps: first lead capture (`name + email`), then full account data. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
-- `/expenses`: manual expense creation and editing from a modal, with inline category, subcategory, bank, and payment-method creation directly from the related selects; also includes filtered history, delete, and auto-refresh after save.
-- `/incomes`: income capture, filtered history, edit, delete, totals by currency, and auto-refresh after save.
-- `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, inline category/subcategory creation, and inline updates.
-- `/categories`: main category and subcategory management with default/custom labels.
+- `/expenses`: manual expense creation and editing from a modal, with inline category, subcategory, bank, and payment-method creation directly from the related selects; also includes filtered history, delete, auto-refresh after save, and visible active-account context.
+- `/incomes`: income capture, filtered history, edit, delete, totals by currency, auto-refresh after save, and visible active-account context.
+- `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, inline category/subcategory creation, inline updates, and visible active-account context.
+- `/categories`: main category and subcategory management with default/custom labels and visible active-account context.
 - `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, session logout, and shared-account management (switch active account, create shared account, invite members, review members).
 - `/terms` and `/privacy`: public legal pages linked from the landing footer.
 

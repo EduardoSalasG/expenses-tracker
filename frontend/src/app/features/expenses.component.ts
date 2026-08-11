@@ -15,6 +15,7 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 const CREATE_CATEGORY_OPTION = '__create_category__';
@@ -38,10 +39,12 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
     MatSlideToggleModule,
     ReactiveFormsModule,
     FeedbackBannerComponent,
+    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('expenses_title')" [eyebrow]="t('expenses_subtitle')"></app-page-header>
+    <app-account-context-banner />
 
     <mat-card id="expenses-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

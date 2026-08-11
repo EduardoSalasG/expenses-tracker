@@ -14,6 +14,7 @@ import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -30,10 +31,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     ReactiveFormsModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
+    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
+    <app-account-context-banner />
 
     <mat-card id="incomes-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

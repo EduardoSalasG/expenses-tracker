@@ -275,6 +275,7 @@ Implemented in backend as of August 11, 2026:
 - invitation creation and acceptance
 - Telegram account-context switching with `/AccountName`
 - frontend account selector and active-account context switching
+- active account visibility banner across dashboard, expenses, incomes, budgets, and categories
 - frontend shared-account management in Settings
 - invitation link generation and authenticated invitation acceptance flow
 

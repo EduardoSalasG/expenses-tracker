@@ -11,6 +11,7 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -26,10 +27,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
+    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('categories_title')" [eyebrow]="t('categories_subtitle')"></app-page-header>
+    <app-account-context-banner />
 
     <section class="grid gap-4 lg:grid-cols-2">
       <mat-card id="categories-main-panel" class="page-panel p-2">

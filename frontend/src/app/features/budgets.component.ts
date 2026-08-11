@@ -15,6 +15,7 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 interface BudgetRow {
@@ -44,6 +45,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
     MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
+    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
@@ -55,6 +57,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
         </mat-form-field>
       </div>
     </app-page-header>
+    <app-account-context-banner />
 
     <section id="budgets-summary" class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
