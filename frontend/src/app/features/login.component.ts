@@ -4,9 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { PublicContextService } from '../core/public-context.service';
+
+const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_token';
 
 @Component({
   selector: 'app-login',
@@ -358,6 +361,7 @@ export class LoginComponent implements OnInit {
   });
 
   constructor(
+    private readonly api: ApiService,
     private readonly auth: AuthService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
@@ -380,11 +384,16 @@ export class LoginComponent implements OnInit {
     if (mode === 'register') {
       this.mode.set('register');
     }
+    const accountInvitationToken = this.route.snapshot.queryParamMap.get('accountInvitationToken');
+    if (accountInvitationToken) {
+      sessionStorage.setItem(pendingInvitationTokenKey, accountInvitationToken);
+      this.magicLinkStatus.set(this.t('accounts_invite_pending_login'));
+    }
     const magicLinkToken = this.route.snapshot.queryParamMap.get('magicLinkToken');
     if (magicLinkToken) {
       this.autoSigningIn.set(true);
       this.auth.consumeMagicLinkToken(magicLinkToken).subscribe({
-        next: () => this.router.navigateByUrl('/dashboard'),
+        next: () => this.completePostAuthFlow(),
         error: () => {
           this.autoSigningIn.set(false);
           this.errorMessage.set(this.t('login_magic_link_invalid'));
@@ -398,7 +407,7 @@ export class LoginComponent implements OnInit {
     this.auth.consumeTelegramLinkToken(linkToken).subscribe({
       next: (payload) => {
         if (payload.linkedUser) {
-          this.router.navigateByUrl('/dashboard');
+          this.completePostAuthFlow();
           return;
         }
 
@@ -446,7 +455,7 @@ export class LoginComponent implements OnInit {
         password: value.password,
         telegramChatId: value.telegramChatId || undefined
       }).subscribe({
-        next: () => this.router.navigateByUrl('/dashboard'),
+        next: () => this.completePostAuthFlow(),
         error: (error) => {
           this.errorMessage.set(this.toErrorMessage(error, this.t('login_invalid_credentials')));
         }
@@ -484,7 +493,7 @@ export class LoginComponent implements OnInit {
       preferredLanguage: value.preferredLanguage,
       telegramChatId: value.telegramChatId || undefined
     }).subscribe({
-      next: () => this.router.navigateByUrl('/dashboard'),
+      next: () => this.completePostAuthFlow(),
       error: (error) => {
         this.errorMessage.set(this.toErrorMessage(error, this.t('login_register_error')));
       }
@@ -621,5 +630,38 @@ export class LoginComponent implements OnInit {
 
   t(key: string) {
     return this.i18n.t(key);
+  }
+
+  private completePostAuthFlow() {
+    const token = sessionStorage.getItem(pendingInvitationTokenKey);
+    if (!token) {
+      void this.router.navigateByUrl('/dashboard');
+      return;
+    }
+
+    this.autoSigningIn.set(true);
+    this.errorMessage.set('');
+    this.api.acceptAccountInvitation(token).subscribe({
+      next: ({ membership }) => {
+        this.api.updateAccountContext(membership.account.id).subscribe({
+          next: (response) => {
+            this.auth.updateSessionTokens(response.accessToken, response.refreshToken);
+            sessionStorage.removeItem(pendingInvitationTokenKey);
+            this.autoSigningIn.set(false);
+            void this.router.navigateByUrl('/settings');
+          },
+          error: () => {
+            sessionStorage.removeItem(pendingInvitationTokenKey);
+            this.autoSigningIn.set(false);
+            void this.router.navigateByUrl('/settings');
+          }
+        });
+      },
+      error: () => {
+        sessionStorage.removeItem(pendingInvitationTokenKey);
+        this.autoSigningIn.set(false);
+        this.errorMessage.set(this.t('accounts_invite_accept_error'));
+      }
+    });
   }
 }

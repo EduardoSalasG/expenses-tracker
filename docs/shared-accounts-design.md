@@ -274,9 +274,11 @@ Implemented in backend as of August 11, 2026:
 - member listing and member removal
 - invitation creation and acceptance
 - Telegram account-context switching with `/AccountName`
+- frontend account selector and active-account context switching
+- frontend shared-account management in Settings
+- invitation link generation and authenticated invitation acceptance flow
 
 Still pending:
 
-- frontend shared-account management flows
 - shared-account reporting views
 - Splitwise-style allocations, balances, and settlements

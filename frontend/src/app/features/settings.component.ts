@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -346,6 +346,37 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
 
             <app-feedback-banner [message]="inviteMessage()" [tone]="feedbackTone(inviteMessage())" />
 
+            @if (lastInvitationLink()) {
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_link_title') }}</div>
+                <p class="mt-1 text-sm text-brand-muted">
+                  {{ t('accounts_invite_link_hint') }}
+                  @if (lastInvitationEmail()) {
+                    <span class="font-medium text-brand-ink">{{ lastInvitationEmail() }}</span>
+                  }
+                </p>
+                <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('accounts_invite_link_label') }}</mat-label>
+                    <input matInput [value]="lastInvitationLink()" readonly />
+                  </mat-form-field>
+                  <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="copyInvitationLink()">
+                    {{ t('accounts_invite_copy') }}
+                  </button>
+                  <a
+                    mat-flat-button
+                    color="primary"
+                    class="!h-11"
+                    [href]="lastInvitationLink()"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ t('accounts_invite_open') }}
+                  </a>
+                </div>
+              </div>
+            }
+
             <div class="rounded border border-brand-border bg-brand-surface p-4">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -450,9 +481,12 @@ export class SettingsComponent {
   readonly telegramBotUrl = signal('https://t.me/');
   readonly accountMessage = signal('');
   readonly inviteMessage = signal('');
+  readonly lastInvitationLink = signal('');
+  readonly lastInvitationEmail = signal('');
   readonly savingAccount = signal(false);
   readonly savingInvitation = signal(false);
   readonly selectedAccountId = signal<string | null>(null);
+  private invitationTokenProcessed = false;
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
@@ -493,6 +527,7 @@ export class SettingsComponent {
     private readonly api: ApiService,
     readonly accountService: AccountContextService,
     private readonly auth: AuthService,
+    private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly i18n: I18nService,
     private readonly onboarding: OnboardingService
@@ -542,6 +577,7 @@ export class SettingsComponent {
               this.selectedAccountId.set(context.current.account.id);
               this.renameAccountForm.reset({ name: context.current.account.name });
               this.loadMembers();
+              this.maybeAcceptInvitationFromRoute();
             },
             error: () => {}
           });
@@ -550,6 +586,7 @@ export class SettingsComponent {
           this.selectedAccountId.set(currentAccount?.id ?? null);
           this.renameAccountForm.reset({ name: currentAccount?.name ?? '' });
           this.loadMembers();
+          this.maybeAcceptInvitationFromRoute();
         }
         this.loading.set(false);
         setTimeout(() => this.startOnboarding(), 50);
@@ -635,7 +672,10 @@ export class SettingsComponent {
       phoneNumber: value.phoneNumber || undefined,
       role: value.role
     }).subscribe({
-      next: () => {
+      next: (invitation) => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        this.lastInvitationLink.set(`${origin}/settings?accountInvitationToken=${encodeURIComponent(invitation.token)}`);
+        this.lastInvitationEmail.set(invitation.email);
         this.inviteForm.reset({ email: '', phoneNumber: '', role: 'member' });
         this.savingInvitation.set(false);
         this.inviteMessage.set(this.t('accounts_invite_success'));
@@ -645,6 +685,15 @@ export class SettingsComponent {
         this.inviteMessage.set(this.t('accounts_invite_error'));
       }
     });
+  }
+
+  copyInvitationLink() {
+    const link = this.lastInvitationLink();
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(
+      () => this.snackBar.open(this.t('accounts_invite_copy_success'), undefined, { duration: 2200 }),
+      () => this.snackBar.open(this.t('accounts_invite_copy_error'), undefined, { duration: 2600 })
+    );
   }
 
   canRemoveMember(memberUserId: string, memberRole: 'owner' | 'admin' | 'member') {
@@ -853,6 +902,39 @@ export class SettingsComponent {
     const accountId = this.selectedAccountId();
     if (!accountId) return;
     this.accountService.refreshMembers(accountId).subscribe({ error: () => {} });
+  }
+
+  private maybeAcceptInvitationFromRoute() {
+    if (this.invitationTokenProcessed) return;
+    const token = this.route.snapshot.queryParamMap.get('accountInvitationToken');
+    if (!token) return;
+    this.invitationTokenProcessed = true;
+    this.accountMessage.set('');
+    this.api.acceptAccountInvitation(token).subscribe({
+      next: ({ membership }) => {
+        this.accountService.switchAccount(membership.account.id).subscribe({
+          next: () => {
+            this.selectedAccountId.set(membership.account.id);
+            this.renameAccountForm.reset({ name: membership.account.name });
+            this.loadMembers();
+            this.accountMessage.set(this.t('accounts_invite_accept_success'));
+            void this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: { accountInvitationToken: null },
+              queryParamsHandling: 'merge',
+              replaceUrl: true
+            });
+          },
+          error: () => {
+            this.selectedAccountId.set(membership.account.id);
+            this.accountMessage.set(this.t('accounts_invite_accept_success'));
+          }
+        });
+      },
+      error: () => {
+        this.accountMessage.set(this.t('accounts_invite_accept_error'));
+      }
+    });
   }
 
   private startOnboarding() {

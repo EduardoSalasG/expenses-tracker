@@ -60,7 +60,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 - `/incomes`: income capture, filtered history, edit, delete, totals by currency, and auto-refresh after save.
 - `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, inline category/subcategory creation, and inline updates.
 - `/categories`: main category and subcategory management with default/custom labels.
-- `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, and session logout.
+- `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, session logout, and shared-account management (switch active account, create shared account, invite members, review members).
 - `/terms` and `/privacy`: public legal pages linked from the landing footer.
 
 ## Public Locale Detection
@@ -84,6 +84,7 @@ Once the visitor explicitly changes language from the landing navbar, the prefer
 The frontend stores the access token and refresh token after web login, web registration, OTP verification, or Telegram link-token auto-login. Authenticated API calls include the access token; if the backend returns `401`, the interceptor calls `POST /auth/refresh`, stores the renewed tokens, and retries the original request once.
 
 Telegram is optional. Users can register and use the full web app without connecting Telegram. If they choose to connect it later, the frontend can consume Telegram link tokens and silently attach the chat after a successful web login or registration.
+Shared-account invitations can be opened from the web even before login. If the visitor is not authenticated, the auth guard preserves the invitation token and the login flow accepts it after the session is created.
 If Telegram is not configured yet, the dashboard shows a dismissible banner that opens the setup modal and deep-links the user to the bot.
 
 ## UI Conventions

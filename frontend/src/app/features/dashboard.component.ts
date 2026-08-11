@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
+import { AccountContextService } from '../core/account-context.service';
 import { ApiService, type Category, type CurrentUser, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
@@ -96,6 +97,12 @@ interface CategoryVariationRow {
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ periodLabel() }}</p>
         <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_title') }}</h1>
+        @if (currentAccountLabel()) {
+          <p class="mt-2 text-sm text-brand-muted">
+            {{ t('accounts_current_account') }}:
+            <span class="font-medium text-brand-ink">{{ currentAccountLabel() }}</span>
+          </p>
+        }
       </div>
       <div id="dashboard-period-controls" class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
         <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
@@ -436,6 +443,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private readonly api: ApiService,
+    readonly accountService: AccountContextService,
     private readonly i18n: I18nService,
     private readonly periodState: PeriodStateService,
     private readonly onboarding: OnboardingService
@@ -976,6 +984,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private locale() {
     return this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
+  }
+
+  currentAccountLabel() {
+    const membership = this.accountService.currentMembership();
+    if (!membership) return '';
+    return `${membership.account.name} · ${this.t(membership.account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared')}`;
   }
 
   t(key: string) {

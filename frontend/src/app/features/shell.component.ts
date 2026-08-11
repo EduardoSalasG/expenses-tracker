@@ -1,4 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -67,7 +68,8 @@ export class ShellComponent implements OnInit {
 
   constructor(
     readonly accountService: AccountContextService,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    private readonly router: Router
   ) {}
 
   readonly links = links;
@@ -84,10 +86,17 @@ export class ShellComponent implements OnInit {
     this.accountService.switchAccount(financialAccountId).subscribe({
       next: () => {
         this.selectedAccountId.set(financialAccountId);
-        window.location.assign('/dashboard');
+        void this.reloadActiveRoute();
       },
       error: () => {}
     });
+  }
+
+  private async reloadActiveRoute() {
+    const currentUrl = this.router.url || '/dashboard';
+    const tempUrl = currentUrl.startsWith('/dashboard') ? '/settings' : '/dashboard';
+    await this.router.navigateByUrl(tempUrl, { skipLocationChange: true });
+    await this.router.navigateByUrl(currentUrl);
   }
 
   t(key: string) {
