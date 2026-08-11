@@ -914,6 +914,8 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       createdByUserId: user.id,
       paidByUserId: user.id,
+      allocationMode: 'payer',
+      allocations: [{ owedByUserId: user.id, amount: interpreted.amount }],
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
       totalAmount: interpreted.amount,

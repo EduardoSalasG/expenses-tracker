@@ -177,7 +177,7 @@ export class InboundMessagingService {
       })
     ]);
 
-    return buildTelegramAccountsMessage(linkedUser.preferredLanguage, accounts, current.account.id);
+    return buildTelegramAccountsMessage(linkedUser.preferredLanguage ?? 'es', accounts, current.account.id);
   }
 
   private async buildTelegramCurrentAccountMessage(chatId?: string) {
@@ -190,7 +190,7 @@ export class InboundMessagingService {
       providerUserId: chatId
     });
 
-    return buildTelegramCurrentAccountMessage(linkedUser.preferredLanguage, current.account.name);
+    return buildTelegramCurrentAccountMessage(linkedUser.preferredLanguage ?? 'es', current.account.name);
   }
 
   private async resolveLinkedTelegramUser(chatId?: string) {

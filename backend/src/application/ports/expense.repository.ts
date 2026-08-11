@@ -15,6 +15,11 @@ export interface CategoryTotalByPeriod {
 
 export interface ExpenseRepository {
   create(input: Omit<Expense, 'id'>): Promise<Expense>;
+  findById(input: {
+    tenantId: TenantId;
+    financialAccountId?: string;
+    expenseId: string;
+  }): Promise<Expense | undefined>;
   delete(input: {
     tenantId: TenantId;
     financialAccountId?: string;
@@ -32,6 +37,9 @@ export interface ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    paidByUserId?: string;
+    allocationMode?: Expense['allocationMode'];
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
     installmentCount?: number;
     firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];

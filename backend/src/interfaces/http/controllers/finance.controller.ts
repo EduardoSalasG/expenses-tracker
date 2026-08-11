@@ -36,7 +36,7 @@ export class FinanceController {
         userId: authRequest.auth.userId
       }));
     } catch (error) {
-      if (error instanceof Error && (error.message === 'Payment method option not found.' || error.message === 'Bank option not found.')) {
+      if (error instanceof Error && isExpenseValidationError(error.message)) {
         response.status(400).json({ error: error.message });
         return;
       }
@@ -53,14 +53,15 @@ export class FinanceController {
         ...body,
         expenseId,
         tenantId: authRequest.auth.tenantId,
-        financialAccountId: authRequest.auth.financialAccountId
+        financialAccountId: authRequest.auth.financialAccountId,
+        userId: authRequest.auth.userId
       }));
     } catch (error) {
       if (error instanceof Error && error.message === 'Expense not found.') {
         response.status(404).json({ error: error.message });
         return;
       }
-      if (error instanceof Error && (error.message === 'Payment method option not found.' || error.message === 'Bank option not found.')) {
+      if (error instanceof Error && isExpenseValidationError(error.message)) {
         response.status(400).json({ error: error.message });
         return;
       }
@@ -413,4 +414,15 @@ export class FinanceController {
     const body = parseBody(reportPreferencesSchema, request.body);
     response.json(await this.container.useCases.updateReportPreferences.execute(authRequest.auth.userId, body.preferences));
   };
+}
+
+function isExpenseValidationError(message: string) {
+  return [
+    'Payment method option not found.',
+    'Bank option not found.',
+    'Paid-by user must be an active member of the shared account.',
+    'Every allocation member must be active in the shared account.',
+    'Allocation amounts must match the expense total.',
+    'Custom allocations require at least one member allocation.'
+  ].includes(message);
 }

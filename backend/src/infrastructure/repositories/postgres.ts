@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberProfile, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberProfile, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -648,11 +648,11 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
       const inserted = await client.query(
         `insert into expenses (
-          tenant_id, financial_account_id, user_id, created_by_user_id, paid_by_user_id, expense_date, purchase_date, amount, currency, concept, category_id, subcategory_id,
+          tenant_id, financial_account_id, user_id, created_by_user_id, paid_by_user_id, allocation_mode, expense_date, purchase_date, amount, currency, concept, category_id, subcategory_id,
           payment_method_option_id, bank_option_id, payment_method_kind, bank, card_type, original_message,
           installment_count, first_installment_date
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         returning id`,
         [
           input.tenantId,
@@ -660,6 +660,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
           input.userId,
           input.createdByUserId ?? input.userId,
           input.paidByUserId ?? input.userId,
+          input.allocationMode ?? null,
           purchaseDate,
           purchaseDate,
           input.amount,
@@ -680,9 +681,13 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
       const expenseId = inserted.rows[0].id as string;
       await replaceExpenseInstallments(client, expenseId, input.amount, installmentCount, firstInstallmentDate);
+      if (input.financialAccountId && input.allocations) {
+        await replaceExpenseAllocations(client, expenseId, input.financialAccountId, input.allocations);
+      }
       const projected = await client.query(expenseProjectionSelectSql({ whereClause: 'where e.tenant_id = $1 and e.id = $2', limitClause: 'limit 1' }), [input.tenantId, expenseId]);
       await client.query('commit');
-      return mapExpense(projected.rows[0]);
+      const expenses = await attachExpenseAllocations(client, projected.rows.map(mapExpense));
+      return expenses[0];
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -700,6 +705,15 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     return result.rowCount === 1;
   }
 
+  async findById(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
+    const result = await this.pool.query(
+      expenseProjectionSelectSql({ whereClause: 'where e.tenant_id = $1 and e.id = $2 and ($3::uuid is null or e.financial_account_id = $3)', limitClause: 'limit 1' }),
+      [input.tenantId, input.expenseId, input.financialAccountId ?? null]
+    );
+    const expenses = await attachExpenseAllocations(this.pool, result.rows.map(mapExpense));
+    return expenses[0];
+  }
+
   async update(input: {
     tenantId: string;
     financialAccountId?: string;
@@ -712,6 +726,9 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    paidByUserId?: string;
+    allocationMode?: Expense['allocationMode'];
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
     installmentCount?: number;
     firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
@@ -742,6 +759,12 @@ export class PostgresExpenseRepository implements ExpenseRepository {
       const paymentCardType = Object.prototype.hasOwnProperty.call(input, 'paymentMethod')
         ? input.paymentMethod?.cardType ?? null
         : row.card_type ?? null;
+      const paidByUserId = Object.prototype.hasOwnProperty.call(input, 'paidByUserId')
+        ? input.paidByUserId ?? null
+        : row.paid_by_user_id ?? null;
+      const allocationMode = Object.prototype.hasOwnProperty.call(input, 'allocationMode')
+        ? input.allocationMode ?? null
+        : row.allocation_mode ?? null;
 
       await client.query(
         `update expenses
@@ -758,8 +781,10 @@ export class PostgresExpenseRepository implements ExpenseRepository {
              bank = $12,
              card_type = $13,
              installment_count = $14,
-             first_installment_date = $15
-         where tenant_id = $1 and id = $2 and ($16::uuid is null or financial_account_id = $16)`,
+             first_installment_date = $15,
+             paid_by_user_id = $16,
+             allocation_mode = $17
+         where tenant_id = $1 and id = $2 and ($18::uuid is null or financial_account_id = $18)`,
         [
           input.tenantId,
           input.expenseId,
@@ -776,14 +801,20 @@ export class PostgresExpenseRepository implements ExpenseRepository {
           paymentCardType,
           installmentCount,
           firstInstallmentDate,
+          paidByUserId,
+          allocationMode,
           input.financialAccountId ?? null
         ]
       );
 
       await replaceExpenseInstallments(client, input.expenseId, totalAmount, installmentCount, firstInstallmentDate);
+      if (input.financialAccountId && Object.prototype.hasOwnProperty.call(input, 'allocations')) {
+        await replaceExpenseAllocations(client, input.expenseId, input.financialAccountId, input.allocations ?? []);
+      }
       const projected = await client.query(expenseProjectionSelectSql({ whereClause: 'where e.tenant_id = $1 and e.id = $2', limitClause: 'limit 1' }), [input.tenantId, input.expenseId]);
       await client.query('commit');
-      return projected.rows[0] ? mapExpense(projected.rows[0]) : undefined;
+      const expenses = await attachExpenseAllocations(client, projected.rows.map(mapExpense));
+      return expenses[0];
     } catch (error) {
       await client.query('rollback');
       throw error;
@@ -825,7 +856,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
         input.limit
       ]
     );
-    return result.rows.map(mapExpense);
+    return attachExpenseAllocations(this.pool, result.rows.map(mapExpense));
   }
 
   async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
@@ -838,7 +869,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
       })}`,
       [tenantId, financialAccountId ?? null, limit]
     );
-    return result.rows.map(mapExpense);
+    return attachExpenseAllocations(this.pool, result.rows.map(mapExpense));
   }
 
   async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
@@ -850,7 +881,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
       })}`,
       [tenantId, financialAccountId ?? null, from, to]
     );
-    return result.rows.map(mapExpense);
+    return attachExpenseAllocations(this.pool, result.rows.map(mapExpense));
   }
 
   async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
@@ -1479,6 +1510,7 @@ function mapExpense(row: QueryResultRow): Expense {
     userId: row.user_id,
     createdByUserId: row.created_by_user_id ?? undefined,
     paidByUserId: row.paid_by_user_id ?? undefined,
+    allocationMode: row.allocation_mode ?? undefined,
     date: row.expense_date instanceof Date ? row.expense_date.toISOString() : row.expense_date,
     amount: Number(row.amount),
     totalAmount: row.total_amount != null ? Number(row.total_amount) : Number(row.amount),
@@ -1652,6 +1684,7 @@ function expenseProjectionSelectSql(input: {
       e.user_id,
       e.created_by_user_id,
       e.paid_by_user_id,
+      e.allocation_mode,
       i.due_date as expense_date,
       i.amount,
       e.amount as total_amount,
@@ -1694,6 +1727,52 @@ async function replaceExpenseInstallments(
       [expenseId, installment.installmentNumber, installmentCount, installment.dueDate, installment.amount]
     );
   }
+}
+
+async function replaceExpenseAllocations(
+  client: DatabasePool | PoolClient,
+  expenseId: string,
+  financialAccountId: string,
+  allocations: Array<{ owedByUserId: string; amount: number }>
+) {
+  await client.query(`delete from expense_allocations where expense_id = $1`, [expenseId]);
+  for (const allocation of allocations) {
+    await client.query(
+      `insert into expense_allocations (expense_id, financial_account_id, owed_by_user_id, amount)
+       values ($1, $2, $3, $4)`,
+      [expenseId, financialAccountId, allocation.owedByUserId, allocation.amount]
+    );
+  }
+}
+
+async function attachExpenseAllocations(
+  client: DatabasePool | PoolClient,
+  expenses: Expense[]
+) {
+  if (!expenses.length) return expenses;
+  const uniqueExpenseIds = [...new Set(expenses.map((expense) => expense.id))];
+  const result = await client.query(
+    `select id, expense_id, owed_by_user_id, amount
+     from expense_allocations
+     where expense_id = any($1::uuid[])
+     order by created_at asc, id asc`,
+    [uniqueExpenseIds]
+  );
+  const allocationsByExpenseId = result.rows.reduce<Record<string, ExpenseAllocation[]>>((acc, row) => {
+    const expenseId = row.expense_id as string;
+    const allocation: ExpenseAllocation = {
+      id: row.id,
+      expenseId,
+      owedByUserId: row.owed_by_user_id,
+      amount: Number(row.amount)
+    };
+    (acc[expenseId] ??= []).push(allocation);
+    return acc;
+  }, {});
+  return expenses.map((expense) => ({
+    ...expense,
+    allocations: allocationsByExpenseId[expense.id] ?? expense.allocations
+  }));
 }
 
 function normalizeScopedRecentArgs(financialAccountIdOrLimit?: string | number, limitMaybe?: number) {

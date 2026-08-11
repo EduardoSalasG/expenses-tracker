@@ -640,6 +640,19 @@ export const openApiSpec = {
           subcategoryId: { type: 'string', format: 'uuid' },
           paymentMethodOptionId: { type: 'string', format: 'uuid' },
           bankOptionId: { type: 'string', format: 'uuid' },
+          paidByUserId: { type: 'string', format: 'uuid', description: 'Required when a shared account expense is paid by a member different from the authenticated user.' },
+          allocationMode: { type: 'string', enum: ['payer', 'equal', 'custom'], description: 'Shared-account split mode. Omit for payer-only ownership.' },
+          allocations: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                owedByUserId: { type: 'string', format: 'uuid' },
+                amount: { type: 'number', example: 16500 }
+              },
+              required: ['owedByUserId', 'amount']
+            }
+          },
           installmentCount: { type: 'integer', example: 3, minimum: 1, maximum: 60 },
           firstInstallmentDate: { type: 'string', format: 'date-time', example: '2026-06-08T00:00:00.000Z' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
@@ -657,7 +670,13 @@ export const openApiSpec = {
                         concept: 'Natacion',
                         amount: 33000,
                         currency: 'CLP',
-                        installmentCount: 3
+                        installmentCount: 3,
+                        paidByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                        allocationMode: 'equal',
+                        allocations: [
+                          { owedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54', amount: 16500 },
+                          { owedByUserId: 'f39deee0-2d7b-4639-8c54-44b6d9cf62b4', amount: 16500 }
+                        ]
                       }
                     }
                   }
@@ -671,7 +690,10 @@ export const openApiSpec = {
                 examples: {
                   invalidPayload: { value: { error: 'Validation failed.' } },
                   invalidCategory: { value: { error: 'No category is available for this tenant.' } },
-                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } }
+                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } },
+                  invalidPaidByUser: { value: { error: 'Paid-by user must be an active member of the shared account.' } },
+                  invalidAllocationMember: { value: { error: 'Every allocation member must be active in the shared account.' } },
+                  invalidAllocationTotal: { value: { error: 'Allocation amounts must match the expense total.' } }
                 }
               }
             }
@@ -697,6 +719,19 @@ export const openApiSpec = {
           subcategoryId: { type: 'string', format: 'uuid' },
           paymentMethodOptionId: { type: 'string', format: 'uuid' },
           bankOptionId: { type: 'string', format: 'uuid' },
+          paidByUserId: { type: 'string', format: 'uuid' },
+          allocationMode: { type: 'string', enum: ['payer', 'equal', 'custom'] },
+          allocations: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                owedByUserId: { type: 'string', format: 'uuid' },
+                amount: { type: 'number', example: 16500 }
+              },
+              required: ['owedByUserId', 'amount']
+            }
+          },
           installmentCount: { type: 'integer', example: 3, minimum: 1, maximum: 60 },
           firstInstallmentDate: { type: 'string', format: 'date-time', example: '2026-06-08T00:00:00.000Z' },
           paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
@@ -713,7 +748,12 @@ export const openApiSpec = {
                       concept: 'Natacion',
                       amount: 33000,
                       currency: 'CLP',
-                      installmentCount: 3
+                      installmentCount: 3,
+                      allocationMode: 'custom',
+                      allocations: [
+                        { owedByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54', amount: 10000 },
+                        { owedByUserId: 'f39deee0-2d7b-4639-8c54-44b6d9cf62b4', amount: 23000 }
+                      ]
                     }
                   }
                 }
@@ -726,7 +766,8 @@ export const openApiSpec = {
               'application/json': {
                 examples: {
                   invalidPayload: { value: { error: 'Validation failed.' } },
-                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } }
+                  invalidSubcategory: { value: { error: 'Subcategory does not belong to the selected category.' } },
+                  invalidAllocationTotal: { value: { error: 'Allocation amounts must match the expense total.' } }
                 }
               }
             }

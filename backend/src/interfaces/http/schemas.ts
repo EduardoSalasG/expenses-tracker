@@ -147,9 +147,23 @@ export const createExpenseSchema = z.object({
   subcategoryId: z.string().uuid().optional(),
   paymentMethodOptionId: z.string().uuid().optional(),
   bankOptionId: z.string().uuid().optional(),
+  paidByUserId: z.string().uuid().optional(),
+  allocationMode: z.enum(['payer', 'equal', 'custom']).optional(),
+  allocations: z.array(z.object({
+    owedByUserId: z.string().uuid(),
+    amount: z.number().positive()
+  })).optional(),
   installmentCount: z.number().int().min(1).max(60).default(1),
   firstInstallmentDate: z.string().datetime().optional(),
   paymentMethod: paymentMethodSchema
+}).superRefine((value, ctx) => {
+  if (value.allocationMode === 'custom' && (!value.allocations || value.allocations.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'allocations are required when allocationMode is custom.',
+      path: ['allocations']
+    });
+  }
 });
 
 export const updateExpenseSchema = createExpenseSchema;

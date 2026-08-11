@@ -91,7 +91,7 @@ export function createContainer(config: AppConfig) {
     telegram: telegramMessaging
   });
   const interpreter = createMessageInterpreter(config, logger);
-  const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions);
+  const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions, financialAccounts);
   const financialAccountsUseCases = new FinancialAccountsUseCases(
     financialAccounts,
     categories,

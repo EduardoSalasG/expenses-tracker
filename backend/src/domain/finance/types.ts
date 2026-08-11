@@ -8,6 +8,7 @@ export type CurrencyCode = string;
 export type ReportFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type CardType = 'credit' | 'debit';
 export type PaymentMethodKind = 'cash' | 'card' | 'transfer';
+export type ExpenseAllocationMode = 'payer' | 'equal' | 'custom';
 
 export interface BankOption {
   id: string;
@@ -34,6 +35,13 @@ export interface PaymentMethod {
   cardType?: CardType;
 }
 
+export interface ExpenseAllocation {
+  id?: string;
+  expenseId?: ExpenseId;
+  owedByUserId: UserId;
+  amount: number;
+}
+
 export interface Expense {
   id: ExpenseId;
   tenantId: TenantId;
@@ -41,6 +49,8 @@ export interface Expense {
   userId: UserId;
   createdByUserId?: UserId;
   paidByUserId?: UserId;
+  allocationMode?: ExpenseAllocationMode;
+  allocations?: ExpenseAllocation[];
   date: string;
   amount: number;
   totalAmount?: number;

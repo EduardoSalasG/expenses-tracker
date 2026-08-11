@@ -593,12 +593,28 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const expense = {
       ...input,
       id: randomUUID(),
+      allocations: input.allocations?.map((allocation) => ({
+        id: randomUUID(),
+        expenseId: '',
+        owedByUserId: allocation.owedByUserId,
+        amount: allocation.amount
+      })),
       purchaseDate,
       firstInstallmentDate,
       installmentCount
     };
+    expense.allocations = expense.allocations?.map((allocation) => ({ ...allocation, expenseId: expense.id }));
     this.expenses.push(expense);
     return buildProjectedExpenses(expense)[0];
+  }
+
+  async findById(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
+    const expense = this.expenses.find((item) =>
+      item.tenantId === input.tenantId &&
+      item.id === input.expenseId &&
+      (!input.financialAccountId || !item.financialAccountId || item.financialAccountId === input.financialAccountId)
+    );
+    return expense ? buildProjectedExpenses(expense)[0] : undefined;
   }
 
   async delete(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
@@ -624,6 +640,9 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     subcategoryId?: string | null;
     paymentMethodOptionId?: string | null;
     bankOptionId?: string | null;
+    paidByUserId?: string;
+    allocationMode?: Expense['allocationMode'];
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
     installmentCount?: number;
     firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
@@ -655,6 +674,20 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
         ? input.bankOptionId ?? undefined
         : this.expenses[index].bankOptionId,
       paymentMethod: input.paymentMethod ?? this.expenses[index].paymentMethod,
+      paidByUserId: Object.prototype.hasOwnProperty.call(input, 'paidByUserId')
+        ? input.paidByUserId ?? undefined
+        : this.expenses[index].paidByUserId,
+      allocationMode: Object.prototype.hasOwnProperty.call(input, 'allocationMode')
+        ? input.allocationMode ?? undefined
+        : this.expenses[index].allocationMode,
+      allocations: Object.prototype.hasOwnProperty.call(input, 'allocations')
+        ? input.allocations?.map((allocation) => ({
+          id: randomUUID(),
+          expenseId: this.expenses[index].id,
+          owedByUserId: allocation.owedByUserId,
+          amount: allocation.amount
+        }))
+        : this.expenses[index].allocations,
       subcategoryId: Object.prototype.hasOwnProperty.call(input, 'subcategoryId')
         ? input.subcategoryId ?? undefined
         : this.expenses[index].subcategoryId

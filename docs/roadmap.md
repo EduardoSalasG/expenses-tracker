@@ -78,9 +78,10 @@ Implemented in backend and frontend as of August 11, 2026:
 - active account visibility banner across dashboard, expenses, incomes, budgets, and categories
 - shared account capture from web and Telegram through the currently active financial account
 - account-scoped dashboard and reports through the existing analytics views after switching the active account
+- shared expense allocation persistence with payer, equal split, and custom split modes
+- allocation-aware expense editing foundation, including proportional rescaling for existing custom splits when amount changes
 
 Still pending for the Splitwise expansion:
 
-- payer and allocation model per shared expense
 - balances by member
 - settlements and reconciliation flows

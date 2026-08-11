@@ -1,5 +1,13 @@
-import type { BankOption, Category, Expense, Income, MonthlyBudget, PaymentMethodOption } from '../../domain/index.js';
-import type { BankOptionRepository, BudgetRepository, CategoryRepository, ExpenseRepository, IncomeRepository, PaymentMethodOptionRepository } from '../ports.js';
+import type { BankOption, Category, Expense, ExpenseAllocationMode, Income, MonthlyBudget, PaymentMethodOption } from '../../domain/index.js';
+import type {
+  BankOptionRepository,
+  BudgetRepository,
+  CategoryRepository,
+  ExpenseRepository,
+  FinancialAccountRepository,
+  IncomeRepository,
+  PaymentMethodOptionRepository
+} from '../ports.js';
 import { normalizeCategorySelection } from '../services/category-normalization.service.js';
 import { PaymentSelectionService } from '../services/payment-selection.service.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
@@ -25,22 +33,35 @@ export class FinanceUseCases {
       create: async () => { throw new Error('Payment method options repository not configured.'); },
       update: async () => undefined,
       delete: async () => false
-    }
+    },
+    private readonly financialAccounts?: FinancialAccountRepository
   ) {
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
 
-  async createExpense(input: Omit<Expense, 'id'> & { paymentMethodOptionId?: string; bankOptionId?: string }) {
+  async createExpense(
+    input: Omit<Expense, 'id'> & {
+      paymentMethodOptionId?: string;
+      bankOptionId?: string;
+      paidByUserId?: string;
+      allocationMode?: ExpenseAllocationMode;
+      allocations?: Array<{ owedByUserId: string; amount: number }>;
+    }
+  ) {
     const categories = await this.categories.listByTenant(input.tenantId, input.financialAccountId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
     const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input.financialAccountId, input);
+    const allocationResolution = await this.resolveSharedExpenseAllocationsOnCreate(input);
     return this.expenses.create({
       ...input,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
       paymentMethod: paymentSelection.paymentMethod,
       paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
-      bankOptionId: paymentSelection.bankOptionId
+      bankOptionId: paymentSelection.bankOptionId,
+      paidByUserId: allocationResolution.paidByUserId,
+      allocationMode: allocationResolution.allocationMode,
+      allocations: allocationResolution.allocations
     });
   }
 
@@ -48,6 +69,7 @@ export class FinanceUseCases {
     tenantId: string;
     financialAccountId?: string;
     expenseId: string;
+    userId: string;
     date: string;
     amount: number;
     currency: string;
@@ -56,13 +78,23 @@ export class FinanceUseCases {
     subcategoryId?: string;
     paymentMethodOptionId?: string;
     bankOptionId?: string;
+    paidByUserId?: string;
+    allocationMode?: ExpenseAllocationMode;
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
     installmentCount?: number;
     firstInstallmentDate?: string;
     paymentMethod: Expense['paymentMethod'];
   }) {
+    const existing = await this.expenses.findById({
+      tenantId: input.tenantId,
+      financialAccountId: input.financialAccountId,
+      expenseId: input.expenseId
+    });
+    if (!existing) throw new Error('Expense not found.');
     const categories = await this.categories.listByTenant(input.tenantId, input.financialAccountId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
     const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input.financialAccountId, input);
+    const allocationResolution = await this.resolveSharedExpenseAllocationsOnUpdate(input, existing);
     const updated = await this.expenses.update({
       tenantId: input.tenantId,
       financialAccountId: input.financialAccountId,
@@ -76,6 +108,9 @@ export class FinanceUseCases {
       paymentMethod: paymentSelection.paymentMethod,
       paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
       bankOptionId: paymentSelection.bankOptionId,
+      paidByUserId: allocationResolution.paidByUserId,
+      allocationMode: allocationResolution.allocationMode,
+      allocations: allocationResolution.allocations,
       installmentCount: input.installmentCount,
       firstInstallmentDate: input.firstInstallmentDate
     });
@@ -278,6 +313,199 @@ export class FinanceUseCases {
   ) {
     return this.paymentSelections.resolve(tenantId, financialAccountId, input);
   }
+
+  private async resolveSharedExpenseAllocationsOnCreate(input: {
+    financialAccountId?: string;
+    userId: string;
+    paidByUserId?: string;
+    amount: number;
+    allocationMode?: ExpenseAllocationMode;
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
+  }) {
+    return this.resolveSharedExpenseAllocations({
+      financialAccountId: input.financialAccountId,
+      actorUserId: input.userId,
+      paidByUserId: input.paidByUserId ?? input.userId,
+      amount: input.amount,
+      allocationMode: input.allocationMode,
+      allocations: input.allocations
+    });
+  }
+
+  private async resolveSharedExpenseAllocationsOnUpdate(
+    input: {
+      financialAccountId?: string;
+      userId: string;
+      amount: number;
+      paidByUserId?: string;
+      allocationMode?: ExpenseAllocationMode;
+      allocations?: Array<{ owedByUserId: string; amount: number }>;
+    },
+    existing: Expense
+  ) {
+    const hasExplicitAllocationUpdate =
+      Object.prototype.hasOwnProperty.call(input, 'paidByUserId') ||
+      Object.prototype.hasOwnProperty.call(input, 'allocationMode') ||
+      Object.prototype.hasOwnProperty.call(input, 'allocations');
+
+    if (!hasExplicitAllocationUpdate && input.amount === (existing.totalAmount ?? existing.amount)) {
+      return {
+        paidByUserId: existing.paidByUserId,
+        allocationMode: existing.allocationMode,
+        allocations: existing.allocations?.map((allocation) => ({
+          owedByUserId: allocation.owedByUserId,
+          amount: allocation.amount
+        }))
+      };
+    }
+
+    const inferredAllocations = !hasExplicitAllocationUpdate && existing.allocations?.length
+      ? scaleExistingAllocations(existing, input.amount)
+      : input.allocations;
+
+    return this.resolveSharedExpenseAllocations({
+      financialAccountId: input.financialAccountId,
+      actorUserId: input.userId,
+      paidByUserId: input.paidByUserId ?? existing.paidByUserId ?? input.userId,
+      amount: input.amount,
+      allocationMode: input.allocationMode ?? existing.allocationMode,
+      allocations: inferredAllocations
+    });
+  }
+
+  private async resolveSharedExpenseAllocations(input: {
+    financialAccountId?: string;
+    actorUserId: string;
+    paidByUserId: string;
+    amount: number;
+    allocationMode?: ExpenseAllocationMode;
+    allocations?: Array<{ owedByUserId: string; amount: number }>;
+  }) {
+    if (!input.financialAccountId || !this.financialAccounts) {
+      return {
+        paidByUserId: input.paidByUserId,
+        allocationMode: input.allocationMode,
+        allocations: input.allocations
+      };
+    }
+
+    const financialAccount = await this.financialAccounts.findById(input.financialAccountId);
+    if (!financialAccount || financialAccount.type !== 'shared') {
+      return {
+        paidByUserId: input.paidByUserId,
+        allocationMode: input.allocationMode,
+        allocations: input.allocations
+      };
+    }
+
+    const members = await this.financialAccounts.listMembers(input.financialAccountId);
+    const activeMemberIds = members.filter((member) => member.status === 'active').map((member) => member.userId);
+    if (!activeMemberIds.includes(input.paidByUserId)) {
+      throw new Error('Paid-by user must be an active member of the shared account.');
+    }
+
+    const requestedMode = input.allocations?.length ? (input.allocationMode ?? 'custom') : (input.allocationMode ?? 'payer');
+    if (requestedMode === 'equal') {
+      return {
+        paidByUserId: input.paidByUserId,
+        allocationMode: 'equal' as const,
+        allocations: splitAmountEqually(input.amount, activeMemberIds).map((allocation) => ({
+          owedByUserId: allocation.userId,
+          amount: allocation.amount
+        }))
+      };
+    }
+
+    if (requestedMode === 'custom') {
+      const allocations = normalizeCustomAllocations(input.amount, input.allocations ?? []);
+      for (const allocation of allocations) {
+        if (!activeMemberIds.includes(allocation.owedByUserId)) {
+          throw new Error('Every allocation member must be active in the shared account.');
+        }
+      }
+      return {
+        paidByUserId: input.paidByUserId,
+        allocationMode: 'custom' as const,
+        allocations
+      };
+    }
+
+    return {
+      paidByUserId: input.paidByUserId,
+      allocationMode: 'payer' as const,
+      allocations: [{ owedByUserId: input.paidByUserId, amount: roundMoney(input.amount) }]
+    };
+  }
+}
+
+function scaleExistingAllocations(existing: Expense, nextAmount: number) {
+  const previousAllocations = existing.allocations ?? [];
+  if (!previousAllocations.length) return undefined;
+
+  if (existing.allocationMode === 'equal') {
+    return splitAmountEqually(nextAmount, previousAllocations.map((allocation) => allocation.owedByUserId)).map((allocation) => ({
+      owedByUserId: allocation.userId,
+      amount: allocation.amount
+    }));
+  }
+
+  if (existing.allocationMode === 'custom') {
+    const previousTotal = previousAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    if (previousTotal <= 0) {
+      return [{ owedByUserId: existing.paidByUserId ?? existing.userId, amount: roundMoney(nextAmount) }];
+    }
+
+    const targetCents = Math.round(nextAmount * 100);
+    let allocatedCents = 0;
+    return previousAllocations.map((allocation, index) => {
+      if (index === previousAllocations.length - 1) {
+        return {
+          owedByUserId: allocation.owedByUserId,
+          amount: (targetCents - allocatedCents) / 100
+        };
+      }
+      const cents = Math.round((allocation.amount / previousTotal) * targetCents);
+      allocatedCents += cents;
+      return {
+        owedByUserId: allocation.owedByUserId,
+        amount: cents / 100
+      };
+    });
+  }
+
+  return [{ owedByUserId: existing.paidByUserId ?? existing.userId, amount: roundMoney(nextAmount) }];
+}
+
+function splitAmountEqually(amount: number, userIds: string[]) {
+  if (!userIds.length) throw new Error('Shared account must have at least one active member.');
+  const totalCents = Math.round(amount * 100);
+  const base = Math.floor(totalCents / userIds.length);
+  let remainder = totalCents - (base * userIds.length);
+  return userIds.map((userId) => {
+    const cents = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return { userId, amount: cents / 100 };
+  });
+}
+
+function normalizeCustomAllocations(amount: number, allocations: Array<{ owedByUserId: string; amount: number }>) {
+  if (!allocations.length) {
+    throw new Error('Custom allocations require at least one member allocation.');
+  }
+
+  const normalized = allocations.map((allocation) => ({
+    owedByUserId: allocation.owedByUserId,
+    amount: roundMoney(allocation.amount)
+  }));
+  const total = roundMoney(normalized.reduce((sum, allocation) => sum + allocation.amount, 0));
+  if (Math.abs(total - roundMoney(amount)) > 0.009) {
+    throw new Error('Allocation amounts must match the expense total.');
+  }
+  return normalized;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function previousPeriod(from: string, to: string) {
