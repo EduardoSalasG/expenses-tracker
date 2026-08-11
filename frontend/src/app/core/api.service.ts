@@ -8,6 +8,69 @@ export interface PaymentMethod {
   cardType?: 'credit' | 'debit';
 }
 
+export type FinancialAccountType = 'personal' | 'shared';
+export type FinancialAccountMemberRole = 'owner' | 'admin' | 'member';
+export type FinancialAccountMemberStatus = 'active' | 'invited' | 'removed';
+
+export interface FinancialAccount {
+  id: string;
+  tenantId: string;
+  type: FinancialAccountType;
+  name: string;
+  currency: string;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinancialAccountMembership {
+  account: FinancialAccount;
+  role: FinancialAccountMemberRole;
+}
+
+export interface FinancialAccountMemberProfile {
+  memberId: string;
+  financialAccountId: string;
+  userId: string;
+  role: FinancialAccountMemberRole;
+  status: FinancialAccountMemberStatus;
+  joinedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  email?: string;
+  phoneNumber: string;
+}
+
+export interface FinancialAccountInvitation {
+  id: string;
+  financialAccountId: string;
+  invitedByUserId?: string;
+  email: string;
+  phoneNumber?: string;
+  role: FinancialAccountMemberRole;
+  token: string;
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
+  expiresAt: string;
+  acceptedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinancialAccountContext {
+  current: FinancialAccountMembership;
+  accounts: FinancialAccountMembership[];
+}
+
+export interface UpdateFinancialAccountContextResponse {
+  account: FinancialAccount;
+  accounts: FinancialAccountMembership[];
+  accessToken: string;
+  refreshToken: string;
+}
+
 export interface BankOption {
   id: string;
   tenantId?: string;
@@ -290,5 +353,44 @@ export class ApiService {
 
   updateReportPreferences(preferences: ReportFrequency[]) {
     return this.http.put(`${environment.apiBaseUrl}/report-preferences`, { preferences });
+  }
+
+  accountContext() {
+    return this.http.get<FinancialAccountContext>(`${environment.apiBaseUrl}/me/account-context`);
+  }
+
+  listAccounts() {
+    return this.http.get<FinancialAccountMembership[]>(`${environment.apiBaseUrl}/accounts`);
+  }
+
+  createAccount(payload: { name: string; currency: string }) {
+    return this.http.post<FinancialAccountMembership>(`${environment.apiBaseUrl}/accounts`, payload);
+  }
+
+  updateAccount(accountId: string, payload: { name: string }) {
+    return this.http.patch<FinancialAccount>(`${environment.apiBaseUrl}/accounts/${accountId}`, payload);
+  }
+
+  listAccountMembers(accountId: string) {
+    return this.http.get<FinancialAccountMemberProfile[]>(`${environment.apiBaseUrl}/accounts/${accountId}/members`);
+  }
+
+  createAccountInvitation(accountId: string, payload: { email: string; phoneNumber?: string; role?: FinancialAccountMemberRole }) {
+    return this.http.post<FinancialAccountInvitation>(`${environment.apiBaseUrl}/accounts/${accountId}/invitations`, payload);
+  }
+
+  acceptAccountInvitation(token: string) {
+    return this.http.post<{ invitation: FinancialAccountInvitation; membership: FinancialAccountMembership }>(
+      `${environment.apiBaseUrl}/accounts/invitations/${token}/accept`,
+      {}
+    );
+  }
+
+  removeAccountMember(accountId: string, memberUserId: string) {
+    return this.http.delete<{ success: true }>(`${environment.apiBaseUrl}/accounts/${accountId}/members/${memberUserId}`);
+  }
+
+  updateAccountContext(financialAccountId: string) {
+    return this.http.put<UpdateFinancialAccountContextResponse>(`${environment.apiBaseUrl}/me/account-context`, { financialAccountId });
   }
 }

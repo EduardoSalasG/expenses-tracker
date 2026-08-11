@@ -9,6 +9,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { AccountContextService } from '../core/account-context.service';
 import { ApiService, type BankOption, type CurrentUser, type PaymentMethodOption, type ReportFrequency } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
@@ -36,6 +38,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
     MatExpansionModule,
     MatIconModule,
     MatSelectModule,
+    MatSnackBarModule,
     FeedbackBannerComponent,
     PageHeaderComponent
   ],
@@ -250,6 +253,133 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
+      <mat-card id="settings-accounts-panel" class="page-panel p-5 xl:col-span-2">
+        <div class="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+          <section class="grid gap-4">
+            <div>
+              <h2 class="text-lg font-semibold text-brand-ink">{{ t('accounts_title') }}</h2>
+              <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_hint') }}</p>
+            </div>
+
+            <mat-form-field appearance="outline">
+              <mat-label>{{ t('accounts_current_account') }}</mat-label>
+              <mat-select [value]="selectedAccountId()" (selectionChange)="selectAccount($event.value)">
+                @for (membership of accountService.accounts(); track membership.account.id) {
+                  <mat-option [value]="membership.account.id">
+                    {{ membership.account.name }} · {{ t(membership.account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared') }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            @if (selectedMembership()) {
+              <div class="rounded border border-brand-border bg-brand-surface p-4 text-sm">
+                <div class="font-medium text-brand-ink">{{ selectedMembership()?.account?.name }}</div>
+                <div class="mt-1 text-brand-muted">
+                  {{ t(selectedMembership()?.account?.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared') }}
+                  · {{ t(accountRoleKey(selectedMembership()?.role ?? 'member')) }}
+                  · {{ selectedMembership()?.account?.currency }}
+                </div>
+              </div>
+            }
+
+            <form [formGroup]="createAccountForm" (ngSubmit)="createAccount()" class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4">
+              <div class="text-sm font-medium text-brand-ink">{{ t('accounts_create_title') }}</div>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('accounts_name') }}</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('accounts_currency') }}</mat-label>
+                <input matInput formControlName="currency" maxlength="3" />
+              </mat-form-field>
+              <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="createAccountForm.invalid || savingAccount()">
+                {{ t('accounts_create_action') }}
+              </button>
+            </form>
+
+            @if (canManageSelectedSharedAccount()) {
+              <form [formGroup]="renameAccountForm" (ngSubmit)="renameAccount()" class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4">
+                <div class="text-sm font-medium text-brand-ink">{{ t('accounts_rename_title') }}</div>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('accounts_name') }}</mat-label>
+                  <input matInput formControlName="name" />
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="renameAccountForm.invalid || savingAccount()">
+                  {{ t('accounts_rename_action') }}
+                </button>
+              </form>
+            }
+
+            <app-feedback-banner [message]="accountMessage()" [tone]="feedbackTone(accountMessage())" />
+          </section>
+
+          <section class="grid gap-4">
+            <form
+              [formGroup]="inviteForm"
+              (ngSubmit)="inviteMember()"
+              class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+            >
+              <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_title') }}</div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('login_email') }}</mat-label>
+                  <input matInput formControlName="email" type="email" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('login_phone') }}</mat-label>
+                  <input matInput formControlName="phoneNumber" />
+                </mat-form-field>
+              </div>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ t('accounts_member_role') }}</mat-label>
+                <mat-select formControlName="role">
+                  <mat-option value="member">{{ t('accounts_role_member') }}</mat-option>
+                  <mat-option value="admin">{{ t('accounts_role_admin') }}</mat-option>
+                  <mat-option value="owner">{{ t('accounts_role_owner') }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="inviteForm.invalid || !canManageSelectedSharedAccount() || savingInvitation()">
+                {{ t('accounts_invite_action') }}
+              </button>
+            </form>
+
+            <app-feedback-banner [message]="inviteMessage()" [tone]="feedbackTone(inviteMessage())" />
+
+            <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="font-medium text-brand-ink">{{ t('accounts_members_title') }}</h3>
+                  <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_members_hint') }}</p>
+                </div>
+                @if (accountService.membersLoading()) {
+                  <span class="text-sm text-brand-muted">{{ t('common_loading') }}</span>
+                }
+              </div>
+              <div class="grid gap-2">
+                @for (member of accountService.members(); track member.memberId) {
+                  <div class="flex flex-col gap-3 rounded border border-brand-border/70 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                      <div class="truncate font-medium text-brand-ink">{{ member.preferredName }}</div>
+                      <div class="mt-1 text-sm text-brand-muted">
+                        {{ member.email || member.phoneNumber }} · {{ t(accountRoleKey(member.role)) }}
+                      </div>
+                    </div>
+                    @if (canRemoveMember(member.userId, member.role)) {
+                      <button mat-stroked-button type="button" class="!h-10 !border-brand-border !text-brand-ink" (click)="removeMember(member.userId)">
+                        {{ t('accounts_remove_member') }}
+                      </button>
+                    }
+                  </div>
+                } @empty {
+                  <div class="text-sm text-brand-muted">{{ t('common_no_data') }}</div>
+                }
+              </div>
+            </div>
+          </section>
+        </div>
+      </mat-card>
+
       <mat-card id="settings-telegram-panel" class="page-panel p-5 xl:col-span-2">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -300,6 +430,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
 })
 export class SettingsComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly snackBar = inject(MatSnackBar);
   readonly frequencies = frequencies;
   readonly user = signal<CurrentUser | null>(null);
   readonly loading = signal(false);
@@ -317,6 +448,11 @@ export class SettingsComponent {
   readonly editingBankId = signal<string | null>(null);
   readonly editingPaymentMethodId = signal<string | null>(null);
   readonly telegramBotUrl = signal('https://t.me/');
+  readonly accountMessage = signal('');
+  readonly inviteMessage = signal('');
+  readonly savingAccount = signal(false);
+  readonly savingInvitation = signal(false);
+  readonly selectedAccountId = signal<string | null>(null);
   readonly profileForm = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
@@ -340,9 +476,22 @@ export class SettingsComponent {
     kind: ['cash' as 'cash' | 'card' | 'transfer', Validators.required],
     cardType: ['debit' as 'credit' | 'debit']
   });
+  readonly createAccountForm = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]]
+  });
+  readonly renameAccountForm = this.fb.nonNullable.group({
+    name: ['', Validators.required]
+  });
+  readonly inviteForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    phoneNumber: [''],
+    role: ['member' as 'owner' | 'admin' | 'member', Validators.required]
+  });
 
   constructor(
     private readonly api: ApiService,
+    readonly accountService: AccountContextService,
     private readonly auth: AuthService,
     private readonly router: Router,
     private readonly i18n: I18nService,
@@ -387,12 +536,138 @@ export class SettingsComponent {
           next: (options) => this.paymentMethodOptions.set(options),
           error: () => this.paymentMethodOptions.set([])
         });
+        if (!this.accountService.context()) {
+          this.accountService.load().subscribe({
+            next: (context) => {
+              this.selectedAccountId.set(context.current.account.id);
+              this.renameAccountForm.reset({ name: context.current.account.name });
+              this.loadMembers();
+            },
+            error: () => {}
+          });
+        } else {
+          const currentAccount = this.accountService.currentAccount();
+          this.selectedAccountId.set(currentAccount?.id ?? null);
+          this.renameAccountForm.reset({ name: currentAccount?.name ?? '' });
+          this.loadMembers();
+        }
         this.loading.set(false);
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
         this.loading.set(false);
         this.loadError.set(this.t('settings_load_error'));
+      }
+    });
+  }
+
+  selectedMembership() {
+    const selectedId = this.selectedAccountId();
+    return this.accountService.accounts().find((membership) => membership.account.id === selectedId) ?? this.accountService.currentMembership();
+  }
+
+  canManageSelectedSharedAccount() {
+    const membership = this.selectedMembership();
+    return Boolean(membership && membership.account.type === 'shared' && ['owner', 'admin'].includes(membership.role));
+  }
+
+  accountRoleKey(role: 'owner' | 'admin' | 'member') {
+    return `accounts_role_${role}`;
+  }
+
+  selectAccount(accountId: string) {
+    this.selectedAccountId.set(accountId);
+    const selected = this.selectedMembership();
+    this.renameAccountForm.reset({ name: selected?.account.name ?? '' });
+    this.loadMembers();
+  }
+
+  createAccount() {
+    if (this.createAccountForm.invalid) return;
+    const value = this.createAccountForm.getRawValue();
+    this.savingAccount.set(true);
+    this.accountMessage.set('');
+    this.api.createAccount({
+      name: value.name,
+      currency: value.currency.toUpperCase()
+    }).subscribe({
+      next: (membership) => {
+        this.accountService.insertAccount(membership);
+        this.createAccountForm.reset({ name: '', currency: value.currency.toUpperCase() });
+        this.savingAccount.set(false);
+        this.accountMessage.set(this.t('accounts_create_success'));
+      },
+      error: () => {
+        this.savingAccount.set(false);
+        this.accountMessage.set(this.t('accounts_create_error'));
+      }
+    });
+  }
+
+  renameAccount() {
+    const membership = this.selectedMembership();
+    if (!membership || this.renameAccountForm.invalid || membership.account.type !== 'shared') return;
+    this.savingAccount.set(true);
+    this.accountMessage.set('');
+    this.api.updateAccount(membership.account.id, {
+      name: this.renameAccountForm.getRawValue().name
+    }).subscribe({
+      next: (account) => {
+        this.accountService.updateLocalAccount(account);
+        this.savingAccount.set(false);
+        this.accountMessage.set(this.t('accounts_rename_success'));
+      },
+      error: () => {
+        this.savingAccount.set(false);
+        this.accountMessage.set(this.t('accounts_rename_error'));
+      }
+    });
+  }
+
+  inviteMember() {
+    const membership = this.selectedMembership();
+    if (!membership || membership.account.type !== 'shared' || this.inviteForm.invalid) return;
+    const value = this.inviteForm.getRawValue();
+    this.savingInvitation.set(true);
+    this.inviteMessage.set('');
+    this.api.createAccountInvitation(membership.account.id, {
+      email: value.email,
+      phoneNumber: value.phoneNumber || undefined,
+      role: value.role
+    }).subscribe({
+      next: () => {
+        this.inviteForm.reset({ email: '', phoneNumber: '', role: 'member' });
+        this.savingInvitation.set(false);
+        this.inviteMessage.set(this.t('accounts_invite_success'));
+      },
+      error: () => {
+        this.savingInvitation.set(false);
+        this.inviteMessage.set(this.t('accounts_invite_error'));
+      }
+    });
+  }
+
+  canRemoveMember(memberUserId: string, memberRole: 'owner' | 'admin' | 'member') {
+    const membership = this.selectedMembership();
+    const user = this.user();
+    if (!membership || !user) return false;
+    if (!['owner', 'admin'].includes(membership.role)) return false;
+    if (memberUserId === user.id) return false;
+    if (memberRole === 'owner' && membership.role !== 'owner') return false;
+    return true;
+  }
+
+  removeMember(memberUserId: string) {
+    const membership = this.selectedMembership();
+    if (!membership) return;
+    if (!confirm(this.t('accounts_remove_confirm'))) return;
+    this.api.removeAccountMember(membership.account.id, memberUserId).subscribe({
+      next: () => {
+        this.loadMembers();
+        this.snackBar.open(this.t('accounts_remove_success'), undefined, { duration: 2400 });
+      },
+      error: () => {
+        this.snackBar.open(this.t('accounts_remove_error'), undefined, { duration: 2800 });
       }
     });
   }
@@ -574,6 +849,12 @@ export class SettingsComponent {
     return message.includes('No se pudo') || message.includes('Could not') ? 'error' : 'success';
   }
 
+  private loadMembers() {
+    const accountId = this.selectedAccountId();
+    if (!accountId) return;
+    this.accountService.refreshMembers(accountId).subscribe({ error: () => {} });
+  }
+
   private startOnboarding() {
     void this.onboarding.startOnce('settings', [
       {
@@ -590,6 +871,11 @@ export class SettingsComponent {
         element: '#settings-catalogs-panel',
         title: this.t('onboarding_settings_catalogs_title'),
         description: this.t('onboarding_settings_catalogs_desc')
+      },
+      {
+        element: '#settings-accounts-panel',
+        title: this.t('onboarding_settings_accounts_title'),
+        description: this.t('onboarding_settings_accounts_desc')
       },
       {
         element: '#settings-telegram-panel',

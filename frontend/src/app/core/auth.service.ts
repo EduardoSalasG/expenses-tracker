@@ -179,6 +179,11 @@ export class AuthService {
     this.user.set(null);
   }
 
+  updateSessionTokens(accessToken: string, refreshToken: string) {
+    localStorage.setItem(this.tokenKey, accessToken);
+    localStorage.setItem(this.refreshTokenKey, refreshToken);
+  }
+
   private storeSession(response: VerifyOtpResponse) {
     localStorage.setItem(this.tokenKey, response.accessToken);
     localStorage.setItem(this.refreshTokenKey, response.refreshToken);
