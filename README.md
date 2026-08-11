@@ -55,6 +55,7 @@ Notes:
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
 - `pnpm db:bootstrap` is the canonical command for a brand-new database. It runs migrations and then ensures the system-owned default category catalog exists.
 - `pnpm db:seed` is optional and only creates local demo/admin users plus tenant copies of the default categories.
+- `pnpm db:backfill:financial-accounts` is only for existing environments after the shared-accounts foundation migration. It creates one personal financial account per existing user and links historical financial rows to it.
 - Real business data should be moved with `pnpm db:export:tenant` / `pnpm db:import:data` for one user tenant, or `pnpm db:export:data` for a full database dump.
 - Expense forms support inline creation of missing categories, subcategories, banks, and payment methods. Budget forms support inline category/subcategory creation in the same flow.
 
@@ -150,6 +151,8 @@ See:
 - [Frontend README](frontend/README.md)
 - [Database README](database/README.md)
 - [Architecture](docs/architecture.md)
+- [Shared Accounts Design](docs/shared-accounts-design.md)
+- [Roadmap](docs/roadmap.md)
 - [Operations](docs/operations.md)
 - [Release Checklist](docs/release-checklist.md)
 - [QA Evidence 2026-06-11](docs/qa-evidence-2026-06-11.md)

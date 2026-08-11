@@ -7,6 +7,7 @@ Important behavior:
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
 - `pnpm db:bootstrap` is the canonical setup command for a brand-new database. It runs migrations and then inserts the system-owned default category catalog.
 - `pnpm db:seed` is optional and only loads demo/local sample data.
+- `pnpm db:backfill:financial-accounts` is a one-time historical backfill for the shared-accounts foundation. It creates one personal financial account per existing user and links legacy financial rows to it.
 - `pnpm db:export:tenant` exports one user tenant only, so local personal data can be moved to production without dumping the entire database.
 - A brand-new production database is **not** auto-filled with demo users or business data just because the backend starts.
 
@@ -104,6 +105,7 @@ Use cases:
 - `pnpm db:bootstrap`: new environment from zero
 - `pnpm db:migrate`: existing environment upgrade
 - `pnpm db:seed`: optional local/demo sample users
+- `pnpm db:backfill:financial-accounts`: existing environment only, after migration `028_shared_accounts_foundation.sql`
 - `pnpm db:export:tenant`: export only one tenant/user dataset
 
 For an existing local database created before the messaging table rename, run the targeted migration:
@@ -111,6 +113,45 @@ For an existing local database created before the messaging table rename, run th
 ```bash
 pnpm db:migrate:messaging-rename
 ```
+
+## Shared Accounts Foundation Backfill
+
+Migration `028_shared_accounts_foundation.sql` only creates structure:
+
+- `financial_accounts`
+- `financial_account_members`
+- `financial_account_invitations`
+- `messaging_channel_contexts`
+- new nullable `financial_account_id` ownership columns on existing financial tables
+
+Historical data is linked by a separate explicit script:
+
+```bash
+pnpm db:backfill:financial-accounts
+```
+
+What it does:
+
+- ensures one `personal` financial account for every existing user
+- creates an active `owner` membership for that same user
+- backfills historical `expenses` and `incomes` by `user_id`
+- backfills tenant-scoped `categories`, `monthly_budgets`, `bank_options`, and `payment_method_options` to the canonical account of the first user created in that tenant
+- fills `expenses.created_by_user_id` and `expenses.paid_by_user_id` from the legacy historical `user_id`
+
+Run order for an existing environment:
+
+1. `pnpm db:migrate`
+2. `pnpm db:backfill:financial-accounts`
+3. verify there are no unexpected rows left with `financial_account_id is null`
+
+This backfill is intentionally **not** executed automatically on backend startup.
+It is a one-time operational step and should be logged, reviewed, and run explicitly in production.
+
+Rollback note:
+
+- schema migration rollback is manual
+- the backfill itself is additive and update-based, so take a database backup/snapshot before running it in production
+- if validation fails, restore from backup instead of attempting ad hoc row-by-row reversal
 
 The database is exposed at:
 

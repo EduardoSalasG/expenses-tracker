@@ -1,0 +1,74 @@
+erDiagram
+    USERS ||--o{ FINANCIAL_ACCOUNTS : creates
+    FINANCIAL_ACCOUNTS ||--o{ FINANCIAL_ACCOUNT_MEMBERS : has
+    USERS ||--o{ FINANCIAL_ACCOUNT_MEMBERS : joins
+    FINANCIAL_ACCOUNTS ||--o{ FINANCIAL_ACCOUNT_INVITATIONS : receives
+    USERS ||--o{ FINANCIAL_ACCOUNT_INVITATIONS : sends
+    FINANCIAL_ACCOUNTS ||--o{ EXPENSES : contains
+    FINANCIAL_ACCOUNTS ||--o{ INCOMES : contains
+    FINANCIAL_ACCOUNTS ||--o{ BUDGETS : contains
+    FINANCIAL_ACCOUNTS ||--o{ CATEGORIES : contains
+    FINANCIAL_ACCOUNTS ||--o{ BANK_OPTIONS : contains
+    FINANCIAL_ACCOUNTS ||--o{ PAYMENT_METHOD_OPTIONS : contains
+    USERS ||--o{ EXPENSES : creates
+    USERS ||--o{ EXPENSES : pays
+    USERS ||--o{ MESSAGING_CHANNEL_CONTEXTS : owns
+    FINANCIAL_ACCOUNTS ||--o{ MESSAGING_CHANNEL_CONTEXTS : active_in
+
+    USERS {
+      uuid id
+      uuid tenant_id
+      string phone_number
+      string email
+    }
+
+    FINANCIAL_ACCOUNTS {
+      uuid id
+      uuid tenant_id
+      string type
+      string name
+      string currency
+      uuid created_by_user_id
+    }
+
+    FINANCIAL_ACCOUNT_MEMBERS {
+      uuid id
+      uuid financial_account_id
+      uuid user_id
+      string role
+      string status
+    }
+
+    FINANCIAL_ACCOUNT_INVITATIONS {
+      uuid id
+      uuid financial_account_id
+      uuid invited_by_user_id
+      string email
+      string token
+      string status
+      timestamptz expires_at
+    }
+
+    MESSAGING_CHANNEL_CONTEXTS {
+      uuid id
+      string channel
+      string provider_user_id
+      uuid user_id
+      uuid financial_account_id
+    }
+
+    EXPENSES {
+      uuid id
+      uuid financial_account_id
+      uuid user_id
+      uuid created_by_user_id
+      uuid paid_by_user_id
+      numeric amount
+    }
+
+    INCOMES {
+      uuid id
+      uuid financial_account_id
+      uuid user_id
+      numeric amount
+    }

@@ -58,7 +58,8 @@ async function migrationLooksApplied(pool: ReturnType<typeof createPool>, file: 
     '009_reporting_aggregates_by_tenant.sql': `select exists (
       select 1 from pg_proc where proname = 'yearly_expenses_monthly_totals_by_tenant'
     ) as ok`,
-    '010_report_dispatches.sql': `select to_regclass('public.report_dispatches') is not null as ok`
+    '010_report_dispatches.sql': `select to_regclass('public.report_dispatches') is not null as ok`,
+    '028_shared_accounts_foundation.sql': `select to_regclass('public.financial_accounts') is not null as ok`
   };
 
   const sql = checks[file];

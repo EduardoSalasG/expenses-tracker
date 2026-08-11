@@ -37,6 +37,7 @@ Validation is executed manually on `dev` before promotion:
 - Telegram webhook smoke
 - bilingual QA
 - Swagger/docs final pass
+- explicit one-time backfill execution for structural migrations that require legacy data reassignment
 
 ## Gitflow
 
@@ -158,6 +159,46 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
 - Use `GET /health/live` for container liveness.
 - Use `GET /health/ready` for readiness; it verifies DB connectivity when PostgreSQL mode is enabled.
 - Report worker exits with `exitCode=1` when one or more deliveries fail. Configure scheduler/platform alerts on non-zero exit status.
+- For large structural features that require historical backfill, do not rely on app startup hooks. Deliver:
+  - incremental schema migration scripts
+  - one explicit one-time backfill script for existing production data
+  - a written run order and rollback note before touching production
+
+## Shared Accounts Foundation Runbook
+
+The shared-accounts groundwork introduces `financial_accounts` and related ownership tables without switching runtime behavior immediately.
+
+Production run order:
+
+```bash
+pnpm db:migrate
+pnpm db:backfill:financial-accounts
+```
+
+Validation queries after the backfill:
+
+```sql
+select count(*) from users u
+left join financial_accounts fa
+  on fa.created_by_user_id = u.id
+ and fa.type = 'personal'
+where fa.id is null;
+
+select count(*) from expenses where financial_account_id is null;
+select count(*) from incomes where financial_account_id is null;
+```
+
+Expected result in a healthy historical environment:
+
+- every user has exactly one personal financial account
+- historical expenses have `financial_account_id`, `created_by_user_id`, and `paid_by_user_id`
+- historical incomes have `financial_account_id`
+
+Rollback policy:
+
+- take a database backup before the backfill
+- if the post-run validation fails, restore from backup
+- do not rely on manual row reversal in production
 
 ## Bilingual QA (es/en)
 

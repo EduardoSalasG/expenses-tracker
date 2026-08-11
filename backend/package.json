@@ -15,6 +15,7 @@
     "db:export:tenant": "tsx src/infrastructure/db-export-tenant-data.ts",
     "db:import:data": "tsx src/infrastructure/db-import-data.ts",
     "db:register-test-user": "tsx src/infrastructure/register-test-user.ts",
+    "db:backfill:financial-accounts": "tsx src/infrastructure/db-backfill-financial-accounts.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
