@@ -67,42 +67,42 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
           <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="grid gap-3 p-3">
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_first_name') }}</mat-label>
-              <input matInput formControlName="firstName" />
+              <input matInput id="settings-first-name" name="settingsFirstName" formControlName="firstName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_last_name') }}</mat-label>
-              <input matInput formControlName="lastName" />
+              <input matInput id="settings-last-name" name="settingsLastName" formControlName="lastName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_preferred_name') }}</mat-label>
-              <input matInput formControlName="preferredName" />
+              <input matInput id="settings-preferred-name" name="settingsPreferredName" formControlName="preferredName" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_phone') }}</mat-label>
-              <input matInput [value]="user()?.phoneNumber" disabled />
+              <input matInput id="settings-phone" name="settingsPhoneNumber" [value]="user()?.phoneNumber" disabled />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_email') }}</mat-label>
-              <input matInput formControlName="email" type="email" />
+              <input matInput id="settings-email" name="settingsEmail" formControlName="email" type="email" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_country') }}</mat-label>
-              <input matInput formControlName="countryOfResidence" />
+              <input matInput id="settings-country" name="settingsCountryOfResidence" formControlName="countryOfResidence" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_currency') }}</mat-label>
-              <input matInput formControlName="preferredCurrency" maxlength="3" />
+              <input matInput id="settings-currency" name="settingsPreferredCurrency" formControlName="preferredCurrency" maxlength="3" />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('settings_language') }}</mat-label>
-              <mat-select formControlName="preferredLanguage">
+              <mat-select id="settings-language" name="settingsPreferredLanguage" formControlName="preferredLanguage">
                 <mat-option value="es">{{ t('settings_language_es') }}</mat-option>
                 <mat-option value="en">{{ t('settings_language_en') }}</mat-option>
               </mat-select>
@@ -155,7 +155,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
             <form [formGroup]="bankForm" (ngSubmit)="createBankOption()" class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <mat-form-field appearance="outline">
                 <mat-label>{{ t('settings_bank_name') }}</mat-label>
-                <input matInput formControlName="name" />
+                <input matInput id="settings-bank-name" name="settingsBankName" formControlName="name" />
               </mat-form-field>
               <div class="flex gap-2 sm:justify-end">
                 <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="bankForm.invalid || savingBank()">
@@ -202,12 +202,12 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
             <form [formGroup]="paymentMethodForm" (ngSubmit)="createPaymentMethodOption()" class="grid gap-3">
               <mat-form-field appearance="outline">
                 <mat-label>{{ t('settings_payment_method_name') }}</mat-label>
-                <input matInput formControlName="name" />
+                <input matInput id="settings-payment-method-name" name="settingsPaymentMethodName" formControlName="name" />
               </mat-form-field>
               <div class="grid gap-3 sm:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('settings_payment_method_kind') }}</mat-label>
-                  <mat-select formControlName="kind">
+                  <mat-select id="settings-payment-method-kind" name="settingsPaymentMethodKind" formControlName="kind">
                     <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
                     <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
                     <mat-option value="card">{{ t('expenses_card') }}</mat-option>
@@ -216,7 +216,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 @if (paymentMethodForm.controls.kind.value === 'card') {
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('expenses_card_type') }}</mat-label>
-                    <mat-select formControlName="cardType">
+                    <mat-select id="settings-payment-method-card-type" name="settingsPaymentMethodCardType" formControlName="cardType">
                       <mat-option value="debit">{{ t('expenses_debit') }}</mat-option>
                       <mat-option value="credit">{{ t('expenses_credit') }}</mat-option>
                     </mat-select>
@@ -272,10 +272,10 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
 
             <mat-form-field appearance="outline">
               <mat-label>{{ t('accounts_current_account') }}</mat-label>
-              <mat-select [value]="selectedAccountId()" (selectionChange)="selectAccount($event.value)">
+              <mat-select id="settings-current-account" name="settingsCurrentAccount" [value]="selectedAccountId()" (selectionChange)="selectAccount($event.value)">
                 @for (membership of accountService.accounts(); track membership.account.id) {
                   <mat-option [value]="membership.account.id">
-                    {{ membership.account.name }} · {{ t(membership.account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared') }}
+                    {{ formatAccountLabel(membership.account.name, membership.account.type) }}
                   </mat-option>
                 }
               </mat-select>
@@ -296,11 +296,11 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
               <div class="text-sm font-medium text-brand-ink">{{ t('accounts_create_title') }}</div>
               <mat-form-field appearance="outline">
                 <mat-label>{{ t('accounts_name') }}</mat-label>
-                <input matInput formControlName="name" />
+                <input matInput id="settings-account-name" name="settingsAccountName" formControlName="name" />
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>{{ t('accounts_currency') }}</mat-label>
-                <input matInput formControlName="currency" maxlength="3" />
+                <input matInput id="settings-account-currency" name="settingsAccountCurrency" formControlName="currency" maxlength="3" />
               </mat-form-field>
               <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="createAccountForm.invalid || savingAccount()">
                 {{ t('accounts_create_action') }}
@@ -312,7 +312,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 <div class="text-sm font-medium text-brand-ink">{{ t('accounts_rename_title') }}</div>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('accounts_name') }}</mat-label>
-                  <input matInput formControlName="name" />
+                  <input matInput id="settings-rename-account-name" name="settingsRenameAccountName" formControlName="name" />
                 </mat-form-field>
                 <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="renameAccountForm.invalid || savingAccount()">
                   {{ t('accounts_rename_action') }}
@@ -333,16 +333,16 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
               <div class="grid gap-3 sm:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('login_email') }}</mat-label>
-                  <input matInput formControlName="email" type="email" />
+                  <input matInput id="settings-invite-email" name="settingsInviteEmail" formControlName="email" type="email" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('login_phone') }}</mat-label>
-                  <input matInput formControlName="phoneNumber" />
+                  <input matInput id="settings-invite-phone" name="settingsInvitePhoneNumber" formControlName="phoneNumber" />
                 </mat-form-field>
               </div>
               <mat-form-field appearance="outline">
                 <mat-label>{{ t('accounts_member_role') }}</mat-label>
-                <mat-select formControlName="role">
+                <mat-select id="settings-invite-role" name="settingsInviteRole" formControlName="role">
                   <mat-option value="member">{{ t('accounts_role_member') }}</mat-option>
                   <mat-option value="admin">{{ t('accounts_role_admin') }}</mat-option>
                   <mat-option value="owner">{{ t('accounts_role_owner') }}</mat-option>
@@ -367,7 +367,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 <div class="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_invite_link_label') }}</mat-label>
-                    <input matInput [value]="lastInvitationLink()" readonly />
+                      <input matInput id="settings-invitation-link" name="settingsInvitationLink" [value]="lastInvitationLink()" readonly />
                   </mat-form-field>
                   <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="copyInvitationLink()">
                     {{ t('accounts_invite_copy') }}
@@ -490,39 +490,39 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 <div class="grid gap-3 sm:grid-cols-2">
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_settlement_paid_by') }}</mat-label>
-                    <mat-select formControlName="paidByUserId">
-                      @for (member of activeSharedMembers(); track member.userId) {
-                        <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
-                      }
+                      <mat-select id="settings-settlement-paid-by" name="settingsSettlementPaidByUserId" formControlName="paidByUserId">
+                        @for (member of activeSharedMembers(); track member.userId) {
+                          <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
+                        }
                     </mat-select>
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_settlement_received_by') }}</mat-label>
-                    <mat-select formControlName="receivedByUserId">
-                      @for (member of activeSharedMembers(); track member.userId) {
-                        <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
-                      }
+                      <mat-select id="settings-settlement-received-by" name="settingsSettlementReceivedByUserId" formControlName="receivedByUserId">
+                        @for (member of activeSharedMembers(); track member.userId) {
+                          <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
+                        }
                     </mat-select>
                   </mat-form-field>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_currency') }}</mat-label>
-                    <input matInput formControlName="currency" maxlength="3" />
+                      <input matInput id="settings-settlement-currency" name="settingsSettlementCurrency" formControlName="currency" maxlength="3" />
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('expenses_amount') }}</mat-label>
-                    <input matInput type="number" formControlName="amount" />
+                      <input matInput id="settings-settlement-amount" name="settingsSettlementAmount" type="number" formControlName="amount" />
                   </mat-form-field>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_settlement_date') }}</mat-label>
-                    <input matInput type="date" formControlName="settledAt" />
+                      <input matInput id="settings-settlement-date" name="settingsSettlementDate" type="date" formControlName="settledAt" />
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>{{ t('accounts_settlement_note') }}</mat-label>
-                    <input matInput formControlName="note" />
+                      <input matInput id="settings-settlement-note" name="settingsSettlementNote" formControlName="note" />
                   </mat-form-field>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -789,6 +789,11 @@ export class SettingsComponent {
 
   accountRoleKey(role: 'owner' | 'admin' | 'member') {
     return `accounts_role_${role}`;
+  }
+
+  formatAccountLabel(name: string, type: 'personal' | 'shared') {
+    if (type === 'personal') return name;
+    return `${name} · ${this.t('accounts_type_shared')}`;
   }
 
   selectAccount(accountId: string) {

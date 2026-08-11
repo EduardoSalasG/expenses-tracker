@@ -30,11 +30,15 @@ const links = [
       </div>
       @if (accountService.accounts().length > 0) {
         <mat-form-field appearance="outline" class="account-switcher hidden md:block">
-          <mat-label>{{ t('accounts_current_account') }}</mat-label>
-          <mat-select [value]="selectedAccountId()" (selectionChange)="switchAccount($event.value)">
+          <mat-select
+            name="activeFinancialAccount"
+            aria-label="Active account"
+            [value]="selectedAccountId()"
+            (selectionChange)="switchAccount($event.value)">
+            <mat-select-trigger>{{ selectedAccountLabel() }}</mat-select-trigger>
             @for (membership of accountService.accounts(); track membership.account.id) {
               <mat-option [value]="membership.account.id">
-                {{ membership.account.name }} · {{ t(membership.account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared') }}
+                {{ formatAccountLabel(membership.account.name, membership.account.type) }}
               </mat-option>
             }
           </mat-select>
@@ -101,5 +105,16 @@ export class ShellComponent implements OnInit {
 
   t(key: string) {
     return this.i18n.t(key);
+  }
+
+  selectedAccountLabel() {
+    const membership = this.accountService.currentMembership();
+    if (!membership) return '';
+    return this.formatAccountLabel(membership.account.name, membership.account.type);
+  }
+
+  formatAccountLabel(name: string, type: 'personal' | 'shared') {
+    if (type === 'personal') return name;
+    return `${name} · ${this.t('accounts_type_shared')}`;
   }
 }

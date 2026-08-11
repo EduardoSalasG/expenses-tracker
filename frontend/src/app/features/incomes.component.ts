@@ -41,6 +41,9 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     <mat-card id="incomes-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
+          id="incomes-month"
+          name="incomesMonth"
+          aria-label="Incomes month"
           type="month"
           class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
           [value]="selectedMonth()"
@@ -61,15 +64,15 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="mt-4 grid gap-4 lg:grid-cols-5">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
-            <input matInput type="date" formControlName="from">
+            <input matInput type="date" formControlName="from" name="incomesFrom">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_to') }}</mat-label>
-            <input matInput type="date" formControlName="to">
+            <input matInput type="date" formControlName="to" name="incomesTo">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_currency') }}</mat-label>
-            <input matInput formControlName="currency" maxlength="3">
+            <input matInput formControlName="currency" maxlength="3" name="incomesCurrency">
           </mat-form-field>
           <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-2">
             <button mat-flat-button color="primary" type="submit">{{ t('expenses_apply') }}</button>
@@ -316,10 +319,10 @@ export class IncomesComponent implements OnInit {
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept" name="incomeConcept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount" name="incomeAmount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency" name="incomeCurrency"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date" name="incomeDate"></mat-form-field>
         </div>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>

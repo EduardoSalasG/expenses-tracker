@@ -21,7 +21,7 @@ export class AccountContextBannerComponent {
   readonly accountLabel = computed(() => {
     const account = this.accountService.currentAccount();
     if (!account) return '';
-    const typeLabel = this.t(account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared');
-    return `${account.name} · ${typeLabel}`;
+    if (account.type === 'personal') return account.name;
+    return `${account.name} · ${this.t('accounts_type_shared')}`;
   });
 }

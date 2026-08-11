@@ -87,6 +87,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                 <label class="auth-label" for="login-phone">{{ t('login_phone') }}</label>
                 <input
                   id="login-phone"
+                  name="phoneNumber"
                   class="auth-input"
                   type="tel"
                   formControlName="phoneNumber"
@@ -132,6 +133,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                   <label class="auth-label" for="login-password">{{ t('login_password') }}</label>
                   <input
                     id="login-password"
+                    name="password"
                     class="auth-input"
                     type="password"
                     formControlName="password"
@@ -166,6 +168,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-first-name">{{ t('login_first_name') }}</label>
                     <input
                       id="register-first-name"
+                      name="firstName"
                       class="auth-input"
                       type="text"
                       formControlName="firstName"
@@ -180,6 +183,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-email">{{ t('login_email') }}</label>
                     <input
                       id="register-email"
+                      name="email"
                       class="auth-input"
                       type="email"
                       formControlName="email"
@@ -212,6 +216,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-last-name">{{ t('login_last_name') }}</label>
                     <input
                       id="register-last-name"
+                      name="lastName"
                       class="auth-input"
                       type="text"
                       formControlName="lastName"
@@ -226,6 +231,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-phone">{{ t('login_phone') }}</label>
                     <input
                       id="register-phone"
+                      name="registerPhoneNumber"
                       class="auth-input"
                       type="tel"
                       formControlName="phoneNumber"
@@ -242,6 +248,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-country">{{ t('login_country') }}</label>
                     <input
                       id="register-country"
+                      name="countryOfResidence"
                       class="auth-input"
                       type="text"
                       formControlName="countryOfResidence"
@@ -256,6 +263,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-currency">{{ t('login_currency') }}</label>
                     <input
                       id="register-currency"
+                      name="preferredCurrency"
                       class="auth-input"
                       type="text"
                       formControlName="preferredCurrency"
@@ -271,6 +279,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-preferred-name">{{ t('login_preferred_name') }}</label>
                     <input
                       id="register-preferred-name"
+                      name="preferredName"
                       class="auth-input"
                       type="text"
                       formControlName="preferredName"
@@ -283,7 +292,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
 
                   <div class="auth-field">
                     <label class="auth-label" for="register-language">{{ t('settings_language') }}</label>
-                    <select id="register-language" class="auth-input auth-select" formControlName="preferredLanguage">
+                    <select id="register-language" name="preferredLanguage" class="auth-input auth-select" formControlName="preferredLanguage">
                       <option value="es">{{ t('settings_language_es') }}</option>
                       <option value="en">{{ t('settings_language_en') }}</option>
                     </select>
@@ -293,6 +302,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-password">{{ t('login_password') }}</label>
                     <input
                       id="register-password"
+                      name="registerPassword"
                       class="auth-input"
                       type="password"
                       formControlName="password"
@@ -307,6 +317,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
                     <label class="auth-label" for="register-confirm-password">{{ t('login_confirm_password') }}</label>
                     <input
                       id="register-confirm-password"
+                      name="confirmPassword"
                       class="auth-input"
                       type="password"
                       formControlName="confirmPassword"

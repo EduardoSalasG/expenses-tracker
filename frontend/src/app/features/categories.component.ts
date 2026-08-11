@@ -44,7 +44,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <form [formGroup]="mainForm" (ngSubmit)="saveMain()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('categories_name') }}</mat-label>
-            <input matInput formControlName="name">
+            <input matInput id="main-category-name" name="mainCategoryName" formControlName="name">
           </mat-form-field>
           <div class="mobile-stack-actions flex items-center">
             <button mat-flat-button color="primary" type="submit" [disabled]="mainForm.invalid || saving()">{{ t('categories_add') }}</button>
@@ -63,7 +63,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <form [formGroup]="subForm" (ngSubmit)="saveSubcategory()" class="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('categories_parent') }}</mat-label>
-            <mat-select formControlName="parentId">
+            <mat-select id="subcategory-parent" name="subcategoryParentId" formControlName="parentId">
               @for (category of rootCategories(); track category.id) {
                 <mat-option [value]="category.id">{{ category.name }}</mat-option>
               }
@@ -71,7 +71,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('categories_name') }}</mat-label>
-            <input matInput formControlName="name">
+            <input matInput id="subcategory-name" name="subcategoryName" formControlName="name">
           </mat-form-field>
           <div class="mobile-stack-actions flex items-center">
             <button mat-flat-button color="primary" type="submit" [disabled]="subForm.invalid || saving()">{{ t('categories_add') }}</button>

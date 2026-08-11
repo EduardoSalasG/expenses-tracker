@@ -53,7 +53,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       <div class="w-full sm:w-auto">
         <mat-form-field appearance="outline" class="w-full sm:w-44">
           <mat-label>{{ t('budgets_month') }}</mat-label>
-          <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)">
+          <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)" name="budgetsMonth">
         </mat-form-field>
       </div>
     </app-page-header>
@@ -83,7 +83,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_category') }}</mat-label>
-          <mat-select formControlName="categoryId">
+          <mat-select formControlName="categoryId" name="budgetCategory" aria-label="Budget category">
             @for (category of rootCategories(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
             }
@@ -92,7 +92,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_subcategory') }}</mat-label>
-          <mat-select formControlName="subcategoryId">
+          <mat-select formControlName="subcategoryId" name="budgetSubcategory" aria-label="Budget subcategory">
             <mat-option [value]="''">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ category.name }}</mat-option>
@@ -104,11 +104,11 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_amount') }}</mat-label>
-          <input matInput type="number" formControlName="amount">
+          <input matInput type="number" formControlName="amount" name="budgetAmount">
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_currency') }}</mat-label>
-          <input matInput maxlength="3" formControlName="currency">
+          <input matInput maxlength="3" formControlName="currency" name="budgetCurrency">
         </mat-form-field>
         <div class="mobile-stack-actions flex flex-col gap-2 sm:flex-row sm:items-center">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
@@ -456,7 +456,7 @@ export class BudgetsComponent {
       <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
         <mat-form-field appearance="outline">
           <mat-label>{{ data.label }}</mat-label>
-          <input matInput formControlName="name">
+          <input matInput id="budget-subcategory-dialog-name" name="budgetSubcategoryDialogName" formControlName="name">
         </mat-form-field>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button mat-button type="button" (click)="dialogRef.close()">{{ t('common_cancel') }}</button>

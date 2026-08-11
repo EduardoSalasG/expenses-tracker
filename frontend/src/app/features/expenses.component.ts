@@ -58,6 +58,9 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
     <mat-card id="expenses-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
+          id="expenses-month"
+          name="expensesMonth"
+          aria-label="Expenses month"
           type="month"
           class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
           [value]="selectedMonth()"
@@ -78,15 +81,15 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
         <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="mt-4 grid gap-4 lg:grid-cols-6">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
-            <input matInput type="date" formControlName="from">
+            <input matInput type="date" formControlName="from" name="expensesFrom">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_to') }}</mat-label>
-            <input matInput type="date" formControlName="to">
+            <input matInput type="date" formControlName="to" name="expensesTo">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_category') }}</mat-label>
-            <mat-select formControlName="categoryId">
+            <mat-select formControlName="categoryId" name="expensesCategory" aria-label="Expense category filter">
               <mat-option value="">{{ t('expenses_all') }}</mat-option>
               @for (category of categories(); track category.id) {
                 <mat-option [value]="category.id">{{ categoryLabel(category) }}</mat-option>
@@ -95,11 +98,11 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_currency') }}</mat-label>
-            <input matInput formControlName="currency" maxlength="3">
+            <input matInput formControlName="currency" maxlength="3" name="expensesCurrency">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_payment_method') }}</mat-label>
-            <mat-select formControlName="paymentMethodKind">
+            <mat-select formControlName="paymentMethodKind" name="expensesPaymentMethodKind" aria-label="Expense payment method filter">
               <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
               <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
               <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
@@ -421,22 +424,22 @@ export class ExpensesComponent implements OnInit {
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept" name="expenseConcept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount" name="expenseAmount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3" name="expenseCurrency"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date" name="expenseDate"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId" name="expenseCategory" aria-label="Expense category">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId" name="expenseSubcategory" aria-label="Expense subcategory"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId" name="expensePaymentMethod" aria-label="Expense payment method">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
-            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId" name="expenseBank" aria-label="Expense bank"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           }
           @if (isSharedAccount()) {
             <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
               <div class="grid gap-4 md:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_split_paid_by') }}</mat-label>
-                  <mat-select formControlName="paidByUserId">
+                  <mat-select formControlName="paidByUserId" name="expensePaidByUserId" aria-label="Expense paid by">
                     @for (member of sharedMembers(); track member.userId) {
                       <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
                     }
@@ -444,7 +447,7 @@ export class ExpensesComponent implements OnInit {
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_split_mode') }}</mat-label>
-                  <mat-select formControlName="allocationMode">
+                  <mat-select formControlName="allocationMode" name="expenseAllocationMode" aria-label="Expense allocation mode">
                     <mat-option value="payer">{{ t('expenses_split_mode_payer') }}</mat-option>
                     <mat-option value="equal">{{ t('expenses_split_mode_equal') }}</mat-option>
                     <mat-option value="custom">{{ t('expenses_split_mode_custom') }}</mat-option>
@@ -456,7 +459,7 @@ export class ExpensesComponent implements OnInit {
                   @for (member of sharedMembers(); track member.userId) {
                     <mat-form-field appearance="outline">
                       <mat-label>{{ member.preferredName }}</mat-label>
-                      <input matInput type="number" [formControl]="allocationControl(member.userId)" />
+                      <input matInput type="number" [formControl]="allocationControl(member.userId)" [name]="'expenseAllocation_' + member.userId" />
                     </mat-form-field>
                   }
                 </div>
@@ -472,7 +475,7 @@ export class ExpensesComponent implements OnInit {
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_installment_count') }}</mat-label>
-                  <mat-select formControlName="installmentCount">
+                  <mat-select formControlName="installmentCount" name="expenseInstallmentCount" aria-label="Expense installment count">
                     @for (count of installmentOptions; track count) {
                       <mat-option [value]="count">{{ count }}</mat-option>
                     }
@@ -480,7 +483,7 @@ export class ExpensesComponent implements OnInit {
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_first_installment_date') }}</mat-label>
-                  <input matInput type="date" formControlName="firstInstallmentDate">
+                  <input matInput type="date" formControlName="firstInstallmentDate" name="expenseFirstInstallmentDate">
                 </mat-form-field>
               </div>
               <p class="m-0 text-sm text-brand-muted">{{ t('expenses_installments_help') }}</p>
@@ -919,7 +922,7 @@ export class ExpenseCreateDialogComponent {
       <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
         <mat-form-field appearance="outline">
           <mat-label>{{ data.label }}</mat-label>
-          <input matInput formControlName="name">
+          <input matInput id="expense-bank-dialog-name" name="expenseBankDialogName" formControlName="name">
         </mat-form-field>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button mat-button type="button" (click)="dialogRef.close()">{{ t('common_cancel') }}</button>
@@ -959,11 +962,11 @@ export class QuickCreateOptionDialogComponent {
       <form [formGroup]="form" (ngSubmit)="submit()" class="brand-dialog-form">
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_payment_method_name') }}</mat-label>
-          <input matInput formControlName="name">
+          <input matInput id="expense-payment-method-dialog-name" name="expensePaymentMethodDialogName" formControlName="name">
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_payment_method') }}</mat-label>
-          <mat-select formControlName="kind">
+          <mat-select id="expense-payment-method-dialog-kind" name="expensePaymentMethodDialogKind" formControlName="kind">
             <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
             <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
             <mat-option value="card">{{ t('expenses_card') }}</mat-option>
@@ -972,7 +975,7 @@ export class QuickCreateOptionDialogComponent {
         @if (form.controls.kind.value === 'card') {
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_card_type') }}</mat-label>
-            <mat-select formControlName="cardType">
+              <mat-select id="expense-payment-method-dialog-card-type" name="expensePaymentMethodDialogCardType" formControlName="cardType">
               <mat-option value="debit">{{ t('expenses_debit') }}</mat-option>
               <mat-option value="credit">{{ t('expenses_credit') }}</mat-option>
             </mat-select>

@@ -127,6 +127,9 @@ interface CategoryVariationRow {
         </div>
         @if (viewMode() === 'monthly') {
           <input
+            id="dashboard-month"
+            name="dashboardMonth"
+            aria-label="Dashboard month"
             type="month"
             class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
             [value]="selectedMonth()"
@@ -134,6 +137,9 @@ interface CategoryVariationRow {
           >
         } @else {
           <select
+            id="dashboard-year"
+            name="dashboardYear"
+            aria-label="Dashboard year"
             class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
             [value]="selectedYear()"
             (change)="changeYear($event)"
@@ -989,7 +995,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   currentAccountLabel() {
     const membership = this.accountService.currentMembership();
     if (!membership) return '';
-    return `${membership.account.name} · ${this.t(membership.account.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared')}`;
+    if (membership.account.type === 'personal') return membership.account.name;
+    return `${membership.account.name} · ${this.t('accounts_type_shared')}`;
   }
 
   t(key: string) {
