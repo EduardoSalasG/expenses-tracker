@@ -31,9 +31,9 @@ export class FinanceUseCases {
   }
 
   async createExpense(input: Omit<Expense, 'id'> & { paymentMethodOptionId?: string; bankOptionId?: string }) {
-    const categories = await this.categories.listByTenant(input.tenantId);
+    const categories = await this.categories.listByTenant(input.tenantId, input.financialAccountId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
-    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input);
+    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input.financialAccountId, input);
     return this.expenses.create({
       ...input,
       categoryId: normalized.categoryId,
@@ -46,6 +46,7 @@ export class FinanceUseCases {
 
   async updateExpense(input: {
     tenantId: string;
+    financialAccountId?: string;
     expenseId: string;
     date: string;
     amount: number;
@@ -59,11 +60,12 @@ export class FinanceUseCases {
     firstInstallmentDate?: string;
     paymentMethod: Expense['paymentMethod'];
   }) {
-    const categories = await this.categories.listByTenant(input.tenantId);
+    const categories = await this.categories.listByTenant(input.tenantId, input.financialAccountId);
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
-    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input);
+    const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input.financialAccountId, input);
     const updated = await this.expenses.update({
       tenantId: input.tenantId,
+      financialAccountId: input.financialAccountId,
       expenseId: input.expenseId,
       date: input.date,
       amount: input.amount,
@@ -81,7 +83,7 @@ export class FinanceUseCases {
     return updated;
   }
 
-  async deleteExpense(input: { tenantId: string; expenseId: string }) {
+  async deleteExpense(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
     const deleted = await this.expenses.delete(input);
     if (!deleted) throw new Error('Expense not found.');
     return { deleted: true };
@@ -89,6 +91,7 @@ export class FinanceUseCases {
 
   listExpenses(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     categoryId?: string;
@@ -99,8 +102,8 @@ export class FinanceUseCases {
     return this.expenses.list({ ...input, limit: input.limit ?? 50 });
   }
 
-  recentExpenses(tenantId: string, limit = 10) {
-    return this.expenses.listRecent(tenantId, limit);
+  recentExpenses(tenantId: string, financialAccountId?: string, limit = 10) {
+    return this.expenses.listRecent(tenantId, financialAccountId, limit);
   }
 
   createIncome(input: Omit<Income, 'id'>) {
@@ -109,6 +112,7 @@ export class FinanceUseCases {
 
   async updateIncome(input: {
     tenantId: string;
+    financialAccountId?: string;
     incomeId: string;
     date: string;
     amount: number;
@@ -120,7 +124,7 @@ export class FinanceUseCases {
     return updated;
   }
 
-  async deleteIncome(input: { tenantId: string; incomeId: string }) {
+  async deleteIncome(input: { tenantId: string; financialAccountId?: string; incomeId: string }) {
     const deleted = await this.incomes.delete(input);
     if (!deleted) throw new Error('Income not found.');
     return { deleted: true };
@@ -128,6 +132,7 @@ export class FinanceUseCases {
 
   listIncomes(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     currency?: string;
@@ -136,24 +141,24 @@ export class FinanceUseCases {
     return this.incomes.list({ ...input, limit: input.limit ?? 50 });
   }
 
-  listCategories(tenantId: string) {
-    return this.categories.listByTenant(tenantId);
+  listCategories(tenantId: string, financialAccountId?: string) {
+    return this.categories.listByTenant(tenantId, financialAccountId);
   }
 
   createCategory(input: Omit<Category, 'id'>) {
     return this.categories.create(input);
   }
 
-  listBankOptions(tenantId: string) {
-    return this.banks.listByTenant(tenantId);
+  listBankOptions(tenantId: string, financialAccountId?: string) {
+    return this.banks.listByTenant(tenantId, financialAccountId);
   }
 
   createBankOption(input: Omit<BankOption, 'id'>) {
     return this.banks.create(input);
   }
 
-  async updateBankOption(input: { tenantId: string; bankOptionId: string; name: string }) {
-    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId);
+  async updateBankOption(input: { tenantId: string; financialAccountId?: string; bankOptionId: string; name: string }) {
+    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId, input.financialAccountId);
     if (!option) throw new Error('Bank option not found.');
     if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default bank options cannot be modified.');
     const updated = await this.banks.update(input);
@@ -161,8 +166,8 @@ export class FinanceUseCases {
     return updated;
   }
 
-  async deleteBankOption(input: { tenantId: string; bankOptionId: string }) {
-    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId);
+  async deleteBankOption(input: { tenantId: string; financialAccountId?: string; bankOptionId: string }) {
+    const option = await this.banks.findAccessibleById(input.tenantId, input.bankOptionId, input.financialAccountId);
     if (!option) throw new Error('Bank option not found.');
     if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default bank options cannot be deleted.');
     const deleted = await this.banks.delete(input);
@@ -170,8 +175,8 @@ export class FinanceUseCases {
     return { deleted: true };
   }
 
-  listPaymentMethodOptions(tenantId: string) {
-    return this.paymentMethods.listByTenant(tenantId);
+  listPaymentMethodOptions(tenantId: string, financialAccountId?: string) {
+    return this.paymentMethods.listByTenant(tenantId, financialAccountId);
   }
 
   createPaymentMethodOption(input: Omit<PaymentMethodOption, 'id' | 'code'>) {
@@ -183,12 +188,13 @@ export class FinanceUseCases {
 
   async updatePaymentMethodOption(input: {
     tenantId: string;
+    financialAccountId?: string;
     paymentMethodOptionId: string;
     name: string;
     kind: PaymentMethodOption['kind'];
     cardType?: PaymentMethodOption['cardType'];
   }) {
-    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId);
+    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId, input.financialAccountId);
     if (!option) throw new Error('Payment method option not found.');
     if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default payment method options cannot be modified.');
     const updated = await this.paymentMethods.update({
@@ -199,8 +205,8 @@ export class FinanceUseCases {
     return updated;
   }
 
-  async deletePaymentMethodOption(input: { tenantId: string; paymentMethodOptionId: string }) {
-    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId);
+  async deletePaymentMethodOption(input: { tenantId: string; financialAccountId?: string; paymentMethodOptionId: string }) {
+    const option = await this.paymentMethods.findAccessibleById(input.tenantId, input.paymentMethodOptionId, input.financialAccountId);
     if (!option) throw new Error('Payment method option not found.');
     if (option.isDefault || option.tenantId !== input.tenantId) throw new Error('Default payment method options cannot be deleted.');
     const deleted = await this.paymentMethods.delete(input);
@@ -212,18 +218,18 @@ export class FinanceUseCases {
     return this.budgets.upsertMonthly(input);
   }
 
-  monthlyBudgets(tenantId: string) {
-    return this.budgets.listMonthly(tenantId);
+  monthlyBudgets(tenantId: string, financialAccountId?: string) {
+    return this.budgets.listMonthly(tenantId, financialAccountId);
   }
 
-  async report(tenantId: string, from: string, to: string) {
+  async report(tenantId: string, financialAccountId: string | undefined, from: string, to: string) {
     const { previousFrom, previousTo } = previousPeriod(from, to);
     const [expenses, incomes, categories, currentCategoryTotals, previousCategoryTotals] = await Promise.all([
-      this.expenses.listByPeriod(tenantId, from, to),
-      this.incomes.listByPeriod(tenantId, from, to),
-      this.categories.listByTenant(tenantId),
-      this.expenses.periodCategoryTotalsByTenant(tenantId, from, to),
-      this.expenses.periodCategoryTotalsByTenant(tenantId, previousFrom, previousTo)
+      this.expenses.listByPeriod(tenantId, financialAccountId, from, to),
+      this.incomes.listByPeriod(tenantId, financialAccountId, from, to),
+      this.categories.listByTenant(tenantId, financialAccountId),
+      this.expenses.periodCategoryTotalsByTenant(tenantId, financialAccountId, from, to),
+      this.expenses.periodCategoryTotalsByTenant(tenantId, financialAccountId, previousFrom, previousTo)
     ]);
 
     return {
@@ -237,39 +243,40 @@ export class FinanceUseCases {
     };
   }
 
-  yearlyExpensesMonthlyTotals(tenantId: string, year: number) {
-    return this.expenses.yearlyMonthlyTotalsByTenant(tenantId, year);
+  yearlyExpensesMonthlyTotals(tenantId: string, financialAccountId: string | undefined, year: number) {
+    return this.expenses.yearlyMonthlyTotalsByTenant(tenantId, financialAccountId, year);
   }
 
-  monthlyExpensesDailyTotals(tenantId: string, month: string) {
-    return this.expenses.monthlyDailyTotalsByTenant(tenantId, month);
+  monthlyExpensesDailyTotals(tenantId: string, financialAccountId: string | undefined, month: string) {
+    return this.expenses.monthlyDailyTotalsByTenant(tenantId, financialAccountId, month);
   }
 
-  weeklyExpensesDailyTotals(tenantId: string, weekStartIsoDate: string) {
-    return this.expenses.weeklyDailyTotalsByTenant(tenantId, weekStartIsoDate);
+  weeklyExpensesDailyTotals(tenantId: string, financialAccountId: string | undefined, weekStartIsoDate: string) {
+    return this.expenses.weeklyDailyTotalsByTenant(tenantId, financialAccountId, weekStartIsoDate);
   }
 
-  upcomingExpenseInstallmentsMonthlyTotals(tenantId: string, startMonth: string, months = 6) {
-    return this.expenses.upcomingInstallmentsMonthlyTotalsByTenant(tenantId, startMonth, months);
+  upcomingExpenseInstallmentsMonthlyTotals(tenantId: string, financialAccountId: string | undefined, startMonth: string, months = 6) {
+    return this.expenses.upcomingInstallmentsMonthlyTotalsByTenant(tenantId, financialAccountId, startMonth, months);
   }
 
-  yearlyIncomesMonthlyTotals(tenantId: string, year: number) {
-    return this.incomes.yearlyMonthlyTotalsByTenant(tenantId, year);
+  yearlyIncomesMonthlyTotals(tenantId: string, financialAccountId: string | undefined, year: number) {
+    return this.incomes.yearlyMonthlyTotalsByTenant(tenantId, financialAccountId, year);
   }
 
-  monthlyIncomesDailyTotals(tenantId: string, month: string) {
-    return this.incomes.monthlyDailyTotalsByTenant(tenantId, month);
+  monthlyIncomesDailyTotals(tenantId: string, financialAccountId: string | undefined, month: string) {
+    return this.incomes.monthlyDailyTotalsByTenant(tenantId, financialAccountId, month);
   }
 
-  periodExpenseCategoryTotals(tenantId: string, from: string, to: string) {
-    return this.expenses.periodCategoryTotalsByTenant(tenantId, from, to);
+  periodExpenseCategoryTotals(tenantId: string, financialAccountId: string | undefined, from: string, to: string) {
+    return this.expenses.periodCategoryTotalsByTenant(tenantId, financialAccountId, from, to);
   }
 
   private async resolvePaymentSelection(
     tenantId: string,
+    financialAccountId: string | undefined,
     input: { paymentMethod: Expense['paymentMethod']; paymentMethodOptionId?: string; bankOptionId?: string }
   ) {
-    return this.paymentSelections.resolve(tenantId, input);
+    return this.paymentSelections.resolve(tenantId, financialAccountId, input);
   }
 }
 

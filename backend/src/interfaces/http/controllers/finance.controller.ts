@@ -32,6 +32,7 @@ export class FinanceController {
       response.status(201).json(await this.container.useCases.finance.createExpense({
         ...body,
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         userId: authRequest.auth.userId
       }));
     } catch (error) {
@@ -51,7 +52,8 @@ export class FinanceController {
       response.json(await this.container.useCases.finance.updateExpense({
         ...body,
         expenseId,
-        tenantId: authRequest.auth.tenantId
+        tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId
       }));
     } catch (error) {
       if (error instanceof Error && error.message === 'Expense not found.') {
@@ -72,6 +74,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.deleteExpense({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         expenseId
       }));
     } catch (error) {
@@ -88,14 +91,19 @@ export class FinanceController {
     const query = expenseQuerySchema.parse(request.query);
     response.json(await this.container.useCases.finance.listExpenses({
       ...query,
-      tenantId: authRequest.auth.tenantId
+      tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId
     }));
   };
 
   recentExpenses = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const limit = Number(request.query.limit ?? 10);
-    response.json(await this.container.useCases.finance.recentExpenses(authRequest.auth.tenantId, limit));
+    response.json(await this.container.useCases.finance.recentExpenses(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      limit
+    ));
   };
 
   createIncome = async (request: Request, response: Response) => {
@@ -104,6 +112,7 @@ export class FinanceController {
     response.status(201).json(await this.container.useCases.finance.createIncome({
       ...body,
       tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId,
       userId: authRequest.auth.userId
     }));
   };
@@ -116,7 +125,8 @@ export class FinanceController {
       response.json(await this.container.useCases.finance.updateIncome({
         ...body,
         incomeId,
-        tenantId: authRequest.auth.tenantId
+        tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId
       }));
     } catch (error) {
       if (error instanceof Error && error.message === 'Income not found.') {
@@ -133,6 +143,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.deleteIncome({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         incomeId
       }));
     } catch (error) {
@@ -149,13 +160,14 @@ export class FinanceController {
     const query = incomeQuerySchema.parse(request.query);
     response.json(await this.container.useCases.finance.listIncomes({
       ...query,
-      tenantId: authRequest.auth.tenantId
+      tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId
     }));
   };
 
   listCategories = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
-    response.json(await this.container.useCases.finance.listCategories(authRequest.auth.tenantId));
+    response.json(await this.container.useCases.finance.listCategories(authRequest.auth.tenantId, authRequest.auth.financialAccountId));
   };
 
   createCategory = async (request: Request, response: Response) => {
@@ -164,13 +176,14 @@ export class FinanceController {
     response.status(201).json(await this.container.useCases.finance.createCategory({
       ...body,
       tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId,
       isDefault: false
     }));
   };
 
   listBankOptions = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
-    response.json(await this.container.useCases.finance.listBankOptions(authRequest.auth.tenantId));
+    response.json(await this.container.useCases.finance.listBankOptions(authRequest.auth.tenantId, authRequest.auth.financialAccountId));
   };
 
   createBankOption = async (request: Request, response: Response) => {
@@ -178,6 +191,7 @@ export class FinanceController {
     const body = parseBody(bankOptionSchema, request.body);
     response.status(201).json(await this.container.useCases.finance.createBankOption({
       tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId,
       name: body.name,
       isDefault: false
     }));
@@ -190,6 +204,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.updateBankOption({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         bankOptionId,
         name: body.name
       }));
@@ -212,6 +227,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.deleteBankOption({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         bankOptionId
       }));
     } catch (error) {
@@ -229,7 +245,7 @@ export class FinanceController {
 
   listPaymentMethodOptions = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
-    response.json(await this.container.useCases.finance.listPaymentMethodOptions(authRequest.auth.tenantId));
+    response.json(await this.container.useCases.finance.listPaymentMethodOptions(authRequest.auth.tenantId, authRequest.auth.financialAccountId));
   };
 
   createPaymentMethodOption = async (request: Request, response: Response) => {
@@ -237,6 +253,7 @@ export class FinanceController {
     const body = parseBody(paymentMethodOptionSchema, request.body);
     response.status(201).json(await this.container.useCases.finance.createPaymentMethodOption({
       tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId,
       name: body.name,
       kind: body.kind,
       cardType: body.cardType,
@@ -251,6 +268,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.updatePaymentMethodOption({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         paymentMethodOptionId,
         name: body.name,
         kind: body.kind,
@@ -275,6 +293,7 @@ export class FinanceController {
     try {
       response.json(await this.container.useCases.finance.deletePaymentMethodOption({
         tenantId: authRequest.auth.tenantId,
+        financialAccountId: authRequest.auth.financialAccountId,
         paymentMethodOptionId
       }));
     } catch (error) {
@@ -292,7 +311,7 @@ export class FinanceController {
 
   monthlyBudgets = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
-    response.json(await this.container.useCases.finance.monthlyBudgets(authRequest.auth.tenantId));
+    response.json(await this.container.useCases.finance.monthlyBudgets(authRequest.auth.tenantId, authRequest.auth.financialAccountId));
   };
 
   upsertMonthlyBudget = async (request: Request, response: Response) => {
@@ -300,32 +319,50 @@ export class FinanceController {
     const body = parseBody(monthlyBudgetSchema, request.body);
     response.json(await this.container.useCases.finance.upsertMonthlyBudget({
       ...body,
-      tenantId: authRequest.auth.tenantId
+      tenantId: authRequest.auth.tenantId,
+      financialAccountId: authRequest.auth.financialAccountId
     }));
   };
 
   report = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.report(authRequest.auth.tenantId, query.from, query.to));
+    response.json(await this.container.useCases.finance.report(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.from,
+      query.to
+    ));
   };
 
   yearlyExpensesMonthlyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportYearQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.yearlyExpensesMonthlyTotals(authRequest.auth.tenantId, query.year));
+    response.json(await this.container.useCases.finance.yearlyExpensesMonthlyTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.year
+    ));
   };
 
   monthlyExpensesDailyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportMonthQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.monthlyExpensesDailyTotals(authRequest.auth.tenantId, query.month));
+    response.json(await this.container.useCases.finance.monthlyExpensesDailyTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.month
+    ));
   };
 
   weeklyExpensesDailyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportWeekStartQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.weeklyExpensesDailyTotals(authRequest.auth.tenantId, query.weekStart));
+    response.json(await this.container.useCases.finance.weeklyExpensesDailyTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.weekStart
+    ));
   };
 
   upcomingExpenseInstallmentsMonthlyTotals = async (request: Request, response: Response) => {
@@ -334,6 +371,7 @@ export class FinanceController {
     const months = Number(request.query.months ?? 6);
     response.json(await this.container.useCases.finance.upcomingExpenseInstallmentsMonthlyTotals(
       authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
       month,
       Number.isFinite(months) ? Math.min(Math.max(months, 1), 24) : 6
     ));
@@ -342,19 +380,32 @@ export class FinanceController {
   yearlyIncomesMonthlyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportYearQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.yearlyIncomesMonthlyTotals(authRequest.auth.tenantId, query.year));
+    response.json(await this.container.useCases.finance.yearlyIncomesMonthlyTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.year
+    ));
   };
 
   monthlyIncomesDailyTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportMonthQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.monthlyIncomesDailyTotals(authRequest.auth.tenantId, query.month));
+    response.json(await this.container.useCases.finance.monthlyIncomesDailyTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.month
+    ));
   };
 
   periodExpenseCategoryTotals = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     const query = reportQuerySchema.parse(request.query);
-    response.json(await this.container.useCases.finance.periodExpenseCategoryTotals(authRequest.auth.tenantId, query.from, query.to));
+    response.json(await this.container.useCases.finance.periodExpenseCategoryTotals(
+      authRequest.auth.tenantId,
+      authRequest.auth.financialAccountId,
+      query.from,
+      query.to
+    ));
   };
 
   updateReportPreferences = async (request: Request, response: Response) => {

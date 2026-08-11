@@ -11,6 +11,7 @@ import type {
   BankOptionRepository,
   MessageInterpreterPort,
   PaymentMethodOptionRepository,
+  FinancialAccountRepository,
   UserRepository
 } from '../ports.js';
 import {
@@ -42,23 +43,85 @@ import { normalizeCategorySelection } from '../services/category-normalization.s
 import { PaymentSelectionService } from '../services/payment-selection.service.js';
 
 export class ProcessInboundFinanceMessageUseCase {
+  private readonly users: UserRepository;
   private readonly paymentSelections: PaymentSelectionService;
+  private readonly financialAccounts: FinancialAccountRepository;
+  private readonly categories: CategoryRepository;
+  private readonly expenses: ExpenseRepository;
+  private readonly incomes: IncomeRepository;
+  private readonly budgets: BudgetRepository;
+  private readonly banks: BankOptionRepository;
+  private readonly paymentMethods: PaymentMethodOptionRepository;
+  private readonly messageAudits: MessagingMessageAuditRepository;
+  private readonly pendingDrafts: MessagingPendingDraftRepository;
+  private readonly messaging: MessagingProvider;
+  private readonly interpreter: MessageInterpreterPort;
+  private readonly clock: Clock;
+  private readonly options: { frontendPublicOrigin: string };
 
   constructor(
-    private readonly users: UserRepository,
-    private readonly categories: CategoryRepository,
-    private readonly expenses: ExpenseRepository,
-    private readonly incomes: IncomeRepository,
-    private readonly budgets: BudgetRepository,
-    private readonly banks: BankOptionRepository,
-    private readonly paymentMethods: PaymentMethodOptionRepository,
-    private readonly messageAudits: MessagingMessageAuditRepository,
-    private readonly pendingDrafts: MessagingPendingDraftRepository,
-    private readonly messaging: MessagingProvider,
-    private readonly interpreter: MessageInterpreterPort,
-    private readonly clock: Clock,
-    private readonly options: { frontendPublicOrigin: string }
+    users: UserRepository,
+    financialAccounts: FinancialAccountRepository,
+    categories: CategoryRepository,
+    expenses: ExpenseRepository,
+    incomes: IncomeRepository,
+    budgets: BudgetRepository,
+    banks: BankOptionRepository,
+    paymentMethods: PaymentMethodOptionRepository,
+    messageAudits: MessagingMessageAuditRepository,
+    pendingDrafts: MessagingPendingDraftRepository,
+    messaging: MessagingProvider,
+    interpreter: MessageInterpreterPort,
+    clock: Clock,
+    options: { frontendPublicOrigin: string }
+  );
+  constructor(
+    users: UserRepository,
+    categories: CategoryRepository,
+    expenses: ExpenseRepository,
+    incomes: IncomeRepository,
+    budgets: BudgetRepository,
+    banks: BankOptionRepository,
+    paymentMethods: PaymentMethodOptionRepository,
+    messageAudits: MessagingMessageAuditRepository,
+    pendingDrafts: MessagingPendingDraftRepository,
+    messaging: MessagingProvider,
+    interpreter: MessageInterpreterPort,
+    clock: Clock,
+    options: { frontendPublicOrigin: string }
+  );
+  constructor(
+    users: UserRepository,
+    financialAccountsOrCategories: FinancialAccountRepository | CategoryRepository,
+    categoriesOrExpenses: CategoryRepository | ExpenseRepository,
+    expensesOrIncomes: ExpenseRepository | IncomeRepository,
+    incomesOrBudgets: IncomeRepository | BudgetRepository,
+    budgetsOrBanks: BudgetRepository | BankOptionRepository,
+    banksOrPaymentMethods: BankOptionRepository | PaymentMethodOptionRepository,
+    paymentMethodsOrAudits: PaymentMethodOptionRepository | MessagingMessageAuditRepository,
+    auditsOrDrafts: MessagingMessageAuditRepository | MessagingPendingDraftRepository,
+    draftsOrMessaging: MessagingPendingDraftRepository | MessagingProvider,
+    messagingOrInterpreter: MessagingProvider | MessageInterpreterPort,
+    interpreterOrClock: MessageInterpreterPort | Clock,
+    clockOrOptions: Clock | { frontendPublicOrigin: string },
+    maybeOptions?: { frontendPublicOrigin: string }
   ) {
+    this.users = users;
+    this.financialAccounts = isFinancialAccountRepository(financialAccountsOrCategories)
+      ? financialAccountsOrCategories
+      : createFallbackFinancialAccountRepository();
+    this.categories = (isFinancialAccountRepository(financialAccountsOrCategories) ? categoriesOrExpenses : financialAccountsOrCategories) as CategoryRepository;
+    this.expenses = (isFinancialAccountRepository(financialAccountsOrCategories) ? expensesOrIncomes : categoriesOrExpenses) as ExpenseRepository;
+    this.incomes = (isFinancialAccountRepository(financialAccountsOrCategories) ? incomesOrBudgets : expensesOrIncomes) as IncomeRepository;
+    this.budgets = (isFinancialAccountRepository(financialAccountsOrCategories) ? budgetsOrBanks : incomesOrBudgets) as BudgetRepository;
+    this.banks = (isFinancialAccountRepository(financialAccountsOrCategories) ? banksOrPaymentMethods : budgetsOrBanks) as BankOptionRepository;
+    this.paymentMethods = (isFinancialAccountRepository(financialAccountsOrCategories) ? paymentMethodsOrAudits : banksOrPaymentMethods) as PaymentMethodOptionRepository;
+    this.messageAudits = (isFinancialAccountRepository(financialAccountsOrCategories) ? auditsOrDrafts : paymentMethodsOrAudits) as MessagingMessageAuditRepository;
+    this.pendingDrafts = (isFinancialAccountRepository(financialAccountsOrCategories) ? draftsOrMessaging : auditsOrDrafts) as MessagingPendingDraftRepository;
+    this.messaging = (isFinancialAccountRepository(financialAccountsOrCategories) ? messagingOrInterpreter : draftsOrMessaging) as MessagingProvider;
+    this.interpreter = (isFinancialAccountRepository(financialAccountsOrCategories) ? interpreterOrClock : messagingOrInterpreter) as MessageInterpreterPort;
+    this.clock = (isFinancialAccountRepository(financialAccountsOrCategories) ? clockOrOptions : interpreterOrClock) as Clock;
+    this.options = (isFinancialAccountRepository(financialAccountsOrCategories) ? maybeOptions : clockOrOptions) as { frontendPublicOrigin: string };
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
 
@@ -296,14 +359,16 @@ export class ProcessInboundFinanceMessageUseCase {
   }
 
   private async buildInterpreterContext(user: User, categoriesOverride?: Category[]) {
-    const categories = categoriesOverride ?? await this.categories.listByTenant(user.tenantId);
+    const financialAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
+    const categories = categoriesOverride ?? await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const [banks, paymentMethodOptions] = await Promise.all([
-      this.banks.listByTenant(user.tenantId),
-      this.paymentMethods.listByTenant(user.tenantId)
+      this.banks.listByTenant(user.tenantId, financialAccount.id),
+      this.paymentMethods.listByTenant(user.tenantId, financialAccount.id)
     ]);
 
     return {
       user,
+      financialAccount,
       categories,
       banks,
       paymentMethodOptions,
@@ -587,7 +652,7 @@ export class ProcessInboundFinanceMessageUseCase {
     if (interpreted.intent === 'ask_report') {
       const period = reportPeriod(interpreted.period, this.clock.now());
       const report = filterReportByCategory(
-        await this.report(user.tenantId, period.from, period.to),
+        await this.report(user.tenantId, user.id, period.from, period.to),
         categories,
         interpreted.categoryName
       );
@@ -604,9 +669,10 @@ export class ProcessInboundFinanceMessageUseCase {
     if (interpreted.intent === 'ask_budget_status') {
       const month = interpreted.month ?? this.clock.now().toISOString().slice(0, 7);
       const { from, to } = monthPeriod(month);
+      const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
       const [budgets, report] = await Promise.all([
-        this.budgets.listMonthly(user.tenantId),
-        this.report(user.tenantId, from, to)
+        this.budgets.listMonthly(user.tenantId, financialAccountId),
+        this.report(user.tenantId, user.id, from, to)
       ]);
       const budgetMessage = formatBudgetStatusMessage(
         month,
@@ -640,8 +706,10 @@ export class ProcessInboundFinanceMessageUseCase {
       return undefined;
     }
 
+    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
     const income = await this.incomes.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
@@ -674,9 +742,14 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: interpreted.missingFields };
     }
 
+    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
     const [recentExpenses, recentIncomes] = await Promise.all([
-      interpreted.movementType === 'income' ? Promise.resolve([]) : this.expenses.listRecent(user.tenantId, 20),
-      interpreted.movementType === 'expense' || interpreted.categoryName ? Promise.resolve([]) : this.incomes.listRecent(user.tenantId, 20)
+      interpreted.movementType === 'income'
+        ? Promise.resolve([])
+        : this.expenses.listRecent(user.tenantId, financialAccountId, 20),
+      interpreted.movementType === 'expense' || interpreted.categoryName
+        ? Promise.resolve([])
+        : this.incomes.listRecent(user.tenantId, financialAccountId, 20)
     ]);
     const target = findReferencedMovement(recentExpenses, recentIncomes, categories, interpreted);
     if (!target || target.score < 2) {
@@ -695,6 +768,7 @@ export class ProcessInboundFinanceMessageUseCase {
         : {};
       const updated = await this.expenses.update({
         tenantId: user.tenantId,
+        financialAccountId,
         expenseId: target.movement.id,
         amount: interpreted.amount,
         concept: interpreted.concept,
@@ -714,6 +788,7 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const updated = await this.incomes.update({
       tenantId: user.tenantId,
+      financialAccountId,
       incomeId: target.movement.id,
       amount: interpreted.amount,
       concept: interpreted.concept
@@ -768,13 +843,17 @@ export class ProcessInboundFinanceMessageUseCase {
 
     const category = matchedCategory.category;
     const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
-    const paymentSelection = await this.paymentSelections.resolve(user.tenantId, {
+    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(user.id)).id;
+    const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccountId, {
       paymentMethod: interpreted.paymentMethod
     });
 
     const expense = await this.expenses.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
+      createdByUserId: user.id,
+      paidByUserId: user.id,
       date: this.clock.now().toISOString(),
       amount: interpreted.amount,
       totalAmount: interpreted.amount,
@@ -785,9 +864,9 @@ export class ProcessInboundFinanceMessageUseCase {
       installmentCount: interpreted.installmentCount ?? 1,
       firstInstallmentDate: this.clock.now().toISOString(),
       purchaseDate: this.clock.now().toISOString(),
-      paymentMethod: paymentSelection.paymentMethod,
-      paymentMethodOptionId: paymentSelection.paymentMethodOptionId,
-      bankOptionId: paymentSelection.bankOptionId,
+      paymentMethod: scopedPaymentSelection.paymentMethod,
+      paymentMethodOptionId: scopedPaymentSelection.paymentMethodOptionId,
+      bankOptionId: scopedPaymentSelection.bankOptionId,
       originalMessage: input.message
     });
 
@@ -834,10 +913,11 @@ export class ProcessInboundFinanceMessageUseCase {
     });
   }
 
-  private async report(tenantId: string, from: string, to: string) {
+  private async report(tenantId: string, userId: string, from: string, to: string) {
+    const financialAccountId = (await this.financialAccounts.ensurePersonalAccount(userId)).id;
     const [expenses, incomes] = await Promise.all([
-      this.expenses.listByPeriod(tenantId, from, to),
-      this.incomes.listByPeriod(tenantId, from, to)
+      this.expenses.listByPeriod(tenantId, financialAccountId, from, to),
+      this.incomes.listByPeriod(tenantId, financialAccountId, from, to)
     ]);
 
     return {
@@ -1517,4 +1597,49 @@ function telegramLinkedMessage(user: User, frontendPublicOrigin: string) {
 
 function telegramUnlinkedMessage() {
   return 'Tu Telegram aun no esta vinculado. Envia /link +569XXXXXXXX con tu telefono registrado.';
+}
+
+function isFinancialAccountRepository(value: FinancialAccountRepository | CategoryRepository): value is FinancialAccountRepository {
+  return typeof (value as FinancialAccountRepository).ensurePersonalAccount === 'function';
+}
+
+function createFallbackFinancialAccountRepository(): FinancialAccountRepository {
+  return {
+    async ensurePersonalAccount(userId: string) {
+      return {
+        id: `fallback-account-${userId}`,
+        tenantId: userId,
+        type: 'personal',
+        name: 'Personal',
+        currency: 'CLP',
+        createdByUserId: userId,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString()
+      };
+    },
+    async findAccessibleById(userId: string, financialAccountId: string) {
+      if (financialAccountId !== `fallback-account-${userId}`) return undefined;
+      const account = await this.ensurePersonalAccount(userId);
+      return { account, role: 'owner' };
+    },
+    async listAccessibleByUser(userId: string) {
+      const account = await this.ensurePersonalAccount(userId);
+      return [{ account, role: 'owner' as const }];
+    },
+    async createSharedAccount(input: { tenantId: string; createdByUserId: string; name: string; currency: string }) {
+      return {
+        account: {
+          id: `shared-${input.createdByUserId}`,
+          tenantId: input.tenantId,
+          type: 'shared' as const,
+          name: input.name,
+          currency: input.currency,
+          createdByUserId: input.createdByUserId,
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString()
+        },
+        role: 'owner' as const
+      };
+    }
+  };
 }

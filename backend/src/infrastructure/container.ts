@@ -14,6 +14,7 @@ import {
   InMemoryCategoryRepository,
   InMemoryEmailMagicLinkTokenRepository,
   InMemoryExpenseRepository,
+  InMemoryFinancialAccountRepository,
   InMemoryIncomeRepository,
   InMemoryMessagingMessageAuditRepository,
   InMemoryMessagingPendingDraftRepository,
@@ -30,6 +31,7 @@ import {
   PostgresCategoryRepository,
   PostgresEmailMagicLinkTokenRepository,
   PostgresExpenseRepository,
+  PostgresFinancialAccountRepository,
   PostgresIncomeRepository,
   PostgresMessagingMessageAuditRepository,
   PostgresMessagingPendingDraftRepository,
@@ -45,6 +47,7 @@ import {
   ConsumeEmailMagicLinkUseCase,
   CreateTelegramRegistrationLinkUseCase,
   FinanceUseCases,
+  FinancialAccountsUseCases,
   LoginWebUseCase,
   ProcessInboundFinanceMessageUseCase,
   RefreshSessionUseCase,
@@ -68,6 +71,7 @@ export function createContainer(config: AppConfig) {
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
+  const financialAccounts = pool ? new PostgresFinancialAccountRepository(pool) : new InMemoryFinancialAccountRepository();
   const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
   const expenses = pool ? new PostgresExpenseRepository(pool) : new InMemoryExpenseRepository();
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
@@ -88,8 +92,16 @@ export function createContainer(config: AppConfig) {
   });
   const interpreter = createMessageInterpreter(config, logger);
   const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions);
+  const financialAccountsUseCases = new FinancialAccountsUseCases(
+    financialAccounts,
+    categories,
+    budgets,
+    banks,
+    paymentMethodOptions
+  );
   const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
     users,
+    financialAccounts,
     categories,
     expenses,
     incomes,
@@ -108,6 +120,7 @@ export function createContainer(config: AppConfig) {
     config,
     logger,
     users,
+    financialAccounts,
     tokens,
     messaging,
     close: () => pool?.end() ?? Promise.resolve(),
@@ -120,15 +133,15 @@ export function createContainer(config: AppConfig) {
     },
     useCases: {
       saveRegistrationLead: new SaveRegistrationLeadUseCase(registrationLeads),
-      registerWeb: new RegisterWebUseCase(users, categories, passwords, tokens, registrationLeads, email, {
+      registerWeb: new RegisterWebUseCase(users, categories, financialAccounts, passwords, tokens, registrationLeads, email, {
         frontendPublicOrigin: config.frontendPublicOrigin,
         logger
       }),
-      loginWeb: new LoginWebUseCase(users, passwords, tokens),
+      loginWeb: new LoginWebUseCase(users, passwords, financialAccounts, tokens),
       requestEmailMagicLink: new RequestEmailMagicLinkUseCase(users, emailMagicLinks, email, clock, {
         frontendPublicOrigin: config.frontendPublicOrigin
       }),
-      consumeEmailMagicLink: new ConsumeEmailMagicLinkUseCase(emailMagicLinks, users, tokens, clock),
+      consumeEmailMagicLink: new ConsumeEmailMagicLinkUseCase(emailMagicLinks, users, financialAccounts, tokens, clock),
       requestOtp: new RequestOtpUseCase(users, otps, messaging, clock, {
         exposeOtpInResponse: config.nodeEnv !== 'production' && config.otpDebugResponseEnabled
       }),
@@ -137,12 +150,13 @@ export function createContainer(config: AppConfig) {
         telegramBotUsername: config.telegramBotUsername
       }),
       consumeTelegramLinkToken: new ConsumeTelegramLinkTokenUseCase(telegramLinkTokens, users, tokens, clock),
-      verifyOtp: new VerifyOtpUseCase(users, otps, categories, tokens, clock, messaging, {
+      verifyOtp: new VerifyOtpUseCase(users, otps, categories, financialAccounts, tokens, clock, messaging, {
         frontendPublicOrigin: config.frontendPublicOrigin
       }),
-      refreshSession: new RefreshSessionUseCase(users, tokens),
+      refreshSession: new RefreshSessionUseCase(users, financialAccounts, tokens),
       processInboundFinanceMessage,
       finance,
+      financialAccounts: financialAccountsUseCases,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),
       sendDueReports: new SendDueReportsUseCase(users, finance, messaging, reportDispatches, clock)

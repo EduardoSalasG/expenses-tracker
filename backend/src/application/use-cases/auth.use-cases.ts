@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { CategoryRepository, Clock, EmailMagicLinkTokenRepository, EmailProvider, MessagingProvider, OtpRepository, PasswordHasher, RegistrationLeadRepository, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
+import type { CategoryRepository, Clock, EmailMagicLinkTokenRepository, EmailProvider, FinancialAccountRepository, MessagingProvider, OtpRepository, PasswordHasher, RegistrationLeadRepository, TelegramLinkTokenRepository, TokenService, UserRepository } from '../ports.js';
 
 export class RequestOtpUseCase {
   constructor(
@@ -126,6 +126,7 @@ export class ConsumeEmailMagicLinkUseCase {
   constructor(
     private readonly emailMagicLinks: EmailMagicLinkTokenRepository,
     private readonly users: UserRepository,
+    private readonly financialAccounts: FinancialAccountRepository,
     private readonly tokens: TokenService,
     private readonly clock: Clock
   ) {}
@@ -141,10 +142,11 @@ export class ConsumeEmailMagicLinkUseCase {
       throw new Error('Invalid or expired magic link token.');
     }
 
+    const personalAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
     return {
       user,
-      accessToken: this.tokens.signAccessToken(user),
-      refreshToken: this.tokens.signRefreshToken(user)
+      accessToken: this.tokens.signAccessToken(user, personalAccount.id),
+      refreshToken: this.tokens.signRefreshToken(user, personalAccount.id)
     };
   }
 }
@@ -185,6 +187,7 @@ export class VerifyOtpUseCase {
     private readonly users: UserRepository,
     private readonly otps: OtpRepository,
     private readonly categories: CategoryRepository,
+    private readonly financialAccounts: FinancialAccountRepository,
     private readonly tokens: TokenService,
     private readonly clock: Clock,
     private readonly messaging: MessagingProvider,
@@ -203,10 +206,11 @@ export class VerifyOtpUseCase {
         await this.users.linkTelegramChatByPhone(existingUser.phoneNumber, input.telegramChatId);
       }
       await this.categories.ensureDefaults(existingUser.tenantId);
+      const personalAccount = await this.financialAccounts.ensurePersonalAccount(existingUser.id);
       return {
         user: existingUser,
-        accessToken: this.tokens.signAccessToken(existingUser),
-        refreshToken: this.tokens.signRefreshToken(existingUser)
+        accessToken: this.tokens.signAccessToken(existingUser, personalAccount.id),
+        refreshToken: this.tokens.signRefreshToken(existingUser, personalAccount.id)
       };
     }
 
@@ -225,6 +229,7 @@ export class VerifyOtpUseCase {
       preferredLanguage: input.preferredLanguage ?? 'es'
     });
     await this.categories.ensureDefaults(user.tenantId);
+    const personalAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
     if (input.telegramChatId) {
       await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
       await this.messaging.sendText(
@@ -240,8 +245,8 @@ export class VerifyOtpUseCase {
 
     return {
       user,
-      accessToken: this.tokens.signAccessToken(user),
-      refreshToken: this.tokens.signRefreshToken(user)
+      accessToken: this.tokens.signAccessToken(user, personalAccount.id),
+      refreshToken: this.tokens.signRefreshToken(user, personalAccount.id)
     };
   }
 }
@@ -547,6 +552,7 @@ export class RegisterWebUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly categories: CategoryRepository,
+    private readonly financialAccounts: FinancialAccountRepository,
     private readonly passwords: PasswordHasher,
     private readonly tokens: TokenService,
     private readonly registrationLeads: RegistrationLeadRepository,
@@ -585,6 +591,7 @@ export class RegisterWebUseCase {
     });
     await this.users.setPasswordHash(user.id, await this.passwords.hash(input.password));
     await this.categories.ensureDefaults(user.tenantId);
+    const personalAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
     if (input.telegramChatId) {
       await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId);
     }
@@ -611,8 +618,8 @@ export class RegisterWebUseCase {
 
     return {
       user,
-      accessToken: this.tokens.signAccessToken(user),
-      refreshToken: this.tokens.signRefreshToken(user)
+      accessToken: this.tokens.signAccessToken(user, personalAccount.id),
+      refreshToken: this.tokens.signRefreshToken(user, personalAccount.id)
     };
   }
 }
@@ -621,6 +628,7 @@ export class LoginWebUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly passwords: PasswordHasher,
+    private readonly financialAccounts: FinancialAccountRepository,
     private readonly tokens: TokenService
   ) {}
 
@@ -644,10 +652,11 @@ export class LoginWebUseCase {
       user = (await this.users.linkTelegramChatByPhone(user.phoneNumber, input.telegramChatId)) ?? user;
     }
 
+    const personalAccount = await this.financialAccounts.ensurePersonalAccount(user.id);
     return {
       user,
-      accessToken: this.tokens.signAccessToken(user),
-      refreshToken: this.tokens.signRefreshToken(user)
+      accessToken: this.tokens.signAccessToken(user, personalAccount.id),
+      refreshToken: this.tokens.signRefreshToken(user, personalAccount.id)
     };
   }
 }
@@ -655,6 +664,7 @@ export class LoginWebUseCase {
 export class RefreshSessionUseCase {
   constructor(
     private readonly users: UserRepository,
+    private readonly financialAccounts: FinancialAccountRepository,
     private readonly tokens: TokenService
   ) {}
 
@@ -665,10 +675,14 @@ export class RefreshSessionUseCase {
       throw new Error('Invalid refresh token.');
     }
 
+    const membership = payload.financialAccountId
+      ? await this.financialAccounts.findAccessibleById(user.id, payload.financialAccountId)
+      : undefined;
+    const activeAccount = membership?.account ?? await this.financialAccounts.ensurePersonalAccount(user.id);
     return {
       user,
-      accessToken: this.tokens.signAccessToken(user),
-      refreshToken: this.tokens.signRefreshToken(user)
+      accessToken: this.tokens.signAccessToken(user, activeAccount.id),
+      refreshToken: this.tokens.signRefreshToken(user, activeAccount.id)
     };
   }
 }

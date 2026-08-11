@@ -3,6 +3,7 @@ import { ConsumeEmailMagicLinkUseCase, LoginWebUseCase, RegisterWebUseCase, Requ
 import {
   InMemoryCategoryRepository,
   InMemoryEmailMagicLinkTokenRepository,
+  InMemoryFinancialAccountRepository,
   InMemoryRegistrationLeadRepository,
   InMemoryOtpRepository,
   InMemoryUserRepository
@@ -59,6 +60,7 @@ describe('auth use cases', () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
     const categories = new InMemoryCategoryRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository();
     const existing = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Existing',
@@ -74,6 +76,7 @@ describe('auth use cases', () => {
       users,
       otps,
       categories,
+      financialAccounts,
       new FakeTokenService(),
       fixedClock(),
       messaging,
@@ -97,6 +100,7 @@ describe('auth use cases', () => {
       new InMemoryUserRepository(),
       otps,
       new InMemoryCategoryRepository(),
+      new InMemoryFinancialAccountRepository(),
       new FakeTokenService(),
       fixedClock(),
       new CapturingMessagingProvider(),
@@ -116,6 +120,7 @@ describe('auth use cases', () => {
       users,
       otps,
       new InMemoryCategoryRepository(),
+      new InMemoryFinancialAccountRepository(),
       new FakeTokenService(),
       fixedClock(),
       messaging,
@@ -152,7 +157,7 @@ describe('auth use cases', () => {
     const registrationLeads = new InMemoryRegistrationLeadRepository();
     const passwords = new ScryptPasswordHasher();
     const email = new CapturingEmailProvider();
-    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), registrationLeads, email, {
+    const registerUseCase = new RegisterWebUseCase(users, categories, new InMemoryFinancialAccountRepository(), passwords, new FakeTokenService(), registrationLeads, email, {
       frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
     });
 
@@ -172,7 +177,7 @@ describe('auth use cases', () => {
     expect(email.messages).toHaveLength(1);
     expect(email.messages[0].subject).toBe('Bienvenido a Expenses Tracker');
     expect(email.messages[0].html).toContain('/dashboard');
-    const loginUseCase = new LoginWebUseCase(users, passwords, new FakeTokenService());
+    const loginUseCase = new LoginWebUseCase(users, passwords, new InMemoryFinancialAccountRepository(), new FakeTokenService());
     const loginSession = await loginUseCase.execute({
       phoneNumber: '+56982439041',
       password: 'correct-horse-battery'
@@ -209,7 +214,7 @@ describe('auth use cases', () => {
       preferredLanguage: 'es'
     });
 
-    const registerUseCase = new RegisterWebUseCase(users, categories, passwords, new FakeTokenService(), registrationLeads, email, {
+    const registerUseCase = new RegisterWebUseCase(users, categories, new InMemoryFinancialAccountRepository(), passwords, new FakeTokenService(), registrationLeads, email, {
       frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app'
     });
 
@@ -276,7 +281,7 @@ describe('auth use cases', () => {
       userId: user.id,
       expiresAt: new Date('2026-05-10T00:10:00.000Z')
     });
-    const consumeUseCase = new ConsumeEmailMagicLinkUseCase(links, users, new FakeTokenService(), fixedClock());
+    const consumeUseCase = new ConsumeEmailMagicLinkUseCase(links, users, new InMemoryFinancialAccountRepository(), new FakeTokenService(), fixedClock());
 
     const result = await consumeUseCase.execute('magic-link-token');
 
@@ -307,11 +312,11 @@ class CapturingEmailProvider implements EmailProvider {
 }
 
 class FakeTokenService implements TokenService {
-  signAccessToken(user: User) {
+  signAccessToken(user: User, financialAccountId?: string) {
     return `access:${user.id}`;
   }
 
-  signRefreshToken(user: User) {
+  signRefreshToken(user: User, financialAccountId?: string) {
     return `refresh:${user.id}`;
   }
 
@@ -320,11 +325,11 @@ class FakeTokenService implements TokenService {
   }
 
   verifyAccessToken() {
-    return { userId: 'user-id', tenantId: 'tenant-id' };
+    return { userId: 'user-id', tenantId: 'tenant-id', financialAccountId: 'account-id' };
   }
 
   verifyRefreshToken() {
-    return { userId: 'user-id', tenantId: 'tenant-id' };
+    return { userId: 'user-id', tenantId: 'tenant-id', financialAccountId: 'account-id' };
   }
 
   verifyTelegramRegistrationIntent(token: string) {

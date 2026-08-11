@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -166,6 +166,95 @@ export class PostgresRegistrationLeadRepository implements RegistrationLeadRepos
   }
 }
 
+export class PostgresFinancialAccountRepository implements FinancialAccountRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async ensurePersonalAccount(userId: string) {
+    const result = await this.pool.query(
+      `select fa.*
+       from financial_accounts fa
+       where fa.id = ensure_personal_financial_account($1)`,
+      [userId]
+    );
+    const account = mapFinancialAccount(result.rows[0]);
+    await this.pool.query(
+      `insert into financial_account_members (financial_account_id, user_id, role, status, joined_at)
+       values ($1, $2, 'owner', 'active', now())
+       on conflict (financial_account_id, user_id)
+       do update set role = excluded.role, status = excluded.status, joined_at = coalesce(financial_account_members.joined_at, excluded.joined_at), updated_at = now()`,
+      [account.id, userId]
+    );
+    return account;
+  }
+
+  async findAccessibleById(userId: string, financialAccountId: string) {
+    const result = await this.pool.query(
+      `select
+         fa.*,
+         fam.role as membership_role
+       from financial_accounts fa
+       join financial_account_members fam
+         on fam.financial_account_id = fa.id
+        and fam.user_id = $1
+        and fam.status = 'active'
+       where fa.id = $2
+       limit 1`,
+      [userId, financialAccountId]
+    );
+    return result.rows[0] ? mapFinancialAccountMembership(result.rows[0]) : undefined;
+  }
+
+  async listAccessibleByUser(userId: string) {
+    const result = await this.pool.query(
+      `select
+         fa.*,
+         fam.role as membership_role
+       from financial_accounts fa
+       join financial_account_members fam
+         on fam.financial_account_id = fa.id
+        and fam.user_id = $1
+        and fam.status = 'active'
+       order by fa.type asc, fa.created_at asc`,
+      [userId]
+    );
+    return result.rows.map(mapFinancialAccountMembership);
+  }
+
+  async createSharedAccount(input: {
+    tenantId: string;
+    createdByUserId: string;
+    name: string;
+    currency: string;
+  }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const inserted = await client.query(
+        `insert into financial_accounts (tenant_id, type, name, currency, created_by_user_id)
+         values ($1, 'shared', $2, $3, $4)
+         returning *`,
+        [input.tenantId, input.name, input.currency, input.createdByUserId]
+      );
+      const account = mapFinancialAccount(inserted.rows[0]);
+      await client.query(
+        `insert into financial_account_members (financial_account_id, user_id, role, status, joined_at)
+         values ($1, $2, 'owner', 'active', now())`,
+        [account.id, input.createdByUserId]
+      );
+      await client.query('commit');
+      return {
+        account,
+        role: 'owner'
+      } satisfies FinancialAccountMembershipRecord;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+}
+
 export class PostgresOtpRepository implements OtpRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -193,20 +282,24 @@ export class PostgresOtpRepository implements OtpRepository {
 export class PostgresCategoryRepository implements CategoryRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async listByTenant(tenantId: string) {
+  async listByTenant(tenantId: string, financialAccountId?: string) {
     const result = await this.pool.query(
-      `select * from categories where tenant_id = $1 order by parent_id nulls first, name`,
-      [tenantId]
+      `select *
+       from categories
+       where tenant_id = $1
+         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
+       order by parent_id nulls first, name`,
+      [tenantId, financialAccountId ?? null]
     );
     return result.rows.map(mapCategory);
   }
 
   async create(input: Omit<Category, 'id'>) {
     const result = await this.pool.query(
-      `insert into categories (tenant_id, name, parent_id, is_default)
-       values ($1, $2, $3, $4)
+      `insert into categories (tenant_id, financial_account_id, name, parent_id, is_default)
+       values ($1, $2, $3, $4, $5)
        returning *`,
-      [input.tenantId, input.name, input.parentId ?? null, input.isDefault]
+      [input.tenantId, input.financialAccountId ?? null, input.name, input.parentId ?? null, input.isDefault]
     );
     return mapCategory(result.rows[0]);
   }
@@ -219,53 +312,57 @@ export class PostgresCategoryRepository implements CategoryRepository {
 export class PostgresBankOptionRepository implements BankOptionRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async listByTenant(tenantId: string) {
+  async listByTenant(tenantId: string, financialAccountId?: string) {
     const result = await this.pool.query(
       `select * from bank_options
-       where tenant_id is null or tenant_id = $1
+       where
+         ((tenant_id is null and financial_account_id is null) or tenant_id = $1)
+         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
        order by is_default desc, name`,
-      [tenantId]
+      [tenantId, financialAccountId ?? null]
     );
     return result.rows.map(mapBankOption);
   }
 
-  async findAccessibleById(tenantId: string, bankOptionId: string) {
+  async findAccessibleById(tenantId: string, bankOptionId: string, financialAccountId?: string) {
     const result = await this.pool.query(
       `select * from bank_options
-       where id = $1 and (tenant_id is null or tenant_id = $2)`,
-      [bankOptionId, tenantId]
+       where id = $1
+         and ((tenant_id is null and financial_account_id is null) or tenant_id = $2)
+         and ($3::uuid is null or financial_account_id is null or financial_account_id = $3)`,
+      [bankOptionId, tenantId, financialAccountId ?? null]
     );
     return result.rows[0] ? mapBankOption(result.rows[0]) : undefined;
   }
 
   async create(input: Omit<BankOption, 'id'>) {
     const result = await this.pool.query(
-      `insert into bank_options (tenant_id, name, is_default)
-       values ($1, $2, $3)
+      `insert into bank_options (tenant_id, financial_account_id, name, is_default)
+       values ($1, $2, $3, $4)
        returning *`,
-      [input.tenantId ?? null, input.name, input.isDefault]
+      [input.tenantId ?? null, input.financialAccountId ?? null, input.name, input.isDefault]
     );
     return mapBankOption(result.rows[0]);
   }
 
-  async update(input: { tenantId: string; bankOptionId: string; name: string }) {
+  async update(input: { tenantId: string; financialAccountId?: string; bankOptionId: string; name: string }) {
     const result = await this.pool.query(
       `update bank_options
        set name = $3,
            updated_at = now()
-       where id = $1 and tenant_id = $2 and is_default = false
+       where id = $1 and tenant_id = $2 and ($4::uuid is null or financial_account_id = $4) and is_default = false
        returning *`,
-      [input.bankOptionId, input.tenantId, input.name]
+      [input.bankOptionId, input.tenantId, input.name, input.financialAccountId ?? null]
     );
     return result.rows[0] ? mapBankOption(result.rows[0]) : undefined;
   }
 
-  async delete(input: { tenantId: string; bankOptionId: string }) {
+  async delete(input: { tenantId: string; financialAccountId?: string; bankOptionId: string }) {
     try {
       const result = await this.pool.query(
         `delete from bank_options
-         where id = $1 and tenant_id = $2 and is_default = false`,
-        [input.bankOptionId, input.tenantId]
+         where id = $1 and tenant_id = $2 and ($3::uuid is null or financial_account_id = $3) and is_default = false`,
+        [input.bankOptionId, input.tenantId, input.financialAccountId ?? null]
       );
       return result.rowCount === 1;
     } catch (error) {
@@ -278,37 +375,42 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
 export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptionRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async listByTenant(tenantId: string) {
+  async listByTenant(tenantId: string, financialAccountId?: string) {
     const result = await this.pool.query(
       `select * from payment_method_options
-       where tenant_id is null or tenant_id = $1
+       where
+         ((tenant_id is null and financial_account_id is null) or tenant_id = $1)
+         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
        order by is_default desc, name`,
-      [tenantId]
+      [tenantId, financialAccountId ?? null]
     );
     return result.rows.map(mapPaymentMethodOption);
   }
 
-  async findAccessibleById(tenantId: string, paymentMethodOptionId: string) {
+  async findAccessibleById(tenantId: string, paymentMethodOptionId: string, financialAccountId?: string) {
     const result = await this.pool.query(
       `select * from payment_method_options
-       where id = $1 and (tenant_id is null or tenant_id = $2)`,
-      [paymentMethodOptionId, tenantId]
+       where id = $1
+         and ((tenant_id is null and financial_account_id is null) or tenant_id = $2)
+         and ($3::uuid is null or financial_account_id is null or financial_account_id = $3)`,
+      [paymentMethodOptionId, tenantId, financialAccountId ?? null]
     );
     return result.rows[0] ? mapPaymentMethodOption(result.rows[0]) : undefined;
   }
 
   async create(input: Omit<PaymentMethodOption, 'id'>) {
     const result = await this.pool.query(
-      `insert into payment_method_options (tenant_id, code, name, kind, card_type, is_default)
-       values ($1, $2, $3, $4, $5, $6)
+      `insert into payment_method_options (tenant_id, financial_account_id, code, name, kind, card_type, is_default)
+       values ($1, $2, $3, $4, $5, $6, $7)
        returning *`,
-      [input.tenantId ?? null, input.code, input.name, input.kind, input.cardType ?? null, input.isDefault]
+      [input.tenantId ?? null, input.financialAccountId ?? null, input.code, input.name, input.kind, input.cardType ?? null, input.isDefault]
     );
     return mapPaymentMethodOption(result.rows[0]);
   }
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     paymentMethodOptionId: string;
     code: string;
     name: string;
@@ -322,19 +424,19 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
            kind = $5,
            card_type = $6,
            updated_at = now()
-       where id = $1 and tenant_id = $2 and is_default = false
+       where id = $1 and tenant_id = $2 and ($7::uuid is null or financial_account_id = $7) and is_default = false
        returning *`,
-      [input.paymentMethodOptionId, input.tenantId, input.code, input.name, input.kind, input.cardType ?? null]
+      [input.paymentMethodOptionId, input.tenantId, input.code, input.name, input.kind, input.cardType ?? null, input.financialAccountId ?? null]
     );
     return result.rows[0] ? mapPaymentMethodOption(result.rows[0]) : undefined;
   }
 
-  async delete(input: { tenantId: string; paymentMethodOptionId: string }) {
+  async delete(input: { tenantId: string; financialAccountId?: string; paymentMethodOptionId: string }) {
     try {
       const result = await this.pool.query(
         `delete from payment_method_options
-         where id = $1 and tenant_id = $2 and is_default = false`,
-        [input.paymentMethodOptionId, input.tenantId]
+         where id = $1 and tenant_id = $2 and ($3::uuid is null or financial_account_id = $3) and is_default = false`,
+        [input.paymentMethodOptionId, input.tenantId, input.financialAccountId ?? null]
       );
       return result.rowCount === 1;
     } catch (error) {
@@ -357,15 +459,18 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
       const inserted = await client.query(
         `insert into expenses (
-          tenant_id, user_id, expense_date, purchase_date, amount, currency, concept, category_id, subcategory_id,
+          tenant_id, financial_account_id, user_id, created_by_user_id, paid_by_user_id, expense_date, purchase_date, amount, currency, concept, category_id, subcategory_id,
           payment_method_option_id, bank_option_id, payment_method_kind, bank, card_type, original_message,
           installment_count, first_installment_date
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         returning id`,
         [
           input.tenantId,
+          input.financialAccountId ?? null,
           input.userId,
+          input.createdByUserId ?? input.userId,
+          input.paidByUserId ?? input.userId,
           purchaseDate,
           purchaseDate,
           input.amount,
@@ -397,17 +502,18 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     }
   }
 
-  async delete(input: { tenantId: string; expenseId: string }) {
+  async delete(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
     const result = await this.pool.query(
       `delete from expenses
-       where tenant_id = $1 and id = $2`,
-      [input.tenantId, input.expenseId]
+       where tenant_id = $1 and id = $2 and ($3::uuid is null or financial_account_id = $3)`,
+      [input.tenantId, input.expenseId, input.financialAccountId ?? null]
     );
     return result.rowCount === 1;
   }
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     expenseId: string;
     date?: string;
     amount?: number;
@@ -424,7 +530,10 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
-      const existing = await client.query(`select * from expenses where tenant_id = $1 and id = $2`, [input.tenantId, input.expenseId]);
+      const existing = await client.query(
+        `select * from expenses where tenant_id = $1 and id = $2 and ($3::uuid is null or financial_account_id = $3)`,
+        [input.tenantId, input.expenseId, input.financialAccountId ?? null]
+      );
       if (!existing.rows[0]) {
         await client.query('rollback');
         return undefined;
@@ -461,7 +570,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
              card_type = $13,
              installment_count = $14,
              first_installment_date = $15
-         where tenant_id = $1 and id = $2`,
+         where tenant_id = $1 and id = $2 and ($16::uuid is null or financial_account_id = $16)`,
         [
           input.tenantId,
           input.expenseId,
@@ -477,7 +586,8 @@ export class PostgresExpenseRepository implements ExpenseRepository {
           paymentBank,
           paymentCardType,
           installmentCount,
-          firstInstallmentDate
+          firstInstallmentDate,
+          input.financialAccountId ?? null
         ]
       );
 
@@ -495,6 +605,7 @@ export class PostgresExpenseRepository implements ExpenseRepository {
 
   async list(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     categoryId?: string;
@@ -505,16 +616,18 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     const result = await this.pool.query(
       `${expenseProjectionSelectSql({
         whereClause: `where e.tenant_id = $1
-         and ($2::timestamptz is null or i.due_date >= $2)
-         and ($3::timestamptz is null or i.due_date <= $3)
-         and ($4::uuid is null or e.category_id = $4 or e.subcategory_id = $4)
-         and ($5::char(3) is null or e.currency = $5)
-         and ($6::text is null or e.payment_method_kind = $6)`,
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and ($3::timestamptz is null or i.due_date >= $3)
+         and ($4::timestamptz is null or i.due_date <= $4)
+         and ($5::uuid is null or e.category_id = $5 or e.subcategory_id = $5)
+         and ($6::char(3) is null or e.currency = $6)
+         and ($7::text is null or e.payment_method_kind = $7)`,
         orderClause: 'order by i.due_date desc, i.installment_number asc, e.created_at desc',
-        limitClause: 'limit $7'
+        limitClause: 'limit $8'
       })}`,
       [
         input.tenantId,
+        input.financialAccountId ?? null,
         input.from ?? null,
         input.to ?? null,
         input.categoryId ?? null,
@@ -526,65 +639,131 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     return result.rows.map(mapExpense);
   }
 
-  async listRecent(tenantId: string, limit: number) {
+  async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+    const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     const result = await this.pool.query(
       `${expenseProjectionSelectSql({
-        whereClause: 'where e.tenant_id = $1',
+        whereClause: 'where e.tenant_id = $1 and ($2::uuid is null or e.financial_account_id = $2)',
         orderClause: 'order by i.due_date desc, i.installment_number asc, e.created_at desc',
-        limitClause: 'limit $2'
+        limitClause: 'limit $3'
       })}`,
-      [tenantId, limit]
+      [tenantId, financialAccountId ?? null, limit]
     );
     return result.rows.map(mapExpense);
   }
 
-  async listByPeriod(tenantId: string, from: string, to: string) {
+  async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
+    const { financialAccountId, from, to } = normalizeScopedPeriodArgs(financialAccountIdOrFrom, fromOrTo, toMaybe);
     const result = await this.pool.query(
       `${expenseProjectionSelectSql({
-        whereClause: 'where e.tenant_id = $1 and i.due_date >= $2 and i.due_date <= $3',
+        whereClause: 'where e.tenant_id = $1 and ($2::uuid is null or e.financial_account_id = $2) and i.due_date >= $3 and i.due_date <= $4',
         orderClause: 'order by i.due_date desc, i.installment_number asc'
       })}`,
-      [tenantId, from, to]
+      [tenantId, financialAccountId ?? null, from, to]
     );
     return result.rows.map(mapExpense);
   }
 
-  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+  async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const result = await this.pool.query(
-      `select * from yearly_expenses_monthly_totals_by_tenant($1, $2)`,
-      [tenantId, year]
+      `select
+         to_char(date_trunc('month', i.due_date), 'YYYY-MM') as period_key,
+         e.currency,
+         sum(i.amount) as total
+       from expenses e
+       join expense_installments i on i.expense_id = e.id
+       where e.tenant_id = $1
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and extract(year from i.due_date at time zone 'UTC') = $3
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, year]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
 
-  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+  async monthlyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, month: string) {
     const result = await this.pool.query(
-      `select * from monthly_expenses_daily_totals_by_tenant($1, $2::date)`,
-      [tenantId, `${month}-01`]
+      `select
+         to_char(date_trunc('day', i.due_date), 'YYYY-MM-DD') as period_key,
+         e.currency,
+         sum(i.amount) as total
+       from expenses e
+       join expense_installments i on i.expense_id = e.id
+       where e.tenant_id = $1
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and to_char(i.due_date at time zone 'UTC', 'YYYY-MM') = $3
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, month]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
 
-  async weeklyDailyTotalsByTenant(tenantId: string, weekStartIsoDate: string) {
+  async weeklyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, weekStartIsoDate: string) {
     const result = await this.pool.query(
-      `select * from weekly_expenses_daily_totals_by_tenant($1, $2::date)`,
-      [tenantId, weekStartIsoDate]
+      `select
+         to_char(date_trunc('day', i.due_date), 'YYYY-MM-DD') as period_key,
+         e.currency,
+         sum(i.amount) as total
+       from expenses e
+       join expense_installments i on i.expense_id = e.id
+       where e.tenant_id = $1
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and i.due_date >= $3::date
+         and i.due_date < ($3::date + interval '7 days')
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, weekStartIsoDate]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
 
-  async upcomingInstallmentsMonthlyTotalsByTenant(tenantId: string, startMonth: string, months: number) {
+  async upcomingInstallmentsMonthlyTotalsByTenant(
+    tenantId: string,
+    financialAccountIdOrStartMonth: string,
+    startMonthOrMonths?: string | number,
+    monthsMaybe?: number
+  ) {
+    const { financialAccountId, startMonth, months } = normalizeScopedUpcomingArgs(
+      financialAccountIdOrStartMonth,
+      startMonthOrMonths,
+      monthsMaybe
+    );
     const result = await this.pool.query(
-      `select * from upcoming_expense_installments_monthly_totals_by_tenant($1, $2::date, $3)`,
-      [tenantId, `${startMonth}-01`, months]
+      `select
+         to_char(date_trunc('month', i.due_date), 'YYYY-MM') as period_key,
+         e.currency,
+         sum(i.amount) as total
+       from expenses e
+       join expense_installments i on i.expense_id = e.id
+       where e.tenant_id = $1
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and coalesce(e.installment_count, 1) > 1
+         and i.due_date >= $3::date
+         and i.due_date < ($3::date + make_interval(months => $4))
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, `${startMonth}-01`, months]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
 
-  async periodCategoryTotalsByTenant(tenantId: string, from: string, to: string) {
+  async periodCategoryTotalsByTenant(tenantId: string, financialAccountId: string | undefined, from: string, to: string) {
     const result = await this.pool.query(
-      `select * from period_expense_category_totals_by_tenant($1, $2, $3)`,
-      [tenantId, from, to]
+      `select
+         e.category_id,
+         e.subcategory_id,
+         e.currency,
+         sum(i.amount) as total
+       from expenses e
+       join expense_installments i on i.expense_id = e.id
+       where e.tenant_id = $1
+         and ($2::uuid is null or e.financial_account_id = $2)
+         and i.due_date >= $3
+         and i.due_date <= $4
+       group by 1, 2, 3`,
+      [tenantId, financialAccountId ?? null, from, to]
     );
     return result.rows.map(mapCategoryTotalByPeriod);
   }
@@ -595,25 +774,26 @@ export class PostgresIncomeRepository implements IncomeRepository {
 
   async create(input: Omit<Income, 'id'>) {
     const result = await this.pool.query(
-      `insert into incomes (tenant_id, user_id, income_date, amount, currency, concept)
-       values ($1, $2, $3, $4, $5, $6)
+      `insert into incomes (tenant_id, financial_account_id, user_id, income_date, amount, currency, concept)
+       values ($1, $2, $3, $4, $5, $6, $7)
        returning *`,
-      [input.tenantId, input.userId, input.date, input.amount, input.currency, input.concept]
+      [input.tenantId, input.financialAccountId ?? null, input.userId, input.date, input.amount, input.currency, input.concept]
     );
     return mapIncome(result.rows[0]);
   }
 
-  async delete(input: { tenantId: string; incomeId: string }) {
+  async delete(input: { tenantId: string; financialAccountId?: string; incomeId: string }) {
     const result = await this.pool.query(
       `delete from incomes
-       where tenant_id = $1 and id = $2`,
-      [input.tenantId, input.incomeId]
+       where tenant_id = $1 and id = $2 and ($3::uuid is null or financial_account_id = $3)`,
+      [input.tenantId, input.incomeId, input.financialAccountId ?? null]
     );
     return result.rowCount === 1;
   }
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     incomeId: string;
     date?: string;
     amount?: number;
@@ -626,15 +806,16 @@ export class PostgresIncomeRepository implements IncomeRepository {
            amount = coalesce($4, amount),
            currency = coalesce($5, currency),
            concept = coalesce($6, concept)
-       where tenant_id = $1 and id = $2
+       where tenant_id = $1 and id = $2 and ($7::uuid is null or financial_account_id = $7)
        returning *`,
-      [input.tenantId, input.incomeId, input.date ?? null, input.amount ?? null, input.currency ?? null, input.concept ?? null]
+      [input.tenantId, input.incomeId, input.date ?? null, input.amount ?? null, input.currency ?? null, input.concept ?? null, input.financialAccountId ?? null]
     );
     return result.rows[0] ? mapIncome(result.rows[0]) : undefined;
   }
 
   async list(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     currency?: string;
@@ -644,44 +825,74 @@ export class PostgresIncomeRepository implements IncomeRepository {
       `select *
        from incomes
        where tenant_id = $1
-         and ($2::timestamptz is null or income_date >= $2)
-         and ($3::timestamptz is null or income_date <= $3)
-         and ($4::char(3) is null or currency = $4)
+         and ($2::uuid is null or financial_account_id = $2)
+         and ($3::timestamptz is null or income_date >= $3)
+         and ($4::timestamptz is null or income_date <= $4)
+         and ($5::char(3) is null or currency = $5)
        order by income_date desc, created_at desc
-       limit $5`,
-      [input.tenantId, input.from ?? null, input.to ?? null, input.currency ?? null, input.limit]
+       limit $6`,
+      [input.tenantId, input.financialAccountId ?? null, input.from ?? null, input.to ?? null, input.currency ?? null, input.limit]
     );
     return result.rows.map(mapIncome);
   }
 
-  async listByPeriod(tenantId: string, from: string, to: string) {
+  async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
+    const { financialAccountId, from, to } = normalizeScopedPeriodArgs(financialAccountIdOrFrom, fromOrTo, toMaybe);
     const result = await this.pool.query(
-      `select * from incomes where tenant_id = $1 and income_date >= $2 and income_date <= $3 order by income_date desc`,
-      [tenantId, from, to]
+      `select * from incomes
+       where tenant_id = $1
+         and ($2::uuid is null or financial_account_id = $2)
+         and income_date >= $3
+         and income_date <= $4
+       order by income_date desc`,
+      [tenantId, financialAccountId ?? null, from, to]
     );
     return result.rows.map(mapIncome);
   }
 
-  async listRecent(tenantId: string, limit: number) {
+  async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+    const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     const result = await this.pool.query(
-      `select * from incomes where tenant_id = $1 order by income_date desc, created_at desc limit $2`,
-      [tenantId, limit]
+      `select * from incomes
+       where tenant_id = $1
+         and ($2::uuid is null or financial_account_id = $2)
+       order by income_date desc, created_at desc
+       limit $3`,
+      [tenantId, financialAccountId ?? null, limit]
     );
     return result.rows.map(mapIncome);
   }
 
-  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+  async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const result = await this.pool.query(
-      `select * from yearly_incomes_monthly_totals_by_tenant($1, $2)`,
-      [tenantId, year]
+      `select
+         to_char(date_trunc('month', income_date), 'YYYY-MM') as period_key,
+         currency,
+         sum(amount) as total
+       from incomes
+       where tenant_id = $1
+         and ($2::uuid is null or financial_account_id = $2)
+         and extract(year from income_date at time zone 'UTC') = $3
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, year]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
 
-  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+  async monthlyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, month: string) {
     const result = await this.pool.query(
-      `select * from monthly_incomes_daily_totals_by_tenant($1, $2::date)`,
-      [tenantId, `${month}-01`]
+      `select
+         to_char(date_trunc('day', income_date), 'YYYY-MM-DD') as period_key,
+         currency,
+         sum(amount) as total
+       from incomes
+       where tenant_id = $1
+         and ($2::uuid is null or financial_account_id = $2)
+         and to_char(income_date at time zone 'UTC', 'YYYY-MM') = $3
+       group by 1, 2
+       order by 1, 2`,
+      [tenantId, financialAccountId ?? null, month]
     );
     return result.rows.map(mapCurrencyTotalByPeriod);
   }
@@ -692,20 +903,25 @@ export class PostgresBudgetRepository implements BudgetRepository {
 
   async upsertMonthly(input: Omit<MonthlyBudget, 'id'>) {
     const result = await this.pool.query(
-      `insert into monthly_budgets (tenant_id, budget_month, category_id, subcategory_id, amount, currency)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (tenant_id, budget_month, category_id, subcategory_key)
+      `insert into monthly_budgets (tenant_id, financial_account_id, budget_month, category_id, subcategory_id, amount, currency)
+       values ($1, $2, $3, $4, $5, $6, $7)
+       on conflict (tenant_id, financial_account_id, budget_month, category_id, subcategory_key)
        do update set amount = excluded.amount, currency = excluded.currency, updated_at = now()
        returning *`,
-      [input.tenantId, PERMANENT_BUDGET_MONTH, input.categoryId, input.subcategoryId ?? null, input.amount, input.currency]
+      [input.tenantId, input.financialAccountId ?? null, PERMANENT_BUDGET_MONTH, input.categoryId, input.subcategoryId ?? null, input.amount, input.currency]
     );
     return mapBudget(result.rows[0]);
   }
 
-  async listMonthly(tenantId: string) {
+  async listMonthly(tenantId: string, financialAccountId?: string) {
     const result = await this.pool.query(
-      `select * from monthly_budgets where tenant_id = $1 and budget_month = $2 order by created_at`,
-      [tenantId, PERMANENT_BUDGET_MONTH]
+      `select *
+       from monthly_budgets
+       where tenant_id = $1
+         and budget_month = $2
+         and ($3::uuid is null or financial_account_id = $3)
+       order by created_at`,
+      [tenantId, PERMANENT_BUDGET_MONTH, financialAccountId ?? null]
     );
     return result.rows.map(mapBudget);
   }
@@ -1036,6 +1252,7 @@ function mapCategory(row: QueryResultRow): Category {
   return {
     id: row.id,
     tenantId: row.tenant_id,
+    financialAccountId: row.financial_account_id ?? undefined,
     name: row.name,
     parentId: row.parent_id ?? undefined,
     isDefault: row.is_default
@@ -1046,6 +1263,7 @@ function mapBankOption(row: QueryResultRow): BankOption {
   return {
     id: row.id,
     tenantId: row.tenant_id ?? undefined,
+    financialAccountId: row.financial_account_id ?? undefined,
     name: row.name,
     isDefault: row.is_default
   };
@@ -1055,6 +1273,7 @@ function mapPaymentMethodOption(row: QueryResultRow): PaymentMethodOption {
   return {
     id: row.id,
     tenantId: row.tenant_id ?? undefined,
+    financialAccountId: row.financial_account_id ?? undefined,
     code: row.code,
     name: row.name,
     kind: row.kind,
@@ -1067,7 +1286,10 @@ function mapExpense(row: QueryResultRow): Expense {
   return {
     id: row.id,
     tenantId: row.tenant_id,
+    financialAccountId: row.financial_account_id ?? undefined,
     userId: row.user_id,
+    createdByUserId: row.created_by_user_id ?? undefined,
+    paidByUserId: row.paid_by_user_id ?? undefined,
     date: row.expense_date instanceof Date ? row.expense_date.toISOString() : row.expense_date,
     amount: Number(row.amount),
     totalAmount: row.total_amount != null ? Number(row.total_amount) : Number(row.amount),
@@ -1094,6 +1316,7 @@ function mapIncome(row: QueryResultRow): Income {
   return {
     id: row.id,
     tenantId: row.tenant_id,
+    financialAccountId: row.financial_account_id ?? undefined,
     userId: row.user_id,
     date: row.income_date instanceof Date ? row.income_date.toISOString() : row.income_date,
     amount: Number(row.amount),
@@ -1106,6 +1329,7 @@ function mapBudget(row: QueryResultRow): MonthlyBudget {
   return {
     id: row.id,
     tenantId: row.tenant_id,
+    financialAccountId: row.financial_account_id ?? undefined,
     categoryId: row.category_id,
     subcategoryId: row.subcategory_id ?? undefined,
     amount: Number(row.amount),
@@ -1143,6 +1367,26 @@ function mapCategoryTotalByPeriod(row: QueryResultRow) {
   };
 }
 
+function mapFinancialAccount(row: QueryResultRow): FinancialAccount {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    type: row.type,
+    name: row.name,
+    currency: row.currency,
+    createdByUserId: row.created_by_user_id,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at)
+  };
+}
+
+function mapFinancialAccountMembership(row: QueryResultRow): FinancialAccountMembershipRecord {
+  return {
+    account: mapFinancialAccount(row),
+    role: row.membership_role
+  };
+}
+
 function isForeignKeyViolation(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23503';
 }
@@ -1156,7 +1400,10 @@ function expenseProjectionSelectSql(input: {
     select
       e.id,
       e.tenant_id,
+      e.financial_account_id,
       e.user_id,
+      e.created_by_user_id,
+      e.paid_by_user_id,
       i.due_date as expense_date,
       i.amount,
       e.amount as total_amount,
@@ -1199,6 +1446,56 @@ async function replaceExpenseInstallments(
       [expenseId, installment.installmentNumber, installmentCount, installment.dueDate, installment.amount]
     );
   }
+}
+
+function normalizeScopedRecentArgs(financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+  if (typeof financialAccountIdOrLimit === 'number') {
+    return {
+      financialAccountId: undefined,
+      limit: financialAccountIdOrLimit
+    };
+  }
+
+  return {
+    financialAccountId: financialAccountIdOrLimit,
+    limit: limitMaybe ?? 10
+  };
+}
+
+function normalizeScopedPeriodArgs(financialAccountIdOrFrom: string | undefined, fromOrTo?: string, toMaybe?: string) {
+  if (typeof toMaybe === 'string') {
+    return {
+      financialAccountId: financialAccountIdOrFrom,
+      from: fromOrTo ?? '',
+      to: toMaybe
+    };
+  }
+
+  return {
+    financialAccountId: undefined,
+    from: financialAccountIdOrFrom,
+    to: fromOrTo ?? ''
+  };
+}
+
+function normalizeScopedUpcomingArgs(
+  financialAccountIdOrStartMonth: string | undefined,
+  startMonthOrMonths?: string | number,
+  monthsMaybe?: number
+) {
+  if (typeof startMonthOrMonths === 'number') {
+    return {
+      financialAccountId: undefined,
+      startMonth: financialAccountIdOrStartMonth,
+      months: startMonthOrMonths
+    };
+  }
+
+  return {
+    financialAccountId: financialAccountIdOrStartMonth,
+    startMonth: String(startMonthOrMonths ?? ''),
+    months: monthsMaybe ?? 6
+  };
 }
 
 function buildInstallmentSchedule(totalAmount: number, installmentCount: number, firstInstallmentDate: string) {

@@ -5,6 +5,7 @@ export type { Clock } from './clock.js';
 export type { EmailMagicLinkTokenRecord, EmailMagicLinkTokenRepository } from './email-magic-link-token.repository.js';
 export type { EmailProvider } from './email.provider.js';
 export type { CategoryTotalByPeriod, CurrencyTotalByPeriod, ExpenseRepository } from './expense.repository.js';
+export type { FinancialAccountMembershipRecord, FinancialAccountRepository } from './financial-account.repository.js';
 export type { IncomeRepository } from './income.repository.js';
 export type { MessageInterpreterPort } from './message-interpreter.port.js';
 export type { MessagingMessageAuditRepository } from './messaging-message-audit.repository.js';

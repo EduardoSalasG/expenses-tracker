@@ -5,6 +5,8 @@ import type {
   CategoryRepository,
   EmailMagicLinkTokenRepository,
   ExpenseRepository,
+  FinancialAccountMembershipRecord,
+  FinancialAccountRepository,
   IncomeRepository,
   MessagingMessageAuditRepository,
   MessagingPendingDraftRepository,
@@ -17,7 +19,7 @@ import type {
   CategoryTotalByPeriod,
   CurrencyTotalByPeriod
 } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, FinancialAccount, Income, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User, UserAuthRecord } from '../../domain/index.js';
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -147,6 +149,67 @@ export class InMemoryRegistrationLeadRepository implements RegistrationLeadRepos
   }
 }
 
+export class InMemoryFinancialAccountRepository implements FinancialAccountRepository {
+  private readonly accounts = new Map<string, FinancialAccount>();
+  private readonly memberships: FinancialAccountMembershipRecord[] = [];
+
+  async ensurePersonalAccount(userId: string) {
+    const existing = [...this.accounts.values()].find((account) => account.createdByUserId === userId && account.type === 'personal');
+    if (existing) {
+      if (!this.memberships.some((membership) => membership.account.id === existing.id && membership.role === 'owner')) {
+        this.memberships.push({ account: existing, role: 'owner' });
+      }
+      return existing;
+    }
+
+    const account: FinancialAccount = {
+      id: randomUUID(),
+      tenantId: userId,
+      type: 'personal',
+      name: 'Personal',
+      currency: 'CLP',
+      createdByUserId: userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.accounts.set(account.id, account);
+    this.memberships.push({ account, role: 'owner' });
+    return account;
+  }
+
+  async findAccessibleById(userId: string, financialAccountId: string) {
+    await this.ensurePersonalAccount(userId);
+    return this.memberships.find((membership) => membership.account.id === financialAccountId && membership.account.createdByUserId === userId);
+  }
+
+  async listAccessibleByUser(userId: string) {
+    const personal = await this.ensurePersonalAccount(userId);
+    return this.memberships.filter((membership) => membership.account.createdByUserId === userId || membership.account.id === personal.id);
+  }
+
+  async createSharedAccount(input: {
+    tenantId: string;
+    createdByUserId: string;
+    name: string;
+    currency: string;
+  }) {
+    const account: FinancialAccount = {
+      id: randomUUID(),
+      tenantId: input.tenantId,
+      type: 'shared',
+      name: input.name,
+      currency: input.currency,
+      createdByUserId: input.createdByUserId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const membership = { account, role: 'owner' as const };
+    this.accounts.set(account.id, account);
+    this.memberships.push(membership);
+    return membership;
+  }
+}
+
 export class InMemoryOtpRepository implements OtpRepository {
   private readonly otps = new Map<string, { code: string; expiresAt: Date }>();
 
@@ -165,8 +228,11 @@ export class InMemoryOtpRepository implements OtpRepository {
 export class InMemoryCategoryRepository implements CategoryRepository {
   private readonly categories: Category[] = [];
 
-  async listByTenant(tenantId: string) {
-    return this.categories.filter((category) => category.tenantId === tenantId);
+  async listByTenant(tenantId: string, financialAccountId?: string) {
+    return this.categories.filter((category) =>
+      category.tenantId === tenantId &&
+      (!financialAccountId || !category.financialAccountId || category.financialAccountId === financialAccountId)
+    );
   }
 
   async create(input: Omit<Category, 'id'>) {
@@ -223,12 +289,19 @@ const DEFAULT_BANK_OPTIONS = [
 export class InMemoryBankOptionRepository implements BankOptionRepository {
   private readonly banks: BankOption[] = DEFAULT_BANK_OPTIONS.map((name) => ({ id: randomUUID(), name, isDefault: true }));
 
-  async listByTenant(tenantId: string) {
-    return this.banks.filter((bank) => !bank.tenantId || bank.tenantId === tenantId);
+  async listByTenant(tenantId: string, financialAccountId?: string) {
+    return this.banks.filter((bank) =>
+      (!bank.tenantId || bank.tenantId === tenantId) &&
+      (!financialAccountId || !bank.financialAccountId || bank.financialAccountId === financialAccountId)
+    );
   }
 
-  async findAccessibleById(tenantId: string, bankOptionId: string) {
-    return this.banks.find((bank) => bank.id === bankOptionId && (!bank.tenantId || bank.tenantId === tenantId));
+  async findAccessibleById(tenantId: string, bankOptionId: string, financialAccountId?: string) {
+    return this.banks.find((bank) =>
+      bank.id === bankOptionId &&
+      (!bank.tenantId || bank.tenantId === tenantId) &&
+      (!financialAccountId || !bank.financialAccountId || bank.financialAccountId === financialAccountId)
+    );
   }
 
   async create(input: Omit<BankOption, 'id'>) {
@@ -260,12 +333,19 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
     { id: randomUUID(), name: 'Efectivo', code: 'cash', kind: 'cash', isDefault: true }
   ];
 
-  async listByTenant(tenantId: string) {
-    return this.paymentMethods.filter((method) => !method.tenantId || method.tenantId === tenantId);
+  async listByTenant(tenantId: string, financialAccountId?: string) {
+    return this.paymentMethods.filter((method) =>
+      (!method.tenantId || method.tenantId === tenantId) &&
+      (!financialAccountId || !method.financialAccountId || method.financialAccountId === financialAccountId)
+    );
   }
 
-  async findAccessibleById(tenantId: string, paymentMethodOptionId: string) {
-    return this.paymentMethods.find((method) => method.id === paymentMethodOptionId && (!method.tenantId || method.tenantId === tenantId));
+  async findAccessibleById(tenantId: string, paymentMethodOptionId: string, financialAccountId?: string) {
+    return this.paymentMethods.find((method) =>
+      method.id === paymentMethodOptionId &&
+      (!method.tenantId || method.tenantId === tenantId) &&
+      (!financialAccountId || !method.financialAccountId || method.financialAccountId === financialAccountId)
+    );
   }
 
   async create(input: Omit<PaymentMethodOption, 'id'>) {
@@ -320,8 +400,12 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     return buildProjectedExpenses(expense)[0];
   }
 
-  async delete(input: { tenantId: string; expenseId: string }) {
-    const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
+  async delete(input: { tenantId: string; financialAccountId?: string; expenseId: string }) {
+    const index = this.expenses.findIndex((expense) =>
+      expense.tenantId === input.tenantId &&
+      expense.id === input.expenseId &&
+      (!input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
+    );
     if (index === -1) return false;
     this.expenses.splice(index, 1);
     return true;
@@ -329,6 +413,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     expenseId: string;
     date?: string;
     amount?: number;
@@ -342,7 +427,11 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     firstInstallmentDate?: string | null;
     paymentMethod?: Expense['paymentMethod'];
   }) {
-    const index = this.expenses.findIndex((expense) => expense.tenantId === input.tenantId && expense.id === input.expenseId);
+    const index = this.expenses.findIndex((expense) =>
+      expense.tenantId === input.tenantId &&
+      expense.id === input.expenseId &&
+      (!input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
+    );
     if (index < 0) return undefined;
     const purchaseDate = input.date ?? this.expenses[index].purchaseDate ?? this.expenses[index].date;
     const firstInstallmentDate = Object.prototype.hasOwnProperty.call(input, 'firstInstallmentDate')
@@ -374,6 +463,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
 
   async list(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     categoryId?: string;
@@ -383,6 +473,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   }) {
     return this.projectedExpenses()
       .filter((expense) => expense.tenantId === input.tenantId)
+      .filter((expense) => !input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
       .filter((expense) => !input.from || expense.date >= input.from)
       .filter((expense) => !input.to || expense.date <= input.to)
       .filter((expense) => !input.categoryId || expense.categoryId === input.categoryId || expense.subcategoryId === input.categoryId)
@@ -392,20 +483,32 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
       .slice(0, input.limit);
   }
 
-  async listRecent(tenantId: string, limit: number) {
+  async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+    const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     return this.projectedExpenses()
       .filter((expense) => expense.tenantId === tenantId)
+      .filter((expense) => !financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId)
       .sort(sortProjectedExpenses)
       .slice(0, limit);
   }
 
-  async listByPeriod(tenantId: string, from: string, to: string) {
-    return this.projectedExpenses().filter((expense) => expense.tenantId === tenantId && expense.date >= from && expense.date <= to);
+  async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
+    const { financialAccountId, from, to } = normalizeScopedPeriodArgs(financialAccountIdOrFrom, fromOrTo, toMaybe);
+    const normalizedFrom = from ?? '';
+    const normalizedTo = to ?? '';
+    return this.projectedExpenses().filter((expense) =>
+      expense.tenantId === tenantId &&
+      (!financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId) &&
+      expense.date >= normalizedFrom &&
+      expense.date <= normalizedTo
+    );
   }
 
-  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+  async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const source = this.projectedExpenses().filter((expense) =>
-      expense.tenantId === tenantId && new Date(expense.date).getUTCFullYear() === year
+      expense.tenantId === tenantId &&
+      (!financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId) &&
+      new Date(expense.date).getUTCFullYear() === year
     );
     return aggregateCurrencyTotalsBy(source, (expense) => {
       const date = new Date(expense.date);
@@ -413,10 +516,11 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     });
   }
 
-  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+  async monthlyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, month: string) {
     const [year, monthNumber] = month.split('-').map(Number);
     const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
+      if (financialAccountId && expense.financialAccountId && expense.financialAccountId !== financialAccountId) return false;
       const date = new Date(expense.date);
       return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === monthNumber;
     });
@@ -426,13 +530,14 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     });
   }
 
-  async weeklyDailyTotalsByTenant(tenantId: string, weekStartIsoDate: string) {
+  async weeklyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, weekStartIsoDate: string) {
     const weekStart = new Date(`${weekStartIsoDate}T00:00:00.000Z`);
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     weekEnd.setUTCHours(23, 59, 59, 999);
     const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
+      if (financialAccountId && expense.financialAccountId && expense.financialAccountId !== financialAccountId) return false;
       const date = new Date(expense.date);
       return date >= weekStart && date <= weekEnd;
     });
@@ -442,10 +547,11 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     });
   }
 
-  async periodCategoryTotalsByTenant(tenantId: string, from: string, to: string) {
+  async periodCategoryTotalsByTenant(tenantId: string, financialAccountId: string | undefined, from: string, to: string) {
     const totals = new Map<string, CategoryTotalByPeriod>();
     for (const expense of this.projectedExpenses()) {
       if (expense.tenantId !== tenantId) continue;
+      if (financialAccountId && expense.financialAccountId && expense.financialAccountId !== financialAccountId) continue;
       if (expense.date < from || expense.date > to) continue;
       const key = [expense.categoryId, expense.subcategoryId ?? '', expense.currency].join('__');
       const existing = totals.get(key);
@@ -463,12 +569,24 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     return [...totals.values()];
   }
 
-  async upcomingInstallmentsMonthlyTotalsByTenant(tenantId: string, startMonth: string, months: number) {
-    const [year, month] = startMonth.split('-').map(Number);
+  async upcomingInstallmentsMonthlyTotalsByTenant(
+    tenantId: string,
+    financialAccountIdOrStartMonth: string,
+    startMonthOrMonths?: string | number,
+    monthsMaybe?: number
+  ) {
+    const { financialAccountId, startMonth, months } = normalizeScopedUpcomingArgs(
+      financialAccountIdOrStartMonth,
+      startMonthOrMonths,
+      monthsMaybe
+    );
+    const normalizedStartMonth = startMonth || '1970-01';
+    const [year, month] = normalizedStartMonth.split('-').map(Number);
     const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const end = new Date(Date.UTC(year, month - 1 + Math.max(1, months), 1, 0, 0, 0));
     const source = this.projectedExpenses().filter((expense) => {
       if (expense.tenantId !== tenantId) return false;
+      if (financialAccountId && expense.financialAccountId && expense.financialAccountId !== financialAccountId) return false;
       if ((expense.installmentCount ?? 1) <= 1) return false;
       const date = new Date(expense.date);
       return date >= start && date < end;
@@ -493,8 +611,12 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     return income;
   }
 
-  async delete(input: { tenantId: string; incomeId: string }) {
-    const index = this.incomes.findIndex((income) => income.tenantId === input.tenantId && income.id === input.incomeId);
+  async delete(input: { tenantId: string; financialAccountId?: string; incomeId: string }) {
+    const index = this.incomes.findIndex((income) =>
+      income.tenantId === input.tenantId &&
+      income.id === input.incomeId &&
+      (!input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
+    );
     if (index === -1) return false;
     this.incomes.splice(index, 1);
     return true;
@@ -502,13 +624,18 @@ export class InMemoryIncomeRepository implements IncomeRepository {
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     incomeId: string;
     date?: string;
     amount?: number;
     currency?: string;
     concept?: string;
   }) {
-    const index = this.incomes.findIndex((income) => income.tenantId === input.tenantId && income.id === input.incomeId);
+    const index = this.incomes.findIndex((income) =>
+      income.tenantId === input.tenantId &&
+      income.id === input.incomeId &&
+      (!input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
+    );
     if (index < 0) return undefined;
     this.incomes[index] = {
       ...this.incomes[index],
@@ -522,6 +649,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
 
   async list(input: {
     tenantId: string;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     currency?: string;
@@ -529,6 +657,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
   }) {
     return this.incomes
       .filter((income) => income.tenantId === input.tenantId)
+      .filter((income) => !input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
       .filter((income) => !input.from || income.date >= input.from)
       .filter((income) => !input.to || income.date <= input.to)
       .filter((income) => !input.currency || income.currency === input.currency)
@@ -536,20 +665,32 @@ export class InMemoryIncomeRepository implements IncomeRepository {
       .slice(0, input.limit);
   }
 
-  async listByPeriod(tenantId: string, from: string, to: string) {
-    return this.incomes.filter((income) => income.tenantId === tenantId && income.date >= from && income.date <= to);
+  async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
+    const { financialAccountId, from, to } = normalizeScopedPeriodArgs(financialAccountIdOrFrom, fromOrTo, toMaybe);
+    const normalizedFrom = from ?? '';
+    const normalizedTo = to ?? '';
+    return this.incomes.filter((income) =>
+      income.tenantId === tenantId &&
+      (!financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId) &&
+      income.date >= normalizedFrom &&
+      income.date <= normalizedTo
+    );
   }
 
-  async listRecent(tenantId: string, limit: number) {
+  async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+    const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     return this.incomes
       .filter((income) => income.tenantId === tenantId)
+      .filter((income) => !financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
   }
 
-  async yearlyMonthlyTotalsByTenant(tenantId: string, year: number) {
+  async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const source = this.incomes.filter((income) =>
-      income.tenantId === tenantId && new Date(income.date).getUTCFullYear() === year
+      income.tenantId === tenantId &&
+      (!financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId) &&
+      new Date(income.date).getUTCFullYear() === year
     );
     return aggregateCurrencyTotalsBy(source, (income) => {
       const date = new Date(income.date);
@@ -557,10 +698,11 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     });
   }
 
-  async monthlyDailyTotalsByTenant(tenantId: string, month: string) {
+  async monthlyDailyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, month: string) {
     const [year, monthNumber] = month.split('-').map(Number);
     const source = this.incomes.filter((income) => {
       if (income.tenantId !== tenantId) return false;
+      if (financialAccountId && income.financialAccountId && income.financialAccountId !== financialAccountId) return false;
       const date = new Date(income.date);
       return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === monthNumber;
     });
@@ -590,6 +732,56 @@ function aggregateCurrencyTotalsBy<T extends { amount: number; currency: string 
     });
   }
   return [...totals.values()].sort((a, b) => a.periodKey.localeCompare(b.periodKey));
+}
+
+function normalizeScopedRecentArgs(financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
+  if (typeof financialAccountIdOrLimit === 'number') {
+    return {
+      financialAccountId: undefined,
+      limit: financialAccountIdOrLimit
+    };
+  }
+
+  return {
+    financialAccountId: financialAccountIdOrLimit,
+    limit: limitMaybe ?? 10
+  };
+}
+
+function normalizeScopedPeriodArgs(financialAccountIdOrFrom: string | undefined, fromOrTo?: string, toMaybe?: string) {
+  if (typeof toMaybe === 'string') {
+    return {
+      financialAccountId: financialAccountIdOrFrom,
+      from: fromOrTo ?? '',
+      to: toMaybe
+    };
+  }
+
+  return {
+    financialAccountId: undefined,
+    from: financialAccountIdOrFrom,
+    to: fromOrTo ?? ''
+  };
+}
+
+function normalizeScopedUpcomingArgs(
+  financialAccountIdOrStartMonth: string | undefined,
+  startMonthOrMonths?: string | number,
+  monthsMaybe?: number
+) {
+  if (typeof startMonthOrMonths === 'number') {
+    return {
+      financialAccountId: undefined,
+      startMonth: financialAccountIdOrStartMonth,
+      months: startMonthOrMonths
+    };
+  }
+
+  return {
+    financialAccountId: financialAccountIdOrStartMonth,
+    startMonth: String(startMonthOrMonths ?? ''),
+    months: monthsMaybe ?? 6
+  };
 }
 
 function buildProjectedExpenses(expense: Expense) {
@@ -656,8 +848,11 @@ export class InMemoryBudgetRepository implements BudgetRepository {
     return budget;
   }
 
-  async listMonthly(tenantId: string) {
-    return this.budgets.filter((budget) => budget.tenantId === tenantId);
+  async listMonthly(tenantId: string, financialAccountId?: string) {
+    return this.budgets.filter((budget) =>
+      budget.tenantId === tenantId &&
+      (!financialAccountId || !budget.financialAccountId || budget.financialAccountId === financialAccountId)
+    );
   }
 }
 

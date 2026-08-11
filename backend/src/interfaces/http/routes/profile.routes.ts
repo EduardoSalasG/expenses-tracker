@@ -10,4 +10,8 @@ export function registerProfileRoutes(app: Express, container: AppContainer) {
 
   app.get('/me', auth, asyncHandler(controller.getMe));
   app.put('/me', auth, asyncHandler(controller.updateMe));
+  app.get('/accounts', auth, asyncHandler(controller.listAccounts));
+  app.post('/accounts', auth, asyncHandler(controller.createAccount));
+  app.get('/me/account-context', auth, asyncHandler(controller.getAccountContext));
+  app.put('/me/account-context', auth, asyncHandler(controller.updateAccountContext));
 }

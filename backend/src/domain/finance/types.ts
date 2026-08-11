@@ -1,4 +1,5 @@
 import type { CategoryId } from '../categories/index.js';
+import type { FinancialAccountId } from '../financial-accounts/index.js';
 import type { TenantId } from '../tenancy/index.js';
 import type { UserId } from '../users/index.js';
 
@@ -11,6 +12,7 @@ export type PaymentMethodKind = 'cash' | 'card' | 'transfer';
 export interface BankOption {
   id: string;
   tenantId?: TenantId;
+  financialAccountId?: FinancialAccountId;
   name: string;
   isDefault: boolean;
 }
@@ -18,6 +20,7 @@ export interface BankOption {
 export interface PaymentMethodOption {
   id: string;
   tenantId?: TenantId;
+  financialAccountId?: FinancialAccountId;
   code: string;
   name: string;
   kind: PaymentMethodKind;
@@ -34,7 +37,10 @@ export interface PaymentMethod {
 export interface Expense {
   id: ExpenseId;
   tenantId: TenantId;
+  financialAccountId?: FinancialAccountId;
   userId: UserId;
+  createdByUserId?: UserId;
+  paidByUserId?: UserId;
   date: string;
   amount: number;
   totalAmount?: number;
@@ -55,6 +61,7 @@ export interface Expense {
 export interface Income {
   id: string;
   tenantId: TenantId;
+  financialAccountId?: FinancialAccountId;
   userId: UserId;
   date: string;
   amount: number;
@@ -65,6 +72,7 @@ export interface Income {
 export interface MonthlyBudget {
   id: string;
   tenantId: TenantId;
+  financialAccountId?: FinancialAccountId;
   categoryId: CategoryId;
   subcategoryId?: CategoryId;
   amount: number;

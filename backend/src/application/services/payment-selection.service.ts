@@ -25,6 +25,7 @@ export class PaymentSelectionService {
 
   async resolve(
     tenantId: string,
+    financialAccountId: string | undefined,
     input: { paymentMethod: Expense['paymentMethod']; paymentMethodOptionId?: string; bankOptionId?: string }
   ) {
     let paymentMethod = normalizePaymentMethod(input.paymentMethod);
@@ -32,7 +33,7 @@ export class PaymentSelectionService {
     let bankOptionId = input.bankOptionId;
 
     if (paymentMethodOptionId) {
-      const option = await this.paymentMethods.findAccessibleById(tenantId, paymentMethodOptionId);
+      const option = await this.paymentMethods.findAccessibleById(tenantId, paymentMethodOptionId, financialAccountId);
       if (!option) throw new Error('Payment method option not found.');
       paymentMethod = {
         kind: option.kind,
@@ -40,7 +41,7 @@ export class PaymentSelectionService {
         bank: paymentMethod.bank
       };
     } else {
-      const option = await this.matchPaymentMethodOption(tenantId, paymentMethod);
+      const option = await this.matchPaymentMethodOption(tenantId, financialAccountId, paymentMethod);
       if (option) {
         paymentMethodOptionId = option.id;
         paymentMethod = {
@@ -60,11 +61,11 @@ export class PaymentSelectionService {
     }
 
     if (bankOptionId) {
-      const bank = await this.banks.findAccessibleById(tenantId, bankOptionId);
+      const bank = await this.banks.findAccessibleById(tenantId, bankOptionId, financialAccountId);
       if (!bank) throw new Error('Bank option not found.');
       paymentMethod = { ...paymentMethod, bank: bank.name };
     } else if (paymentMethod.bank) {
-      const bank = await this.matchBankOption(tenantId, paymentMethod.bank);
+      const bank = await this.matchBankOption(tenantId, financialAccountId, paymentMethod.bank);
       if (bank) {
         bankOptionId = bank.id;
         paymentMethod = { ...paymentMethod, bank: bank.name };
@@ -78,15 +79,15 @@ export class PaymentSelectionService {
     };
   }
 
-  private async matchPaymentMethodOption(tenantId: string, paymentMethod: PaymentMethod) {
-    const options = await this.paymentMethods.listByTenant(tenantId);
+  private async matchPaymentMethodOption(tenantId: string, financialAccountId: string | undefined, paymentMethod: PaymentMethod) {
+    const options = await this.paymentMethods.listByTenant(tenantId, financialAccountId);
     return options.find((option) => paymentMethodMatchesOption(paymentMethod, option));
   }
 
-  private async matchBankOption(tenantId: string, bankName: string) {
+  private async matchBankOption(tenantId: string, financialAccountId: string | undefined, bankName: string) {
     const normalizedInput = normalizeLookup(bankName);
     const compactInput = compactLookup(bankName);
-    const options = await this.banks.listByTenant(tenantId);
+    const options = await this.banks.listByTenant(tenantId, financialAccountId);
 
     return options.find((option) => {
       const aliases = bankAliases(option.name);

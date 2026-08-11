@@ -80,6 +80,15 @@ export const updateProfileSchema = z.object({
   preferredLanguage: z.enum(['es', 'en']).default('es')
 });
 
+export const createFinancialAccountSchema = z.object({
+  name: z.string().min(1),
+  currency: z.string().length(3).transform((value) => value.toUpperCase())
+});
+
+export const selectFinancialAccountSchema = z.object({
+  financialAccountId: z.string().uuid()
+});
+
 export const paymentMethodSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('cash') }),
   z.object({

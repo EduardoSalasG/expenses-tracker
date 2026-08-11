@@ -17,10 +17,12 @@ export interface ExpenseRepository {
   create(input: Omit<Expense, 'id'>): Promise<Expense>;
   delete(input: {
     tenantId: TenantId;
+    financialAccountId?: string;
     expenseId: string;
   }): Promise<boolean>;
   update(input: {
     tenantId: TenantId;
+    financialAccountId?: string;
     expenseId: string;
     date?: string;
     amount?: number;
@@ -36,6 +38,7 @@ export interface ExpenseRepository {
   }): Promise<Expense | undefined>;
   list(input: {
     tenantId: TenantId;
+    financialAccountId?: string;
     from?: string;
     to?: string;
     categoryId?: string;
@@ -43,11 +46,11 @@ export interface ExpenseRepository {
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
   }): Promise<Expense[]>;
-  listRecent(tenantId: TenantId, limit: number): Promise<Expense[]>;
-  listByPeriod(tenantId: TenantId, from: string, to: string): Promise<Expense[]>;
-  yearlyMonthlyTotalsByTenant(tenantId: TenantId, year: number): Promise<CurrencyTotalByPeriod[]>;
-  monthlyDailyTotalsByTenant(tenantId: TenantId, month: string): Promise<CurrencyTotalByPeriod[]>;
-  weeklyDailyTotalsByTenant(tenantId: TenantId, weekStartIsoDate: string): Promise<CurrencyTotalByPeriod[]>;
-  upcomingInstallmentsMonthlyTotalsByTenant(tenantId: TenantId, startMonth: string, months: number): Promise<CurrencyTotalByPeriod[]>;
-  periodCategoryTotalsByTenant(tenantId: TenantId, from: string, to: string): Promise<CategoryTotalByPeriod[]>;
+  listRecent(tenantId: TenantId, financialAccountIdOrLimit?: string | number, limit?: number): Promise<Expense[]>;
+  listByPeriod(tenantId: TenantId, financialAccountIdOrFrom: string | undefined, fromOrTo?: string, to?: string): Promise<Expense[]>;
+  yearlyMonthlyTotalsByTenant(tenantId: TenantId, financialAccountId: string | undefined, year: number): Promise<CurrencyTotalByPeriod[]>;
+  monthlyDailyTotalsByTenant(tenantId: TenantId, financialAccountId: string | undefined, month: string): Promise<CurrencyTotalByPeriod[]>;
+  weeklyDailyTotalsByTenant(tenantId: TenantId, financialAccountId: string | undefined, weekStartIsoDate: string): Promise<CurrencyTotalByPeriod[]>;
+  upcomingInstallmentsMonthlyTotalsByTenant(tenantId: TenantId, financialAccountIdOrStartMonth: string | undefined, startMonthOrMonths?: string | number, months?: number): Promise<CurrencyTotalByPeriod[]>;
+  periodCategoryTotalsByTenant(tenantId: TenantId, financialAccountId: string | undefined, from: string, to: string): Promise<CategoryTotalByPeriod[]>;
 }
