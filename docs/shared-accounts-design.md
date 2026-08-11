@@ -278,8 +278,8 @@ Implemented in backend as of August 11, 2026:
 - active account visibility banner across dashboard, expenses, incomes, budgets, and categories
 - frontend shared-account management in Settings
 - invitation link generation and authenticated invitation acceptance flow
+- account-scoped dashboard/reporting through the active financial account context
 
 Still pending:
 
-- shared-account reporting views
 - Splitwise-style allocations, balances, and settlements

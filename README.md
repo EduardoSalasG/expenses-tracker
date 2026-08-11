@@ -59,6 +59,22 @@ Notes:
 - Real business data should be moved with `pnpm db:export:tenant` / `pnpm db:import:data` for one user tenant, or `pnpm db:export:data` for a full database dump.
 - Expense forms support inline creation of missing categories, subcategories, banks, and payment methods. Budget forms support inline category/subcategory creation in the same flow.
 
+## Shared Accounts Status
+
+Shared accounts are already available in the foundation stage:
+
+- personal and shared financial accounts
+- invitations and membership management
+- Telegram account switching
+- web account switching
+- dashboard and financial modules scoped by the active account
+
+Pending major work for the Splitwise-style expansion:
+
+- per-member allocations
+- balances
+- settlements
+
 ## Docker
 
 Each runtime image has its own Dockerfile:

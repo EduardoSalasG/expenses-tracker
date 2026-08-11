@@ -94,6 +94,18 @@ The container expects `DATABASE_URL`, `JWT_SECRET`, Telegram configuration, and 
 
 Messaging is abstracted at the application layer through `MessagingProvider`, `MessagingMessageAuditRepository`, and `MessagingPendingDraftRepository`. Infrastructure composes concrete adapters through `ChannelMessagingRouter`, so use cases route outbound messages by channel without coupling to any specific provider API. Provider-specific webhook extraction/signature verification stays in HTTP adapters, then adapters forward provider-neutral `InboundTextMessage` events to `InboundMessagingService`.
 
+## Shared Accounts
+
+The backend already supports:
+
+- personal and shared financial accounts
+- invitations and membership management
+- account-context switching for authenticated web sessions
+- Telegram account-context switching
+- account-scoped expenses, incomes, budgets, categories, banks, payment methods, and reports
+
+Current pending work in this domain is the Splitwise-style layer: per-member allocations, balances, and settlements.
+
 Telegram routes are available at `POST /webhooks/telegram` and support:
 
 - Normal text updates as primary inbound input.

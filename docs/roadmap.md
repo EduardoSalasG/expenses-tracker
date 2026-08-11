@@ -63,3 +63,24 @@ When this feature starts, deliverables must include:
 - Swagger updates
 - README/backend/frontend/docs alignment
 - QA evidence for personal vs shared context switching
+
+## Current Status
+
+Implemented in backend and frontend as of August 11, 2026:
+
+- schema foundation and backfill support
+- repository support for memberships, invitations, and messaging contexts
+- shared account creation and rename
+- member listing and member removal
+- invitation creation and acceptance
+- Telegram account-context switching with `/AccountName`
+- frontend account selector and active-account context switching
+- active account visibility banner across dashboard, expenses, incomes, budgets, and categories
+- shared account capture from web and Telegram through the currently active financial account
+- account-scoped dashboard and reports through the existing analytics views after switching the active account
+
+Still pending for the Splitwise expansion:
+
+- payer and allocation model per shared expense
+- balances by member
+- settlements and reconciliation flows
