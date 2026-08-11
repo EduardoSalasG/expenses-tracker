@@ -398,3 +398,29 @@ PostgreSQL integration repository tests (requires a migrated local DB and `DATAB
 $env:RUN_DB_INTEGRATION_TESTS='true'
 pnpm --filter @expenses-tracker/backend test
 ```
+
+Local QA without Telegram real:
+
+```powershell
+pnpm --filter @expenses-tracker/backend qa:message
+pnpm --filter @expenses-tracker/backend qa:message -- --mode deterministic
+pnpm --filter @expenses-tracker/backend qa:message -- --message "20.000 clases de bachata bsoul mayo, transferencia desde bci"
+```
+
+That script:
+
+- runs a default QA suite when no `--message` is provided
+- includes explicit expected outcomes for amount, concept, category, subcategory, payment method, bank, and installments on the finance capture cases
+- uses your local PostgreSQL database from `DATABASE_URL`
+- creates or reuses a local QA user if needed
+- simulates a Telegram inbound message without calling Telegram
+- captures the outbound reply in console output instead of sending it
+- prints saved recent expenses/incomes plus any active pending draft
+- saves a JSON report on every run under `backend/qa-reports/`, plus `backend/qa-reports/latest.json` for quick review
+
+To include the PostgreSQL integration tests for inbound message processing:
+
+```powershell
+$env:RUN_DB_INTEGRATION_TESTS='true'
+pnpm --filter @expenses-tracker/backend test -- src/application/process-inbound-finance-message.postgres.integration.test.ts
+```
