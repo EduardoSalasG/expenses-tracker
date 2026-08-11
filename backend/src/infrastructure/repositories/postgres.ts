@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberProfile, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -437,6 +437,10 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
       [financialAccountId]
     );
     return result.rows.map(mapFinancialAccountMemberBalance);
+  }
+
+  async listSettlementSuggestions(financialAccountId: string) {
+    return buildSettlementSuggestions(await this.listBalances(financialAccountId));
   }
 
   async listSettlements(financialAccountId: string) {
@@ -2039,6 +2043,50 @@ function addMonthsClamped(date: Date, months: number) {
     date.getUTCSeconds(),
     date.getUTCMilliseconds()
   ));
+}
+
+function buildSettlementSuggestions(
+  balances: FinancialAccountMemberBalance[]
+): FinancialAccountSettlementSuggestion[] {
+  const suggestions: FinancialAccountSettlementSuggestion[] = [];
+  const debtors = balances
+    .filter((balance) => balance.netAmount < 0)
+    .map((balance) => ({ ...balance, remaining: Math.abs(balance.netAmount) }))
+    .sort((left, right) => right.remaining - left.remaining);
+  const creditors = balances
+    .filter((balance) => balance.netAmount > 0)
+    .map((balance) => ({ ...balance, remaining: balance.netAmount }))
+    .sort((left, right) => right.remaining - left.remaining);
+
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+  while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+    const debtor = debtors[debtorIndex];
+    const creditor = creditors[creditorIndex];
+    const amount = roundTwoDecimals(Math.min(debtor.remaining, creditor.remaining));
+    if (amount > 0) {
+      suggestions.push({
+        financialAccountId: debtor.financialAccountId,
+        fromUserId: debtor.userId,
+        fromPreferredName: debtor.preferredName,
+        toUserId: creditor.userId,
+        toPreferredName: creditor.preferredName,
+        currency: debtor.currency,
+        amount
+      });
+    }
+
+    debtor.remaining = roundTwoDecimals(debtor.remaining - amount);
+    creditor.remaining = roundTwoDecimals(creditor.remaining - amount);
+    if (debtor.remaining <= 0.009) debtorIndex += 1;
+    if (creditor.remaining <= 0.009) creditorIndex += 1;
+  }
+
+  return suggestions;
+}
+
+function roundTwoDecimals(value: number) {
+  return Number(value.toFixed(2));
 }
 
 function toIsoString(value: unknown) {

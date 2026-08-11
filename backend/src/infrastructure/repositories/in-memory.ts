@@ -29,6 +29,7 @@ import type {
   FinancialAccountMemberBalance,
   FinancialAccountMember,
   FinancialAccountMemberProfile,
+  FinancialAccountSettlementSuggestion,
   FinancialAccountSettlement,
   Income,
   MessagingChannelContext,
@@ -343,6 +344,10 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
         currency: account.currency,
         netAmount: roundMoney(balances.get(member.userId) ?? 0)
       } satisfies FinancialAccountMemberBalance));
+  }
+
+  async listSettlementSuggestions(financialAccountId: string) {
+    return buildSettlementSuggestions(await this.listBalances(financialAccountId));
   }
 
   async listSettlements(financialAccountId: string) {
@@ -1412,4 +1417,44 @@ export class InMemoryEmailMagicLinkTokenRepository implements EmailMagicLinkToke
       expiresAt: record.expiresAt
     };
   }
+}
+
+function buildSettlementSuggestions(
+  balances: FinancialAccountMemberBalance[]
+): FinancialAccountSettlementSuggestion[] {
+  const suggestions: FinancialAccountSettlementSuggestion[] = [];
+  const debtors = balances
+    .filter((balance) => balance.netAmount < 0)
+    .map((balance) => ({ ...balance, remaining: Math.abs(balance.netAmount) }))
+    .sort((left, right) => right.remaining - left.remaining);
+  const creditors = balances
+    .filter((balance) => balance.netAmount > 0)
+    .map((balance) => ({ ...balance, remaining: balance.netAmount }))
+    .sort((left, right) => right.remaining - left.remaining);
+
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+  while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+    const debtor = debtors[debtorIndex];
+    const creditor = creditors[creditorIndex];
+    const amount = roundMoney(Math.min(debtor.remaining, creditor.remaining));
+    if (amount > 0) {
+      suggestions.push({
+        financialAccountId: debtor.financialAccountId,
+        fromUserId: debtor.userId,
+        fromPreferredName: debtor.preferredName,
+        toUserId: creditor.userId,
+        toPreferredName: creditor.preferredName,
+        currency: debtor.currency,
+        amount
+      });
+    }
+
+    debtor.remaining = roundMoney(debtor.remaining - amount);
+    creditor.remaining = roundMoney(creditor.remaining - amount);
+    if (debtor.remaining <= 0.009) debtorIndex += 1;
+    if (creditor.remaining <= 0.009) creditorIndex += 1;
+  }
+
+  return suggestions;
 }

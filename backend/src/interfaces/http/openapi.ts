@@ -1481,6 +1481,68 @@ export const openApiSpec = {
         })
       }
     },
+    '/accounts/:accountId/settlement-suggestions': {
+      get: {
+        summary: 'List suggested shared-account settlements',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          }
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Suggested settlements derived from current balances',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                          fromUserId: '24466a6f-9f55-47f1-a2fb-c4fb253c3bf0',
+                          fromPreferredName: 'Vane',
+                          toUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          toPreferredName: 'Eduardo',
+                          currency: 'CLP',
+                          amount: 6000
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid operation',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  personalOnly: { value: { error: 'This operation is only available for shared accounts.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  missingAccount: { value: { error: 'Financial account not found.' } }
+                }
+              }
+            }
+          }
+        })
+      }
+    },
     '/accounts/:accountId/settlements': {
       get: {
         summary: 'List shared-account settlements',

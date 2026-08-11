@@ -54,6 +54,16 @@ export interface FinancialAccountMemberBalance {
   netAmount: number;
 }
 
+export interface FinancialAccountSettlementSuggestion {
+  financialAccountId: string;
+  fromUserId: string;
+  fromPreferredName: string;
+  toUserId: string;
+  toPreferredName: string;
+  currency: string;
+  amount: number;
+}
+
 export interface FinancialAccountSettlement {
   id: string;
   financialAccountId: string;
@@ -408,6 +418,10 @@ export class ApiService {
 
   listAccountBalances(accountId: string) {
     return this.http.get<FinancialAccountMemberBalance[]>(`${environment.apiBaseUrl}/accounts/${accountId}/balances`);
+  }
+
+  listAccountSettlementSuggestions(accountId: string) {
+    return this.http.get<FinancialAccountSettlementSuggestion[]>(`${environment.apiBaseUrl}/accounts/${accountId}/settlement-suggestions`);
   }
 
   listAccountSettlements(accountId: string) {

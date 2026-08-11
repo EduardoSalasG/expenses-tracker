@@ -655,6 +655,197 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(messaging.messages.at(-1)?.body).toContain('Le pagaste a Vane.');
   });
 
+  it('records a shared-account settlement from a natural Telegram phrase', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const messaging = new CapturingMessagingProvider();
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+    const member = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111111',
+      firstName: 'Vane',
+      lastName: 'Pérez',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'vane@example.com',
+      preferredLanguage: 'es'
+    });
+    await users.linkTelegramChatByPhone(owner.phoneNumber, 'shared-chat-3');
+    await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await financialAccounts.createSharedAccount({
+      tenantId: owner.tenantId,
+      createdByUserId: owner.id,
+      name: 'Casa',
+      currency: 'CLP'
+    });
+    await financialAccounts.upsertMember({
+      financialAccountId: shared.account.id,
+      userId: member.id,
+      role: 'member',
+      status: 'active'
+    });
+    await financialAccounts.upsertMessagingContext({
+      channel: 'telegram',
+      providerUserId: 'shared-chat-3',
+      userId: owner.id,
+      financialAccountId: shared.account.id
+    });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      financialAccounts,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-08-11T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-shared-settlement-natural',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-chat-3',
+      providerUserId: 'shared-chat-3',
+      replyTo: 'shared-chat-3',
+      message: 'le pagué 7000 a vane'
+    });
+
+    expect(result.status).toBe('settlement_saved');
+    const settlements = await financialAccounts.listSettlements(shared.account.id);
+    expect(settlements[0]).toEqual(expect.objectContaining({
+      paidByUserId: owner.id,
+      receivedByUserId: member.id,
+      amount: 7000
+    }));
+  });
+
+  it('stores a shared Telegram expense split equally when the user says compartido con multiple members', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const messaging = new CapturingMessagingProvider();
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'eduardo@example.com',
+      preferredLanguage: 'es'
+    });
+    const vane = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111111',
+      firstName: 'Vane',
+      lastName: 'Pérez',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'vane@example.com',
+      preferredLanguage: 'es'
+    });
+    const juan = await users.upsertByPhoneNumber({
+      phoneNumber: '+56933333333',
+      firstName: 'Juan',
+      lastName: 'Rojas',
+      preferredName: 'Juan',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'juan@example.com',
+      preferredLanguage: 'es'
+    });
+    await users.linkTelegramChatByPhone(owner.phoneNumber, 'shared-chat-4');
+    await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await financialAccounts.createSharedAccount({
+      tenantId: owner.tenantId,
+      createdByUserId: owner.id,
+      name: 'Viaje',
+      currency: 'CLP'
+    });
+    for (const member of [vane, juan]) {
+      await financialAccounts.upsertMember({
+        financialAccountId: shared.account.id,
+        userId: member.id,
+        role: 'member',
+        status: 'active'
+      });
+    }
+    await financialAccounts.upsertMessagingContext({
+      channel: 'telegram',
+      providerUserId: 'shared-chat-4',
+      userId: owner.id,
+      financialAccountId: shared.account.id
+    });
+
+    const food = await categories.create({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Food',
+      isDefault: false
+    });
+    await categories.create({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Restaurants',
+      parentId: food.id,
+      isDefault: false
+    });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      financialAccounts,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-08-11T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-shared-split-expense-multi',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-chat-4',
+      providerUserId: 'shared-chat-4',
+      replyTo: 'shared-chat-4',
+      message: '36.000 almuerzo sushi, tc bci, compartido con vane y juan'
+    });
+
+    expect(result.status).toBe('saved');
+    const [expense] = await expenses.listRecent(owner.tenantId, shared.account.id, 10);
+    expect(expense.allocationMode).toBe('equal');
+    expect(expense.allocations).toEqual([
+      expect.objectContaining({ owedByUserId: owner.id, amount: 12000 }),
+      expect.objectContaining({ owedByUserId: vane.id, amount: 12000 }),
+      expect.objectContaining({ owedByUserId: juan.id, amount: 12000 })
+    ]);
+  });
+
   it('uses the user preferred currency for WhatsApp income even if the interpreter returns another currency', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

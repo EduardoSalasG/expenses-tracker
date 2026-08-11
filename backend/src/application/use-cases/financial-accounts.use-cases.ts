@@ -4,6 +4,7 @@ import type {
   Category,
   FinancialAccount,
   FinancialAccountInvitation,
+  FinancialAccountSettlementSuggestion,
   FinancialAccountSettlement,
   FinancialAccountMemberProfile,
   MonthlyBudget,
@@ -107,6 +108,12 @@ export class FinancialAccountsUseCases {
     const membership = await this.requireMember(actorUserId, financialAccountId);
     this.requireSharedAccount(membership.account);
     return this.financialAccounts.listBalances(financialAccountId);
+  }
+
+  async listSettlementSuggestions(actorUserId: string, financialAccountId: string): Promise<FinancialAccountSettlementSuggestion[]> {
+    const membership = await this.requireMember(actorUserId, financialAccountId);
+    this.requireSharedAccount(membership.account);
+    return this.financialAccounts.listSettlementSuggestions(financialAccountId);
   }
 
   async listSettlements(actorUserId: string, financialAccountId: string) {

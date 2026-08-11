@@ -68,6 +68,14 @@ export class ProfileController {
     ));
   };
 
+  listAccountSettlementSuggestions = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    response.json(await this.container.useCases.financialAccounts.listSettlementSuggestions(
+      authRequest.auth.userId,
+      readRouteParam(request, 'accountId')
+    ));
+  };
+
   listAccountSettlements = async (request: Request, response: Response) => {
     const authRequest = request as AuthenticatedRequest;
     response.json(await this.container.useCases.financialAccounts.listSettlements(

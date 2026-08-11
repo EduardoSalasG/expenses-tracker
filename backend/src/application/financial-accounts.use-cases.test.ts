@@ -363,5 +363,17 @@ describe('FinancialAccountsUseCases', () => {
       amount: 4000,
       note: 'Transferencia parcial'
     }));
+
+    const suggestions = await useCases.listSettlementSuggestions(owner.id, shared.account.id);
+    expect(suggestions).toEqual([
+      expect.objectContaining({
+        fromUserId: member.id,
+        fromPreferredName: 'Vane',
+        toUserId: owner.id,
+        toPreferredName: 'Eduardo',
+        amount: 6000,
+        currency: 'CLP'
+      })
+    ]);
   });
 });

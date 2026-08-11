@@ -16,6 +16,7 @@ import {
   type BankOption,
   type CurrentUser,
   type FinancialAccountMemberBalance,
+  type FinancialAccountSettlementSuggestion,
   type FinancialAccountSettlement,
   type PaymentMethodOption,
   type ReportFrequency
@@ -448,6 +449,35 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 </div>
               </div>
 
+              <div class="rounded border border-brand-border bg-brand-surface p-4">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="font-medium text-brand-ink">{{ t('accounts_suggestions_title') }}</h3>
+                    <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_suggestions_hint') }}</p>
+                  </div>
+                  @if (suggestionsLoading()) {
+                    <span class="text-sm text-brand-muted">{{ t('common_loading') }}</span>
+                  }
+                </div>
+                <div class="grid gap-2">
+                  @for (suggestion of settlementSuggestions(); track suggestion.fromUserId + suggestion.toUserId + suggestion.currency) {
+                    <div class="flex items-center justify-between gap-3 rounded border border-brand-border/70 px-3 py-3">
+                      <div class="min-w-0">
+                        <div class="truncate font-medium text-brand-ink">
+                          {{ t('accounts_suggestions_direction').replace('{from}', suggestion.fromPreferredName).replace('{to}', suggestion.toPreferredName) }}
+                        </div>
+                        <div class="mt-1 text-sm text-brand-muted">{{ suggestion.currency }}</div>
+                      </div>
+                      <div class="text-right text-sm font-semibold text-brand-ink">
+                        {{ formatMoney(suggestion.currency, suggestion.amount) }}
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="text-sm text-brand-muted">{{ t('accounts_suggestions_empty') }}</div>
+                  }
+                </div>
+              </div>
+
               <form
                 [formGroup]="settlementForm"
                 (ngSubmit)="createSettlement()"
@@ -620,8 +650,10 @@ export class SettingsComponent {
   readonly savingInvitation = signal(false);
   readonly selectedAccountId = signal<string | null>(null);
   readonly accountBalances = signal<FinancialAccountMemberBalance[]>([]);
+  readonly settlementSuggestions = signal<FinancialAccountSettlementSuggestion[]>([]);
   readonly accountSettlements = signal<FinancialAccountSettlement[]>([]);
   readonly balancesLoading = signal(false);
+  readonly suggestionsLoading = signal(false);
   readonly settlementsLoading = signal(false);
   readonly savingSettlement = signal(false);
   readonly settlementMessage = signal('');
@@ -1101,6 +1133,7 @@ export class SettingsComponent {
         this.savingSettlement.set(false);
         this.settlementMessage.set(this.t('accounts_settlement_success'));
         this.loadBalances(membership.account.id);
+        this.loadSettlementSuggestions(membership.account.id);
       },
       error: () => {
         this.savingSettlement.set(false);
@@ -1124,6 +1157,7 @@ export class SettingsComponent {
     if (!selected) return;
     if (selected.account.type !== 'shared') {
       this.accountBalances.set([]);
+      this.settlementSuggestions.set([]);
       this.accountSettlements.set([]);
       this.settlementMessage.set('');
       return;
@@ -1139,6 +1173,7 @@ export class SettingsComponent {
     });
 
     this.loadBalances(selected.account.id);
+    this.loadSettlementSuggestions(selected.account.id);
     this.loadSettlements(selected.account.id);
   }
 
@@ -1152,6 +1187,20 @@ export class SettingsComponent {
       error: () => {
         this.accountBalances.set([]);
         this.balancesLoading.set(false);
+      }
+    });
+  }
+
+  private loadSettlementSuggestions(accountId: string) {
+    this.suggestionsLoading.set(true);
+    this.api.listAccountSettlementSuggestions(accountId).subscribe({
+      next: (suggestions) => {
+        this.settlementSuggestions.set(suggestions);
+        this.suggestionsLoading.set(false);
+      },
+      error: () => {
+        this.settlementSuggestions.set([]);
+        this.suggestionsLoading.set(false);
       }
     });
   }

@@ -1403,7 +1403,10 @@ function parseSettlementCommand(
   actorUserId: string
 ) {
   const normalized = normalizeLookup(message);
-  if (!/^\/settle\b/.test(normalized) && !/\b(liquide|liquide|liquide|liquidar|pague|pague|pague a|pagado a|settled)\b/.test(normalized)) {
+  if (
+    !/^\/settle\b/.test(normalized) &&
+    !/\b(liquide|liquidar|pague|pagado|transferi|devolvi|settled|settle)\b/.test(normalized)
+  ) {
     return undefined;
   }
 
@@ -1445,7 +1448,9 @@ function parseSharedExpenseInstruction(
     };
   }
 
-  const between = normalized.match(/\b(?:entre|split con|split with|con)\s+(.+)$/);
+  const between = normalized.match(
+    /\b(?:entre|split con|split with|split entre|con|with|compartido con|shared with|dividido con|dividido entre)\s+(.+)$/
+  );
   if (!between) return undefined;
 
   const namedMembers = findMentionedMembers(actorIncludedMembers, normalizeLookup(between[1] ?? ''));
@@ -1996,6 +2001,9 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
         currency: account.currency,
         netAmount: 0
       }];
+    },
+    async listSettlementSuggestions() {
+      return [];
     },
     async listSettlements() {
       return [];

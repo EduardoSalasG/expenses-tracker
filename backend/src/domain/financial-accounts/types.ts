@@ -72,6 +72,16 @@ export interface FinancialAccountMemberBalance {
   netAmount: number;
 }
 
+export interface FinancialAccountSettlementSuggestion {
+  financialAccountId: FinancialAccountId;
+  fromUserId: UserId;
+  fromPreferredName: string;
+  toUserId: UserId;
+  toPreferredName: string;
+  currency: CurrencyCode;
+  amount: number;
+}
+
 export interface FinancialAccountSettlement {
   id: string;
   financialAccountId: FinancialAccountId;
