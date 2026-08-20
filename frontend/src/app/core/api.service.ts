@@ -111,6 +111,7 @@ export interface UpdateFinancialAccountContextResponse {
 export interface BankOption {
   id: string;
   tenantId?: string;
+  financialAccountId?: string;
   name: string;
   isDefault: boolean;
 }
@@ -118,6 +119,7 @@ export interface BankOption {
 export interface PaymentMethodOption {
   id: string;
   tenantId?: string;
+  financialAccountId?: string;
   code: string;
   name: string;
   kind: 'cash' | 'card' | 'transfer';
@@ -157,6 +159,8 @@ export interface Income {
 
 export interface Category {
   id: string;
+  tenantId?: string;
+  financialAccountId?: string;
   name: string;
   parentId?: string;
   isDefault: boolean;
@@ -442,7 +446,7 @@ export class ApiService {
     return this.http.post<FinancialAccountSettlement>(`${environment.apiBaseUrl}/accounts/${accountId}/settlements`, payload);
   }
 
-  createAccountInvitation(accountId: string, payload: { email: string; phoneNumber?: string; role?: FinancialAccountMemberRole }) {
+  createAccountInvitation(accountId: string, payload: { email: string }) {
     return this.http.post<FinancialAccountInvitation>(`${environment.apiBaseUrl}/accounts/${accountId}/invitations`, payload);
   }
 

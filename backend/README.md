@@ -103,6 +103,7 @@ The backend already supports:
 - account-context switching for authenticated web sessions
 - Telegram account-context switching
 - account-scoped expenses, incomes, budgets, categories, banks, payment methods, and reports
+- system and tenant default categories inherited by every shared account, plus account-scoped custom categories and subcategories
 - shared-account expense capture from web and Telegram
 - payer attribution plus equal/custom split persistence
 - balances by member

@@ -106,6 +106,82 @@ describe('FinancialAccountsUseCases', () => {
     expect(sharedPaymentMethods.some((method) => method.name === 'Tarjeta favorita' && method.financialAccountId === created.account.id)).toBe(true);
   });
 
+  it('reuses tenant default categories instead of duplicating scoped categories with the same names', async () => {
+    const users = new InMemoryUserRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const banks = new InMemoryBankOptionRepository();
+    const paymentMethods = new InMemoryPaymentMethodOptionRepository();
+    const useCases = new FinancialAccountsUseCases(financialAccounts, categories, budgets, banks, paymentMethods, users);
+
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111112',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'eduardo+defaults@example.com',
+      preferredLanguage: 'es'
+    });
+
+    await categories.ensureDefaults(user.tenantId);
+    const personal = await financialAccounts.ensurePersonalAccount(user.id);
+
+    const scopedFood = await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: personal.id,
+      name: 'Food',
+      isDefault: false
+    });
+    const scopedRestaurants = await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: personal.id,
+      name: 'Restaurants',
+      parentId: scopedFood.id,
+      isDefault: false
+    });
+
+    await budgets.upsertMonthly({
+      tenantId: user.tenantId,
+      financialAccountId: personal.id,
+      categoryId: scopedFood.id,
+      subcategoryId: scopedRestaurants.id,
+      amount: 80000,
+      currency: 'CLP'
+    });
+
+    const created = await useCases.createSharedAccount({
+      userId: user.id,
+      tenantId: user.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Casa',
+      currency: 'CLP'
+    });
+
+    const sharedCategories = await categories.listByTenant(user.tenantId, created.account.id);
+    expect(sharedCategories.filter((category) =>
+      category.financialAccountId === created.account.id && category.name === 'Food'
+    )).toHaveLength(0);
+    expect(sharedCategories.filter((category) =>
+      category.financialAccountId === created.account.id && category.name === 'Restaurants'
+    )).toHaveLength(0);
+
+    const defaultFood = sharedCategories.find((category) => !category.financialAccountId && category.name === 'Food');
+    const defaultRestaurants = sharedCategories.find((category) =>
+      !category.financialAccountId && category.name === 'Restaurants' && category.parentId === defaultFood?.id
+    );
+
+    expect(defaultFood).toBeDefined();
+    expect(defaultRestaurants).toBeDefined();
+
+    const sharedBudgets = await budgets.listMonthly(user.tenantId, created.account.id);
+    expect(sharedBudgets).toHaveLength(1);
+    expect(sharedBudgets[0].categoryId).toBe(defaultFood?.id);
+    expect(sharedBudgets[0].subcategoryId).toBe(defaultRestaurants?.id);
+  });
+
   it('accepts invitations only for the invited email or phone and activates membership', async () => {
     const users = new InMemoryUserRepository();
     const financialAccounts = new InMemoryFinancialAccountRepository(users);
@@ -161,9 +237,7 @@ describe('FinancialAccountsUseCases', () => {
     const invitation = await useCases.inviteMember({
       actorUserId: owner.id,
       financialAccountId: shared.account.id,
-      email: invited.email!,
-      phoneNumber: invited.phoneNumber,
-      role: 'member'
+      email: invited.email!
     });
 
     await expect(

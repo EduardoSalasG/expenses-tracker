@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { AccountContextService } from '../../core/account-context.service';
+import { formatFinancialAccountLabel } from '../../core/account-label';
 import { I18nService } from '../../core/i18n.service';
 
 @Component({
@@ -21,7 +22,6 @@ export class AccountContextBannerComponent {
   readonly accountLabel = computed(() => {
     const account = this.accountService.currentAccount();
     if (!account) return '';
-    if (account.type === 'personal') return account.name;
-    return `${account.name} · ${this.t('accounts_type_shared')}`;
+    return formatFinancialAccountLabel(account.name, account.type, this.t('accounts_type_shared'));
   });
 }

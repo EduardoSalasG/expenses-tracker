@@ -6,7 +6,7 @@ import { I18nService } from './core/i18n.service';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet],
-  template: '<router-outlet />'
+  template: '<router-outlet></router-outlet>'
 })
 export class AppComponent {
   constructor(private readonly i18n: I18nService) {

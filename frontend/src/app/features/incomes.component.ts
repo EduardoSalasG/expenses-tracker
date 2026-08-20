@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -9,12 +9,12 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Inject } from '@angular/core';
 import { ApiService, type Income } from '../core/api.service';
+import { AccountContextService } from '../core/account-context.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
-import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -31,12 +31,10 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     ReactiveFormsModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
-    <app-account-context-banner />
 
     <mat-card id="incomes-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -135,6 +133,7 @@ export class IncomesComponent implements OnInit {
   private readonly periodState = inject(PeriodStateService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly accountService = inject(AccountContextService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly incomes = signal<Income[]>([]);
   readonly loading = signal(false);
@@ -147,13 +146,20 @@ export class IncomesComponent implements OnInit {
     currency: ['']
   });
   readonly range = computed(() => rangeFromMonth(this.selectedMonth()));
+  private incomesRequestId = 0;
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService) {
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.loadIncomes();
+    });
+  }
 
   ngOnInit() {
     const monthRange = this.range();
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
-    this.loadIncomes();
   }
 
   changeMonth(event: Event) {
@@ -223,6 +229,12 @@ export class IncomesComponent implements OnInit {
   loadIncomes() {
     this.loading.set(true);
     this.error.set('');
+    const requestedAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.incomesRequestId;
+    if (!requestedAccountId) {
+      this.loading.set(false);
+      return;
+    }
     const f = this.filters.getRawValue();
     this.api.incomes({
       from: f.from ? startOfDay(f.from) : undefined,
@@ -231,11 +243,13 @@ export class IncomesComponent implements OnInit {
       limit: 100
     }).subscribe({
       next: (incomes) => {
+        if (requestId !== this.incomesRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.incomes.set(incomes);
         this.loading.set(false);
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
+        if (requestId !== this.incomesRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.loading.set(false);
         this.error.set(this.t('incomes_load_error'));
       }
@@ -319,10 +333,10 @@ export class IncomesComponent implements OnInit {
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept" name="incomeConcept"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount" name="incomeAmount"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput maxlength="3" formControlName="currency" name="incomeCurrency"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date" name="incomeDate"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput id="income-concept" formControlName="concept" name="incomeConcept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput id="income-amount" type="number" formControlName="amount" name="incomeAmount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput id="income-currency" maxlength="3" formControlName="currency" name="incomeCurrency"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput id="income-date" type="date" formControlName="date" name="incomeDate"></mat-form-field>
         </div>
         <div class="brand-dialog-actions flex flex-col-reverse gap-2 sm:flex-row sm:justify-end lg:col-span-2">
           <button mat-button type="button" (click)="dialogRef.close(false)">{{ t('common_cancel') }}</button>

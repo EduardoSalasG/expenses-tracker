@@ -416,6 +416,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const health = tenantCategories.find((category) => category.name === 'Health' && !category.parentId);
     const pilates = tenantCategories.find((category) => category.name === 'Pilates' && category.parentId === health?.id);
     expect(pilates).toBeDefined();
+    expect(pilates?.financialAccountId).toBe(`fallback-account-${user.id}`);
     const [expense] = await expenses.listRecent(user.tenantId, 10);
     expect(expense.categoryId).toBe(health?.id);
     expect(expense.subcategoryId).toBe(pilates?.id);

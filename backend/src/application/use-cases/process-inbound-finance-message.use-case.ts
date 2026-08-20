@@ -670,13 +670,19 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
+    const financialAccount = await this.resolveFinancialAccountContext(
+      user,
+      input.channel ?? 'whatsapp',
+      input.providerUserId
+    );
     const created = await this.categories.create({
       tenantId: user.tenantId,
+      financialAccountId: financialAccount.id,
       name: draft.requestedName,
       parentId: createRequest.parentId,
       isDefault: false
     });
-    const refreshedCategories = await this.categories.listByTenant(user.tenantId);
+    const refreshedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const category = createRequest.parentId
       ? refreshedCategories.find((item) => item.id === createRequest.parentId)
       : created;

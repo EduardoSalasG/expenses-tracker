@@ -118,12 +118,13 @@ Add to `expenses`:
 Keep system defaults as base catalog.
 Each financial account gets:
 
-- default categories copied or referenced from system base according to the current category strategy
+- system and tenant default categories, inherited as a shared base catalog
 - account-level custom categories and subcategories
 
 Functional rule:
 
-- categories are resolved within the current financial account only
+- category reads for an active account merge the system defaults, tenant defaults, and that account's custom categories/subcategories
+- creating a category or subcategory while a shared account is active creates an account-scoped customization; it never duplicates the base catalog
 
 ## Authorization Rules
 

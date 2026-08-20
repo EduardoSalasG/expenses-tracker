@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -7,11 +7,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category } from '../core/api.service';
+import { AccountContextService } from '../core/account-context.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
-import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 @Component({
@@ -27,12 +27,10 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('categories_title')" [eyebrow]="t('categories_subtitle')"></app-page-header>
-    <app-account-context-banner />
 
     <section class="grid gap-4 lg:grid-cols-2">
       <mat-card id="categories-main-panel" class="page-panel p-2">
@@ -131,12 +129,14 @@ export class CategoriesComponent {
   private readonly fb = inject(FormBuilder);
   private readonly i18n = inject(I18nService);
   private readonly onboarding = inject(OnboardingService);
+  private readonly accountService = inject(AccountContextService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
   readonly saving = signal(false);
   readonly message = signal('');
+  private loadRequestId = 0;
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly mainForm = this.fb.nonNullable.group({ name: ['', Validators.required] });
   readonly subForm = this.fb.nonNullable.group({
@@ -145,14 +145,26 @@ export class CategoriesComponent {
   });
 
   constructor(private readonly api: ApiService) {
-    this.load();
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.load();
+    });
   }
 
   load() {
     this.loading.set(true);
     this.error.set('');
+    const requestedAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.loadRequestId;
+    if (!requestedAccountId) {
+      this.loading.set(false);
+      return;
+    }
     this.api.categories().subscribe({
       next: (categories) => {
+        if (requestId !== this.loadRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.categories.set(categories);
         const firstRoot = categories.find((category) => !category.parentId);
         if (firstRoot && !this.subForm.controls.parentId.value) {
@@ -162,6 +174,7 @@ export class CategoriesComponent {
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
+        if (requestId !== this.loadRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.loading.set(false);
         this.error.set(this.t('categories_load_error'));
       }

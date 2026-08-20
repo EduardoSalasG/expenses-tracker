@@ -105,9 +105,7 @@ export class ProfileController {
     response.status(201).json(await this.container.useCases.financialAccounts.inviteMember({
       actorUserId: authRequest.auth.userId,
       financialAccountId: readRouteParam(request, 'accountId'),
-      email: body.email,
-      phoneNumber: body.phoneNumber,
-      role: body.role ?? 'member'
+      email: body.email
     }));
   };
 

@@ -62,10 +62,11 @@ export class FinancialAccountsUseCases {
   async createSharedAccount(input: {
     userId: string;
     tenantId: string;
-    sourceFinancialAccountId: string;
+    sourceFinancialAccountId?: string;
     name: string;
     currency: string;
   }) {
+    const sourceContext = await this.getAccountContext(input.userId, input.sourceFinancialAccountId);
     const created = await this.financialAccounts.createSharedAccount({
       tenantId: input.tenantId,
       createdByUserId: input.userId,
@@ -75,7 +76,7 @@ export class FinancialAccountsUseCases {
 
     await this.cloneScopeData({
       tenantId: input.tenantId,
-      sourceFinancialAccountId: input.sourceFinancialAccountId,
+      sourceFinancialAccountId: sourceContext.current.account.id,
       targetFinancialAccountId: created.account.id,
       currency: input.currency
     });
@@ -166,16 +167,13 @@ export class FinancialAccountsUseCases {
     actorUserId: string;
     financialAccountId: string;
     email: string;
-    phoneNumber?: string;
-    role: 'owner' | 'admin' | 'member';
   }) {
     await this.requireManager(input.actorUserId, input.financialAccountId);
     const invitation = await this.financialAccounts.createInvitation({
       financialAccountId: input.financialAccountId,
       invitedByUserId: input.actorUserId,
       email: input.email,
-      phoneNumber: input.phoneNumber,
-      role: input.role,
+      role: 'member',
       token: randomUUID(),
       expiresAt: new Date(Date.now() + INVITATION_TTL_MS).toISOString()
     });
@@ -336,17 +334,32 @@ export class FinancialAccountsUseCases {
     targetFinancialAccountId: string;
     currency: string;
   }) {
-    const [categories, budgets, banks, paymentMethods] = await Promise.all([
+    await this.categories.ensureDefaults(input.tenantId);
+
+    const [categories, targetScopeCategories, budgets, banks, paymentMethods] = await Promise.all([
       this.categories.listByTenant(input.tenantId, input.sourceFinancialAccountId),
+      this.categories.listByTenant(input.tenantId, input.targetFinancialAccountId),
       this.budgets.listMonthly(input.tenantId, input.sourceFinancialAccountId),
       this.banks.listByTenant(input.tenantId, input.sourceFinancialAccountId),
       this.paymentMethods.listByTenant(input.tenantId, input.sourceFinancialAccountId)
     ]);
 
-    const rootCategories = categories.filter((category) => !category.parentId && category.financialAccountId === input.sourceFinancialAccountId);
+    const sourceScopedCategories = categories.filter((category) => category.financialAccountId === input.sourceFinancialAccountId);
+    const sourceScopedCategoryMap = new Map(sourceScopedCategories.map((category) => [category.id, category]));
+    const rootCategories = sourceScopedCategories.filter((category) => !category.parentId);
     const clonedCategoryIds = new Map<string, string>();
+    const availableCategories = [...targetScopeCategories];
 
     for (const category of rootCategories) {
+      const existing = resolveReusableCategory({
+        category,
+        availableCategories
+      });
+      if (existing) {
+        clonedCategoryIds.set(category.id, existing.id);
+        continue;
+      }
+
       const created = await this.categories.create({
         tenantId: input.tenantId,
         financialAccountId: input.targetFinancialAccountId,
@@ -354,10 +367,23 @@ export class FinancialAccountsUseCases {
         isDefault: category.isDefault
       });
       clonedCategoryIds.set(category.id, created.id);
+      availableCategories.push(created);
     }
 
-    for (const category of categories.filter((item) => item.parentId && item.financialAccountId === input.sourceFinancialAccountId)) {
+    for (const category of sourceScopedCategories.filter((item) => item.parentId)) {
+      const sourceParent = category.parentId ? sourceScopedCategoryMap.get(category.parentId) : undefined;
       const parentId = category.parentId ? clonedCategoryIds.get(category.parentId) : undefined;
+      const existing = resolveReusableCategory({
+        category,
+        availableCategories,
+        parentId,
+        sourceParentName: sourceParent?.name
+      });
+      if (existing) {
+        clonedCategoryIds.set(category.id, existing.id);
+        continue;
+      }
+
       const created = await this.categories.create({
         tenantId: input.tenantId,
         financialAccountId: input.targetFinancialAccountId,
@@ -366,18 +392,37 @@ export class FinancialAccountsUseCases {
         isDefault: category.isDefault
       });
       clonedCategoryIds.set(category.id, created.id);
+      availableCategories.push(created);
     }
 
+    const targetBanks = await this.banks.listByTenant(input.tenantId, input.targetFinancialAccountId);
     for (const bank of banks.filter((item) => item.financialAccountId === input.sourceFinancialAccountId && !item.isDefault)) {
+      const exists = targetBanks.some((candidate) => normalizedKey(candidate.name) === normalizedKey(bank.name));
+      if (exists) continue;
       await this.banks.create({
         tenantId: input.tenantId,
         financialAccountId: input.targetFinancialAccountId,
         name: bank.name,
         isDefault: false
       } satisfies Omit<BankOption, 'id'>);
+      targetBanks.push({
+        ...bank,
+        id: `cloned-bank-${bank.id}`,
+        financialAccountId: input.targetFinancialAccountId
+      });
     }
 
+    const targetPaymentMethods = await this.paymentMethods.listByTenant(input.tenantId, input.targetFinancialAccountId);
     for (const paymentMethod of paymentMethods.filter((item) => item.financialAccountId === input.sourceFinancialAccountId && !item.isDefault)) {
+      const exists = targetPaymentMethods.some((candidate) =>
+        normalizedKey(candidate.code) === normalizedKey(paymentMethod.code) ||
+        (
+          normalizedKey(candidate.name) === normalizedKey(paymentMethod.name) &&
+          candidate.kind === paymentMethod.kind &&
+          (candidate.cardType ?? '') === (paymentMethod.cardType ?? '')
+        )
+      );
+      if (exists) continue;
       await this.paymentMethods.create({
         tenantId: input.tenantId,
         financialAccountId: input.targetFinancialAccountId,
@@ -387,6 +432,11 @@ export class FinancialAccountsUseCases {
         cardType: paymentMethod.cardType,
         isDefault: false
       } satisfies Omit<PaymentMethodOption, 'id'>);
+      targetPaymentMethods.push({
+        ...paymentMethod,
+        id: `cloned-method-${paymentMethod.id}`,
+        financialAccountId: input.targetFinancialAccountId
+      });
     }
 
     for (const budget of budgets.filter((item) => item.financialAccountId === input.sourceFinancialAccountId)) {
@@ -406,11 +456,40 @@ function normalizePhone(value: string) {
   return value.replace(/[^\d+]/g, '');
 }
 
-function normalizeAccountName(value: string) {
+function resolveReusableCategory(input: {
+  category: Category;
+  availableCategories: Category[];
+  parentId?: string;
+  sourceParentName?: string;
+}) {
+  const targetParentId = input.parentId ?? undefined;
+  return input.availableCategories.find((candidate) => {
+    if (normalizedKey(candidate.name) !== normalizedKey(input.category.name)) {
+      return false;
+    }
+
+    if ((candidate.parentId ?? undefined) !== targetParentId) {
+      return false;
+    }
+
+    const candidateParent = candidate.parentId
+      ? input.availableCategories.find((item) => item.id === candidate.parentId)
+      : undefined;
+    const parentMatches = normalizedKey(input.sourceParentName ?? '') === normalizedKey(candidateParent?.name ?? '');
+
+    return !candidate.financialAccountId && (!input.sourceParentName || parentMatches);
+  });
+}
+
+function normalizedKey(value: string) {
   return value
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ');
+}
+
+function normalizeAccountName(value: string) {
+  return normalizedKey(value);
 }

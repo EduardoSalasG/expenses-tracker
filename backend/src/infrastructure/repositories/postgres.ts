@@ -628,8 +628,12 @@ export class PostgresCategoryRepository implements CategoryRepository {
     const result = await this.pool.query(
       `select *
        from categories
-       where tenant_id = $1
-         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
+       where
+         (
+           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id = $2)
+         )
        order by parent_id nulls first, name`,
       [tenantId, financialAccountId ?? null]
     );
@@ -658,8 +662,11 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
     const result = await this.pool.query(
       `select * from bank_options
        where
-         ((tenant_id is null and financial_account_id is null) or tenant_id = $1)
-         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
+         (
+           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id = $2)
+         )
        order by is_default desc, name`,
       [tenantId, financialAccountId ?? null]
     );
@@ -670,8 +677,11 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
     const result = await this.pool.query(
       `select * from bank_options
        where id = $1
-         and ((tenant_id is null and financial_account_id is null) or tenant_id = $2)
-         and ($3::uuid is null or financial_account_id is null or financial_account_id = $3)`,
+         and (
+           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
+           or (tenant_id = $2 and financial_account_id is null)
+           or (tenant_id = $2 and financial_account_id = $3)
+         )`,
       [bankOptionId, tenantId, financialAccountId ?? null]
     );
     return result.rows[0] ? mapBankOption(result.rows[0]) : undefined;
@@ -721,8 +731,11 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
     const result = await this.pool.query(
       `select * from payment_method_options
        where
-         ((tenant_id is null and financial_account_id is null) or tenant_id = $1)
-         and ($2::uuid is null or financial_account_id is null or financial_account_id = $2)
+         (
+           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id is null)
+           or (tenant_id = $1 and financial_account_id = $2)
+         )
        order by is_default desc, name`,
       [tenantId, financialAccountId ?? null]
     );
@@ -733,8 +746,11 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
     const result = await this.pool.query(
       `select * from payment_method_options
        where id = $1
-         and ((tenant_id is null and financial_account_id is null) or tenant_id = $2)
-         and ($3::uuid is null or financial_account_id is null or financial_account_id = $3)`,
+         and (
+           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
+           or (tenant_id = $2 and financial_account_id is null)
+           or (tenant_id = $2 and financial_account_id = $3)
+         )`,
       [paymentMethodOptionId, tenantId, financialAccountId ?? null]
     );
     return result.rows[0] ? mapPaymentMethodOption(result.rows[0]) : undefined;
