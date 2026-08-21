@@ -151,8 +151,11 @@ body {
 .account-switcher .mat-mdc-select-min-line,
 .account-switcher .mat-mdc-select-placeholder,
 .account-switcher .mat-mdc-floating-label,
+.account-switcher .mat-mdc-select-arrow,
 .account-switcher .mat-mdc-option .mdc-list-item__primary-text,
-.account-switcher-panel .mdc-list-item__primary-text {
+.account-switcher-panel .mdc-list-item__primary-text,
+.account-switcher-panel .mdc-list-item,
+.account-switcher-panel .mat-mdc-option {
   font-family: Inter, Roboto, Arial, sans-serif !important;
   font-weight: 600;
   letter-spacing: 0 !important;
@@ -486,10 +489,10 @@ select.auth-select option {
 
 .shell-desktop-nav {
   position: sticky;
-  top: 64px;
+  top: 88px;
   width: 260px;
   min-width: 260px;
-  height: calc(100vh - 64px);
+  height: calc(100vh - 88px);
   align-self: start;
   display: none;
   flex-direction: column;

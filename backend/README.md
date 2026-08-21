@@ -103,7 +103,7 @@ The backend already supports:
 - account-context switching for authenticated web sessions
 - Telegram account-context switching
 - account-scoped expenses, incomes, budgets, categories, banks, payment methods, and reports
-- system and tenant default categories inherited by every shared account, plus account-scoped custom categories and subcategories
+- system default categories inherited by every personal and shared account, plus account-scoped custom categories and subcategories
 - shared-account expense capture from web and Telegram
 - payer attribution plus equal/custom split persistence
 - balances by member
@@ -224,21 +224,21 @@ The app now uses parameterized payment catalogs. System defaults are global, and
 
 The web app consumes these catalogs directly in expense creation/edit forms and lets the user create a missing category, subcategory, bank, or payment method inline from the related select without leaving the modal.
 
-`GET /banks` lists global default banks plus tenant-specific custom banks.
+`GET /banks` lists global default banks plus custom banks for the active financial account.
 
-`POST /banks` creates a tenant-specific bank option.
+`POST /banks` creates a custom bank option for the active financial account.
 
-`PUT /banks/:bankOptionId` updates a tenant-specific custom bank option. Default banks cannot be modified.
+`PUT /banks/:bankOptionId` updates a custom bank option in the active financial account. Default banks cannot be modified.
 
-`DELETE /banks/:bankOptionId` deletes a tenant-specific custom bank option. If the bank is already referenced by expenses, the API returns a validation error instead of deleting it.
+`DELETE /banks/:bankOptionId` deletes a custom bank option in the active financial account. If the bank is already referenced by expenses, the API returns a validation error instead of deleting it.
 
-`GET /payment-method-options` lists global default payment methods plus tenant-specific custom methods.
+`GET /payment-method-options` lists global default payment methods plus custom methods for the active financial account.
 
-`POST /payment-method-options` creates a tenant-specific payment method option. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
+`POST /payment-method-options` creates a custom payment method option for the active financial account. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
 
-`PUT /payment-method-options/:paymentMethodOptionId` updates a tenant-specific custom payment method. Default payment methods cannot be modified.
+`PUT /payment-method-options/:paymentMethodOptionId` updates a custom payment method in the active financial account. Default payment methods cannot be modified.
 
-`DELETE /payment-method-options/:paymentMethodOptionId` deletes a tenant-specific custom payment method. If the method is already referenced by expenses, the API returns a validation error instead of deleting it.
+`DELETE /payment-method-options/:paymentMethodOptionId` deletes a custom payment method in the active financial account. If the method is already referenced by expenses, the API returns a validation error instead of deleting it.
 
 ## Profile and Report Preferences
 

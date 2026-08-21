@@ -118,7 +118,7 @@ Add to `expenses`:
 Keep system defaults as base catalog.
 Each financial account gets:
 
-- system and tenant default categories, inherited as a shared base catalog
+- system default categories, inherited as a shared base catalog
 - account-level custom categories and subcategories
 
 Functional rule:

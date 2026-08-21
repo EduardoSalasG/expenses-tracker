@@ -4,6 +4,7 @@ import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAl
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
+const SYSTEM_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
 export class PostgresUserRepository implements UserRepository {
   constructor(private readonly pool: DatabasePool) {}
@@ -630,12 +631,11 @@ export class PostgresCategoryRepository implements CategoryRepository {
        from categories
        where
          (
-           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id = $2)
+           (tenant_id = $1::uuid and financial_account_id is null and is_default = true)
+           or (tenant_id = $2 and financial_account_id = $3 and is_default = false)
          )
        order by parent_id nulls first, name`,
-      [tenantId, financialAccountId ?? null]
+      [SYSTEM_TENANT_ID, tenantId, financialAccountId ?? null]
     );
     return result.rows.map(mapCategory);
   }
@@ -663,9 +663,8 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
       `select * from bank_options
        where
          (
-           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id = $2)
+           (tenant_id is null and financial_account_id is null and is_default = true)
+           or (tenant_id = $1 and financial_account_id = $2 and is_default = false)
          )
        order by is_default desc, name`,
       [tenantId, financialAccountId ?? null]
@@ -678,9 +677,8 @@ export class PostgresBankOptionRepository implements BankOptionRepository {
       `select * from bank_options
        where id = $1
          and (
-           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
-           or (tenant_id = $2 and financial_account_id is null)
-           or (tenant_id = $2 and financial_account_id = $3)
+           (tenant_id is null and financial_account_id is null and is_default = true)
+           or (tenant_id = $2 and financial_account_id = $3 and is_default = false)
          )`,
       [bankOptionId, tenantId, financialAccountId ?? null]
     );
@@ -732,9 +730,8 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
       `select * from payment_method_options
        where
          (
-           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id is null)
-           or (tenant_id = $1 and financial_account_id = $2)
+           (tenant_id is null and financial_account_id is null and is_default = true)
+           or (tenant_id = $1 and financial_account_id = $2 and is_default = false)
          )
        order by is_default desc, name`,
       [tenantId, financialAccountId ?? null]
@@ -747,9 +744,8 @@ export class PostgresPaymentMethodOptionRepository implements PaymentMethodOptio
       `select * from payment_method_options
        where id = $1
          and (
-           (tenant_id in ('11111111-1111-1111-1111-111111111111'::uuid) and financial_account_id is null)
-           or (tenant_id = $2 and financial_account_id is null)
-           or (tenant_id = $2 and financial_account_id = $3)
+           (tenant_id is null and financial_account_id is null and is_default = true)
+           or (tenant_id = $2 and financial_account_id = $3 and is_default = false)
          )`,
       [paymentMethodOptionId, tenantId, financialAccountId ?? null]
     );

@@ -26,14 +26,14 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatDialogModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatToolbarModule],
   template: `
-    <mat-toolbar class="fixed left-0 right-0 top-0 z-30 !h-auto !min-h-16 border-b border-brand-border !bg-brand-surface !px-4 !py-3 !font-sans !text-brand-ink md:!h-16 md:!min-h-16 md:!py-0">
+    <mat-toolbar class="fixed left-0 right-0 top-0 z-30 !h-auto !min-h-16 border-b border-brand-border !bg-brand-surface !px-4 !py-3 !font-sans !text-brand-ink md:!h-[88px] md:!min-h-[88px] md:!py-3">
       <div class="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div class="flex min-w-0 items-center gap-3 overflow-hidden">
           <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-brand-navy text-sm font-semibold text-white">ET</div>
           <span class="truncate font-semibold">{{ t('app_name') }}</span>
         </div>
         @if (accountService.accounts().length > 0) {
-          <mat-form-field appearance="outline" class="account-switcher w-full md:min-w-[260px] md:max-w-[320px]">
+          <mat-form-field appearance="outline" class="account-switcher w-full md:mt-2 md:min-w-[260px] md:max-w-[320px]">
             <mat-label>{{ t('accounts_current_account') }}</mat-label>
             <mat-select
               id="shell-account-switcher"
@@ -54,7 +54,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
         }
       </div>
     </mat-toolbar>
-    <div class="app-surface min-h-screen pt-28 md:grid md:min-h-[calc(100vh-64px)] md:grid-cols-[260px_minmax(0,1fr)] md:pt-16">
+    <div class="app-surface min-h-screen pt-28 md:grid md:min-h-[calc(100vh-88px)] md:grid-cols-[260px_minmax(0,1fr)] md:pt-[88px]">
       <nav class="shell-desktop-nav">
         @for (link of links; track link[0]) {
           <a

@@ -41,6 +41,8 @@ import type {
   UserAuthRecord
 } from '../../domain/index.js';
 
+const SYSTEM_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
   private readonly passwordHashes = new Map<string, string>();
@@ -519,8 +521,8 @@ export class InMemoryCategoryRepository implements CategoryRepository {
 
   async listByTenant(tenantId: string, financialAccountId?: string) {
     return this.categories.filter((category) =>
-      category.tenantId === tenantId &&
-      (!financialAccountId || !category.financialAccountId || category.financialAccountId === financialAccountId)
+      (category.tenantId === SYSTEM_TENANT_ID && !category.financialAccountId && category.isDefault) ||
+      (category.tenantId === tenantId && category.financialAccountId === financialAccountId && !category.isDefault)
     );
   }
 
@@ -531,10 +533,11 @@ export class InMemoryCategoryRepository implements CategoryRepository {
   }
 
   async ensureDefaults(tenantId: string) {
-    if ((await this.listByTenant(tenantId)).length > 0) return;
+    void tenantId;
+    if (this.categories.some((category) => category.tenantId === SYSTEM_TENANT_ID && category.isDefault)) return;
     const roots = new Map<string, Category>();
     for (const root of DEFAULT_CATEGORY_TREE) {
-      const category = await this.create({ tenantId, name: root.name, isDefault: true });
+      const category = await this.create({ tenantId: SYSTEM_TENANT_ID, name: root.name, isDefault: true });
       roots.set(root.name, category);
     }
 
@@ -542,7 +545,7 @@ export class InMemoryCategoryRepository implements CategoryRepository {
       const parent = roots.get(root.name);
       if (!parent) continue;
       for (const subcategory of root.subcategories) {
-        await this.create({ tenantId, name: subcategory, parentId: parent.id, isDefault: true });
+        await this.create({ tenantId: SYSTEM_TENANT_ID, name: subcategory, parentId: parent.id, isDefault: true });
       }
     }
   }
@@ -580,16 +583,18 @@ export class InMemoryBankOptionRepository implements BankOptionRepository {
 
   async listByTenant(tenantId: string, financialAccountId?: string) {
     return this.banks.filter((bank) =>
-      (!bank.tenantId || bank.tenantId === tenantId) &&
-      (!financialAccountId || !bank.financialAccountId || bank.financialAccountId === financialAccountId)
+      (!bank.tenantId && !bank.financialAccountId && bank.isDefault) ||
+      (bank.tenantId === tenantId && bank.financialAccountId === financialAccountId && !bank.isDefault)
     );
   }
 
   async findAccessibleById(tenantId: string, bankOptionId: string, financialAccountId?: string) {
     return this.banks.find((bank) =>
       bank.id === bankOptionId &&
-      (!bank.tenantId || bank.tenantId === tenantId) &&
-      (!financialAccountId || !bank.financialAccountId || bank.financialAccountId === financialAccountId)
+      (
+        (!bank.tenantId && !bank.financialAccountId && bank.isDefault) ||
+        (bank.tenantId === tenantId && bank.financialAccountId === financialAccountId && !bank.isDefault)
+      )
     );
   }
 
@@ -624,16 +629,18 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
 
   async listByTenant(tenantId: string, financialAccountId?: string) {
     return this.paymentMethods.filter((method) =>
-      (!method.tenantId || method.tenantId === tenantId) &&
-      (!financialAccountId || !method.financialAccountId || method.financialAccountId === financialAccountId)
+      (!method.tenantId && !method.financialAccountId && method.isDefault) ||
+      (method.tenantId === tenantId && method.financialAccountId === financialAccountId && !method.isDefault)
     );
   }
 
   async findAccessibleById(tenantId: string, paymentMethodOptionId: string, financialAccountId?: string) {
     return this.paymentMethods.find((method) =>
       method.id === paymentMethodOptionId &&
-      (!method.tenantId || method.tenantId === tenantId) &&
-      (!financialAccountId || !method.financialAccountId || method.financialAccountId === financialAccountId)
+      (
+        (!method.tenantId && !method.financialAccountId && method.isDefault) ||
+        (method.tenantId === tenantId && method.financialAccountId === financialAccountId && !method.isDefault)
+      )
     );
   }
 

@@ -306,12 +306,13 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
-    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
+    const tenantCategories = await categories.listByTenant(user.tenantId, financialAccountId);
     const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
     const entertainment = tenantCategories.find((category) => category.name === 'Entertainment' && !category.parentId);
     if (!education || !entertainment) throw new Error('Missing root categories for duplicate subcategory test.');
-    await categories.create({ tenantId: user.tenantId, name: 'Dance', parentId: education.id, isDefault: false });
-    await categories.create({ tenantId: user.tenantId, name: 'Dance', parentId: entertainment.id, isDefault: false });
+    await categories.create({ tenantId: user.tenantId, financialAccountId, name: 'Dance', parentId: education.id, isDefault: false });
+    await categories.create({ tenantId: user.tenantId, financialAccountId, name: 'Dance', parentId: entertainment.id, isDefault: false });
 
     const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
@@ -412,7 +413,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(third.status).toBe('needs_confirmation');
     expect(messaging.messages.at(-2)?.body).toContain('¿Cómo quieres crear "Pilates"');
     expect(fourth.status).toBe('saved');
-    const tenantCategories = await categories.listByTenant(user.tenantId);
+    const tenantCategories = await categories.listByTenant(user.tenantId, `fallback-account-${user.id}`);
     const health = tenantCategories.find((category) => category.name === 'Health' && !category.parentId);
     const pilates = tenantCategories.find((category) => category.name === 'Pilates' && category.parentId === health?.id);
     expect(pilates).toBeDefined();

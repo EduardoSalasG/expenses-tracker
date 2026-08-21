@@ -35,25 +35,25 @@ describe('FinancialAccountsUseCases', () => {
 
     const personal = await financialAccounts.ensurePersonalAccount(user.id);
 
-    const food = await categories.create({
+    const pets = await categories.create({
       tenantId: user.tenantId,
       financialAccountId: personal.id,
-      name: 'Food',
+      name: 'Pets',
       isDefault: false
     });
-    const restaurants = await categories.create({
+    const veterinary = await categories.create({
       tenantId: user.tenantId,
       financialAccountId: personal.id,
-      name: 'Restaurants',
-      parentId: food.id,
+      name: 'Veterinary',
+      parentId: pets.id,
       isDefault: false
     });
 
     await budgets.upsertMonthly({
       tenantId: user.tenantId,
       financialAccountId: personal.id,
-      categoryId: food.id,
-      subcategoryId: restaurants.id,
+      categoryId: pets.id,
+      subcategoryId: veterinary.id,
       amount: 120000,
       currency: 'CLP'
     });
@@ -88,25 +88,32 @@ describe('FinancialAccountsUseCases', () => {
 
     const sharedCategories = (await categories.listByTenant(user.tenantId, created.account.id))
       .filter((category) => category.financialAccountId === created.account.id);
-    const sharedFood = sharedCategories.find((category) => category.name === 'Food' && !category.parentId);
-    const sharedRestaurants = sharedCategories.find((category) => category.name === 'Restaurants' && category.parentId === sharedFood?.id);
+    const sharedPets = sharedCategories.find((category) => category.name === 'Pets' && !category.parentId);
+    const sharedVeterinary = sharedCategories.find((category) => category.name === 'Veterinary' && category.parentId === sharedPets?.id);
 
-    expect(sharedFood).toBeDefined();
-    expect(sharedRestaurants).toBeDefined();
+    expect(sharedPets).toBeDefined();
+    expect(sharedVeterinary).toBeDefined();
 
     const sharedBudgets = await budgets.listMonthly(user.tenantId, created.account.id);
     expect(sharedBudgets).toHaveLength(1);
-    expect(sharedBudgets[0].categoryId).toBe(sharedFood?.id);
-    expect(sharedBudgets[0].subcategoryId).toBe(sharedRestaurants?.id);
+    expect(sharedBudgets[0].categoryId).toBe(sharedPets?.id);
+    expect(sharedBudgets[0].subcategoryId).toBe(sharedVeterinary?.id);
 
     const sharedBanks = await banks.listByTenant(user.tenantId, created.account.id);
     expect(sharedBanks.some((bank) => bank.name === 'Banco de prueba' && bank.financialAccountId === created.account.id)).toBe(true);
+    expect(sharedBanks.filter((bank) => bank.isDefault)).toHaveLength(13);
 
     const sharedPaymentMethods = await paymentMethods.listByTenant(user.tenantId, created.account.id);
     expect(sharedPaymentMethods.some((method) => method.name === 'Tarjeta favorita' && method.financialAccountId === created.account.id)).toBe(true);
+    expect(sharedPaymentMethods.filter((method) => method.isDefault).map((method) => method.code).sort()).toEqual([
+      'cash',
+      'credit_card',
+      'debit_card',
+      'transfer'
+    ]);
   });
 
-  it('reuses tenant default categories instead of duplicating scoped categories with the same names', async () => {
+  it('reuses system default categories instead of duplicating scoped categories with the same names', async () => {
     const users = new InMemoryUserRepository();
     const financialAccounts = new InMemoryFinancialAccountRepository(users);
     const categories = new InMemoryCategoryRepository();
