@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
 import { tap } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import {
@@ -26,7 +26,14 @@ export class AccountContextService {
   constructor(
     private readonly api: ApiService,
     private readonly auth: AuthService
-  ) {}
+  ) {
+    // Account context belongs to the authenticated identity. Keeping it after
+    // logout would send the next user an account header they cannot access.
+    effect(() => {
+      this.auth.user();
+      this.clear();
+    });
+  }
 
   load() {
     this.loading.set(true);
@@ -116,6 +123,14 @@ export class AccountContextService {
       current: current.current,
       accounts: [...current.accounts, membership].sort((left, right) => left.account.type.localeCompare(right.account.type) || left.account.name.localeCompare(right.account.name))
     });
+  }
+
+  clear() {
+    this.loading.set(false);
+    this.error.set('');
+    this.context.set(null);
+    this.members.set([]);
+    this.membersLoading.set(false);
   }
 
   private setContextFromSwitchResponse(response: UpdateFinancialAccountContextResponse) {

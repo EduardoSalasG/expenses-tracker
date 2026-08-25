@@ -46,6 +46,20 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         );
       }
 
+      const isIdentityRequest = request.url.endsWith('/me') || request.url.includes('/me/account-context');
+      const canRecoverFromStaleAccountContext =
+        error instanceof HttpErrorResponse &&
+        error.status === 403 &&
+        Boolean(activeAccountId) &&
+        isIdentityRequest;
+
+      if (canRecoverFromStaleAccountContext) {
+        accountContext.clear();
+        return next(request.clone({
+          setHeaders: token ? { Authorization: `Bearer ${token}` } : {}
+        }));
+      }
+
       if (error instanceof HttpErrorResponse && error.status === 401) {
         auth.logout();
         router.navigateByUrl('/login');
