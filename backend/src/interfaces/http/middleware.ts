@@ -21,9 +21,25 @@ export function requireAuth(container: AppContainer) {
     try {
       const payload = container.tokens.verifyAccessToken(token);
       const personalAccount = await container.financialAccounts.ensurePersonalAccount(payload.userId);
+      const requestedFinancialAccountId = request.header('x-financial-account-id')?.trim() || undefined;
+      const tokenFinancialAccountId = payload.financialAccountId?.trim() || undefined;
+      let financialAccountId = personalAccount.id;
+
+      if (requestedFinancialAccountId) {
+        const accessibleMembership = await container.financialAccounts.findAccessibleById(payload.userId, requestedFinancialAccountId);
+        if (!accessibleMembership) {
+          response.status(403).json({ error: 'Financial account is not accessible.' });
+          return;
+        }
+        financialAccountId = accessibleMembership.account.id;
+      } else if (tokenFinancialAccountId) {
+        const accessibleMembership = await container.financialAccounts.findAccessibleById(payload.userId, tokenFinancialAccountId);
+        financialAccountId = accessibleMembership?.account.id ?? personalAccount.id;
+      }
+
       (request as AuthenticatedRequest).auth = {
         ...payload,
-        financialAccountId: payload.financialAccountId ?? personalAccount.id
+        financialAccountId
       };
       next();
     } catch {
