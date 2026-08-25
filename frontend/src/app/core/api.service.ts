@@ -133,6 +133,8 @@ export interface Expense {
   amount: number;
   totalAmount?: number;
   financialAccountId?: string;
+  createdByUserId?: string;
+  createdByPreferredName?: string;
   paidByUserId?: string;
   allocationMode?: 'payer' | 'equal' | 'custom';
   allocations?: Array<{ owedByUserId: string; amount: number }>;
@@ -151,6 +153,9 @@ export interface Expense {
 
 export interface Income {
   id: string;
+  financialAccountId?: string;
+  userId?: string;
+  createdByPreferredName?: string;
   date: string;
   amount: number;
   currency: string;

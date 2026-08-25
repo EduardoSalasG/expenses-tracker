@@ -1207,15 +1207,15 @@ export class PostgresIncomeRepository implements IncomeRepository {
     limit: number;
   }) {
     const result = await this.pool.query(
-      `select *
-       from incomes
-       where tenant_id = $1
-         and ($2::uuid is null or financial_account_id = $2)
-         and ($3::timestamptz is null or income_date >= $3)
-         and ($4::timestamptz is null or income_date <= $4)
-         and ($5::char(3) is null or currency = $5)
-       order by income_date desc, created_at desc
-       limit $6`,
+      incomeProjectionSelectSql({
+        whereClause: `where i.tenant_id = $1
+          and ($2::uuid is null or i.financial_account_id = $2)
+          and ($3::timestamptz is null or i.income_date >= $3)
+          and ($4::timestamptz is null or i.income_date <= $4)
+          and ($5::char(3) is null or i.currency = $5)`,
+        orderClause: 'order by i.income_date desc, i.created_at desc',
+        limitClause: 'limit $6'
+      }),
       [input.tenantId, input.financialAccountId ?? null, input.from ?? null, input.to ?? null, input.currency ?? null, input.limit]
     );
     return result.rows.map(mapIncome);
@@ -1224,12 +1224,13 @@ export class PostgresIncomeRepository implements IncomeRepository {
   async listByPeriod(tenantId: string, financialAccountIdOrFrom: string, fromOrTo?: string, toMaybe?: string) {
     const { financialAccountId, from, to } = normalizeScopedPeriodArgs(financialAccountIdOrFrom, fromOrTo, toMaybe);
     const result = await this.pool.query(
-      `select * from incomes
-       where tenant_id = $1
-         and ($2::uuid is null or financial_account_id = $2)
-         and income_date >= $3
-         and income_date <= $4
-       order by income_date desc`,
+      incomeProjectionSelectSql({
+        whereClause: `where i.tenant_id = $1
+          and ($2::uuid is null or i.financial_account_id = $2)
+          and i.income_date >= $3
+          and i.income_date <= $4`,
+        orderClause: 'order by i.income_date desc'
+      }),
       [tenantId, financialAccountId ?? null, from, to]
     );
     return result.rows.map(mapIncome);
@@ -1238,11 +1239,12 @@ export class PostgresIncomeRepository implements IncomeRepository {
   async listRecent(tenantId: string, financialAccountIdOrLimit?: string | number, limitMaybe?: number) {
     const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     const result = await this.pool.query(
-      `select * from incomes
-       where tenant_id = $1
-         and ($2::uuid is null or financial_account_id = $2)
-       order by income_date desc, created_at desc
-       limit $3`,
+      incomeProjectionSelectSql({
+        whereClause: `where i.tenant_id = $1
+          and ($2::uuid is null or i.financial_account_id = $2)`,
+        orderClause: 'order by i.income_date desc, i.created_at desc',
+        limitClause: 'limit $3'
+      }),
       [tenantId, financialAccountId ?? null, limit]
     );
     return result.rows.map(mapIncome);
@@ -1674,6 +1676,7 @@ function mapExpense(row: QueryResultRow): Expense {
     financialAccountId: row.financial_account_id ?? undefined,
     userId: row.user_id,
     createdByUserId: row.created_by_user_id ?? undefined,
+    createdByPreferredName: row.created_by_preferred_name ?? undefined,
     paidByUserId: row.paid_by_user_id ?? undefined,
     allocationMode: row.allocation_mode ?? undefined,
     date: row.expense_date instanceof Date ? row.expense_date.toISOString() : row.expense_date,
@@ -1704,6 +1707,7 @@ function mapIncome(row: QueryResultRow): Income {
     tenantId: row.tenant_id,
     financialAccountId: row.financial_account_id ?? undefined,
     userId: row.user_id,
+    createdByPreferredName: row.created_by_preferred_name ?? undefined,
     date: row.income_date instanceof Date ? row.income_date.toISOString() : row.income_date,
     amount: Number(row.amount),
     currency: row.currency,
@@ -1879,6 +1883,7 @@ function expenseProjectionSelectSql(input: {
       e.financial_account_id,
       e.user_id,
       e.created_by_user_id,
+      coalesce(created_by.preferred_name, created_by.first_name) as created_by_preferred_name,
       e.paid_by_user_id,
       e.allocation_mode,
       i.due_date as expense_date,
@@ -1901,6 +1906,24 @@ function expenseProjectionSelectSql(input: {
       e.created_at
     from expenses e
     join expense_installments i on i.expense_id = e.id
+    left join users created_by on created_by.id = coalesce(e.created_by_user_id, e.user_id)
+    ${input.whereClause ?? ''}
+    ${input.orderClause ?? ''}
+    ${input.limitClause ?? ''}
+  `;
+}
+
+function incomeProjectionSelectSql(input: {
+  whereClause?: string;
+  orderClause?: string;
+  limitClause?: string;
+}) {
+  return `
+    select
+      i.*,
+      coalesce(created_by.preferred_name, created_by.first_name) as created_by_preferred_name
+    from incomes i
+    left join users created_by on created_by.id = i.user_id
     ${input.whereClause ?? ''}
     ${input.orderClause ?? ''}
     ${input.limitClause ?? ''}

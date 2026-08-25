@@ -89,11 +89,14 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <app-feedback-banner [message]="loading() ? t('incomes_loading') : ''" tone="info" />
       @if (incomes().length) {
         <div class="responsive-table-wrapper overflow-x-auto">
-          <table class="responsive-table w-full min-w-[560px] border-collapse text-left">
+          <table class="responsive-table w-full min-w-[560px] border-collapse text-left" [class.min-w-\[680px\]]="isSharedAccount()">
             <thead>
               <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
                 <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
                 <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
+                @if (isSharedAccount()) {
+                  <th class="py-2.5 pr-3 font-medium">{{ t('transactions_recorded_by') }}</th>
+                }
                 <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
                 <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
               </tr>
@@ -103,6 +106,9 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                 <tr class="border-b border-brand-border/60 last:border-0">
                   <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
                   <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
+                  @if (isSharedAccount()) {
+                    <td [attr.data-label]="t('transactions_recorded_by')" class="py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(income) }}</td>
+                  }
                   <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                   <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
                     <div class="flex flex-wrap justify-end gap-2">
@@ -136,6 +142,7 @@ export class IncomesComponent implements OnInit {
   private readonly accountService = inject(AccountContextService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly incomes = signal<Income[]>([]);
+  readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly loading = signal(false);
   readonly error = signal('');
   readonly filtersOpen = signal(false);
@@ -281,6 +288,10 @@ export class IncomesComponent implements OnInit {
     const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
     if (currency.toUpperCase() === 'CLP') return `$${Number(amount).toLocaleString(locale, { maximumFractionDigits: 0 })}`;
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
+  }
+
+  recordedBy(income: Income) {
+    return income.createdByPreferredName ?? this.t('common_no_data');
   }
 
   private patchIncomeState(updatedIncome: Income) {

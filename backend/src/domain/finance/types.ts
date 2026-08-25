@@ -48,6 +48,7 @@ export interface Expense {
   financialAccountId?: FinancialAccountId;
   userId: UserId;
   createdByUserId?: UserId;
+  createdByPreferredName?: string;
   paidByUserId?: UserId;
   allocationMode?: ExpenseAllocationMode;
   allocations?: ExpenseAllocation[];
@@ -73,6 +74,7 @@ export interface Income {
   tenantId: TenantId;
   financialAccountId?: FinancialAccountId;
   userId: UserId;
+  createdByPreferredName?: string;
   date: string;
   amount: number;
   currency: CurrencyCode;

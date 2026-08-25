@@ -124,13 +124,16 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? t('expenses_loading') : ''" tone="info" />
       <div class="responsive-table-wrapper overflow-x-auto">
-        <table class="responsive-table w-full min-w-[640px] border-collapse text-left">
+        <table class="responsive-table w-full min-w-[640px] border-collapse text-left" [class.min-w-\[760px\]]="isSharedAccount()">
           <thead>
             <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
               <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_category') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_payment_method') }}</th>
+              @if (isSharedAccount()) {
+                <th class="py-2.5 pr-3 font-medium">{{ t('transactions_recorded_by') }}</th>
+              }
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
             </tr>
@@ -149,6 +152,9 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                 </td>
                 <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
                 <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
+                @if (isSharedAccount()) {
+                  <td [attr.data-label]="t('transactions_recorded_by')" class="py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(expense) }}</td>
+                }
                 <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
                 <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
                   <div class="flex flex-wrap justify-end gap-2">
@@ -164,7 +170,7 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                 </td>
               </tr>
             } @empty {
-              <tr><td class="py-6 text-brand-muted" colspan="6">{{ t('expenses_empty_filters') }}</td></tr>
+              <tr><td class="py-6 text-brand-muted" [attr.colspan]="isSharedAccount() ? 7 : 6">{{ t('expenses_empty_filters') }}</td></tr>
             }
           </tbody>
         </table>
@@ -186,6 +192,7 @@ export class ExpensesComponent implements OnInit {
   readonly loadedCatalogAccountId = signal('');
   readonly expenses = signal<Expense[]>([]);
   readonly currentUserId = signal('');
+  readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly loading = signal(false);
   private catalogRequestId = 0;
   private expensesRequestId = 0;
@@ -411,6 +418,10 @@ export class ExpensesComponent implements OnInit {
     if (expense.paymentMethod.kind === 'transfer') return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${this.t('expenses_transfer')}` : this.t('expenses_transfer');
     const cardType = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType === 'debit' ? this.t('expenses_debit') : this.t('expenses_credit')} ${this.t('expenses_card')}` : this.t('expenses_card');
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${cardType}` : cardType;
+  }
+
+  recordedBy(expense: Expense) {
+    return expense.createdByPreferredName ?? this.t('common_no_data');
   }
 
   formatDate(value: string) {

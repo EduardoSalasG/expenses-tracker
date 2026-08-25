@@ -1081,7 +1081,33 @@ export const openApiSpec = {
           queryParam('paymentMethodKind', 'string', 'cash, transfer, or card'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],
-        responses: withUnauthorized(standardResponses({ data: { type: 'array', items: { type: 'object' } } }))
+        responses: withUnauthorized({
+          '200': {
+            description: 'Expense list',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [{
+                        id: '2e0ddc9e-5dbd-4f84-8df2-7f77f0c0f2d7',
+                        concept: 'Natacion',
+                        amount: 33000,
+                        currency: 'CLP',
+                        createdByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                        createdByPreferredName: 'Eduardo'
+                      }]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Validation error',
+            content: { 'application/json': { examples: { invalidQuery: { value: { error: 'Validation failed.' } } } } }
+          }
+        })
       },
       post: {
         summary: 'Create manual expense',
@@ -1295,7 +1321,9 @@ export const openApiSpec = {
                           date: '2026-06-01T00:00:00.000Z',
                           amount: 1200000,
                           currency: 'CLP',
-                          concept: 'Sueldo'
+                          concept: 'Sueldo',
+                          userId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          createdByPreferredName: 'Eduardo'
                         }
                       ]
                     }
