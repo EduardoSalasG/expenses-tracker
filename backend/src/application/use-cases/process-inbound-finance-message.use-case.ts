@@ -419,10 +419,21 @@ export class ProcessInboundFinanceMessageUseCase {
 
   private async switchTelegramFinancialAccount(user: User, input: InboundTextMessage) {
     const accountName = extractTelegramAccountName(input.message);
-    if (!accountName || !input.providerUserId) return undefined;
+    if (!input.providerUserId) return undefined;
+    if (!accountName) {
+      await this.reply(
+        user,
+        input.replyTo ?? input.fromPhoneNumber,
+        telegramAccountSwitchUsageMessage(user),
+        input.channel
+      );
+      return { status: 'account_context_usage' as const };
+    }
 
     const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
-    const matched = memberships.find((membership) => normalize(membership.account.name) === normalize(accountName));
+    const exactMatches = memberships.filter((membership) => normalize(membership.account.name) === normalize(accountName));
+    const compactMatches = memberships.filter((membership) => accountCommandToken(membership.account.name) === accountCommandToken(accountName));
+    const matched = exactMatches[0] ?? (compactMatches.length === 1 ? compactMatches[0] : undefined);
     if (!matched) {
       await this.reply(
         user,
@@ -439,6 +450,8 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       financialAccountId: matched.account.id
     });
+    // Pending confirmations belong to the prior account context.
+    await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
 
     await this.reply(
       user,
@@ -1802,11 +1815,21 @@ function isTelegramLinkCommand(message: string) {
 
 function isTelegramAccountSwitchCommand(message: string) {
   const trimmed = message.trim();
-  return /^\/[^\s/][^\s]*$/.test(trimmed) && !/^\/(link|vincular)$/i.test(trimmed);
+  if (/^\/(?:cuenta|account)\b/i.test(trimmed)) return true;
+  if (!/^\/[^\s/][^\s]*$/.test(trimmed)) return false;
+  return !/^\/(?:start|web|commands|help|accounts|cuentas|current|actual|link|vincular)$/i.test(trimmed);
 }
 
 function extractTelegramAccountName(message: string) {
-  return message.trim().replace(/^\//, '').trim();
+  const trimmed = message.trim();
+  const explicit = trimmed.match(/^\/(?:cuenta|account)\s+(.+)$/i);
+  if (explicit) return explicit[1]?.trim();
+  if (/^\/(?:cuenta|account)$/i.test(trimmed)) return undefined;
+  return trimmed.replace(/^\//, '').trim();
+}
+
+function accountCommandToken(value: string) {
+  return normalize(value).replace(/[^a-z0-9]+/g, '');
 }
 
 function extractPhoneNumberFromLinkCommand(message: string) {
@@ -1868,19 +1891,25 @@ function telegramAccountSwitchSuccessMessage(user: User, accountName: string) {
     : `Listo. Desde ahora usaré la cuenta "${accountName}" en este chat.`;
 }
 
+function telegramAccountSwitchUsageMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'To switch accounts, send /AccountName without spaces, or /account Account Name. Use /accounts to see the available names.'
+    : 'Para cambiar de cuenta envía /NombreCuenta sin espacios, o /cuenta Nombre de cuenta. Usa /accounts para ver los nombres disponibles.';
+}
+
 function telegramAccountSwitchNotFoundMessage(user: User, accountNames: string[]) {
   if (user.preferredLanguage === 'en') {
     return [
       'I could not find that account in your accessible accounts.',
       `Available accounts: ${accountNames.join(', ')}.`,
-      'Use /AccountName to switch.'
+      'Use /AccountName without spaces, or /account Account Name, to switch.'
     ].join('\n');
   }
 
   return [
     'No encontré esa cuenta dentro de las cuentas a las que tienes acceso.',
     `Cuentas disponibles: ${accountNames.join(', ')}.`,
-    'Usa /NombreCuenta para cambiar.'
+    'Usa /NombreCuenta sin espacios, o /cuenta Nombre de cuenta, para cambiar.'
   ].join('\n');
 }
 

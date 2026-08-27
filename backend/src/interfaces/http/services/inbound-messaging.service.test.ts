@@ -268,7 +268,7 @@ describe('InboundMessagingService', () => {
 
     expect(sendText).toHaveBeenCalledWith(
       '999',
-      'The active account for this chat is "Personal". Use /accounts to view all available accounts and /AccountName to switch.',
+      'The active account for this chat is "Personal". Use /accounts to view all available accounts and /account Account Name to switch.',
       { channel: 'telegram' }
     );
     expect(processInboundFinanceMessage.execute).not.toHaveBeenCalled();

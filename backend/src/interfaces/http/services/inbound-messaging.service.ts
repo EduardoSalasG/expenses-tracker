@@ -296,7 +296,11 @@ function buildTelegramCommandsMessage(language: 'es' | 'en') {
       'Command: /current',
       'Example reply: I tell you which account is active and how to switch.',
       '',
-      '10) Confirm or discard duplicates',
+      '10) Switch the active account',
+      'Command: /account Home expenses',
+      'Example reply: I confirm that new messages will be saved in that shared account.',
+      '',
+      '11) Confirm or discard duplicates',
       'Example command: save',
       'Example reply: I keep the movement even if it looks duplicated.',
       'Example command: discard',
@@ -345,7 +349,11 @@ function buildTelegramCommandsMessage(language: 'es' | 'en') {
     'Comando: /current',
     'Ejemplo de respuesta: te digo qué cuenta está activa y cómo cambiarla.',
     '',
-    '10) Confirmar o descartar duplicados',
+    '10) Cambiar la cuenta activa',
+    'Comando: /cuenta Gastos de la casa',
+    'Ejemplo de respuesta: confirmo que los nuevos movimientos quedarán en esa cuenta compartida.',
+    '',
+    '11) Confirmar o descartar duplicados',
     'Ejemplo de comando: guardar',
     'Ejemplo de respuesta: mantengo el movimiento aunque parezca duplicado.',
     'Ejemplo de comando: descartar',
@@ -379,7 +387,7 @@ function buildTelegramAccountsMessage(
       'These are your available accounts in Telegram:',
       ...lines,
       '',
-      'To switch, send /AccountName exactly as it appears above.'
+      'To switch, send /AccountName without spaces, or /account Account Name.'
     ].join('\n');
   }
 
@@ -387,12 +395,12 @@ function buildTelegramAccountsMessage(
     'Estas son tus cuentas disponibles en Telegram:',
     ...lines,
     '',
-    'Para cambiar, envía /NombreCuenta tal como aparece arriba.'
+    'Para cambiar, envía /NombreCuenta sin espacios, o /cuenta Nombre de cuenta.'
   ].join('\n');
 }
 
 function buildTelegramCurrentAccountMessage(language: 'es' | 'en', accountName: string) {
   return language === 'en'
-    ? `The active account for this chat is "${accountName}". Use /accounts to view all available accounts and /AccountName to switch.`
-    : `La cuenta activa de este chat es "${accountName}". Usa /accounts para ver tus cuentas disponibles y /NombreCuenta para cambiar.`;
+    ? `The active account for this chat is "${accountName}". Use /accounts to view all available accounts and /account Account Name to switch.`
+    : `La cuenta activa de este chat es "${accountName}". Usa /accounts para ver tus cuentas disponibles y /cuenta Nombre de cuenta para cambiar.`;
 }

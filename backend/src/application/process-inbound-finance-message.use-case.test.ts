@@ -12,7 +12,7 @@ import {
   InMemoryMessagingPendingDraftRepository,
   InMemoryPaymentMethodOptionRepository
 } from '../infrastructure/repositories/in-memory.js';
-import { DeterministicMessageInterpreter } from './message-interpreter.js';
+import { DeterministicMessageInterpreter, type InterpretedMessage, type MessageInterpreterContext } from './message-interpreter.js';
 import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
 
 describe('ProcessInboundFinanceMessageUseCase', () => {
@@ -470,6 +470,105 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(rows.map((row) => row.installmentNumber)).toEqual([3, 2, 1]);
     expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto guardado.');
     expect(messaging.messages.at(-1)?.body).toContain('Cuotas: 3 de $166.667.');
+  });
+
+  it('switches Telegram to a shared account and saves subsequent expenses and incomes there', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, 'shared-switch-chat');
+    const personal = await financialAccounts.ensurePersonalAccount(user.id);
+    const shared = await financialAccounts.createSharedAccount({
+      tenantId: user.tenantId,
+      createdByUserId: user.id,
+      name: 'Casa común',
+      currency: 'CLP'
+    });
+    const food = await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Food',
+      isDefault: false
+    });
+    await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Restaurants',
+      parentId: food.id,
+      isDefault: false
+    });
+    await drafts.upsert({
+      tenantId: user.tenantId,
+      userId: user.id,
+      channel: 'telegram',
+      originalMessage: 'stale confirmation',
+      draft: { kind: 'duplicate_confirmation', originalMessage: 'stale confirmation' },
+      missingFields: ['duplicate_confirmation'],
+      expiresAt: '2026-08-11T00:30:00.000Z'
+    });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      financialAccounts,
+      categories,
+      expenses,
+      incomes,
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      drafts,
+      new NoopMessagingProvider(),
+      new SharedAccountMovementInterpreter(),
+      { now: () => new Date('2026-08-11T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const switched = await useCase.execute({
+      providerMessageId: 'tg-switch-shared',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-switch-chat',
+      providerUserId: 'shared-switch-chat',
+      replyTo: 'shared-switch-chat',
+      message: '/CasaComun'
+    });
+    expect(switched).toMatchObject({ status: 'account_context_updated', financialAccountId: shared.account.id });
+    expect(await drafts.findActive(user.tenantId, user.id, new Date('2026-08-11T00:00:00.000Z'), 'telegram')).toBeUndefined();
+
+    const expenseResult = await useCase.execute({
+      providerMessageId: 'tg-shared-expense',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-switch-chat',
+      providerUserId: 'shared-switch-chat',
+      replyTo: 'shared-switch-chat',
+      message: 'gasto compartido'
+    });
+    const incomeResult = await useCase.execute({
+      providerMessageId: 'tg-shared-income',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-switch-chat',
+      providerUserId: 'shared-switch-chat',
+      replyTo: 'shared-switch-chat',
+      message: 'ingreso compartido'
+    });
+
+    expect(expenseResult.status).toBe('saved');
+    expect(incomeResult.status).toBe('income_saved');
+    expect((await expenses.listRecent(user.tenantId, shared.account.id, 10))[0]?.financialAccountId).toBe(shared.account.id);
+    expect((await incomes.listRecent(user.tenantId, shared.account.id, 10))[0]?.financialAccountId).toBe(shared.account.id);
+    expect(await expenses.listRecent(user.tenantId, personal.id, 10)).toHaveLength(0);
+    expect(await incomes.listRecent(user.tenantId, personal.id, 10)).toHaveLength(0);
   });
 
   it('stores a shared Telegram expense split equally when the user says mitad con another member', async () => {
@@ -1363,6 +1462,36 @@ class FixedIncomeInterpreter implements MessageInterpreterPort {
       concept: 'sueldo',
       missingFields: [],
       needsConfirmation: false
+    };
+  }
+}
+
+class SharedAccountMovementInterpreter implements MessageInterpreterPort {
+  async interpret(message: string, _context: MessageInterpreterContext): Promise<InterpretedMessage> {
+    if (message.includes('ingreso')) {
+      return {
+        intent: 'create_income' as const,
+        confidence: 0.9,
+        amount: 50000,
+        currency: 'CLP',
+        concept: 'Aporte común',
+        missingFields: [],
+        needsConfirmation: false
+      };
+    }
+
+    return {
+      intent: 'create_expense' as const,
+      confidence: 0.9,
+      amount: 25000,
+      currency: 'CLP',
+      concept: 'Compra común',
+      categoryName: 'Food',
+      subcategoryName: 'Restaurants',
+      paymentMethod: { kind: 'cash' as const },
+      missingFields: [],
+      needsConfirmation: false,
+      installmentCount: 1
     };
   }
 }

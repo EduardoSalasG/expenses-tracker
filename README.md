@@ -66,7 +66,7 @@ Shared accounts are available as the current Splitwise-style MVP:
 - personal and shared financial accounts
 - invitations and membership management
 - Telegram account switching
-- Telegram account discovery commands (`/accounts`, `/current`, `/AccountName`)
+- Telegram account discovery and switching commands (`/accounts`, `/current`, `/AccountName`, or `/account Account Name`)
 - web account switching
 - dashboard and financial modules scoped by the active account
 - shared-account expense capture from web and Telegram

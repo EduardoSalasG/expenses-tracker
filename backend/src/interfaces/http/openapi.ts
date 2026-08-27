@@ -2198,7 +2198,7 @@ export const openApiSpec = {
     '/webhooks/telegram': {
       post: {
         summary: 'Receive Telegram webhook event',
-        description: 'Receives Telegram updates, supports account link with `/link +<phone>`, and forwards inbound text as provider-neutral messages (including create/edit intents interpreted by backend).',
+        description: 'Receives Telegram updates, supports account link with `/link +<phone>`, account discovery with `/accounts`, active-account lookup with `/current`, and account switching with `/AccountName` or `/account Account Name`. Financial text is then processed in the selected personal or shared account, including create/edit intents interpreted by the backend.',
         parameters: [
           {
             name: 'x-telegram-bot-api-secret-token',
