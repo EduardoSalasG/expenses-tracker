@@ -26,9 +26,7 @@ The backend and frontend containers are intended for image validation and deploy
 
 ## Validation Workflow
 
-This repository no longer depends on GitHub Actions for release validation.
-
-Validation is executed manually on `dev` before promotion:
+GitHub Actions builds and deploys the production backend from `main`. Release validation is still executed manually on `dev` before promotion:
 
 - backend tests
 - backend build
@@ -41,7 +39,7 @@ Validation is executed manually on `dev` before promotion:
 
 ## Gitflow
 
-Use `main` as the production branch. Netlify and Render should deploy from `main` only.
+Use `main` as the production branch. Netlify and the Oracle backend deployment workflow deploy from `main` only.
 
 Use `dev` as the integration branch for active development. Normal work should branch from `dev`, merge back into `dev`, and then promote to `main` through a pull request when the app is ready to deploy.
 
@@ -109,12 +107,12 @@ Keep `backend/.env` outside Git. Production deployments need:
 - `MESSAGE_INTERPRETER_MODEL`
 - `FRONTEND_ORIGIN`
 
-For GitHub Models, configure:
+For OpenRouter, configure:
 
 ```text
-MESSAGE_INTERPRETER_PROVIDER=github-models
-MESSAGE_INTERPRETER_API_KEY=<github-token-with-models-access>
-MESSAGE_INTERPRETER_BASE_URL=https://models.github.ai/inference
+MESSAGE_INTERPRETER_PROVIDER=openrouter
+MESSAGE_INTERPRETER_API_KEY=<openrouter-api-key>
+MESSAGE_INTERPRETER_BASE_URL=https://openrouter.ai/api/v1
 MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324
 ```
 
@@ -164,9 +162,9 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
   - one explicit one-time backfill script for existing production data
   - a written run order and rollback note before touching production
 
-## Shared Accounts Foundation Runbook
+## Shared Accounts Runbook
 
-The shared-accounts groundwork introduces `financial_accounts` and related ownership tables without switching runtime behavior immediately.
+Shared accounts are active in the runtime. The following runbook remains relevant only when upgrading an existing database that predates the account model.
 
 Production run order:
 

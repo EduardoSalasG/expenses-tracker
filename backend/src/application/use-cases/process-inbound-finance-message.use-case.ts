@@ -21,6 +21,7 @@ import type {
   MessageInterpreterPort,
   PaymentMethodOptionRepository,
   FinancialAccountRepository,
+  FinancialAccountMembershipRecord,
   UserRepository
 } from '../ports.js';
 import {
@@ -385,10 +386,11 @@ export class ProcessInboundFinanceMessageUseCase {
     providerUserId?: string
   ) {
     const financialAccount = await this.resolveFinancialAccountContext(user, channel, providerUserId);
-    const categories = categoriesOverride ?? await this.categories.listByTenant(user.tenantId, financialAccount.id);
-    const [banks, paymentMethodOptions] = await Promise.all([
+    const [categories, banks, paymentMethodOptions, memberships] = await Promise.all([
+      categoriesOverride ?? this.categories.listByTenant(user.tenantId, financialAccount.id),
       this.banks.listByTenant(user.tenantId, financialAccount.id),
-      this.paymentMethods.listByTenant(user.tenantId, financialAccount.id)
+      this.paymentMethods.listByTenant(user.tenantId, financialAccount.id),
+      this.financialAccounts.listAccessibleByUser(user.id)
     ]);
 
     return {
@@ -397,6 +399,7 @@ export class ProcessInboundFinanceMessageUseCase {
       categories,
       banks,
       paymentMethodOptions,
+      availableFinancialAccounts: memberships.map((membership) => membership.account),
       now: this.clock.now()
     };
   }
@@ -417,12 +420,39 @@ export class ProcessInboundFinanceMessageUseCase {
     return this.financialAccounts.ensurePersonalAccount(user.id);
   }
 
+  private async resolveQuestionFinancialAccount(
+    user: User,
+    input: InboundTextMessage,
+    accountName?: string
+  ) {
+    const activeAccount = await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId);
+    const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
+    const requestedAccountName = accountName ?? inferAccountNameFromQuestion(input.message, memberships);
+    if (!requestedAccountName) return { financialAccount: activeAccount };
+
+    const membership = findMembershipByAccountName(memberships, requestedAccountName);
+    if (membership) return { financialAccount: membership.account };
+
+    return { financialAccount: activeAccount, requestedAccountName };
+  }
+
   private async switchTelegramFinancialAccount(user: User, input: InboundTextMessage) {
     const accountName = extractTelegramAccountName(input.message);
-    if (!accountName || !input.providerUserId) return undefined;
+    if (!input.providerUserId) return undefined;
+    if (!accountName) {
+      await this.reply(
+        user,
+        input.replyTo ?? input.fromPhoneNumber,
+        telegramAccountSwitchUsageMessage(user),
+        input.channel
+      );
+      return { status: 'account_context_usage' as const };
+    }
 
     const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
-    const matched = memberships.find((membership) => normalize(membership.account.name) === normalize(accountName));
+    const exactMatches = memberships.filter((membership) => normalize(membership.account.name) === normalize(accountName));
+    const compactMatches = memberships.filter((membership) => accountCommandToken(membership.account.name) === accountCommandToken(accountName));
+    const matched = exactMatches[0] ?? (compactMatches.length === 1 ? compactMatches[0] : undefined);
     if (!matched) {
       await this.reply(
         user,
@@ -439,6 +469,8 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       financialAccountId: matched.account.id
     });
+    // Pending confirmations belong to the prior account context.
+    await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
 
     await this.reply(
       user,
@@ -670,13 +702,19 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
+    const financialAccount = await this.resolveFinancialAccountContext(
+      user,
+      input.channel ?? 'whatsapp',
+      input.providerUserId
+    );
     const created = await this.categories.create({
       tenantId: user.tenantId,
+      financialAccountId: financialAccount.id,
       name: draft.requestedName,
       parentId: createRequest.parentId,
       isDefault: false
     });
-    const refreshedCategories = await this.categories.listByTenant(user.tenantId);
+    const refreshedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const category = createRequest.parentId
       ? refreshedCategories.find((item) => item.id === createRequest.parentId)
       : created;
@@ -724,10 +762,21 @@ export class ProcessInboundFinanceMessageUseCase {
 
     if (interpreted.intent === 'ask_report') {
       const period = reportPeriod(interpreted.period, this.clock.now());
-      const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
+      const questionAccount = await this.resolveQuestionFinancialAccount(user, input, interpreted.accountName);
+      if (questionAccount.requestedAccountName) {
+        await this.auditMessage(input, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          parsingStatus: 'failed'
+        });
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForQuestionMessage(user, questionAccount.requestedAccountName), input.channel);
+        return { status: 'account_not_found' as const };
+      }
+      const financialAccountId = questionAccount.financialAccount.id;
+      const questionCategories = await this.categories.listByTenant(user.tenantId, financialAccountId);
       const report = filterReportByCategory(
         await this.report(user.tenantId, user.id, period.from, period.to, financialAccountId),
-        categories,
+        questionCategories,
         interpreted.categoryName
       );
       await this.auditMessage(input, {
@@ -743,7 +792,18 @@ export class ProcessInboundFinanceMessageUseCase {
     if (interpreted.intent === 'ask_budget_status') {
       const month = interpreted.month ?? this.clock.now().toISOString().slice(0, 7);
       const { from, to } = monthPeriod(month);
-      const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
+      const questionAccount = await this.resolveQuestionFinancialAccount(user, input, interpreted.accountName);
+      if (questionAccount.requestedAccountName) {
+        await this.auditMessage(input, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          parsingStatus: 'failed'
+        });
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForQuestionMessage(user, questionAccount.requestedAccountName), input.channel);
+        return { status: 'account_not_found' as const };
+      }
+      const financialAccountId = questionAccount.financialAccount.id;
+      const questionCategories = await this.categories.listByTenant(user.tenantId, financialAccountId);
       const [budgets, report] = await Promise.all([
         this.budgets.listMonthly(user.tenantId, financialAccountId),
         this.report(user.tenantId, user.id, from, to, financialAccountId)
@@ -753,7 +813,7 @@ export class ProcessInboundFinanceMessageUseCase {
         budgets,
         report.expenses,
         report.incomes,
-        categories,
+        questionCategories,
         interpreted.categoryName,
         user.preferredLanguage
       );
@@ -1796,11 +1856,45 @@ function isTelegramLinkCommand(message: string) {
 
 function isTelegramAccountSwitchCommand(message: string) {
   const trimmed = message.trim();
-  return /^\/[^\s/][^\s]*$/.test(trimmed) && !/^\/(link|vincular)$/i.test(trimmed);
+  if (/^\/(?:cuenta|account)\b/i.test(trimmed)) return true;
+  if (!/^\/[^\s/][^\s]*$/.test(trimmed)) return false;
+  return !/^\/(?:start|web|commands|help|accounts|cuentas|current|actual|link|vincular)$/i.test(trimmed);
 }
 
 function extractTelegramAccountName(message: string) {
-  return message.trim().replace(/^\//, '').trim();
+  const trimmed = message.trim();
+  const explicit = trimmed.match(/^\/(?:cuenta|account)\s+(.+)$/i);
+  if (explicit) return explicit[1]?.trim();
+  if (/^\/(?:cuenta|account)$/i.test(trimmed)) return undefined;
+  return trimmed.replace(/^\//, '').trim();
+}
+
+function accountCommandToken(value: string) {
+  return normalize(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function inferAccountNameFromQuestion(
+  message: string,
+  memberships: FinancialAccountMembershipRecord[]
+) {
+  const normalizedMessage = normalize(message).replace(/[^a-z0-9]+/g, ' ').trim();
+  const matches = memberships
+    .filter(({ account }) => {
+      const normalizedAccountName = normalize(account.name).replace(/[^a-z0-9]+/g, ' ').trim();
+      return normalizedAccountName.length > 0 && normalizedMessage.includes(normalizedAccountName);
+    })
+    .sort((left, right) => right.account.name.length - left.account.name.length);
+
+  return matches.length === 1 ? matches[0]?.account.name : undefined;
+}
+
+function findMembershipByAccountName(
+  memberships: FinancialAccountMembershipRecord[],
+  accountName: string
+) {
+  const normalizedAccountName = normalize(accountName);
+  const exactMatches = memberships.filter((membership) => normalize(membership.account.name) === normalizedAccountName);
+  return exactMatches.length === 1 ? exactMatches[0] : undefined;
 }
 
 function extractPhoneNumberFromLinkCommand(message: string) {
@@ -1856,10 +1950,22 @@ function telegramUnlinkedMessage() {
   return 'Tu Telegram aun no esta vinculado. Envia /link +569XXXXXXXX con tu telefono registrado.';
 }
 
+function accountNotFoundForQuestionMessage(user: User, accountName: string) {
+  return user.preferredLanguage === 'en'
+    ? `I could not find an account named "${accountName}". I kept your current account unchanged.`
+    : `No encontré una cuenta llamada "${accountName}". Mantuve tu cuenta actual sin cambios.`;
+}
+
 function telegramAccountSwitchSuccessMessage(user: User, accountName: string) {
   return user.preferredLanguage === 'en'
     ? `Done. From now on I will use the account "${accountName}" in this chat.`
     : `Listo. Desde ahora usaré la cuenta "${accountName}" en este chat.`;
+}
+
+function telegramAccountSwitchUsageMessage(user: User) {
+  return user.preferredLanguage === 'en'
+    ? 'To switch accounts, send /AccountName without spaces, or /account Account Name. Use /accounts to see the available names.'
+    : 'Para cambiar de cuenta envía /NombreCuenta sin espacios, o /cuenta Nombre de cuenta. Usa /accounts para ver los nombres disponibles.';
 }
 
 function telegramAccountSwitchNotFoundMessage(user: User, accountNames: string[]) {
@@ -1867,14 +1973,14 @@ function telegramAccountSwitchNotFoundMessage(user: User, accountNames: string[]
     return [
       'I could not find that account in your accessible accounts.',
       `Available accounts: ${accountNames.join(', ')}.`,
-      'Use /AccountName to switch.'
+      'Use /AccountName without spaces, or /account Account Name, to switch.'
     ].join('\n');
   }
 
   return [
     'No encontré esa cuenta dentro de las cuentas a las que tienes acceso.',
     `Cuentas disponibles: ${accountNames.join(', ')}.`,
-    'Usa /NombreCuenta para cambiar.'
+    'Usa /NombreCuenta sin espacios, o /cuenta Nombre de cuenta, para cambiar.'
   ].join('\n');
 }
 

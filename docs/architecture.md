@@ -66,9 +66,9 @@ backend/src
 
 `interfaces/http/app.ts` only composes Express middleware, Swagger, health checks, and route registration. Route modules bind URLs to controllers. Controllers parse provider-specific HTTP input and delegate provider-neutral orchestration to interface services when a flow is shared across providers. Application use cases coordinate domain/application rules through ports. Infrastructure adapters implement those ports.
 
-## Tenancy
+## Tenancy and Financial Accounts
 
-MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, and authenticated requests use the tenant id from the JWT.
+MVP tenancy is one tenant per user. Each tenant-scoped table has `tenant_id`, and authenticated requests use the tenant id from the JWT. Financial data also belongs to a `financial_account_id`: each user has exactly one personal account and can join shared accounts. The frontend sends the active account context, while the backend verifies active membership before every account-scoped read or write. Shared-account members therefore see the same account data, not only rows they originally created.
 
 ## Messaging Providers
 

@@ -66,23 +66,11 @@ async function main() {
       order by u.tenant_id, u.created_at asc, u.id asc
     `);
 
-    let categoryUpdates = 0;
     let budgetUpdates = 0;
-    let bankUpdates = 0;
-    let paymentMethodUpdates = 0;
 
     for (const owner of tenantOwners.rows) {
       const accountId = ensuredAccounts.get(owner.user_id);
       if (!accountId) continue;
-
-      const categoriesResult = await pool.query(
-        `update categories
-         set financial_account_id = $1
-         where tenant_id = $2
-           and financial_account_id is null`,
-        [accountId, owner.tenant_id]
-      );
-      categoryUpdates += categoriesResult.rowCount ?? 0;
 
       const budgetsResult = await pool.query(
         `update monthly_budgets
@@ -92,24 +80,6 @@ async function main() {
         [accountId, owner.tenant_id]
       );
       budgetUpdates += budgetsResult.rowCount ?? 0;
-
-      const banksResult = await pool.query(
-        `update bank_options
-         set financial_account_id = $1
-         where tenant_id = $2
-           and financial_account_id is null`,
-        [accountId, owner.tenant_id]
-      );
-      bankUpdates += banksResult.rowCount ?? 0;
-
-      const paymentMethodsResult = await pool.query(
-        `update payment_method_options
-         set financial_account_id = $1
-         where tenant_id = $2
-           and financial_account_id is null`,
-        [accountId, owner.tenant_id]
-      );
-      paymentMethodUpdates += paymentMethodsResult.rowCount ?? 0;
     }
 
     let expenseUpdates = 0;
@@ -147,10 +117,7 @@ async function main() {
       usersProcessed: users.rowCount,
       personalAccountsEnsured: ensuredAccounts.size,
       membershipsUpserted: memberships.rowCount,
-      categoryUpdates,
       budgetUpdates,
-      bankUpdates,
-      paymentMethodUpdates,
       expenseUpdates,
       incomeUpdates
     });

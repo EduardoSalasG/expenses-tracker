@@ -1,92 +1,38 @@
 # Roadmap
 
-## Shared Accounts and Splitwise-Like Flow
+## Delivered
 
-Shared accounts are already implemented as the current Splitwise-style MVP.
-The next roadmap now focuses on deepening that experience instead of introducing the foundation for the first time.
+- Web-first registration, password access, Resend magic links, and optional Telegram linking.
+- Personal expense and income tracking, permanent budgets, reports, categories, payment catalogs, and installments.
+- Spanish/English public experience, responsive dashboard, dark mode, and first-run onboarding.
+- Shared accounts: invitations, active account selection, shared movement visibility, account-scoped catalogs, member attribution, equal/custom allocations, balances, and settlements.
+- Telegram capture, account switching, account-specific questions, shared split capture, movement corrections, and provider-neutral LLM interpretation.
+- Production foundations: Docker backend, Oracle/Nginx deployment, Netlify frontend, health probes, PostgreSQL bootstrap/migrations/backfill, Swagger, Postman, Mermaid, and release evidence.
 
-### Phase 1: Shared Account Foundation
+## Next Product Work
 
-- Introduce `financial_accounts` with `personal | shared`.
-- Keep one personal account per existing user.
-- Add `financial_account_members` with roles `owner | admin | member`.
-- Add account invitations and acceptance flow.
-- Move expenses, incomes, budgets, categories, banks, and payment methods to `financial_account_id`.
-- Web selector to switch between personal and shared accounts.
-- Telegram command to switch active account context, for example `/Casa`.
+### Shared Accounts
 
-### Phase 2: Shared Expense Capture
+- Surface balances, settlements, and upcoming obligations more prominently in the shared-account dashboard.
+- Add percentage allocation presets and reusable split rules.
+- Add shared-account monthly summaries and reminders.
 
-- Store who created the movement and who paid it.
-- Support shared account expense/income creation from web and Telegram.
-- Keep category model as system defaults plus account-level custom categories.
-- Add shared dashboards and reports per financial account.
+### Finance Experience
 
-### Phase 3: Splitwise-Like Allocation
+- Improve recurring movement support and monthly forecasting.
+- Extend installment planning with payment reminders and card-statement views.
+- Continue improving interpreter accuracy with versioned QA cases and evaluated model prompts.
 
-- Add expense allocation model per member.
-- First support equal split.
-- Then support custom amount or percentage split.
-- Show who paid, who owes, and basic balance per member.
+### Platform
 
-### Phase 4: Settlement and Reconciliation
+- Add another inbound messaging adapter when there is a product need; the application port is already channel-neutral.
+- Add product analytics only with an explicit privacy review.
+- Keep automated visual regression checks for mobile and desktop critical flows.
 
-- Track reimbursements and settlements between members.
-- Show pending balances and settlement history.
-- Add shared account monthly summaries and alerts.
+## Release Rule
 
-## Migration Strategy for Production
-
-Shared accounts require production-safe migration in two parts:
-
-1. Structure migration:
-   - create new tables
-   - add new foreign keys and indexes
-   - add nullable `financial_account_id` to existing financial tables
-
-2. One-time backfill:
-   - create one personal financial account for every existing user
-   - populate `financial_account_id` on existing expenses, incomes, budgets, categories, banks, and payment methods
-   - create owner membership for each personal account
-
-Implementation rule:
-
-- leave these as explicit one-time scripts
-- do not depend on runtime boot logic
-- keep them idempotent where possible
-- validate against local before production
-
-When this feature starts, deliverables must include:
-
-- SQL migration scripts for schema
-- one backfill SQL/TS script for existing data
-- Swagger updates
-- README/backend/frontend/docs alignment
-- QA evidence for personal vs shared context switching
-
-## Current Status
-
-Implemented in backend and frontend as of August 11, 2026:
-
-- schema foundation and backfill support
-- repository support for memberships, invitations, and messaging contexts
-- shared account creation and rename
-- member listing and member removal
-- invitation creation and acceptance
-- Telegram account-context switching with `/AccountName`
-- frontend account selector and active-account context switching
-- active account visibility banner across dashboard, expenses, incomes, budgets, and categories
-- shared account capture from web and Telegram through the currently active financial account
-- account-scoped dashboard and reports through the existing analytics views after switching the active account
-- shared expense allocation persistence with payer, equal split, and custom split modes
-- allocation-aware expense editing foundation, including proportional rescaling for existing custom splits when amount changes
-- balances by member
-- settlement suggestions derived from current balances
-- shared-account settlement creation and settlement history
-- Telegram shared-account settlement commands and natural-language shared split capture
-
-Still pending for the next shared-account expansion:
-
-- richer settlement UX in more surfaces beyond Settings
-- shared-account monthly summaries and alerts
-- more advanced split presets such as percentages and saved rules
+1. Develop and verify on `dev`.
+2. Update Swagger, Postman, READMEs, diagrams, and query notes when the behavior requires it.
+3. Commit and push `dev`.
+4. Promote `dev -> main` only after the release checklist and QA evidence are complete.
+5. Let Netlify and the Oracle backend workflow deploy from `main`.

@@ -4,7 +4,7 @@ sequenceDiagram
   participant API
   participant Interpreter
   participant DB
-  User->>Telegram: Send finance message or question
+  User->>Telegram: Send finance message, question, or account command
   Telegram->>Telegram: Require linked or registered sender
   Telegram->>API: POST /webhooks/telegram
   API->>DB: Reserve provider message id
@@ -16,12 +16,23 @@ sequenceDiagram
     API->>DB: Mark audit as unknown_user
     API-->>Telegram: 200 OK without processing
   else registered sender
-    API->>DB: Check active pending draft
+    alt /accounts, /current, /AccountName, or /account Account Name
+      API->>DB: Read memberships and the chat's active account context
+      API->>DB: Persist selected personal/shared account context
+      API->>DB: Clear pending draft from the prior account
+      API->>Telegram: Confirm active account or list available accounts
+    else finance message or question
+    API->>DB: Resolve active account context for this Telegram chat
+    alt report or budget question names an accessible account
+      API->>DB: Resolve the named account for this response only
+      Note over API,DB: Do not update saved chat account context
+    end
+    API->>DB: Check active pending draft in that account
     alt pending draft exists
       API->>Interpreter: Interpret reply
       API->>API: Merge reply into draft, confirm duplicate, or cancel draft
     else no pending draft
-      API->>DB: Check same sender/channel/text saved in last 2 minutes
+      API->>DB: Check same sender/channel/text saved in last 2 minutes for active account
       alt possible recent duplicate
         API->>DB: Mark audit as needs_confirmation
         API->>DB: Upsert duplicate confirmation draft
@@ -48,23 +59,24 @@ sequenceDiagram
         API->>DB: Create tenant-scoped category or subcategory when confirmed
       end
     else update referenced movement
-      API->>DB: Read recent tenant-scoped expenses/incomes
+      API->>DB: Read recent expenses/incomes scoped to active account
       API->>API: Match by referenced amount, concept, category, and movement type
       API->>DB: Update amount, concept, or category when match is confident
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm updated movement
     else create expense
-      API->>DB: Insert expense scoped by tenant using preferred currency
+      API->>DB: Insert expense scoped by active account using preferred currency
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm saved expense
     else create income
-      API->>DB: Insert income scoped by tenant using preferred currency
+      API->>DB: Insert income scoped by active account using preferred currency
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm saved income
     else ask report or budget status
-      API->>DB: Read tenant-scoped report or budget data
+      API->>DB: Read report or budget data scoped to resolved question account
       API->>DB: Mark audit as saved
       API->>Telegram: Reply with calculated answer
+    end
     end
   end
   end

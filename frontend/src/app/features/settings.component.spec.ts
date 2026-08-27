@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsComponent } from './settings.component';
 import { ApiService, type CurrentUser, type ReportFrequency } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
@@ -36,6 +36,7 @@ describe('SettingsComponent', () => {
         { provide: ApiService, useValue: api },
         { provide: AuthService, useValue: jasmine.createSpyObj<AuthService>('AuthService', ['logout']) },
         { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigateByUrl']) },
+        { provide: ActivatedRoute, useValue: { queryParamMap: of(new Map()) } },
         { provide: I18nService, useValue: { t: (key: string) => key, applyUserPreference: () => {}, language: () => 'es' } }
       ]
     }).compileComponents();

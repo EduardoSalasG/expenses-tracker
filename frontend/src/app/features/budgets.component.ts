@@ -1,4 +1,4 @@
-import { Component, Inject, computed, inject, signal } from '@angular/core';
+import { Component, Inject, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -11,11 +11,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
+import { AccountContextService } from '../core/account-context.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
-import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 interface BudgetRow {
@@ -45,7 +45,6 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
     MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
@@ -57,7 +56,6 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
         </mat-form-field>
       </div>
     </app-page-header>
-    <app-account-context-banner />
 
     <section id="budgets-summary" class="grid gap-4 lg:grid-cols-3">
       <mat-card class="page-panel p-5">
@@ -166,6 +164,7 @@ export class BudgetsComponent {
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
   private readonly onboarding = inject(OnboardingService);
+  private readonly accountService = inject(AccountContextService);
   readonly t = (key: string) => this.i18n.t(key);
   readonly createCategoryOption = CREATE_CATEGORY_OPTION;
   readonly createSubcategoryOption = CREATE_SUBCATEGORY_OPTION;
@@ -178,6 +177,7 @@ export class BudgetsComponent {
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly editingBudgetId = signal<string | null>(null);
+  private loadRequestId = 0;
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly selectedCategoryId = signal('');
   readonly subcategoriesForForm = computed(() =>
@@ -209,7 +209,12 @@ export class BudgetsComponent {
         queueMicrotask(() => this.createSubcategoryInline());
       }
     });
-    this.loadMonth();
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.loadMonth();
+    });
   }
 
   changeMonth(event: Event) {
@@ -223,6 +228,12 @@ export class BudgetsComponent {
   loadMonth() {
     this.loading.set(true);
     this.error.set('');
+    const requestedAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.loadRequestId;
+    if (!requestedAccountId) {
+      this.loading.set(false);
+      return;
+    }
     const { from, to } = monthRange(this.selectedMonth());
     forkJoin({
       categories: this.api.categories(),
@@ -230,6 +241,7 @@ export class BudgetsComponent {
       report: this.api.report(from, to)
     }).subscribe({
       next: ({ categories, budgets, report }) => {
+        if (requestId !== this.loadRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.categories.set(categories);
         this.budgets.set(budgets);
         this.report.set(report);
@@ -242,6 +254,7 @@ export class BudgetsComponent {
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
+        if (requestId !== this.loadRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.loading.set(false);
         this.error.set(this.t('budgets_load_error'));
       }

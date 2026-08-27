@@ -94,9 +94,7 @@ export const selectFinancialAccountSchema = z.object({
 });
 
 export const createFinancialAccountInvitationSchema = z.object({
-  email: z.string().email(),
-  phoneNumber: phoneNumberSchema.optional(),
-  role: z.enum(['owner', 'admin', 'member']).default('member')
+  email: z.string().email()
 });
 
 export const createFinancialAccountSettlementSchema = z.object({

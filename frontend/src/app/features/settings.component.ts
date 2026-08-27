@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -11,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountContextService } from '../core/account-context.service';
+import { formatFinancialAccountLabel } from '../core/account-label';
 import {
   ApiService,
   type BankOption,
@@ -34,6 +36,17 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
   { key: 'yearly', labelKey: 'settings_frequency_yearly', descriptionKey: 'settings_frequency_yearly_desc' }
 ];
 
+type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
+
+const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: string; descriptionKey: string }> = [
+  { id: 'profile', icon: 'person', titleKey: 'settings_section_profile_title', descriptionKey: 'settings_section_profile_description' },
+  { id: 'reports', icon: 'summarize', titleKey: 'settings_section_reports_title', descriptionKey: 'settings_section_reports_description' },
+  { id: 'catalogs', icon: 'account_balance', titleKey: 'settings_section_catalogs_title', descriptionKey: 'settings_section_catalogs_description' },
+  { id: 'accounts', icon: 'group', titleKey: 'settings_section_accounts_title', descriptionKey: 'settings_section_accounts_description' },
+  { id: 'telegram', icon: 'send', titleKey: 'settings_section_telegram_title', descriptionKey: 'settings_section_telegram_description' },
+  { id: 'session', icon: 'logout', titleKey: 'settings_section_session_title', descriptionKey: 'settings_section_session_description' }
+];
+
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -42,6 +55,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
     MatExpansionModule,
@@ -56,10 +70,52 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
     <app-feedback-banner [message]="loadError()" tone="error" />
     <app-feedback-banner [message]="loading() ? t('settings_loading') : ''" tone="info" />
 
-    <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <mat-card id="settings-profile-panel" class="page-panel p-2">
+    @if (!activeSettingsSection()) {
+      <section class="settings-overview-grid" [attr.aria-label]="t('settings_sections_label')">
+        @for (section of settingsSections; track section.id) {
+          <button type="button" class="settings-overview-card" (click)="openSettingsSection(section.id)">
+            <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+            <span class="settings-overview-card__copy">
+              <span class="settings-overview-card__title">{{ t(section.titleKey) }}</span>
+              <span class="settings-overview-card__description">{{ t(section.descriptionKey) }}</span>
+            </span>
+            <mat-icon class="settings-overview-card__arrow" aria-hidden="true">chevron_right</mat-icon>
+          </button>
+        }
+      </section>
+    } @else {
+      <section class="settings-workspace">
+        <aside class="settings-section-nav" [attr.aria-label]="t('settings_sections_label')">
+          @for (section of settingsSections; track section.id) {
+            <button
+              type="button"
+              class="settings-section-nav__item"
+              [class.settings-section-nav__item--active]="activeSettingsSection() === section.id"
+              (click)="openSettingsSection(section.id)">
+              <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+              <span>{{ t(section.titleKey) }}</span>
+            </button>
+          }
+        </aside>
+
+        <div class="min-w-0">
+          <header class="settings-detail-header">
+            <button mat-stroked-button type="button" class="settings-back-button" (click)="closeSettingsSection()">
+              <mat-icon>arrow_back</mat-icon>
+              {{ t('settings_back') }}
+            </button>
+            @if (activeSettingsMetadata(); as section) {
+              <div>
+                <h2 class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
+                <p class="mt-1 text-sm text-brand-muted">{{ t(section.descriptionKey) }}</p>
+              </div>
+            }
+          </header>
+
+          <section class="grid gap-4">
+      <mat-card id="settings-profile-panel" class="page-panel p-2" [style.display]="activeSettingsSection() === 'profile' ? '' : 'none'">
         <mat-accordion>
-          <mat-expansion-panel>
+          <mat-expansion-panel [expanded]="activeSettingsSection() === 'profile'">
             <mat-expansion-panel-header>
               <mat-panel-title>{{ t('settings_profile_panel') }}</mat-panel-title>
             </mat-expansion-panel-header>
@@ -120,9 +176,9 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-2">
+      <mat-card class="page-panel p-2" [style.display]="activeSettingsSection() === 'reports' ? '' : 'none'">
         <mat-accordion>
-          <mat-expansion-panel>
+          <mat-expansion-panel [expanded]="activeSettingsSection() === 'reports'">
             <mat-expansion-panel-header>
               <mat-panel-title>{{ t('settings_report_delivery') }}</mat-panel-title>
             </mat-expansion-panel-header>
@@ -145,7 +201,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </mat-accordion>
       </mat-card>
 
-      <mat-card id="settings-catalogs-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-catalogs-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'catalogs' ? '' : 'none'">
         <div class="grid gap-6 xl:grid-cols-2">
           <section>
             <div class="mb-3">
@@ -262,7 +318,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
-      <mat-card id="settings-accounts-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-accounts-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'accounts' ? '' : 'none'">
         <div class="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <section class="grid gap-4">
             <div>
@@ -270,42 +326,15 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
               <p class="mt-1 text-sm text-brand-muted">{{ t('accounts_hint') }}</p>
             </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>{{ t('accounts_current_account') }}</mat-label>
-              <mat-select id="settings-current-account" name="settingsCurrentAccount" [value]="selectedAccountId()" (selectionChange)="selectAccount($event.value)">
-                @for (membership of accountService.accounts(); track membership.account.id) {
-                  <mat-option [value]="membership.account.id">
-                    {{ formatAccountLabel(membership.account.name, membership.account.type) }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-
             @if (selectedMembership()) {
-              <div class="rounded border border-brand-border bg-brand-surface p-4 text-sm">
-                <div class="font-medium text-brand-ink">{{ selectedMembership()?.account?.name }}</div>
+              <div class="shared-account-summary text-sm">
+                <div class="font-medium text-brand-ink">{{ formatAccountLabel(selectedMembership()?.account?.name ?? '', selectedMembership()?.account?.type ?? 'personal') }}</div>
                 <div class="mt-1 text-brand-muted">
-                  {{ t(selectedMembership()?.account?.type === 'personal' ? 'accounts_type_personal' : 'accounts_type_shared') }}
-                  · {{ t(accountRoleKey(selectedMembership()?.role ?? 'member')) }}
+                  {{ t(accountRoleKey(selectedMembership()?.role ?? 'member')) }}
                   · {{ selectedMembership()?.account?.currency }}
                 </div>
               </div>
             }
-
-            <form [formGroup]="createAccountForm" (ngSubmit)="createAccount()" class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4">
-              <div class="text-sm font-medium text-brand-ink">{{ t('accounts_create_title') }}</div>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ t('accounts_name') }}</mat-label>
-                <input matInput id="settings-account-name" name="settingsAccountName" formControlName="name" />
-              </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>{{ t('accounts_currency') }}</mat-label>
-                <input matInput id="settings-account-currency" name="settingsAccountCurrency" formControlName="currency" maxlength="3" />
-              </mat-form-field>
-              <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="createAccountForm.invalid || savingAccount()">
-                {{ t('accounts_create_action') }}
-              </button>
-            </form>
 
             @if (canManageSelectedSharedAccount()) {
               <form [formGroup]="renameAccountForm" (ngSubmit)="renameAccount()" class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4">
@@ -327,26 +356,13 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
             <form
               [formGroup]="inviteForm"
               (ngSubmit)="inviteMember()"
-              class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+              class="shared-account-section shared-account-section--invite grid gap-3"
             >
               <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_title') }}</div>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('login_email') }}</mat-label>
-                  <input matInput id="settings-invite-email" name="settingsInviteEmail" formControlName="email" type="email" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('login_phone') }}</mat-label>
-                  <input matInput id="settings-invite-phone" name="settingsInvitePhoneNumber" formControlName="phoneNumber" />
-                </mat-form-field>
-              </div>
+              <p class="text-sm text-brand-muted">{{ t('accounts_create_invite_hint') }}</p>
               <mat-form-field appearance="outline">
-                <mat-label>{{ t('accounts_member_role') }}</mat-label>
-                <mat-select id="settings-invite-role" name="settingsInviteRole" formControlName="role">
-                  <mat-option value="member">{{ t('accounts_role_member') }}</mat-option>
-                  <mat-option value="admin">{{ t('accounts_role_admin') }}</mat-option>
-                  <mat-option value="owner">{{ t('accounts_role_owner') }}</mat-option>
-                </mat-select>
+                <mat-label>{{ t('login_email') }}</mat-label>
+                <input matInput id="settings-invite-email" name="settingsInviteEmail" formControlName="email" type="email" />
               </mat-form-field>
               <button mat-flat-button color="primary" type="submit" class="!h-11" [disabled]="inviteForm.invalid || !canManageSelectedSharedAccount() || savingInvitation()">
                 {{ t('accounts_invite_action') }}
@@ -356,7 +372,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
             <app-feedback-banner [message]="inviteMessage()" [tone]="feedbackTone(inviteMessage())" />
 
             @if (lastInvitationLink()) {
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_link_title') }}</div>
                 <p class="mt-1 text-sm text-brand-muted">
                   {{ t('accounts_invite_link_hint') }}
@@ -386,7 +402,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
               </div>
             }
 
-            <div class="rounded border border-brand-border bg-brand-surface p-4">
+            <div class="shared-account-section">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <h3 class="font-medium text-brand-ink">{{ t('accounts_members_title') }}</h3>
@@ -418,7 +434,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
             </div>
 
             @if (selectedMembership()?.account?.type === 'shared') {
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_balances_title') }}</h3>
@@ -449,7 +465,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
                 </div>
               </div>
 
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_suggestions_title') }}</h3>
@@ -481,7 +497,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
               <form
                 [formGroup]="settlementForm"
                 (ngSubmit)="createSettlement()"
-                class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+                class="shared-account-section grid gap-3"
               >
                 <div>
                   <div class="text-sm font-medium text-brand-ink">{{ t('accounts_settlement_title') }}</div>
@@ -534,7 +550,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
 
               <app-feedback-banner [message]="settlementMessage()" [tone]="feedbackTone(settlementMessage())" />
 
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_settlement_history_title') }}</h3>
@@ -574,7 +590,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
-      <mat-card id="settings-telegram-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-telegram-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'telegram' ? '' : 'none'">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_telegram_title') }}</h2>
@@ -607,7 +623,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         }
       </mat-card>
 
-      <mat-card class="page-panel p-5 xl:col-span-2">
+      <mat-card class="page-panel p-5" [style.display]="activeSettingsSection() === 'session' ? '' : 'none'">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_session') }}</h2>
@@ -619,13 +635,19 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
           </button>
         </div>
       </mat-card>
-    </section>
+          </section>
+        </div>
+      </section>
+    }
   `
 })
 export class SettingsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
   readonly frequencies = frequencies;
+  readonly settingsSections = settingsSections;
+  readonly activeSettingsSection = signal<SettingsSectionId | null>(null);
   readonly user = signal<CurrentUser | null>(null);
   readonly loading = signal(false);
   readonly loadError = signal('');
@@ -648,7 +670,6 @@ export class SettingsComponent {
   readonly lastInvitationEmail = signal('');
   readonly savingAccount = signal(false);
   readonly savingInvitation = signal(false);
-  readonly selectedAccountId = signal<string | null>(null);
   readonly accountBalances = signal<FinancialAccountMemberBalance[]>([]);
   readonly settlementSuggestions = signal<FinancialAccountSettlementSuggestion[]>([]);
   readonly accountSettlements = signal<FinancialAccountSettlement[]>([]);
@@ -681,17 +702,11 @@ export class SettingsComponent {
     kind: ['cash' as 'cash' | 'card' | 'transfer', Validators.required],
     cardType: ['debit' as 'credit' | 'debit']
   });
-  readonly createAccountForm = this.fb.nonNullable.group({
-    name: ['', Validators.required],
-    currency: ['CLP', [Validators.required, Validators.minLength(3), Validators.maxLength(3)]]
-  });
   readonly renameAccountForm = this.fb.nonNullable.group({
     name: ['', Validators.required]
   });
   readonly inviteForm = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    phoneNumber: [''],
-    role: ['member' as 'owner' | 'admin' | 'member', Validators.required]
+    email: ['', [Validators.required, Validators.email]]
   });
   readonly settlementForm = this.fb.nonNullable.group({
     paidByUserId: ['', Validators.required],
@@ -712,6 +727,25 @@ export class SettingsComponent {
     private readonly onboarding: OnboardingService
   ) {
     this.load();
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.handleActiveAccountChanged();
+    });
+  }
+
+  openSettingsSection(section: SettingsSectionId) {
+    this.activeSettingsSection.set(section);
+  }
+
+  closeSettingsSection() {
+    this.activeSettingsSection.set(null);
+  }
+
+  activeSettingsMetadata() {
+    const active = this.activeSettingsSection();
+    return settingsSections.find((section) => section.id === active) ?? null;
   }
 
   load() {
@@ -753,7 +787,6 @@ export class SettingsComponent {
         if (!this.accountService.context()) {
           this.accountService.load().subscribe({
             next: (context) => {
-              this.selectedAccountId.set(context.current.account.id);
               this.renameAccountForm.reset({ name: context.current.account.name });
               this.loadSharedAccountData();
               this.maybeAcceptInvitationFromRoute();
@@ -761,8 +794,7 @@ export class SettingsComponent {
             error: () => {}
           });
         } else {
-          const currentAccount = this.accountService.currentAccount();
-          this.selectedAccountId.set(currentAccount?.id ?? null);
+          const currentAccount = this.accountService.activeAccount();
           this.renameAccountForm.reset({ name: currentAccount?.name ?? '' });
           this.loadSharedAccountData();
           this.maybeAcceptInvitationFromRoute();
@@ -778,8 +810,7 @@ export class SettingsComponent {
   }
 
   selectedMembership() {
-    const selectedId = this.selectedAccountId();
-    return this.accountService.accounts().find((membership) => membership.account.id === selectedId) ?? this.accountService.currentMembership();
+    return this.accountService.activeMembership();
   }
 
   canManageSelectedSharedAccount() {
@@ -792,37 +823,7 @@ export class SettingsComponent {
   }
 
   formatAccountLabel(name: string, type: 'personal' | 'shared') {
-    if (type === 'personal') return name;
-    return `${name} · ${this.t('accounts_type_shared')}`;
-  }
-
-  selectAccount(accountId: string) {
-    this.selectedAccountId.set(accountId);
-    const selected = this.selectedMembership();
-    this.renameAccountForm.reset({ name: selected?.account.name ?? '' });
-    this.loadSharedAccountData();
-  }
-
-  createAccount() {
-    if (this.createAccountForm.invalid) return;
-    const value = this.createAccountForm.getRawValue();
-    this.savingAccount.set(true);
-    this.accountMessage.set('');
-    this.api.createAccount({
-      name: value.name,
-      currency: value.currency.toUpperCase()
-    }).subscribe({
-      next: (membership) => {
-        this.accountService.insertAccount(membership);
-        this.createAccountForm.reset({ name: '', currency: value.currency.toUpperCase() });
-        this.savingAccount.set(false);
-        this.accountMessage.set(this.t('accounts_create_success'));
-      },
-      error: () => {
-        this.savingAccount.set(false);
-        this.accountMessage.set(this.t('accounts_create_error'));
-      }
-    });
+    return formatFinancialAccountLabel(name, type, this.t('accounts_type_shared'));
   }
 
   renameAccount() {
@@ -852,15 +853,13 @@ export class SettingsComponent {
     this.savingInvitation.set(true);
     this.inviteMessage.set('');
     this.api.createAccountInvitation(membership.account.id, {
-      email: value.email,
-      phoneNumber: value.phoneNumber || undefined,
-      role: value.role
+      email: value.email
     }).subscribe({
       next: (invitation) => {
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         this.lastInvitationLink.set(`${origin}/settings?accountInvitationToken=${encodeURIComponent(invitation.token)}`);
         this.lastInvitationEmail.set(invitation.email);
-        this.inviteForm.reset({ email: '', phoneNumber: '', role: 'member' });
+        this.inviteForm.reset({ email: '' });
         this.savingInvitation.set(false);
         this.inviteMessage.set(this.t('accounts_invite_success'));
       },
@@ -1157,6 +1156,16 @@ export class SettingsComponent {
     });
   }
 
+  private handleActiveAccountChanged() {
+    const currentAccount = this.accountService.activeAccount();
+    this.renameAccountForm.reset({ name: currentAccount?.name ?? '' });
+    this.lastInvitationLink.set('');
+    this.lastInvitationEmail.set('');
+    this.inviteMessage.set('');
+    this.accountMessage.set('');
+    this.loadSharedAccountData();
+  }
+
   private handleSharedAccountSelection() {
     const selected = this.selectedMembership();
     if (!selected) return;
@@ -1234,7 +1243,6 @@ export class SettingsComponent {
       next: ({ membership }) => {
         this.accountService.switchAccount(membership.account.id).subscribe({
           next: () => {
-            this.selectedAccountId.set(membership.account.id);
             this.renameAccountForm.reset({ name: membership.account.name });
             this.loadSharedAccountData();
             this.accountMessage.set(this.t('accounts_invite_accept_success'));
@@ -1246,7 +1254,6 @@ export class SettingsComponent {
             });
           },
           error: () => {
-            this.selectedAccountId.set(membership.account.id);
             this.accountMessage.set(this.t('accounts_invite_accept_success'));
           }
         });
@@ -1286,6 +1293,7 @@ export class SettingsComponent {
       }
     ]);
   }
+
 }
 
 function sortByNameThenDefault(left: BankOption, right: BankOption) {

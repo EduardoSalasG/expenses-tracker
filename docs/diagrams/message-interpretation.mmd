@@ -2,11 +2,11 @@ sequenceDiagram
   participant Telegram
   participant API
   participant Port as MessageInterpreterPort
-  participant LLM as GitHub Models / OpenAI-compatible provider
+  participant LLM as OpenRouter / OpenAI-compatible provider
   participant Fallback as Deterministic interpreter
   participant UseCase
   Telegram->>API: Text message
-  API->>Port: interpret(message, user, category tree, now)
+  API->>Port: interpret(message, user, category tree, accessible accounts, now)
   alt provider configured with API key
     Port->>LLM: Chat completions JSON request
     LLM-->>Port: Structured intent JSON
@@ -15,7 +15,7 @@ sequenceDiagram
     Port->>Fallback: Deterministic parse
     Fallback-->>Port: Structured intent JSON
   end
-  Port-->>UseCase: create_expense, create_income, update_movement, ask_report, ask_budget_status, or unknown
+  Port-->>UseCase: create_expense, create_income, update_movement, ask_report/accountName, ask_budget_status/accountName, or unknown
   UseCase->>UseCase: Match category/subcategory names or infer from text
   UseCase->>UseCase: For update_movement, match referenced recent movement before applying changes
   UseCase->>UseCase: Validate tenant scope and required fields before action

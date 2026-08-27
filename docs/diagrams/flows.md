@@ -5,7 +5,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 ## Index
 
 - [OTP Login](otp-login.mmd): Telegram OTP fallback request, verification, user creation, onboarding greeting, category seeding, and token storage.
-- [Telegram Expense Capture](whatsapp-expense-capture.mmd): Current Telegram inbound messaging flow. The file keeps its historical name only to avoid breaking existing doc links; the content reflects registered-user validation, interpretation, pending draft clarification, expense/income persistence, chat-based movement correction, and finance answers.
+- [Telegram Expense Capture](whatsapp-expense-capture.mmd): Current Telegram inbound messaging flow. The file keeps its historical name only to avoid breaking existing doc links; the content reflects registered-user validation, per-chat personal/shared account switching, draft isolation, interpretation, pending draft clarification, expense/income persistence, chat-based movement correction, and finance answers.
 - [Message Interpretation](message-interpretation.mmd): Provider-agnostic LLM/deterministic intent extraction before backend validation, including referenced movement corrections.
 - [Manual Expense Creation](manual-expense-creation.mmd): Authenticated frontend expense form submission and tenant-scoped save.
 - [Income Creation](income-creation.mmd): Authenticated frontend income form submission and tenant-scoped save.
@@ -17,7 +17,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Tenant-Scoped Request Flow](tenant-scoped-request-flow.mmd): JWT tenant extraction and repository-level tenant filtering.
 - [Database and Report Query Flow](database-report-query-flow.mmd): Decision path for direct SQL vs PostgreSQL functions and query analysis updates.
 - [Domain Relationships](domain-relationships.mmd): Core tenant, user, category, expense, income, and budget relationships.
-- [Shared Accounts](shared-accounts.mmd): Proposed shared financial-account model, memberships, invitations, and account-scoped financial ownership.
+- [Shared Accounts](shared-accounts.mmd): Active financial-account model, memberships, invitations, splits, settlements, and account-scoped financial ownership.
 - [Backend Architecture](backend-architecture.mmd): Clean/hexagonal backend dependency direction and module responsibilities.
 - [Operational Hardening](operational-hardening.mmd): Liveness/readiness probes, DB readiness check, and report-worker non-zero exit behavior on failed deliveries.
 

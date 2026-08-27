@@ -3,13 +3,22 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { AccountContextService } from './account-context.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
+  const accountContext = inject(AccountContextService);
   const router = inject(Router);
   const token = auth.accessToken;
+  const activeAccountId = accountContext.activeAccountId();
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+  if (activeAccountId) {
+    headers['X-Financial-Account-Id'] = activeAccountId;
+  }
+
   const authenticatedRequest = token
-    ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    ? request.clone({ setHeaders: headers })
     : request;
 
   return next(authenticatedRequest).pipe(
@@ -24,7 +33,10 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
       if (canRefresh) {
         return auth.refreshSession().pipe(
           switchMap((session) => next(request.clone({
-            setHeaders: { Authorization: `Bearer ${session.accessToken}` }
+            setHeaders: {
+              Authorization: `Bearer ${session.accessToken}`,
+              ...(activeAccountId ? { 'X-Financial-Account-Id': activeAccountId } : {})
+            }
           }))),
           catchError((refreshError: unknown) => {
             auth.logout();
@@ -32,6 +44,20 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
             return throwError(() => refreshError);
           })
         );
+      }
+
+      const isIdentityRequest = request.url.endsWith('/me') || request.url.includes('/me/account-context');
+      const canRecoverFromStaleAccountContext =
+        error instanceof HttpErrorResponse &&
+        error.status === 403 &&
+        Boolean(activeAccountId) &&
+        isIdentityRequest;
+
+      if (canRecoverFromStaleAccountContext) {
+        accountContext.clear();
+        return next(request.clone({
+          setHeaders: token ? { Authorization: `Bearer ${token}` } : {}
+        }));
       }
 
       if (error instanceof HttpErrorResponse && error.status === 401) {

@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Inject, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -10,6 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { catchError } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
 import {
   ApiService,
   type BankOption,
@@ -24,7 +26,6 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
-import { AccountContextBannerComponent } from '../shared/components/account-context-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 const CREATE_CATEGORY_OPTION = '__create_category__';
@@ -48,12 +49,10 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
     MatSlideToggleModule,
     ReactiveFormsModule,
     FeedbackBannerComponent,
-    AccountContextBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('expenses_title')" [eyebrow]="t('expenses_subtitle')"></app-page-header>
-    <app-account-context-banner />
 
     <mat-card id="expenses-toolbar" class="page-panel mb-4 p-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -81,15 +80,15 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
         <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="mt-4 grid gap-4 lg:grid-cols-6">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
-            <input matInput type="date" formControlName="from" name="expensesFrom">
+            <input matInput id="expenses-filter-from" type="date" formControlName="from" name="expensesFrom">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_to') }}</mat-label>
-            <input matInput type="date" formControlName="to" name="expensesTo">
+            <input matInput id="expenses-filter-to" type="date" formControlName="to" name="expensesTo">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_category') }}</mat-label>
-            <mat-select formControlName="categoryId" name="expensesCategory" aria-label="Expense category filter">
+            <mat-select id="expenses-filter-category" formControlName="categoryId" name="expensesCategory" aria-label="Expense category filter">
               <mat-option value="">{{ t('expenses_all') }}</mat-option>
               @for (category of categories(); track category.id) {
                 <mat-option [value]="category.id">{{ categoryLabel(category) }}</mat-option>
@@ -98,11 +97,11 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_currency') }}</mat-label>
-            <input matInput formControlName="currency" maxlength="3" name="expensesCurrency">
+            <input matInput id="expenses-filter-currency" formControlName="currency" maxlength="3" name="expensesCurrency">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_payment_method') }}</mat-label>
-            <mat-select formControlName="paymentMethodKind" name="expensesPaymentMethodKind" aria-label="Expense payment method filter">
+            <mat-select id="expenses-filter-payment-method" formControlName="paymentMethodKind" name="expensesPaymentMethodKind" aria-label="Expense payment method filter">
               <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
               <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
               <mat-option value="transfer">{{ t('expenses_transfer') }}</mat-option>
@@ -119,19 +118,27 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
 
     <mat-card id="expenses-history-panel" class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
+        <div>
+          <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
+          @if (isSharedAccount()) {
+            <p class="transaction-shared-hint"><mat-icon aria-hidden="true">group</mat-icon>{{ t('transactions_shared_visibility') }}</p>
+          }
+        </div>
         <span class="text-sm text-brand-muted">{{ expenses().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? t('expenses_loading') : ''" tone="info" />
       <div class="responsive-table-wrapper overflow-x-auto">
-        <table class="responsive-table w-full min-w-[640px] border-collapse text-left">
+        <table class="responsive-table transaction-table--expense w-full min-w-[640px] border-collapse text-left" [class.min-w-\[760px\]]="isSharedAccount()" [class.transaction-table--shared]="isSharedAccount()">
           <thead>
             <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
               <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_concept') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_category') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_payment_method') }}</th>
+              @if (isSharedAccount()) {
+                <th class="py-2.5 pr-3 font-medium">{{ t('transactions_recorded_by') }}</th>
+              }
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
             </tr>
@@ -139,8 +146,8 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-brand-border/60 last:border-0">
-                <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
-                <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3">
+                <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted"><span class="transaction-meta"><mat-icon aria-hidden="true">calendar_today</mat-icon>{{ formatDate(expense.date) }}</span></td>
+                <td [attr.data-label]="t('expenses_concept')" class="transaction-cell transaction-cell--concept py-3 pr-3">
                   <div class="font-medium">{{ expense.concept }}</div>
                   @if ((expense.installmentCount ?? 1) > 1) {
                     <div class="mt-1 text-xs text-brand-muted">
@@ -148,10 +155,13 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                     </div>
                   }
                 </td>
-                <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
-                <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
-                <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
+                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon aria-hidden="true">sell</mat-icon>{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></td>
+                <td [attr.data-label]="t('expenses_payment_method')" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
+                @if (isSharedAccount()) {
+                  <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon>{{ recordedBy(expense) }}</span></td>
+                }
+                <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
                   <div class="flex flex-wrap justify-end gap-2">
                     <button mat-stroked-button type="button" (click)="openEditExpenseDialog(expense)">
                       <mat-icon>edit</mat-icon>
@@ -165,7 +175,7 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                 </td>
               </tr>
             } @empty {
-              <tr><td class="py-6 text-brand-muted" colspan="6">{{ t('expenses_empty_filters') }}</td></tr>
+              <tr><td class="py-6 text-brand-muted" [attr.colspan]="isSharedAccount() ? 7 : 6">{{ t('expenses_empty_filters') }}</td></tr>
             }
           </tbody>
         </table>
@@ -184,9 +194,13 @@ export class ExpensesComponent implements OnInit {
   readonly categories = signal<Category[]>([]);
   readonly bankOptions = signal<BankOption[]>([]);
   readonly paymentMethodOptions = signal<PaymentMethodOption[]>([]);
+  readonly loadedCatalogAccountId = signal('');
   readonly expenses = signal<Expense[]>([]);
   readonly currentUserId = signal('');
+  readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly loading = signal(false);
+  private catalogRequestId = 0;
+  private expensesRequestId = 0;
   readonly error = signal('');
   readonly filtersOpen = signal(false);
   readonly selectedMonth = signal(this.periodState.selectedMonth());
@@ -199,20 +213,18 @@ export class ExpensesComponent implements OnInit {
   });
   readonly range = computed(() => rangeFromMonth(this.selectedMonth()));
 
-  constructor(private readonly api: ApiService) {}
+  constructor(private readonly api: ApiService) {
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.reloadAccountScopedData();
+    });
+  }
 
   ngOnInit() {
-    this.api.categories().subscribe((categories) => this.categories.set(categories));
-    this.api.bankOptions().subscribe((banks) => this.bankOptions.set(banks));
-    this.api.paymentMethodOptions().subscribe((options) => this.paymentMethodOptions.set(options));
-    this.api.me().subscribe({ next: (user) => this.currentUserId.set(user.id) });
-    const currentMembership = this.accountService.currentMembership();
-    if (currentMembership?.account.type === 'shared') {
-      this.accountService.refreshMembers(currentMembership.account.id).subscribe({ error: () => {} });
-    }
     const monthRange = this.range();
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
-    this.loadExpenses();
   }
 
   changeMonth(event: Event) {
@@ -230,56 +242,11 @@ export class ExpensesComponent implements OnInit {
   }
 
   openNewExpenseDialog() {
-    const ref = this.dialog.open(ExpenseCreateDialogComponent, {
-      width: 'min(960px, calc(100vw - 1.5rem))',
-      maxWidth: 'calc(100vw - 1.5rem)',
-      panelClass: 'brand-dialog-panel',
-      autoFocus: false,
-      data: {
-        categories: this.categories(),
-        bankOptions: this.bankOptions(),
-        paymentMethodOptions: this.paymentMethodOptions(),
-        accountMembership: this.accountService.currentMembership(),
-        accountMembers: this.accountService.members(),
-        currentUserId: this.currentUserId()
-      }
-    });
-    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
-      if (result?.saved) {
-        if (result.expense) {
-          this.patchExpenseState(result.expense);
-        }
-        this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
-        this.loadExpenses();
-      }
-    });
+    this.openExpenseDialog();
   }
 
   openEditExpenseDialog(expense: Expense) {
-    const ref = this.dialog.open(ExpenseCreateDialogComponent, {
-      width: 'min(960px, calc(100vw - 1.5rem))',
-      maxWidth: 'calc(100vw - 1.5rem)',
-      panelClass: 'brand-dialog-panel',
-      autoFocus: false,
-      data: {
-        categories: this.categories(),
-        bankOptions: this.bankOptions(),
-        paymentMethodOptions: this.paymentMethodOptions(),
-        accountMembership: this.accountService.currentMembership(),
-        accountMembers: this.accountService.members(),
-        currentUserId: this.currentUserId(),
-        expense
-      }
-    });
-    ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
-      if (result?.saved) {
-        if (result.expense) {
-          this.patchExpenseState(result.expense);
-        }
-        this.snackBar.open(this.t('expenses_updated'), undefined, { duration: 2400 });
-        this.loadExpenses();
-      }
-    });
+    this.openExpenseDialog(expense);
   }
 
   deleteExpense(expense: Expense) {
@@ -298,6 +265,12 @@ export class ExpensesComponent implements OnInit {
   loadExpenses() {
     this.loading.set(true);
     this.error.set('');
+    const requestedAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.expensesRequestId;
+    if (!requestedAccountId) {
+      this.loading.set(false);
+      return;
+    }
     const f = this.filters.getRawValue();
     this.api.expenses({
       from: f.from ? startOfDay(f.from) : undefined,
@@ -308,11 +281,13 @@ export class ExpensesComponent implements OnInit {
       limit: 100
     }).subscribe({
       next: (expenses) => {
+        if (requestId !== this.expensesRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.expenses.set(expenses);
         this.loading.set(false);
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
+        if (requestId !== this.expensesRequestId || requestedAccountId !== this.accountService.activeAccountId()) return;
         this.loading.set(false);
         this.error.set(this.t('expenses_load_error'));
       }
@@ -323,6 +298,115 @@ export class ExpensesComponent implements OnInit {
     const monthRange = this.range();
     this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, categoryId: '', currency: '', paymentMethodKind: '' });
     this.loadExpenses();
+  }
+
+  private reloadAccountScopedData() {
+    const currentAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.catalogRequestId;
+    if (!currentAccountId) return;
+    this.loadedCatalogAccountId.set('');
+    this.categories.set([]);
+    this.bankOptions.set([]);
+    this.paymentMethodOptions.set([]);
+    forkJoin({
+      categories: this.api.categories(),
+      banks: this.api.bankOptions().pipe(catchError(() => of<BankOption[]>([]))),
+      paymentMethodOptions: this.api.paymentMethodOptions().pipe(catchError(() => of<PaymentMethodOption[]>([]))),
+      user: this.api.me().pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ categories, banks, paymentMethodOptions, user }) => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.categories.set(categories);
+        this.bankOptions.set(banks);
+        this.paymentMethodOptions.set(paymentMethodOptions);
+        this.loadedCatalogAccountId.set(currentAccountId);
+        this.currentUserId.set(user?.id ?? '');
+        const currentMembership = this.accountService.activeMembership();
+        if (currentMembership?.account.type === 'shared') {
+          this.accountService.refreshMembers(currentMembership.account.id).subscribe({ error: () => {} });
+        } else {
+          this.accountService.members.set([]);
+        }
+        this.loadExpenses();
+      },
+      error: () => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.error.set(this.t('expenses_load_error'));
+      }
+    });
+  }
+
+  private openExpenseDialog(expense?: Expense) {
+    this.ensureAccountScopedCatalogs((catalogs) => {
+      const ref = this.dialog.open(ExpenseCreateDialogComponent, {
+        width: 'min(960px, calc(100vw - 1.5rem))',
+        maxWidth: 'calc(100vw - 1.5rem)',
+        panelClass: 'brand-dialog-panel',
+        autoFocus: false,
+        data: {
+          categories: catalogs.categories,
+          bankOptions: catalogs.banks,
+          paymentMethodOptions: catalogs.paymentMethodOptions,
+          accountMembership: this.accountService.activeMembership(),
+          accountMembers: this.accountService.members(),
+          currentUserId: catalogs.user?.id ?? this.currentUserId(),
+          expense
+        }
+      });
+
+      ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
+        if (result?.saved) {
+          if (result.expense) {
+            this.patchExpenseState(result.expense);
+          }
+          this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
+          this.loadExpenses();
+        }
+      });
+    });
+  }
+
+  private ensureAccountScopedCatalogs(
+    callback: (catalogs: {
+      categories: Category[];
+      banks: BankOption[];
+      paymentMethodOptions: PaymentMethodOption[];
+      user: { id: string } | null;
+    }) => void
+  ) {
+    const currentAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.catalogRequestId;
+    if (!currentAccountId) return;
+    if (this.categories().length && this.loadedCatalogAccountId() === currentAccountId) {
+      callback({
+        categories: this.categories(),
+        banks: this.bankOptions(),
+        paymentMethodOptions: this.paymentMethodOptions(),
+        user: this.currentUserId() ? { id: this.currentUserId() } : null
+      });
+      return;
+    }
+
+    forkJoin({
+      categories: this.api.categories(),
+      banks: this.api.bankOptions().pipe(catchError(() => of<BankOption[]>([]))),
+      paymentMethodOptions: this.api.paymentMethodOptions().pipe(catchError(() => of<PaymentMethodOption[]>([]))),
+      user: this.api.me().pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ categories, banks, paymentMethodOptions, user }) => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.categories.set(categories);
+        this.bankOptions.set(banks);
+        this.paymentMethodOptions.set(paymentMethodOptions);
+        this.loadedCatalogAccountId.set(currentAccountId);
+        this.currentUserId.set(user?.id ?? '');
+        callback({ categories, banks, paymentMethodOptions, user });
+      },
+      error: () => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.snackBar.open(this.t('expenses_load_error'), undefined, { duration: 2800 });
+      }
+    });
   }
 
   categoryName(categoryId: string) {
@@ -339,6 +423,10 @@ export class ExpensesComponent implements OnInit {
     if (expense.paymentMethod.kind === 'transfer') return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${this.t('expenses_transfer')}` : this.t('expenses_transfer');
     const cardType = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType === 'debit' ? this.t('expenses_debit') : this.t('expenses_credit')} ${this.t('expenses_card')}` : this.t('expenses_card');
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${cardType}` : cardType;
+  }
+
+  recordedBy(expense: Expense) {
+    return expense.createdByPreferredName ?? this.t('common_no_data');
   }
 
   formatDate(value: string) {
@@ -424,22 +512,22 @@ export class ExpensesComponent implements OnInit {
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">
         <div class="brand-dialog-fields grid gap-4 lg:grid-cols-2">
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput formControlName="concept" name="expenseConcept"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput type="number" formControlName="amount" name="expenseAmount"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput formControlName="currency" maxlength="3" name="expenseCurrency"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput type="date" formControlName="date" name="expenseDate"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select formControlName="categoryId" name="expenseCategory" aria-label="Expense category">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select formControlName="subcategoryId" name="expenseSubcategory" aria-label="Expense subcategory"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select formControlName="paymentMethodOptionId" name="expensePaymentMethod" aria-label="Expense payment method">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_concept') }}</mat-label><input matInput id="expense-concept" formControlName="concept" name="expenseConcept"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput id="expense-amount" type="number" formControlName="amount" name="expenseAmount"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput id="expense-currency" formControlName="currency" maxlength="3" name="expenseCurrency"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput id="expense-date" type="date" formControlName="date" name="expenseDate"></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select id="expense-category" formControlName="categoryId" name="expenseCategory" aria-label="Expense category">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select id="expense-subcategory" formControlName="subcategoryId" name="expenseSubcategory" aria-label="Expense subcategory"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select id="expense-payment-method" formControlName="paymentMethodOptionId" name="expensePaymentMethod" aria-label="Expense payment method">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
-            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select formControlName="bankOptionId" name="expenseBank" aria-label="Expense bank"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select id="expense-bank" formControlName="bankOptionId" name="expenseBank" aria-label="Expense bank"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           }
           @if (isSharedAccount()) {
             <div class="rounded-xl border border-brand-border bg-brand-surface-muted p-4 lg:col-span-2">
               <div class="grid gap-4 md:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_split_paid_by') }}</mat-label>
-                  <mat-select formControlName="paidByUserId" name="expensePaidByUserId" aria-label="Expense paid by">
+                  <mat-select id="expense-paid-by" formControlName="paidByUserId" name="expensePaidByUserId" aria-label="Expense paid by">
                     @for (member of sharedMembers(); track member.userId) {
                       <mat-option [value]="member.userId">{{ member.preferredName }}</mat-option>
                     }
@@ -447,7 +535,7 @@ export class ExpensesComponent implements OnInit {
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_split_mode') }}</mat-label>
-                  <mat-select formControlName="allocationMode" name="expenseAllocationMode" aria-label="Expense allocation mode">
+                  <mat-select id="expense-allocation-mode" formControlName="allocationMode" name="expenseAllocationMode" aria-label="Expense allocation mode">
                     <mat-option value="payer">{{ t('expenses_split_mode_payer') }}</mat-option>
                     <mat-option value="equal">{{ t('expenses_split_mode_equal') }}</mat-option>
                     <mat-option value="custom">{{ t('expenses_split_mode_custom') }}</mat-option>
@@ -459,7 +547,7 @@ export class ExpensesComponent implements OnInit {
                   @for (member of sharedMembers(); track member.userId) {
                     <mat-form-field appearance="outline">
                       <mat-label>{{ member.preferredName }}</mat-label>
-                      <input matInput type="number" [formControl]="allocationControl(member.userId)" [name]="'expenseAllocation_' + member.userId" />
+                      <input matInput type="number" [attr.id]="'expense-allocation-' + member.userId" [formControl]="allocationControl(member.userId)" [name]="'expenseAllocation_' + member.userId" />
                     </mat-form-field>
                   }
                 </div>
@@ -475,7 +563,7 @@ export class ExpensesComponent implements OnInit {
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_installment_count') }}</mat-label>
-                  <mat-select formControlName="installmentCount" name="expenseInstallmentCount" aria-label="Expense installment count">
+                  <mat-select id="expense-installment-count" formControlName="installmentCount" name="expenseInstallmentCount" aria-label="Expense installment count">
                     @for (count of installmentOptions; track count) {
                       <mat-option [value]="count">{{ count }}</mat-option>
                     }
@@ -483,7 +571,7 @@ export class ExpensesComponent implements OnInit {
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ t('expenses_first_installment_date') }}</mat-label>
-                  <input matInput type="date" formControlName="firstInstallmentDate" name="expenseFirstInstallmentDate">
+                  <input matInput id="expense-first-installment-date" type="date" formControlName="firstInstallmentDate" name="expenseFirstInstallmentDate">
                 </mat-form-field>
               </div>
               <p class="m-0 text-sm text-brand-muted">{{ t('expenses_installments_help') }}</p>

@@ -16,7 +16,7 @@ Validated product scope carried forward from the current codebase state:
 - shared account creation and rename
 - invitations, acceptance flow, and member removal
 - web account-context switching
-- Telegram account-context switching with `/accounts`, `/current`, and `/AccountName`
+- Telegram account-context switching with `/accounts`, `/current`, `/AccountName`, and `/account Account Name`
 - shared-account expense capture from web and Telegram
 - expense allocations with payer attribution, equal split, and custom split persistence
 - balances by member
@@ -30,6 +30,9 @@ Backend automated tests now cover:
 - shared-account settlement command from Telegram
 - natural settlement phrase handling such as `le pagué 7000 a vane`
 - equal shared split capture from phrases such as `compartido con vane y juan`
+- switching from a personal account to a shared account and saving both a subsequent expense and income in that shared account
+- pending Telegram drafts are cleared when account context changes, preventing cross-account confirmation
+- report and budget questions that name an accessible shared account use that account for the reply only, while the next unnamed question continues from `Personal`
 
 Reference tests:
 

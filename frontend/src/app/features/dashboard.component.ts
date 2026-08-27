@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
@@ -97,12 +97,6 @@ interface CategoryVariationRow {
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-brand-muted sm:text-sm">{{ periodLabel() }}</p>
         <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_title') }}</h1>
-        @if (currentAccountLabel()) {
-          <p class="mt-2 text-sm text-brand-muted">
-            {{ t('accounts_current_account') }}:
-            <span class="font-medium text-brand-ink">{{ currentAccountLabel() }}</span>
-          </p>
-        }
       </div>
       <div id="dashboard-period-controls" class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
         <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
@@ -446,6 +440,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private installmentsChart?: Chart;
   private viewReady = false;
   private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  private dashboardRequestId = 0;
 
   constructor(
     private readonly api: ApiService,
@@ -453,13 +448,19 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly i18n: I18nService,
     private readonly periodState: PeriodStateService,
     private readonly onboarding: OnboardingService
-  ) {}
+  ) {
+    effect(() => {
+      const currentAccountId = this.accountService.activeAccountId();
+      const accountLoading = this.accountService.loading();
+      if (!currentAccountId || accountLoading) return;
+      this.loadDashboard();
+    });
+  }
 
   ngOnInit() {
     this.selectedMonth.set(this.periodState.selectedMonth());
     this.selectedYear.set(Number(this.selectedMonth().slice(0, 4)));
     this.mediaQuery.addEventListener('change', this.handleThemeChange);
-    this.loadDashboard();
   }
 
   ngAfterViewInit() {
@@ -906,6 +907,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadDashboard() {
     this.loading.set(true);
     this.error.set('');
+    const currentAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.dashboardRequestId;
+    if (!currentAccountId) {
+      this.loading.set(false);
+      return;
+    }
     const range = this.viewMode() === 'monthly'
       ? rangeFromMonth(this.selectedMonth())
       : rangeFromYear(this.selectedYear());
@@ -926,6 +933,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       upcomingInstallments: this.api.upcomingExpenseInstallments(installmentsStartMonth, 6)
     }).subscribe({
       next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals, upcomingInstallments }) => {
+        if (requestId !== this.dashboardRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
         this.user.set(user);
         this.recentExpenses.set(recentExpenses);
         this.report.set(report);
@@ -946,6 +954,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => this.startOnboarding(), 50);
       },
       error: () => {
+        if (requestId !== this.dashboardRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
         this.error.set(this.t('dashboard_loading_error'));
         this.loading.set(false);
       }
@@ -990,13 +999,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private locale() {
     return this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
-  }
-
-  currentAccountLabel() {
-    const membership = this.accountService.currentMembership();
-    if (!membership) return '';
-    if (membership.account.type === 'personal') return membership.account.name;
-    return `${membership.account.name} · ${this.t('accounts_type_shared')}`;
   }
 
   t(key: string) {

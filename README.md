@@ -7,7 +7,7 @@ Telegram expense capture is intended for registered users only and works as an o
 Linked Telegram users can also correct recent expenses and incomes by chat, including amount, concept, and expense category/subcategory changes.
 When the backend cannot identify an expense category with enough confidence, it does not default silently. Instead, it asks the user to specify the category/subcategory, handles ambiguous matches such as duplicated subcategory names, and can create a new category or subcategory through the same chat flow.
 
-Telegram messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; GitHub Models with `deepseek/DeepSeek-V3-0324` or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
+Telegram messages are interpreted through a provider-agnostic `MessageInterpreterPort`. The default parser is deterministic; OpenRouter or any OpenAI-compatible chat completions provider can be configured without changing application use cases.
 
 ## Repository
 
@@ -26,6 +26,12 @@ Every behavior change must keep documentation aligned:
 - Frontend route, workflow, or env changes update `frontend/README.md`.
 - Domain, architecture, or persistence changes update `docs/diagrams/flows.md`.
 - Database query changes update `database/query-analysis.md` when performance or index usage matters.
+
+## Implemented Product Scope
+
+The delivered MVP includes personal expense and income tracking, permanent budgets, installment schedules, dashboard reporting, account-specific catalogs, and responsive Spanish/English web experiences. Users can sign in with password or magic link and may optionally connect Telegram for chat-based capture, questions, and movement edits.
+
+Shared accounts are also available: members can contribute to one account, view all its movements, use shared/default catalogs, allocate expenses, review balances, and record settlements. Read the full capability recap in [Product Features](docs/product-features.md).
 
 ## Quick Start
 
@@ -54,7 +60,7 @@ Notes:
 
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing environment.
 - `pnpm db:bootstrap` is the canonical command for a brand-new database. It runs migrations and then ensures the system-owned default category catalog exists.
-- `pnpm db:seed` is optional and only creates local demo/admin users plus tenant copies of the default categories.
+- `pnpm db:seed` is optional and only creates local demo/admin users. The default category catalog is system-owned and shared as a base across accounts.
 - `pnpm db:backfill:financial-accounts` is only for existing environments after the shared-accounts foundation migration. It creates one personal financial account per existing user and links historical financial rows to it.
 - Real business data should be moved with `pnpm db:export:tenant` / `pnpm db:import:data` for one user tenant, or `pnpm db:export:data` for a full database dump.
 - Expense forms support inline creation of missing categories, subcategories, banks, and payment methods. Budget forms support inline category/subcategory creation in the same flow.
@@ -66,7 +72,8 @@ Shared accounts are available as the current Splitwise-style MVP:
 - personal and shared financial accounts
 - invitations and membership management
 - Telegram account switching
-- Telegram account discovery commands (`/accounts`, `/current`, `/AccountName`)
+- Telegram account discovery and switching commands (`/accounts`, `/current`, `/AccountName`, or `/account Account Name`)
+- Telegram questions can temporarily target an accessible account without switching the chat context, for example `¿Cuánto he gastado este mes en la cuenta de Casa?` or `¿Cómo van los presupuestos de Viaje a Brasil?`
 - web account switching
 - dashboard and financial modules scoped by the active account
 - shared-account expense capture from web and Telegram
@@ -119,16 +126,16 @@ Services:
 If local backend scripts connect to the Docker database, make sure `backend/.env` uses that same `DATABASE_URL`.
 Docker Compose loads `backend/.env` for Telegram credentials, while overriding `DATABASE_URL` inside the container to use the internal `database:5432` host.
 
-## Production Deploy (Render + Netlify)
+## Production Deploy (Oracle + Netlify)
 
-Backend/API and scheduled workers are configured in `render.yaml`. Frontend static hosting and SPA/API redirects are configured in `netlify.toml`.
+The frontend is deployed by Netlify from `main`. The backend is built as a Docker image by GitHub Actions, deployed to Oracle, and exposed through Nginx at the API domain. SPA/API redirects remain in `netlify.toml`.
 
 Before going live:
 
-1. Create Render services from `render.yaml` and set secret env vars (`JWT_SECRET`, Telegram keys, interpreter keys if used).
-2. Point Netlify site to this repository and keep `netlify.toml` as build config.
-3. Update the `netlify.toml` `/api/*` redirect target to your real Render backend URL if it differs from `https://expenses-tracker-api.onrender.com`.
-4. Set `FRONTEND_ORIGIN` in Render backend to your Netlify domain.
+1. Configure the Oracle container environment (`DATABASE_URL`, `JWT_SECRET`, Telegram, Resend, and interpreter keys).
+2. Point Netlify to this repository and keep `netlify.toml` as build config.
+3. Set the `netlify.toml` `/api/*` redirect target to `https://api.expenses-tracker.eduardosalasg.dev/:splat`.
+4. Set `FRONTEND_ORIGIN` in the backend to the Netlify domain.
 
 For temporary Netlify -> local backend testing, point `netlify.toml` `/api/*` to your public dev tunnel backend URL and include the Netlify domain in backend `FRONTEND_ORIGIN`.
 
@@ -136,7 +143,7 @@ Release flow:
 
 1. Work on `dev`.
 2. Merge `dev` into `main` only when production-ready.
-3. Let Netlify and Render auto-deploy from `main`.
+3. Let Netlify and the backend deployment workflow deploy from `main`.
 
 ## Registration and Access
 
@@ -173,6 +180,7 @@ See:
 - [Frontend README](frontend/README.md)
 - [Database README](database/README.md)
 - [Architecture](docs/architecture.md)
+- [Product Features](docs/product-features.md)
 - [Shared Accounts Design](docs/shared-accounts-design.md)
 - [Roadmap](docs/roadmap.md)
 - [Operations](docs/operations.md)

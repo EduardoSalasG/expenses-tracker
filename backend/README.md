@@ -56,8 +56,8 @@ pnpm db:seed
 Behavior summary:
 
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing database.
-- `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the default category catalog used to seed user tenants.
-- `pnpm db:seed` is optional and only loads local/demo users plus tenant copies of the default categories.
+- `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the canonical default category catalog.
+- `pnpm db:seed` is optional and only loads local/demo users. Personal and shared accounts reuse the system category catalog and add account-specific custom entries when needed.
 - `pnpm db:export:tenant -- --phone +569XXXXXXXXX` exports one tenant/user dataset for promotion into another environment.
 - Starting the backend against an empty production database does not auto-run demo seed data.
 
@@ -103,6 +103,7 @@ The backend already supports:
 - account-context switching for authenticated web sessions
 - Telegram account-context switching
 - account-scoped expenses, incomes, budgets, categories, banks, payment methods, and reports
+- system default categories inherited by every personal and shared account, plus account-scoped custom categories and subcategories
 - shared-account expense capture from web and Telegram
 - payer attribution plus equal/custom split persistence
 - balances by member
@@ -119,7 +120,8 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 
 - Normal text updates as primary inbound input.
 - Help commands: `/commands` and `/help` return the available bot commands, an example for each one, and the type of reply the bot will send.
-- Account discovery commands: `/accounts` (or `/cuentas`) lists the personal/shared accounts the user can access and marks the active one for that chat; `/current` (or `/actual`) tells the user which account is active right now.
+- Account discovery commands: `/accounts` (or `/cuentas`) lists the personal/shared accounts the user can access and marks the active one for that chat; `/current` (or `/actual`) tells the user which account is active right now. Switch context with `/NombreCuenta` (without spaces or accents) or `/cuenta Nombre de cuenta` (`/account Account Name` in English). The active account is saved per Telegram chat, and pending confirmations are cleared when it changes so they cannot be saved in the wrong account.
+- Report and budget questions can name any accessible account without changing that saved chat context. For example, `¿Cuánto he gastado este mes en la cuenta de Casa común?` and `¿Cómo van los presupuestos de Viaje a Brasil?` answer from that account only; a question without an account name uses the active account, or `Personal` when no chat context has been selected.
 - Account linking command: `/link +569XXXXXXXX` (or `/vincular +569XXXXXXXX`) to bind a Telegram chat id to a previously registered user phone.
 - Optional webhook secret verification via `x-telegram-bot-api-secret-token` when `TELEGRAM_WEBHOOK_SECRET_TOKEN` is configured.
 
@@ -223,21 +225,21 @@ The app now uses parameterized payment catalogs. System defaults are global, and
 
 The web app consumes these catalogs directly in expense creation/edit forms and lets the user create a missing category, subcategory, bank, or payment method inline from the related select without leaving the modal.
 
-`GET /banks` lists global default banks plus tenant-specific custom banks.
+`GET /banks` lists global default banks plus custom banks for the active financial account.
 
-`POST /banks` creates a tenant-specific bank option.
+`POST /banks` creates a custom bank option for the active financial account.
 
-`PUT /banks/:bankOptionId` updates a tenant-specific custom bank option. Default banks cannot be modified.
+`PUT /banks/:bankOptionId` updates a custom bank option in the active financial account. Default banks cannot be modified.
 
-`DELETE /banks/:bankOptionId` deletes a tenant-specific custom bank option. If the bank is already referenced by expenses, the API returns a validation error instead of deleting it.
+`DELETE /banks/:bankOptionId` deletes a custom bank option in the active financial account. If the bank is already referenced by expenses, the API returns a validation error instead of deleting it.
 
-`GET /payment-method-options` lists global default payment methods plus tenant-specific custom methods.
+`GET /payment-method-options` lists global default payment methods plus custom methods for the active financial account.
 
-`POST /payment-method-options` creates a tenant-specific payment method option. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
+`POST /payment-method-options` creates a custom payment method option for the active financial account. Supported kinds are `cash`, `transfer`, and `card`; `cardType` is optional and only valid for `card`.
 
-`PUT /payment-method-options/:paymentMethodOptionId` updates a tenant-specific custom payment method. Default payment methods cannot be modified.
+`PUT /payment-method-options/:paymentMethodOptionId` updates a custom payment method in the active financial account. Default payment methods cannot be modified.
 
-`DELETE /payment-method-options/:paymentMethodOptionId` deletes a tenant-specific custom payment method. If the method is already referenced by expenses, the API returns a validation error instead of deleting it.
+`DELETE /payment-method-options/:paymentMethodOptionId` deletes a custom payment method in the active financial account. If the method is already referenced by expenses, the API returns a validation error instead of deleting it.
 
 ## Profile and Report Preferences
 
@@ -383,6 +385,15 @@ Account-context command examples:
 /current
 /Casa comun
 ```
+
+Questions can use an account name without switching the chat context:
+
+```text
+¿Cuánto he gastado este mes en la cuenta de Casa común?
+¿Cómo van los presupuestos de Viaje a Brasil?
+```
+
+Those questions are scoped only to the named accessible account. The next message still uses the previously active account; when no account is named and no context exists, the answer uses `Personal`.
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 

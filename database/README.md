@@ -20,13 +20,13 @@ The database image is built from `database/Dockerfile`. On first container start
 
 It does **not** run demo seed data automatically.
 
-`database/bootstrap/001_system_defaults.sql` ensures a fixed `system` tenant exists and owns the canonical default category tree. User tenants receive copies of that tree through `seed_default_categories(tenant_id)`.
+`database/bootstrap/001_system_defaults.sql` ensures a fixed `system` tenant exists and owns the canonical default category tree. Personal and shared financial accounts read that same base catalog and add only their own custom categories when needed.
 
 The optional demo seed creates:
 
 - Demo consumer user: `+56912345678`, `demo@example.com`
 - Admin user: `+56900000000`, `admin@example.com`
-- Tenant copies of the default category tree for both demo users, including Food/Groceries, Food/Restaurants, Transport/Uber, Services/Phone, Other/Gifts, and related consumer categories
+- Demo users that can use the system category tree, including Food/Groceries, Food/Restaurants, Transport/Uber, Services/Phone, Other/Gifts, and related consumer categories
 
 The seed does **not** create expenses, incomes, budgets, or tenant business data.
 
@@ -54,7 +54,9 @@ Migration `018_payment_catalogs_and_income_editing.sql` creates the global defau
   - Tarjeta de crédito
   - Efectivo
 
-Those defaults come from migrations, not from the demo seed. Users can also create tenant-specific banks and payment methods later from the app.
+Those defaults come from migrations, not from the demo seed. They are available in every personal and shared financial account. Users can also create account-specific banks and payment methods later from the app.
+
+Migrations `035` through `037` normalize older tenant and account copies of the category catalog into the system-owned catalog. They preserve unmatched entries as account-specific custom categories while redirecting expense and budget references to the canonical categories.
 
 System default categories currently include these roots:
 

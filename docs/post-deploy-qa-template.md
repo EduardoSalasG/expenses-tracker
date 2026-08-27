@@ -7,7 +7,7 @@ Use this template after each `dev -> main` promotion.
 - Date:
 - Commit:
 - Frontend URL (Netlify):
-- Backend URL (Render/API):
+- Backend URL (Oracle API):
 - Operator:
 
 ## Health checks

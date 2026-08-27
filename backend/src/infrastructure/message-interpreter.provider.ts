@@ -97,6 +97,7 @@ function buildChatCompletionPayload(config: AppConfig, message: string, context:
           categories: categoryOptions(context.categories),
           banks: bankOptions(context.banks),
           paymentMethodOptions: paymentMethodOptions(context.paymentMethodOptions),
+          financialAccounts: financialAccountOptions(context.availableFinancialAccounts),
           now: context.now.toISOString(),
           outputContract: {
             returnOnlyJson: true,
@@ -134,6 +135,7 @@ function systemPrompt() {
     'Use payment methods only from the supplied paymentMethodOptions. Normalize informal phrases like tdc to credit card, tdd to debit card, transferencia to transfer, efectivo to cash.',
     'Use banks only from the supplied bank list. Match abbreviations and aliases conservatively, for example BCI to Banco de Credito e Inversiones.',
     'If the bank is not clearly stated or no supplied bank matches, omit bank.',
+    'For ask_report and ask_budget_status only, set accountName only when the user explicitly refers to one of the supplied financialAccounts. Use the exact supplied name. Otherwise omit accountName.',
     'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
     'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
     'If information is missing or ambiguous for a create or update intent, set needsConfirmation true and populate missingFields with concise field identifiers.'
@@ -144,6 +146,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
   const categoryPayload = categoryOptions(context.categories);
   const bankPayload = bankOptions(context.banks);
   const paymentPayload = paymentMethodOptions(context.paymentMethodOptions);
+  const financialAccountPayload = financialAccountOptions(context.availableFinancialAccounts);
 
   return [
     {
@@ -159,6 +162,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
         categories: categoryPayload,
         banks: bankPayload,
         paymentMethodOptions: paymentPayload,
+        financialAccounts: financialAccountPayload,
         now: context.now.toISOString()
       })
     },
@@ -193,6 +197,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
         categories: categoryPayload,
         banks: bankPayload,
         paymentMethodOptions: paymentPayload,
+        financialAccounts: financialAccountPayload,
         now: context.now.toISOString()
       })
     },
@@ -228,6 +233,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
         categories: categoryPayload,
         banks: bankPayload,
         paymentMethodOptions: paymentPayload,
+        financialAccounts: financialAccountPayload,
         now: context.now.toISOString()
       })
     },
@@ -255,6 +261,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
         categories: categoryPayload,
         banks: bankPayload,
         paymentMethodOptions: paymentPayload,
+        financialAccounts: financialAccountPayload,
         now: context.now.toISOString()
       })
     },
@@ -271,6 +278,24 @@ function fewShotMessages(context: MessageInterpreterContext) {
         referenceCategoryName: 'Education',
         missingFields: [],
         needsConfirmation: false
+      })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: '¿Cuánto he gastado este mes en la cuenta de Casa común?',
+        financialAccounts: financialAccountPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'ask_report',
+        confidence: 0.95,
+        period: 'monthly',
+        accountName: 'Casa común'
       })
     }
   ];
@@ -297,6 +322,10 @@ function paymentMethodOptions(options: MessageInterpreterContext['paymentMethodO
     kind: option.kind,
     cardType: option.cardType
   }));
+}
+
+function financialAccountOptions(accounts: MessageInterpreterContext['availableFinancialAccounts']) {
+  return accounts.map((account) => ({ name: account.name, type: account.type }));
 }
 
 function extractJson(content: string) {
