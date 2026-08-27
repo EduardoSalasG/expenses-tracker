@@ -36,6 +36,17 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
   { key: 'yearly', labelKey: 'settings_frequency_yearly', descriptionKey: 'settings_frequency_yearly_desc' }
 ];
 
+type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
+
+const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: string; descriptionKey: string }> = [
+  { id: 'profile', icon: 'person', titleKey: 'settings_section_profile_title', descriptionKey: 'settings_section_profile_description' },
+  { id: 'reports', icon: 'summarize', titleKey: 'settings_section_reports_title', descriptionKey: 'settings_section_reports_description' },
+  { id: 'catalogs', icon: 'account_balance', titleKey: 'settings_section_catalogs_title', descriptionKey: 'settings_section_catalogs_description' },
+  { id: 'accounts', icon: 'group', titleKey: 'settings_section_accounts_title', descriptionKey: 'settings_section_accounts_description' },
+  { id: 'telegram', icon: 'send', titleKey: 'settings_section_telegram_title', descriptionKey: 'settings_section_telegram_description' },
+  { id: 'session', icon: 'logout', titleKey: 'settings_section_session_title', descriptionKey: 'settings_section_session_description' }
+];
+
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -59,10 +70,52 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
     <app-feedback-banner [message]="loadError()" tone="error" />
     <app-feedback-banner [message]="loading() ? t('settings_loading') : ''" tone="info" />
 
-    <section class="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <mat-card id="settings-profile-panel" class="page-panel p-2">
+    @if (!activeSettingsSection()) {
+      <section class="settings-overview-grid" [attr.aria-label]="t('settings_sections_label')">
+        @for (section of settingsSections; track section.id) {
+          <button type="button" class="settings-overview-card" (click)="openSettingsSection(section.id)">
+            <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+            <span class="settings-overview-card__copy">
+              <span class="settings-overview-card__title">{{ t(section.titleKey) }}</span>
+              <span class="settings-overview-card__description">{{ t(section.descriptionKey) }}</span>
+            </span>
+            <mat-icon class="settings-overview-card__arrow" aria-hidden="true">chevron_right</mat-icon>
+          </button>
+        }
+      </section>
+    } @else {
+      <section class="settings-workspace">
+        <aside class="settings-section-nav" [attr.aria-label]="t('settings_sections_label')">
+          @for (section of settingsSections; track section.id) {
+            <button
+              type="button"
+              class="settings-section-nav__item"
+              [class.settings-section-nav__item--active]="activeSettingsSection() === section.id"
+              (click)="openSettingsSection(section.id)">
+              <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+              <span>{{ t(section.titleKey) }}</span>
+            </button>
+          }
+        </aside>
+
+        <div class="min-w-0">
+          <header class="settings-detail-header">
+            <button mat-stroked-button type="button" class="settings-back-button" (click)="closeSettingsSection()">
+              <mat-icon>arrow_back</mat-icon>
+              {{ t('settings_back') }}
+            </button>
+            @if (activeSettingsMetadata(); as section) {
+              <div>
+                <h2 class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
+                <p class="mt-1 text-sm text-brand-muted">{{ t(section.descriptionKey) }}</p>
+              </div>
+            }
+          </header>
+
+          <section class="grid gap-4">
+      <mat-card id="settings-profile-panel" class="page-panel p-2" [style.display]="activeSettingsSection() === 'profile' ? '' : 'none'">
         <mat-accordion>
-          <mat-expansion-panel>
+          <mat-expansion-panel [expanded]="activeSettingsSection() === 'profile'">
             <mat-expansion-panel-header>
               <mat-panel-title>{{ t('settings_profile_panel') }}</mat-panel-title>
             </mat-expansion-panel-header>
@@ -123,9 +176,9 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </mat-accordion>
       </mat-card>
 
-      <mat-card class="page-panel p-2">
+      <mat-card class="page-panel p-2" [style.display]="activeSettingsSection() === 'reports' ? '' : 'none'">
         <mat-accordion>
-          <mat-expansion-panel>
+          <mat-expansion-panel [expanded]="activeSettingsSection() === 'reports'">
             <mat-expansion-panel-header>
               <mat-panel-title>{{ t('settings_report_delivery') }}</mat-panel-title>
             </mat-expansion-panel-header>
@@ -148,7 +201,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </mat-accordion>
       </mat-card>
 
-      <mat-card id="settings-catalogs-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-catalogs-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'catalogs' ? '' : 'none'">
         <div class="grid gap-6 xl:grid-cols-2">
           <section>
             <div class="mb-3">
@@ -265,7 +318,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
-      <mat-card id="settings-accounts-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-accounts-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'accounts' ? '' : 'none'">
         <div class="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <section class="grid gap-4">
             <div>
@@ -537,7 +590,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         </div>
       </mat-card>
 
-      <mat-card id="settings-telegram-panel" class="page-panel p-5 xl:col-span-2">
+      <mat-card id="settings-telegram-panel" class="page-panel p-5" [style.display]="activeSettingsSection() === 'telegram' ? '' : 'none'">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_telegram_title') }}</h2>
@@ -570,7 +623,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
         }
       </mat-card>
 
-      <mat-card class="page-panel p-5 xl:col-span-2">
+      <mat-card class="page-panel p-5" [style.display]="activeSettingsSection() === 'session' ? '' : 'none'">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold text-brand-ink">{{ t('settings_session') }}</h2>
@@ -582,7 +635,10 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
           </button>
         </div>
       </mat-card>
-    </section>
+          </section>
+        </div>
+      </section>
+    }
   `
 })
 export class SettingsComponent {
@@ -590,6 +646,8 @@ export class SettingsComponent {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   readonly frequencies = frequencies;
+  readonly settingsSections = settingsSections;
+  readonly activeSettingsSection = signal<SettingsSectionId | null>(null);
   readonly user = signal<CurrentUser | null>(null);
   readonly loading = signal(false);
   readonly loadError = signal('');
@@ -675,6 +733,19 @@ export class SettingsComponent {
       if (!currentAccountId || accountLoading) return;
       this.handleActiveAccountChanged();
     });
+  }
+
+  openSettingsSection(section: SettingsSectionId) {
+    this.activeSettingsSection.set(section);
+  }
+
+  closeSettingsSection() {
+    this.activeSettingsSection.set(null);
+  }
+
+  activeSettingsMetadata() {
+    const active = this.activeSettingsSection();
+    return settingsSections.find((section) => section.id === active) ?? null;
   }
 
   load() {

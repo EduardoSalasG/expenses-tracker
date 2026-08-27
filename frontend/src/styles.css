@@ -140,9 +140,19 @@ body {
 }
 
 .account-switcher .mat-mdc-form-field-infix {
-  min-height: 44px;
-  padding-top: 10px !important;
-  padding-bottom: 10px !important;
+  min-height: 52px;
+  padding-top: 14px !important;
+  padding-bottom: 8px !important;
+}
+
+/* The account selector lives in the app shell, not in a data-entry form. */
+.account-switcher .mdc-floating-label {
+  padding-inline: 0;
+  background: transparent;
+}
+
+.account-switcher .mdc-notched-outline__notch {
+  border-right: 0 !important;
 }
 
 .account-switcher .mat-mdc-select-trigger,
@@ -212,6 +222,117 @@ table {
 .mat-mdc-unelevated-button,
 .mat-mdc-outlined-button {
   border-radius: 6px !important;
+}
+
+.settings-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.settings-overview-card,
+.settings-section-nav__item {
+  color: var(--brand-ink);
+  font: inherit;
+  text-align: left;
+}
+
+.settings-overview-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.875rem;
+  align-items: center;
+  min-height: 128px;
+  padding: 1.25rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background: var(--brand-surface);
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.settings-overview-card:hover {
+  border-color: var(--brand-blue);
+  box-shadow: 0 8px 18px rgb(15 23 42 / 12%);
+  transform: translateY(-1px);
+}
+
+.settings-overview-card:focus-visible,
+.settings-section-nav__item:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-blue) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.settings-overview-card > .mat-icon {
+  color: var(--brand-blue);
+}
+
+.settings-overview-card__copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.settings-overview-card__title {
+  font-weight: 700;
+}
+
+.settings-overview-card__description {
+  color: var(--brand-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.settings-overview-card__arrow {
+  color: var(--brand-muted);
+}
+
+.settings-workspace {
+  display: grid;
+  grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.settings-section-nav {
+  position: sticky;
+  top: 108px;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background: var(--brand-surface);
+}
+
+.settings-section-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.625rem 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-section-nav__item:hover,
+.settings-section-nav__item--active {
+  background: color-mix(in srgb, var(--brand-blue) 13%, transparent);
+  color: var(--brand-blue);
+}
+
+.settings-detail-header {
+  display: grid;
+  gap: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.settings-back-button {
+  width: fit-content;
+  border-color: var(--brand-border) !important;
+  color: var(--brand-ink) !important;
 }
 
 .mat-expansion-panel {
@@ -1076,35 +1197,142 @@ select option:focus {
     display: none;
   }
 
-  .responsive-table tbody,
-  .responsive-table tr,
-  .responsive-table td {
-    display: block;
-    width: 100%;
-  }
-
   .responsive-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 1rem;
     border: 1px solid var(--brand-border);
     border-radius: 8px;
     margin-bottom: 0.75rem;
     background: var(--brand-surface);
-    padding: 0.75rem;
+    padding: 0.875rem;
+  }
+
+  .responsive-table.transaction-table--expense:not(.transaction-table--shared) tr {
+    grid-template-areas:
+      "concept amount"
+      "date date"
+      "category payment"
+      "actions actions";
+  }
+
+  .responsive-table.transaction-table--expense.transaction-table--shared tr {
+    grid-template-areas:
+      "concept amount"
+      "date date"
+      "category payment"
+      "recorded recorded"
+      "actions actions";
+  }
+
+  .responsive-table.transaction-table--income:not(.transaction-table--shared) tr {
+    grid-template-areas:
+      "concept amount"
+      "date date"
+      "actions actions";
+  }
+
+  .responsive-table.transaction-table--income.transaction-table--shared tr {
+    grid-template-areas:
+      "concept amount"
+      "date date"
+      "recorded recorded"
+      "actions actions";
   }
 
   .responsive-table td {
+    display: block;
+    width: 100%;
     border: 0;
-    padding: 0.25rem 0 !important;
+    min-width: 0;
+    padding: 0 !important;
     text-align: left !important;
   }
 
   .responsive-table td::before {
     content: attr(data-label);
     display: block;
-    margin-bottom: 0.125rem;
+    margin-bottom: 0.2rem;
     color: var(--brand-muted);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
+  }
+
+  .responsive-table .transaction-cell--concept {
+    grid-area: concept;
+    font-size: 1rem;
+  }
+
+  .responsive-table .transaction-cell--concept::before,
+  .responsive-table .transaction-cell--amount::before {
+    display: none;
+  }
+
+  .responsive-table .transaction-cell--date {
+    grid-area: date;
+    font-size: 0.8125rem;
+  }
+
+  .responsive-table .transaction-cell--category {
+    grid-area: category;
+  }
+
+  .responsive-table .transaction-cell--payment {
+    grid-area: payment;
+  }
+
+  .responsive-table .transaction-cell--recorded {
+    grid-area: recorded;
+  }
+
+  .responsive-table .transaction-cell--amount {
+    grid-area: amount;
+    align-self: start;
+    text-align: right !important;
+    white-space: nowrap;
+  }
+
+  .responsive-table .transaction-cell--actions {
+    grid-area: actions;
+    border-top: 1px solid var(--brand-border);
+    margin-top: 0.25rem;
+    padding-top: 0.75rem !important;
+  }
+
+  .responsive-table .transaction-cell--actions > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .responsive-table .transaction-cell--actions .mat-mdc-button-base {
+    width: 100%;
+  }
+
+  .app-surface {
+    padding-top: 8.25rem;
+  }
+
+  .settings-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-overview-card {
+    min-height: 92px;
+    padding: 1rem;
+  }
+
+  .settings-workspace {
+    display: block;
+  }
+
+  .settings-section-nav {
+    display: none;
+  }
+
+  .settings-detail-header {
+    margin-bottom: 0.875rem;
   }
 
   .landing-hero-ring {

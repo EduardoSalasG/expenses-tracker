@@ -124,7 +124,7 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
       <app-feedback-banner [message]="error()" tone="error" />
       <app-feedback-banner [message]="loading() ? t('expenses_loading') : ''" tone="info" />
       <div class="responsive-table-wrapper overflow-x-auto">
-        <table class="responsive-table w-full min-w-[640px] border-collapse text-left" [class.min-w-\[760px\]]="isSharedAccount()">
+        <table class="responsive-table transaction-table--expense w-full min-w-[640px] border-collapse text-left" [class.min-w-\[760px\]]="isSharedAccount()" [class.transaction-table--shared]="isSharedAccount()">
           <thead>
             <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
               <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
@@ -141,8 +141,8 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-brand-border/60 last:border-0">
-                <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
-                <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3">
+                <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
+                <td [attr.data-label]="t('expenses_concept')" class="transaction-cell transaction-cell--concept py-3 pr-3">
                   <div class="font-medium">{{ expense.concept }}</div>
                   @if ((expense.installmentCount ?? 1) > 1) {
                     <div class="mt-1 text-xs text-brand-muted">
@@ -150,13 +150,13 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                     </div>
                   }
                 </td>
-                <td [attr.data-label]="t('expenses_category')" class="py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td [attr.data-label]="t('expenses_payment_method')" class="py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
+                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
+                <td [attr.data-label]="t('expenses_payment_method')" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
                 @if (isSharedAccount()) {
-                  <td [attr.data-label]="t('transactions_recorded_by')" class="py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(expense) }}</td>
+                  <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(expense) }}</td>
                 }
-                <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
-                <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
+                <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
+                <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
                   <div class="flex flex-wrap justify-end gap-2">
                     <button mat-stroked-button type="button" (click)="openEditExpenseDialog(expense)">
                       <mat-icon>edit</mat-icon>

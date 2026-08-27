@@ -60,7 +60,7 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 - `/incomes`: income capture, filtered history, edit, delete, totals by currency, auto-refresh after save, and visible active-account context.
 - `/budgets`: permanent budget planner (reused month to month) with category/subcategory limits, spending progress, remaining amounts, inline category/subcategory creation, inline updates, and visible active-account context.
 - `/categories`: main category and subcategory management with default/custom labels and visible active-account context.
-- `/settings`: profile editing including first name, last name, preferred name, Telegram report preferences, session logout, and shared-account management (switch active account, create shared account, invite members, review members).
+- `/settings`: a settings hub. On mobile, choose an area and use `Volver` to return to the hub; on desktop, use the contextual section selector. Areas include profile, reports, banks and payment methods, shared accounts, Telegram, and session.
 - `/terms` and `/privacy`: public legal pages linked from the landing footer.
 
 ## Public Locale Detection
@@ -94,6 +94,7 @@ If Telegram is not configured yet, the dashboard shows a dismissible banner that
 - Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
 - First-run onboarding tours are shown once per module and stored client-side so they do not repeat on every session.
 - On mobile, the fixed navigation keeps `Inicio`, `Gastos`, and `Ingresos` visible; `Más` exposes Presupuestos, Categorías, and Configuración without crowding the primary actions.
+- Expense and income histories switch from desktop tables to compact movement cards on mobile, keeping amount and concept prominent while preserving category, payment method, author (for shared accounts), and actions.
 - CLP amounts are displayed in Chilean currency format, for example `$20.000`.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 

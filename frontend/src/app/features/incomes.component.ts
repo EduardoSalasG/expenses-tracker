@@ -89,7 +89,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <app-feedback-banner [message]="loading() ? t('incomes_loading') : ''" tone="info" />
       @if (incomes().length) {
         <div class="responsive-table-wrapper overflow-x-auto">
-          <table class="responsive-table w-full min-w-[560px] border-collapse text-left" [class.min-w-\[680px\]]="isSharedAccount()">
+          <table class="responsive-table transaction-table--income w-full min-w-[560px] border-collapse text-left" [class.min-w-\[680px\]]="isSharedAccount()" [class.transaction-table--shared]="isSharedAccount()">
             <thead>
               <tr class="border-b border-brand-border bg-brand-surface-muted text-sm text-brand-muted">
                 <th class="py-2.5 pl-3 pr-3 font-medium">{{ t('expenses_date') }}</th>
@@ -104,13 +104,13 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <tbody>
               @for (income of incomes(); track income.id) {
                 <tr class="border-b border-brand-border/60 last:border-0">
-                  <td [attr.data-label]="t('expenses_date')" class="py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
-                  <td [attr.data-label]="t('expenses_concept')" class="py-3 pr-3 font-medium">{{ income.concept }}</td>
+                  <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
+                  <td [attr.data-label]="t('expenses_concept')" class="transaction-cell transaction-cell--concept py-3 pr-3 font-medium">{{ income.concept }}</td>
                   @if (isSharedAccount()) {
-                    <td [attr.data-label]="t('transactions_recorded_by')" class="py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(income) }}</td>
+                    <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(income) }}</td>
                   }
-                  <td [attr.data-label]="t('expenses_amount')" class="py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
-                  <td [attr.data-label]="t('expenses_actions')" class="py-3 pr-3 text-right">
+                  <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
+                  <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
                     <div class="flex flex-wrap justify-end gap-2">
                       <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
                         <mat-icon>edit</mat-icon>
