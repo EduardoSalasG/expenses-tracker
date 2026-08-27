@@ -76,7 +76,7 @@ Use this checklist for every production promotion from `dev` to `main`.
 ## 6) Production promotion
 
 - Merge `dev` -> `main`.
-- Confirm Netlify + Render deploys completed.
+- Confirm Netlify + Oracle backend deploys completed.
 - Post-deploy checks:
   - `/health/live`, `/health/ready`
   - web password login

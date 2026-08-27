@@ -56,8 +56,8 @@ pnpm db:seed
 Behavior summary:
 
 - `pnpm db:migrate` applies incremental schema/data migrations to an existing database.
-- `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the default category catalog used to seed user tenants.
-- `pnpm db:seed` is optional and only loads local/demo users plus tenant copies of the default categories.
+- `pnpm db:bootstrap` is the canonical initialization command for a brand-new database. It runs migrations and then ensures the system tenant owns the canonical default category catalog.
+- `pnpm db:seed` is optional and only loads local/demo users. Personal and shared accounts reuse the system category catalog and add account-specific custom entries when needed.
 - `pnpm db:export:tenant -- --phone +569XXXXXXXXX` exports one tenant/user dataset for promotion into another environment.
 - Starting the backend against an empty production database does not auto-run demo seed data.
 

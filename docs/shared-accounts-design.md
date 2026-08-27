@@ -1,9 +1,11 @@
 # Shared Accounts Design
 
-## Objective
+## Objective and Status
 
 Add shared financial contexts without breaking the current personal-account behavior.
 User identity remains personal. Financial activity moves under an explicit account context.
+
+This design is implemented as the current shared-account MVP. The sections below remain the source of truth for the ownership and authorization rules; the final section lists the intentionally deferred refinements.
 
 ## Core Domain
 
@@ -168,7 +170,7 @@ Later, allow explicit override in a single message:
 
 - `casa 25000 supermercado`
 
-## API Proposal
+## API Surface
 
 ### Accounts
 
@@ -267,7 +269,7 @@ After backfill:
 
 ## Current Status
 
-Implemented in backend and frontend as of August 11, 2026:
+Implemented in backend and frontend:
 
 - schema foundation and backfill support
 - repository support for memberships, invitations, and messaging contexts
@@ -280,6 +282,8 @@ Implemented in backend and frontend as of August 11, 2026:
 - frontend shared-account management in Settings
 - invitation link generation and authenticated invitation acceptance flow
 - account-scoped dashboard/reporting through the active financial account context
+- account-scoped system/default catalogs plus custom categories, banks, and payment methods
+- visibility of movements created by every active member, with author attribution in history
 - split allocations with payer attribution, equal split, and custom split persistence
 - balances by member
 - suggested settlements derived from current balances
