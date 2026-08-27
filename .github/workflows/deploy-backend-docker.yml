@@ -88,6 +88,8 @@ jobs:
                 --password-stdin
 
               docker compose pull expenses-tracker-backend
+              # bootstrap runs tracked migrations first, then idempotently applies
+              # the system defaults required by a brand-new database.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
@@ -130,10 +132,12 @@ jobs:
 
               sudo systemctl reload nginx
 
-              # Validate the actual Nginx vhost, rather than only the container port.
-              proxy_status=$(curl -s -o /dev/null -w "%{http_code}" \
-                -H "Host: ${{ env.PUBLIC_API_HOST }}" \
-                http://127.0.0.1/me/account-context)
+              # Validate the real HTTPS Nginx virtual host. Port 80 correctly
+              # redirects to HTTPS, so an HTTP probe would report 301 instead of
+              # the expected anonymous 401 from the backend route.
+              proxy_status=$(curl -ks -o /dev/null -w "%{http_code}" \
+                --resolve "${{ env.PUBLIC_API_HOST }}:443:127.0.0.1" \
+                "https://${{ env.PUBLIC_API_HOST }}/me/account-context")
               if [ "$proxy_status" != "401" ]; then
                 echo "Expected Nginx to proxy /me/account-context with a 401; received $proxy_status."
                 sudo nginx -T
