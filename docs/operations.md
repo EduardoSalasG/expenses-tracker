@@ -35,7 +35,7 @@ GitHub Actions builds and deploys the production backend from `main`. Release va
 - Telegram webhook smoke
 - bilingual QA
 - Swagger/docs final pass
-- explicit one-time backfill execution for structural migrations that require legacy data reassignment
+- confirm the deployment log completed the idempotent financial-account backfill for legacy data
 
 ## Gitflow
 
@@ -165,6 +165,8 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
 ## Shared Accounts Runbook
 
 Shared accounts are active in the runtime. The following runbook remains relevant only when upgrading an existing database that predates the account model.
+
+The Oracle deployment workflow runs `db:bootstrap` and the idempotent financial-account backfill before it recreates the API container. For a normal deployment from `main`, inspect the GitHub Actions log rather than running these commands manually.
 
 Production run order:
 

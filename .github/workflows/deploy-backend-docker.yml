@@ -88,6 +88,8 @@ jobs:
 
               docker compose pull expenses-tracker-backend
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
+              # Idempotent: assigns a personal financial account to legacy user-owned rows.
+              docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
               docker compose up -d --force-recreate --remove-orphans expenses-tracker-backend
 
               for attempt in $(seq 1 30); do
@@ -104,6 +106,16 @@ jobs:
 
                 sleep 2
               done
+
+              # A health response alone can come from an older container image.
+              # This protected route must exist and reject the anonymous probe.
+              route_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/me/account-context)
+              if [ "$route_status" != "401" ]; then
+                echo "Expected /me/account-context to return 401 after deploy; received $route_status."
+                docker compose ps
+                docker logs --tail=200 expenses-tracker-backend || true
+                exit 1
+              fi
 
               docker image prune -f
           EOF
