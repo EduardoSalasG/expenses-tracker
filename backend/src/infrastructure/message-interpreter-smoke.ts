@@ -61,6 +61,7 @@ async function main() {
     categories,
     banks,
     paymentMethodOptions,
+    availableFinancialAccounts: [{ id: 'personal', name: 'Personal', type: 'personal' }],
     now: new Date()
   });
 

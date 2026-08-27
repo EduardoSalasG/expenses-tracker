@@ -67,6 +67,7 @@ Shared accounts are available as the current Splitwise-style MVP:
 - invitations and membership management
 - Telegram account switching
 - Telegram account discovery and switching commands (`/accounts`, `/current`, `/AccountName`, or `/account Account Name`)
+- Telegram questions can temporarily target an accessible account without switching the chat context, for example `¿Cuánto he gastado este mes en la cuenta de Casa?` or `¿Cómo van los presupuestos de Viaje a Brasil?`
 - web account switching
 - dashboard and financial modules scoped by the active account
 - shared-account expense capture from web and Telegram

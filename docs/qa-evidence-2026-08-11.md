@@ -32,6 +32,7 @@ Backend automated tests now cover:
 - equal shared split capture from phrases such as `compartido con vane y juan`
 - switching from a personal account to a shared account and saving both a subsequent expense and income in that shared account
 - pending Telegram drafts are cleared when account context changes, preventing cross-account confirmation
+- report and budget questions that name an accessible shared account use that account for the reply only, while the next unnamed question continues from `Personal`
 
 Reference tests:
 

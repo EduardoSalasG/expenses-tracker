@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Category, PaymentMethod, ReportFrequency, User } from '../domain/index.js';
+import type { Category, FinancialAccount, PaymentMethod, ReportFrequency, User } from '../domain/index.js';
 import type { BankOption, PaymentMethodOption } from '../domain/finance/types.js';
 import { parseExpenseMessage } from './expense-parser.js';
 
@@ -41,13 +41,15 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     intent: z.literal('ask_report'),
     confidence: z.number().min(0).max(1).default(0.5),
     period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).default('monthly'),
-    categoryName: z.string().min(1).optional()
+    categoryName: z.string().min(1).optional(),
+    accountName: z.string().min(1).optional()
   }),
   z.object({
     intent: z.literal('ask_budget_status'),
     confidence: z.number().min(0).max(1).default(0.5),
     month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-    categoryName: z.string().min(1).optional()
+    categoryName: z.string().min(1).optional(),
+    accountName: z.string().min(1).optional()
   }),
   z.object({
     intent: z.literal('update_movement'),
@@ -77,6 +79,7 @@ export interface MessageInterpreterContext {
   categories: Category[];
   banks: BankOption[];
   paymentMethodOptions: PaymentMethodOption[];
+  availableFinancialAccounts: Array<Pick<FinancialAccount, 'id' | 'name' | 'type'>>;
   now: Date;
 }
 
@@ -105,15 +108,25 @@ export class DeterministicMessageInterpreter {
       return parseIncome(message, context.user.preferredCurrency);
     }
 
-    if (/\b(report|reporte|resumen|summary)\b/.test(lower) || /\b(cu[aá]nto|how much|spent|gastado|gaste|gast[eé])\b/.test(lower)) {
+    if (
+      /\b(report|reporte|resumen|summary)\b/.test(lower) ||
+      /\b(cu[aá]nto|how much|spent|gastado|gaste|gast[eé])\b/.test(lower) ||
+      isBudgetStatusRequest(lower)
+    ) {
       if (isBudgetStatusRequest(lower)) {
-        return { intent: 'ask_budget_status', confidence: 0.75, month: monthFromDate(context.now) };
+        return {
+          intent: 'ask_budget_status',
+          confidence: 0.75,
+          month: monthFromDate(context.now),
+          accountName: inferFinancialAccountFromText(context.availableFinancialAccounts, message)
+        };
       }
 
       return {
         intent: 'ask_report',
         confidence: 0.75,
-        period: periodFromMessage(lower)
+        period: periodFromMessage(lower),
+        accountName: inferFinancialAccountFromText(context.availableFinancialAccounts, message)
       };
     }
 
@@ -133,9 +146,31 @@ export class DeterministicMessageInterpreter {
   }
 }
 
+function inferFinancialAccountFromText(
+  accounts: MessageInterpreterContext['availableFinancialAccounts'],
+  message: string
+) {
+  const normalizedMessage = normalizeForMatch(message);
+  const matches = accounts
+    .filter((account) => normalizedMessage.includes(normalizeForMatch(account.name)))
+    .sort((left, right) => right.name.length - left.name.length);
+
+  return matches.length === 1 ? matches[0]?.name : undefined;
+}
+
+function normalizeForMatch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function isBudgetStatusRequest(message: string) {
   return (
-    /\b(budget|presupuesto)\b/.test(message) ||
+    /\b(budgets?|presupuestos?)\b/.test(message) ||
     /\b(cu[aá]nto|how much|what)\b/.test(message) &&
     /\b(me queda|queda|left|remaining|resta|restante|disponible|available)\b/.test(message)
   );

@@ -121,6 +121,7 @@ Telegram routes are available at `POST /webhooks/telegram` and support:
 - Normal text updates as primary inbound input.
 - Help commands: `/commands` and `/help` return the available bot commands, an example for each one, and the type of reply the bot will send.
 - Account discovery commands: `/accounts` (or `/cuentas`) lists the personal/shared accounts the user can access and marks the active one for that chat; `/current` (or `/actual`) tells the user which account is active right now. Switch context with `/NombreCuenta` (without spaces or accents) or `/cuenta Nombre de cuenta` (`/account Account Name` in English). The active account is saved per Telegram chat, and pending confirmations are cleared when it changes so they cannot be saved in the wrong account.
+- Report and budget questions can name any accessible account without changing that saved chat context. For example, `¿Cuánto he gastado este mes en la cuenta de Casa común?` and `¿Cómo van los presupuestos de Viaje a Brasil?` answer from that account only; a question without an account name uses the active account, or `Personal` when no chat context has been selected.
 - Account linking command: `/link +569XXXXXXXX` (or `/vincular +569XXXXXXXX`) to bind a Telegram chat id to a previously registered user phone.
 - Optional webhook secret verification via `x-telegram-bot-api-secret-token` when `TELEGRAM_WEBHOOK_SECRET_TOKEN` is configured.
 
@@ -384,6 +385,15 @@ Account-context command examples:
 /current
 /Casa comun
 ```
+
+Questions can use an account name without switching the chat context:
+
+```text
+¿Cuánto he gastado este mes en la cuenta de Casa común?
+¿Cómo van los presupuestos de Viaje a Brasil?
+```
+
+Those questions are scoped only to the named accessible account. The next message still uses the previously active account; when no account is named and no context exists, the answer uses `Personal`.
 
 After linking, Telegram messages are processed with the same finance workflow (save expense/income, report/budget questions, draft confirmations, update movement corrections) and responses use `preferredName` + `preferredLanguage`.
 

@@ -571,6 +571,126 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(await incomes.listRecent(user.tenantId, personal.id, 10)).toHaveLength(0);
   });
 
+  it('answers Telegram report and budget questions for an explicitly named shared account without changing chat context', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const messaging = new CapturingMessagingProvider();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439041',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, 'shared-question-chat');
+    const personal = await financialAccounts.ensurePersonalAccount(user.id);
+    const shared = await financialAccounts.createSharedAccount({
+      tenantId: user.tenantId,
+      createdByUserId: user.id,
+      name: 'Viaje a Brasil',
+      currency: 'CLP'
+    });
+    const personalFood = await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: personal.id,
+      name: 'Food',
+      isDefault: false
+    });
+    const sharedFood = await categories.create({
+      tenantId: user.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Food',
+      isDefault: false
+    });
+    await expenses.create({
+      tenantId: user.tenantId,
+      financialAccountId: personal.id,
+      userId: user.id,
+      date: '2026-08-10T12:00:00.000Z',
+      amount: 10000,
+      currency: 'CLP',
+      concept: 'Gasto personal',
+      categoryId: personalFood.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    await expenses.create({
+      tenantId: user.tenantId,
+      financialAccountId: shared.account.id,
+      userId: user.id,
+      date: '2026-08-10T12:00:00.000Z',
+      amount: 50000,
+      currency: 'CLP',
+      concept: 'Reserva Brasil',
+      categoryId: sharedFood.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    await budgets.upsertMonthly({
+      tenantId: user.tenantId,
+      financialAccountId: shared.account.id,
+      categoryId: sharedFood.id,
+      amount: 100000,
+      currency: 'CLP'
+    });
+
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      financialAccounts,
+      categories,
+      expenses,
+      incomes,
+      budgets,
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      messaging,
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-08-11T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const sharedReport = await useCase.execute({
+      providerMessageId: 'tg-shared-question-report',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-question-chat',
+      providerUserId: 'shared-question-chat',
+      replyTo: 'shared-question-chat',
+      message: '¿Cuánto he gastado este mes en la cuenta de Viaje a Brasil?'
+    });
+    expect(sharedReport.status).toBe('report_sent');
+    expect(messaging.messages.at(-1)?.body).toContain('$50.000');
+    expect(messaging.messages.at(-1)?.body).not.toContain('$10.000');
+    expect(await financialAccounts.findMessagingContext('telegram', 'shared-question-chat')).toBeUndefined();
+
+    const sharedBudget = await useCase.execute({
+      providerMessageId: 'tg-shared-question-budget',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-question-chat',
+      providerUserId: 'shared-question-chat',
+      replyTo: 'shared-question-chat',
+      message: '¿Cómo van los presupuestos de Viaje a Brasil?'
+    });
+    expect(sharedBudget.status).toBe('budget_status_sent');
+    expect(messaging.messages.at(-1)?.body).toContain('Gastado $50.000 de $100.000');
+    expect(messaging.messages.at(-1)?.body).not.toContain('$10.000');
+
+    const personalReport = await useCase.execute({
+      providerMessageId: 'tg-personal-question-report',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:shared-question-chat',
+      providerUserId: 'shared-question-chat',
+      replyTo: 'shared-question-chat',
+      message: '¿Cuánto he gastado este mes?'
+    });
+    expect(personalReport.status).toBe('report_sent');
+    expect(messaging.messages.at(-1)?.body).toContain('$10.000');
+  });
+
   it('stores a shared Telegram expense split equally when the user says mitad con another member', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

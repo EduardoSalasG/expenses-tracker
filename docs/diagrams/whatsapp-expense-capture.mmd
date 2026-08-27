@@ -23,6 +23,10 @@ sequenceDiagram
       API->>Telegram: Confirm active account or list available accounts
     else finance message or question
     API->>DB: Resolve active account context for this Telegram chat
+    alt report or budget question names an accessible account
+      API->>DB: Resolve the named account for this response only
+      Note over API,DB: Do not update saved chat account context
+    end
     API->>DB: Check active pending draft in that account
     alt pending draft exists
       API->>Interpreter: Interpret reply
@@ -69,7 +73,7 @@ sequenceDiagram
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm saved income
     else ask report or budget status
-      API->>DB: Read report or budget data scoped to active account
+      API->>DB: Read report or budget data scoped to resolved question account
       API->>DB: Mark audit as saved
       API->>Telegram: Reply with calculated answer
     end
