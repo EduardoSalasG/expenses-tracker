@@ -16,6 +16,7 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/expenses-tracker-backend
   CONTAINER_DIR: /opt/apps/expenses-tracker/backend
+  PUBLIC_API_HOST: api.expenses-tracker.eduardosalasg.dev
 
 jobs:
   deploy:
@@ -120,8 +121,22 @@ jobs:
               docker image prune -f
           EOF
 
-      - name: Reload Nginx
+      - name: Reload Nginx and verify its API upstream
         run: |
           ssh -i ~/.ssh/oracle_deploy_key \
             ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} \
-            "sudo systemctl reload nginx"
+            << 'EOF'
+              set -e
+
+              sudo systemctl reload nginx
+
+              # Validate the actual Nginx vhost, rather than only the container port.
+              proxy_status=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "Host: ${{ env.PUBLIC_API_HOST }}" \
+                http://127.0.0.1/me/account-context)
+              if [ "$proxy_status" != "401" ]; then
+                echo "Expected Nginx to proxy /me/account-context with a 401; received $proxy_status."
+                sudo nginx -T
+                exit 1
+              fi
+          EOF
