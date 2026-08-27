@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, HostListener, OnInit } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -18,6 +18,9 @@ const links = [
   ['/categories', 'nav_categories', 'nav_categories_short', 'category'],
   ['/settings', 'nav_settings', 'nav_settings_short', 'settings']
 ] as const;
+
+const mobilePrimaryLinks = links.slice(0, 3);
+const mobileMoreLinks = links.slice(3);
 
 const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
 
@@ -69,18 +72,48 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
           </a>
         }
       </nav>
-      <nav class="shell-mobile-nav">
-        @for (link of links; track link[0]) {
+      <nav class="shell-mobile-nav" [attr.aria-label]="t('nav_mobile_label')">
+        @for (link of mobilePrimaryLinks; track link[0]) {
           <a
             [routerLink]="link[0]"
             [attr.aria-label]="t(link[1])"
             routerLinkActive="bg-brand-navy/10 !text-brand-navy"
             [routerLinkActiveOptions]="{ exact: true }"
             class="shell-mobile-link"
+            (click)="closeMoreMenu()"
           >
             <mat-icon class="shell-nav-icon shell-nav-icon--mobile">{{ link[3] }}</mat-icon>
             <span class="block min-w-0 text-[0.7rem] font-medium leading-tight">{{ t(link[2]) }}</span>
           </a>
+        }
+        <button
+          type="button"
+          class="shell-mobile-link shell-mobile-more-trigger"
+          [class.shell-mobile-link--active]="isMoreMenuOpen || isMoreRouteActive()"
+          [attr.aria-label]="t('nav_more')"
+          [attr.aria-expanded]="isMoreMenuOpen"
+          aria-controls="shell-mobile-more-menu"
+          (click)="toggleMoreMenu()"
+        >
+          <mat-icon class="shell-nav-icon shell-nav-icon--mobile">more_horiz</mat-icon>
+          <span class="block min-w-0 text-[0.7rem] font-medium leading-tight">{{ t('nav_more') }}</span>
+        </button>
+        @if (isMoreMenuOpen) {
+          <div id="shell-mobile-more-menu" class="shell-mobile-more-menu" role="menu" [attr.aria-label]="t('nav_more')">
+            @for (link of mobileMoreLinks; track link[0]) {
+              <a
+                [routerLink]="link[0]"
+                [attr.aria-label]="t(link[1])"
+                routerLinkActive="shell-mobile-more-link--active"
+                class="shell-mobile-more-link"
+                role="menuitem"
+                (click)="closeMoreMenu()"
+              >
+                <mat-icon class="shell-nav-icon">{{ link[3] }}</mat-icon>
+                <span>{{ t(link[1]) }}</span>
+              </a>
+            }
+          </div>
         }
       </nav>
 
@@ -96,10 +129,14 @@ export class ShellComponent implements OnInit {
   constructor(
     readonly accountService: AccountContextService,
     private readonly i18n: I18nService,
-    private readonly dialog: MatDialog
+    private readonly dialog: MatDialog,
+    private readonly router: Router
   ) {}
 
   readonly links = links;
+  readonly mobilePrimaryLinks = mobilePrimaryLinks;
+  readonly mobileMoreLinks = mobileMoreLinks;
+  isMoreMenuOpen = false;
 
   ngOnInit() {
     this.accountService.load().subscribe({
@@ -130,6 +167,23 @@ export class ShellComponent implements OnInit {
 
   currentAccountId() {
     return this.accountService.activeAccountId();
+  }
+
+  toggleMoreMenu() {
+    this.isMoreMenuOpen = !this.isMoreMenuOpen;
+  }
+
+  closeMoreMenu() {
+    this.isMoreMenuOpen = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    this.closeMoreMenu();
+  }
+
+  isMoreRouteActive() {
+    return this.mobileMoreLinks.some(([route]) => this.router.url.startsWith(route));
   }
 
   private openCreateAccountDialog() {

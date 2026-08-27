@@ -93,6 +93,7 @@ If Telegram is not configured yet, the dashboard shows a dismissible banner that
 - Tailwind supplies layout, spacing, and responsive utilities.
 - Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
 - First-run onboarding tours are shown once per module and stored client-side so they do not repeat on every session.
+- On mobile, the fixed navigation keeps `Inicio`, `Gastos`, and `Ingresos` visible; `Más` exposes Presupuestos, Categorías, and Configuración without crowding the primary actions.
 - CLP amounts are displayed in Chilean currency format, for example `$20.000`.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 
