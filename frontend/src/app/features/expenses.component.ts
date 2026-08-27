@@ -118,7 +118,12 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
 
     <mat-card id="expenses-history-panel" class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
+        <div>
+          <h2 class="text-lg font-semibold">{{ t('expenses_history') }}</h2>
+          @if (isSharedAccount()) {
+            <p class="transaction-shared-hint"><mat-icon aria-hidden="true">group</mat-icon>{{ t('transactions_shared_visibility') }}</p>
+          }
+        </div>
         <span class="text-sm text-brand-muted">{{ expenses().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
@@ -141,7 +146,7 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           <tbody>
             @for (expense of expenses(); track expense.id) {
               <tr class="border-b border-brand-border/60 last:border-0">
-                <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(expense.date) }}</td>
+                <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted"><span class="transaction-meta"><mat-icon aria-hidden="true">calendar_today</mat-icon>{{ formatDate(expense.date) }}</span></td>
                 <td [attr.data-label]="t('expenses_concept')" class="transaction-cell transaction-cell--concept py-3 pr-3">
                   <div class="font-medium">{{ expense.concept }}</div>
                   @if ((expense.installmentCount ?? 1) > 1) {
@@ -150,10 +155,10 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
                     </div>
                   }
                 </td>
-                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</td>
-                <td [attr.data-label]="t('expenses_payment_method')" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted">{{ paymentLabel(expense) }}</td>
+                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon aria-hidden="true">sell</mat-icon>{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></td>
+                <td [attr.data-label]="t('expenses_payment_method')" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
                 @if (isSharedAccount()) {
-                  <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(expense) }}</td>
+                  <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon>{{ recordedBy(expense) }}</span></td>
                 }
                 <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
                 <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">

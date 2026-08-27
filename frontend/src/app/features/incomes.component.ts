@@ -82,7 +82,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
 
     <mat-card id="incomes-history-panel" class="page-panel p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold">{{ t('incomes_history') }}</h2>
+        <div>
+          <h2 class="text-lg font-semibold">{{ t('incomes_history') }}</h2>
+          @if (isSharedAccount()) {
+            <p class="transaction-shared-hint"><mat-icon aria-hidden="true">group</mat-icon>{{ t('transactions_shared_visibility') }}</p>
+          }
+        </div>
         <span class="text-sm text-brand-muted">{{ totalLabel() }} {{ t('incomes_total_across') }} {{ incomes().length }} {{ t('expenses_records') }}</span>
       </div>
       <app-feedback-banner [message]="error()" tone="error" />
@@ -104,10 +109,10 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <tbody>
               @for (income of incomes(); track income.id) {
                 <tr class="border-b border-brand-border/60 last:border-0">
-                  <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted">{{ formatDate(income.date) }}</td>
+                  <td [attr.data-label]="t('expenses_date')" class="transaction-cell transaction-cell--date py-3 pl-3 pr-3 text-sm text-brand-muted"><span class="transaction-meta"><mat-icon aria-hidden="true">calendar_today</mat-icon>{{ formatDate(income.date) }}</span></td>
                   <td [attr.data-label]="t('expenses_concept')" class="transaction-cell transaction-cell--concept py-3 pr-3 font-medium">{{ income.concept }}</td>
                   @if (isSharedAccount()) {
-                    <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted">{{ recordedBy(income) }}</td>
+                    <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon>{{ recordedBy(income) }}</span></td>
                   }
                   <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold text-emerald-700">{{ formatMoney(income.currency, income.amount) }}</td>
                   <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">

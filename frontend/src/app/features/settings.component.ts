@@ -327,7 +327,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             </div>
 
             @if (selectedMembership()) {
-              <div class="rounded border border-brand-border bg-brand-surface p-4 text-sm">
+              <div class="shared-account-summary text-sm">
                 <div class="font-medium text-brand-ink">{{ formatAccountLabel(selectedMembership()?.account?.name ?? '', selectedMembership()?.account?.type ?? 'personal') }}</div>
                 <div class="mt-1 text-brand-muted">
                   {{ t(accountRoleKey(selectedMembership()?.role ?? 'member')) }}
@@ -356,7 +356,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             <form
               [formGroup]="inviteForm"
               (ngSubmit)="inviteMember()"
-              class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+              class="shared-account-section shared-account-section--invite grid gap-3"
             >
               <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_title') }}</div>
               <p class="text-sm text-brand-muted">{{ t('accounts_create_invite_hint') }}</p>
@@ -372,7 +372,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             <app-feedback-banner [message]="inviteMessage()" [tone]="feedbackTone(inviteMessage())" />
 
             @if (lastInvitationLink()) {
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="text-sm font-medium text-brand-ink">{{ t('accounts_invite_link_title') }}</div>
                 <p class="mt-1 text-sm text-brand-muted">
                   {{ t('accounts_invite_link_hint') }}
@@ -402,7 +402,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
               </div>
             }
 
-            <div class="rounded border border-brand-border bg-brand-surface p-4">
+            <div class="shared-account-section">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <h3 class="font-medium text-brand-ink">{{ t('accounts_members_title') }}</h3>
@@ -434,7 +434,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             </div>
 
             @if (selectedMembership()?.account?.type === 'shared') {
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_balances_title') }}</h3>
@@ -465,7 +465,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
                 </div>
               </div>
 
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_suggestions_title') }}</h3>
@@ -497,7 +497,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
               <form
                 [formGroup]="settlementForm"
                 (ngSubmit)="createSettlement()"
-                class="grid gap-3 rounded border border-brand-border bg-brand-surface p-4"
+                class="shared-account-section grid gap-3"
               >
                 <div>
                   <div class="text-sm font-medium text-brand-ink">{{ t('accounts_settlement_title') }}</div>
@@ -550,7 +550,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
 
               <app-feedback-banner [message]="settlementMessage()" [tone]="feedbackTone(settlementMessage())" />
 
-              <div class="rounded border border-brand-border bg-brand-surface p-4">
+              <div class="shared-account-section">
                 <div class="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h3 class="font-medium text-brand-ink">{{ t('accounts_settlement_history_title') }}</h3>

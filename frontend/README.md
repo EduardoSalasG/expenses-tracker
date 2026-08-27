@@ -94,7 +94,7 @@ If Telegram is not configured yet, the dashboard shows a dismissible banner that
 - Shared page headers and `page-panel` cards provide the default page rhythm for dashboard and form-heavy views.
 - First-run onboarding tours are shown once per module and stored client-side so they do not repeat on every session.
 - On mobile, the fixed navigation keeps `Inicio`, `Gastos`, and `Ingresos` visible; `Más` exposes Presupuestos, Categorías, and Configuración without crowding the primary actions.
-- Expense and income histories switch from desktop tables to compact movement cards on mobile, keeping amount and concept prominent while preserving category, payment method, author (for shared accounts), and actions.
+- Expense and income histories switch from desktop tables to compact movement cards on mobile. Amount and concept lead each card; date, category, payment method, and author are presented as concise visual metadata. In shared accounts, the list explicitly indicates that it contains movements from every member.
 - CLP amounts are displayed in Chilean currency format, for example `$20.000`.
 - Keep consumer workflows simple and direct; avoid business accounting terminology.
 
