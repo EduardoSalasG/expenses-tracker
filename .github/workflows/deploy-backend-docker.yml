@@ -77,7 +77,7 @@ jobs:
       - name: Deploy on Oracle VM
         run: |
           ssh -i ~/.ssh/oracle_deploy_key \
-            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << EOF
+            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << 'EOF'
               set -e
 
               cd "${{ env.CONTAINER_DIR }}"
