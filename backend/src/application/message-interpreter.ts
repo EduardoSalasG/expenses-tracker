@@ -11,6 +11,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
     installmentCount: z.number().int().min(1).max(60).default(1),
+    firstInstallmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     categoryName: z.string().min(1).optional(),
     subcategoryName: z.string().min(1).optional(),
     paymentMethod: z.discriminatedUnion('kind', [
@@ -130,7 +131,7 @@ export class DeterministicMessageInterpreter {
       };
     }
 
-    const parsed = parseExpenseMessage(message, context.user.preferredCurrency);
+    const parsed = parseExpenseMessage(message, context.user.preferredCurrency, context.now);
     return {
       intent: 'create_expense',
       confidence: parsed.status === 'ready' ? 0.75 : 0.45,
@@ -138,6 +139,7 @@ export class DeterministicMessageInterpreter {
       currency: parsed.currency,
       concept: parsed.concept,
       installmentCount: parsed.installmentCount ?? 1,
+      firstInstallmentDate: parsed.firstInstallmentDate,
       ...inferCategoryFromText(context.categories, message),
       paymentMethod: parsed.paymentMethod,
       missingFields: parsed.missingFields,

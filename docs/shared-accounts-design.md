@@ -79,6 +79,8 @@ Unique key:
 - `status` (`pending | accepted | expired | revoked`)
 - `expires_at`
 - `accepted_at`
+- `email_sent_at`
+- `email_delivery_error`
 - `created_at`
 - `updated_at`
 
@@ -275,7 +277,7 @@ Implemented in backend and frontend:
 - repository support for memberships, invitations, and messaging contexts
 - shared account creation and rename
 - member listing and member removal
-- invitation creation and acceptance
+- invitation creation, email notification, and acceptance; a manually shareable acceptance link remains available when delivery fails
 - Telegram account-context switching with `/AccountName`
 - frontend account selector and active-account context switching
 - active account visibility banner across dashboard, expenses, incomes, budgets, and categories

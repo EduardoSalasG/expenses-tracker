@@ -560,7 +560,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"invitee@example.com\",\n  \"phoneNumber\": \"+56911111111\",\n  \"role\": \"member\"\n}"
+              "raw": "{\n  \"email\": \"invitee@example.com\"\n}"
             },
             "url": "{{baseUrl}}/accounts/{{accountId}}/invitations"
           }

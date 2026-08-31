@@ -137,6 +137,7 @@ function systemPrompt() {
     'If the bank is not clearly stated or no supplied bank matches, omit bank.',
     'For ask_report and ask_budget_status only, set accountName only when the user explicitly refers to one of the supplied financialAccounts. Use the exact supplied name. Otherwise omit accountName.',
     'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
+    'When an expense in installments explicitly states the first charge date, return firstInstallmentDate as YYYY-MM-DD. Resolve relative or named dates against now. Do not invent a date when none is stated.',
     'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
     'If information is missing or ambiguous for a create or update intent, set needsConfirmation true and populate missingFields with concise field identifiers.'
   ].join(' ');
@@ -178,6 +179,42 @@ function fewShotMessages(context: MessageInterpreterContext) {
         subcategoryName: 'Dance',
         paymentMethod: {
           kind: 'transfer',
+          bank: 'Banco de Crédito e Inversiones'
+        },
+        missingFields: [],
+        needsConfirmation: false
+      })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        task: 'interpret_finance_message',
+        inputMessage: '500.000 refrigerador, tdc bci, 3 cuotas, primera cuota el 5 de septiembre de 2026',
+        user: {
+          countryOfResidence: context.user.countryOfResidence,
+          preferredCurrency: context.user.preferredCurrency,
+          preferredLanguage: context.user.preferredLanguage
+        },
+        categories: categoryPayload,
+        banks: bankPayload,
+        paymentMethodOptions: paymentPayload,
+        financialAccounts: financialAccountPayload,
+        now: context.now.toISOString()
+      })
+    },
+    {
+      role: 'assistant',
+      content: JSON.stringify({
+        intent: 'create_expense',
+        confidence: 0.95,
+        amount: 500000,
+        concept: 'refrigerador',
+        installmentCount: 3,
+        firstInstallmentDate: '2026-09-05',
+        categoryName: 'Housing',
+        paymentMethod: {
+          kind: 'card',
+          cardType: 'credit',
           bank: 'Banco de Crédito e Inversiones'
         },
         missingFields: [],

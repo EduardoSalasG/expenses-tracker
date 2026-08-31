@@ -2,6 +2,7 @@ import type { ReportFrequency, User, UserAuthRecord } from '../../domain/index.j
 
 export interface UserRepository {
   findByPhoneNumber(phoneNumber: string): Promise<User | undefined>;
+  findByEmail(email: string): Promise<User | undefined>;
   findAuthByPhoneNumber(phoneNumber: string): Promise<UserAuthRecord | undefined>;
   findByTelegramChatId(chatId: string): Promise<User | undefined>;
   findById(userId: string): Promise<User | undefined>;

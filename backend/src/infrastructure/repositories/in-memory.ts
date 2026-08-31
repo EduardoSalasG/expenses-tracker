@@ -51,6 +51,11 @@ export class InMemoryUserRepository implements UserRepository {
     return [...this.users.values()].find((user) => user.phoneNumber === phoneNumber);
   }
 
+  async findByEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    return [...this.users.values()].find((user) => user.email?.trim().toLowerCase() === normalizedEmail);
+  }
+
   async findAuthByPhoneNumber(phoneNumber: string): Promise<UserAuthRecord | undefined> {
     const user = await this.findByPhoneNumber(phoneNumber);
     if (!user) return undefined;
@@ -435,6 +440,28 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
       acceptedAt,
       updatedAt: acceptedAt
     });
+  }
+
+  async markInvitationEmailSent(token: string, emailSentAt: string) {
+    const invitation = this.invitations.get(token);
+    if (!invitation) return undefined;
+    const updated = {
+      ...invitation,
+      emailSentAt,
+      emailDeliveryError: undefined,
+      updatedAt: emailSentAt
+    };
+    this.invitations.set(token, updated);
+    return updated;
+  }
+
+  async markInvitationEmailDeliveryFailed(token: string, error: string) {
+    const invitation = this.invitations.get(token);
+    if (!invitation) return undefined;
+    const updatedAt = new Date().toISOString();
+    const updated = { ...invitation, emailDeliveryError: error, updatedAt };
+    this.invitations.set(token, updated);
+    return updated;
   }
 
   async findMessagingContext(channel: 'whatsapp' | 'telegram', providerUserId: string) {

@@ -92,6 +92,8 @@ export interface FinancialAccountInvitation {
   status: 'pending' | 'accepted' | 'expired' | 'revoked';
   expiresAt: string;
   acceptedAt?: string;
+  emailSentAt?: string;
+  emailDeliveryError?: string;
   createdAt: string;
   updatedAt: string;
 }

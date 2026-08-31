@@ -11,6 +11,7 @@ import {
   InMemoryPaymentMethodOptionRepository,
   InMemoryUserRepository
 } from '../infrastructure/repositories/in-memory.js';
+import type { EmailProvider } from './ports.js';
 
 describe('FinancialAccountsUseCases', () => {
   it('creates a shared account by cloning account-scoped categories, budgets, banks, and payment methods', async () => {
@@ -266,6 +267,115 @@ describe('FinancialAccountsUseCases', () => {
     expect(members.some((member) => member.userId === invited.id && member.role === 'member' && member.status === 'active')).toBe(true);
   });
 
+  it('records that a shared-account invitation email was delivered', async () => {
+    const users = new InMemoryUserRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users);
+    const email = new CapturingEmailProvider();
+    const useCases = new FinancialAccountsUseCases(
+      financialAccounts,
+      new InMemoryCategoryRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      users,
+      {
+        email,
+        frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app',
+        now: () => new Date('2026-08-31T12:00:00.000Z')
+      }
+    );
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111114',
+      firstName: 'Owner',
+      lastName: 'User',
+      preferredName: 'Owner',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'owner@example.com',
+      preferredLanguage: 'es'
+    });
+    await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111116',
+      firstName: 'Invitee',
+      lastName: 'User',
+      preferredName: 'Invitee',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'invitee@example.com',
+      preferredLanguage: 'en'
+    });
+    const personal = await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await useCases.createSharedAccount({
+      userId: owner.id,
+      tenantId: owner.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Casa',
+      currency: 'CLP'
+    });
+
+    const invitation = await useCases.inviteMember({
+      actorUserId: owner.id,
+      financialAccountId: shared.account.id,
+      email: 'invitee@example.com'
+    });
+
+    expect(invitation.emailSentAt).toBeDefined();
+    expect(invitation.emailDeliveryError).toBeUndefined();
+    expect(email.sent).toEqual([
+      expect.objectContaining({
+        to: 'invitee@example.com',
+        subject: 'Owner invited you to the Casa account in Expenses Tracker',
+        text: expect.stringContaining(`accountInvitationToken=${invitation.token}`)
+      })
+    ]);
+  });
+
+  it('keeps an invitation usable when its notification email cannot be delivered', async () => {
+    const users = new InMemoryUserRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users);
+    const useCases = new FinancialAccountsUseCases(
+      financialAccounts,
+      new InMemoryCategoryRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      users,
+      {
+        email: new FailingEmailProvider(),
+        frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app',
+        now: () => new Date('2026-08-31T12:00:00.000Z')
+      }
+    );
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111115',
+      firstName: 'Owner',
+      lastName: 'User',
+      preferredName: 'Owner',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'owner@example.com',
+      preferredLanguage: 'es'
+    });
+    const personal = await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await useCases.createSharedAccount({
+      userId: owner.id,
+      tenantId: owner.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Casa',
+      currency: 'CLP'
+    });
+
+    const invitation = await useCases.inviteMember({
+      actorUserId: owner.id,
+      financialAccountId: shared.account.id,
+      email: 'invitee@example.com'
+    });
+
+    expect(invitation.status).toBe('pending');
+    expect(invitation.emailSentAt).toBeUndefined();
+    expect(invitation.emailDeliveryError).toBe('Email provider unavailable.');
+  });
+
   it('switches Telegram messaging context by shared account name and falls back to personal when missing', async () => {
     const users = new InMemoryUserRepository();
     const financialAccounts = new InMemoryFinancialAccountRepository(users);
@@ -458,3 +568,17 @@ describe('FinancialAccountsUseCases', () => {
     ]);
   });
 });
+
+class CapturingEmailProvider implements EmailProvider {
+  readonly sent: Array<{ to: string; subject: string; html: string; text?: string }> = [];
+
+  async send(options: { to: string; subject: string; html: string; text?: string }) {
+    this.sent.push(options);
+  }
+}
+
+class FailingEmailProvider implements EmailProvider {
+  async send() {
+    throw new Error('Email provider unavailable.');
+  }
+}

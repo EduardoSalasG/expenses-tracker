@@ -68,6 +68,8 @@ export interface FinancialAccountRepository {
   }): Promise<FinancialAccountInvitation>;
   findPendingInvitationByToken(token: string, now: string): Promise<FinancialAccountInvitation | undefined>;
   markInvitationAccepted(token: string, acceptedAt: string): Promise<void>;
+  markInvitationEmailSent(token: string, emailSentAt: string): Promise<FinancialAccountInvitation | undefined>;
+  markInvitationEmailDeliveryFailed(token: string, error: string): Promise<FinancialAccountInvitation | undefined>;
   findMessagingContext(channel: MessagingChannelContext['channel'], providerUserId: string): Promise<MessagingChannelContext | undefined>;
   upsertMessagingContext(input: {
     channel: MessagingChannelContext['channel'];

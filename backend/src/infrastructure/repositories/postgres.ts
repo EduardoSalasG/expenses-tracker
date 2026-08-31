@@ -14,6 +14,11 @@ export class PostgresUserRepository implements UserRepository {
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
   }
 
+  async findByEmail(email: string) {
+    const result = await this.pool.query('select * from users where lower(email) = lower($1) limit 1', [email.trim()]);
+    return result.rows[0] ? mapUser(result.rows[0]) : undefined;
+  }
+
   async findAuthByPhoneNumber(phoneNumber: string) {
     const result = await this.pool.query('select * from users where phone_number = $1', [phoneNumber]);
     if (!result.rows[0]) return undefined;
@@ -563,6 +568,31 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
        where token = $1`,
       [token, acceptedAt]
     );
+  }
+
+  async markInvitationEmailSent(token: string, emailSentAt: string) {
+    const result = await this.pool.query(
+      `update financial_account_invitations
+       set email_sent_at = $2,
+           email_delivery_error = null,
+           updated_at = now()
+       where token = $1
+       returning *`,
+      [token, emailSentAt]
+    );
+    return result.rows[0] ? mapFinancialAccountInvitation(result.rows[0]) : undefined;
+  }
+
+  async markInvitationEmailDeliveryFailed(token: string, error: string) {
+    const result = await this.pool.query(
+      `update financial_account_invitations
+       set email_delivery_error = $2,
+           updated_at = now()
+       where token = $1
+       returning *`,
+      [token, error]
+    );
+    return result.rows[0] ? mapFinancialAccountInvitation(result.rows[0]) : undefined;
   }
 
   async findMessagingContext(channel: 'whatsapp' | 'telegram', providerUserId: string) {
@@ -1820,6 +1850,8 @@ function mapFinancialAccountInvitation(row: QueryResultRow): FinancialAccountInv
     status: row.status,
     expiresAt: toIsoString(row.expires_at),
     acceptedAt: row.accepted_at ? toIsoString(row.accepted_at) : undefined,
+    emailSentAt: row.email_sent_at ? toIsoString(row.email_sent_at) : undefined,
+    emailDeliveryError: row.email_delivery_error ?? undefined,
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at)
   };

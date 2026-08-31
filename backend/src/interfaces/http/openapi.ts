@@ -833,13 +833,11 @@ export const openApiSpec = {
           }
         ],
         requestBody: jsonBody({
-          email: { type: 'string', example: 'vane@example.com' },
-          phoneNumber: { type: 'string', example: '+56982439041' },
-          role: { type: 'string', enum: ['owner', 'admin', 'member'], example: 'member' }
+          email: { type: 'string', format: 'email', example: 'vane@example.com' }
         }, ['email']),
         responses: withUnauthorized({
           '201': {
-            description: 'Invitation created',
+            description: 'Invitation created. The API records email delivery metadata; a failed email does not invalidate the invitation token.',
             content: {
               'application/json': {
                 examples: {
@@ -850,11 +848,11 @@ export const openApiSpec = {
                         financialAccountId: '9ea9d36b-3438-425f-a69f-b6c473922453',
                         invitedByUserId: 'owner-user-id',
                         email: 'vane@example.com',
-                        phoneNumber: '+56982439041',
                         role: 'member',
                         token: 'd7d2aa47-64f6-4c5b-a710-84d0308c18df',
                         status: 'pending',
-                        expiresAt: '2026-08-18T12:00:00.000Z'
+                        expiresAt: '2026-08-18T12:00:00.000Z',
+                        emailSentAt: '2026-08-11T12:00:00.000Z'
                       }
                     }
                   }
