@@ -213,7 +213,7 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
 
-      <section class="mt-4">
+      <section class="mt-4 grid gap-4 xl:grid-cols-2">
         <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">
             {{ viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month') }}
@@ -222,33 +222,29 @@ interface CategoryVariationRow {
             <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
           </div>
         </mat-card>
-      </section>
 
-      <section class="mt-4">
+      @if (isSharedAccount()) {
         <mat-card class="page-panel chart-panel p-5">
+          <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold">{{ t('dashboard_shared_member_spending') }}</h2>
+              <p class="mt-1 text-sm text-brand-muted">{{ t('dashboard_shared_member_spending_desc') }}</p>
+            </div>
+            <span class="text-xs font-medium uppercase tracking-wide text-brand-muted">{{ periodLabel() }}</span>
+          </div>
+          <div class="h-72 sm:h-80">
+            <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
+          </div>
+        </mat-card>
+      } @else {
+        <mat-card class="page-panel chart-panel p-5 xl:col-span-2">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_upcoming_installments') }}</h2>
           <div class="h-64 sm:h-72">
             <canvas #installmentsChart aria-label="Upcoming installments chart"></canvas>
           </div>
         </mat-card>
-      </section>
-
-      @if (isSharedAccount()) {
-        <section class="mt-4">
-          <mat-card class="page-panel chart-panel p-5">
-            <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 class="text-lg font-semibold">{{ t('dashboard_shared_member_spending') }}</h2>
-                <p class="mt-1 text-sm text-brand-muted">{{ t('dashboard_shared_member_spending_desc') }}</p>
-              </div>
-              <span class="text-xs font-medium uppercase tracking-wide text-brand-muted">{{ periodLabel() }}</span>
-            </div>
-            <div class="h-72 sm:h-80">
-              <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
-            </div>
-          </mat-card>
-        </section>
       }
+      </section>
 
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <mat-card id="dashboard-recent-expenses" class="page-panel p-5">
@@ -947,7 +943,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderInstallmentsChart() {
     const canvas = this.installmentsChartCanvas?.nativeElement;
     const rows = this.upcomingInstallments();
-    if (!canvas) return;
+    if (!canvas) {
+      this.installmentsChart?.destroy();
+      this.installmentsChart = undefined;
+      return;
+    }
     const startMonth = this.viewMode() === 'monthly' ? this.selectedMonth() : `${this.selectedYear()}-01`;
     const labels = buildFutureMonthLabels(startMonth, 6, this.locale());
     const currencyBuckets = rows.reduce<Record<string, Record<string, number>>>((acc, row) => {
