@@ -5,7 +5,7 @@
 - Web-first registration, password access, Resend magic links, and optional Telegram linking.
 - Personal expense and income tracking, permanent budgets, reports, categories, payment catalogs, and installments.
 - Spanish/English public experience, responsive dashboard, dark mode, and first-run onboarding.
-- Shared accounts: invitations, active account selection, shared movement visibility, account-scoped catalogs, member attribution, equal/custom allocations, period-based member spending, balances, and settlements.
+- Shared accounts: invitations, active account selection, shared movement visibility, account-scoped catalogs, member attribution, equal/custom allocations, period-based member spending with clear balance status, and settlements.
 - Telegram capture, account switching, account-specific questions, shared split capture, movement corrections, and provider-neutral LLM interpretation.
 - Production foundations: Docker backend, Oracle/Nginx deployment, Netlify frontend, health probes, PostgreSQL bootstrap/migrations/backfill, Swagger, Postman, Mermaid, and release evidence.
 

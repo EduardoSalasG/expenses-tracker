@@ -17,7 +17,7 @@ This is the current product scope, grouped by user-facing capability rather than
 - Create shared accounts, invite members by email, and switch the active account from the web.
 - Members can see every movement in a shared account, including who registered it.
 - Shared accounts reuse the system catalog and allow their own custom categories and payment catalog entries.
-- The shared dashboard compares each member's amount paid, allocated share, and period balance, including settlements recorded in that same period.
+- The shared dashboard compares each member's amount paid, allocated share, and period balance, including settlements recorded in that same period, and clearly marks whether they are in credit, owe, or are settled.
 - Record who paid a shared expense, allocate equal or custom amounts, review balances, record settlements, and see settlement history.
 
 ## Access and Messaging

@@ -31,7 +31,7 @@ Every behavior change must keep documentation aligned:
 
 The delivered MVP includes personal expense and income tracking, permanent budgets, installment schedules, dashboard reporting, account-specific catalogs, and responsive Spanish/English web experiences. Users can sign in with password or magic link and may optionally connect Telegram for chat-based capture, questions, and movement edits.
 
-Shared accounts are also available: members can contribute to one account, view all its movements, use shared/default catalogs, allocate expenses, review balances, and record settlements. Read the full capability recap in [Product Features](docs/product-features.md).
+Shared accounts are also available: members can contribute to one account, view all its movements, use shared/default catalogs, allocate expenses, and settle balances. The dashboard compares what each member paid, their assigned share, and whether their balance for the selected period is in credit, owed, or settled. Read the full capability recap in [Product Features](docs/product-features.md).
 
 ## Quick Start
 
@@ -78,7 +78,7 @@ Shared accounts are available as the current Splitwise-style MVP:
 - dashboard and financial modules scoped by the active account
 - shared-account expense capture from web and Telegram
 - payer attribution plus equal and custom split allocation persistence
-- balances by member
+- period-based member spending with paid, assigned, and balance status
 - suggested settlements
 - recorded settlements and settlement history
 
