@@ -6,6 +6,7 @@ import {
   createFinancialAccountSettlementSchema,
   createFinancialAccountSchema,
   selectFinancialAccountSchema,
+  reportQuerySchema,
   updateFinancialAccountSchema,
   updateProfileSchema
 } from '../schemas.js';
@@ -65,6 +66,17 @@ export class ProfileController {
     response.json(await this.container.useCases.financialAccounts.listBalances(
       authRequest.auth.userId,
       readRouteParam(request, 'accountId')
+    ));
+  };
+
+  listAccountMemberPeriodSpending = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const query = reportQuerySchema.parse(request.query);
+    response.json(await this.container.useCases.financialAccounts.listMemberPeriodSpending(
+      authRequest.auth.userId,
+      readRouteParam(request, 'accountId'),
+      query.from,
+      query.to
     ));
   };
 

@@ -54,6 +54,18 @@ export interface FinancialAccountMemberBalance {
   netAmount: number;
 }
 
+export interface FinancialAccountMemberPeriodSpending {
+  financialAccountId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  currency: string;
+  paidAmount: number;
+  owedAmount: number;
+  balanceAmount: number;
+}
+
 export interface FinancialAccountSettlementSuggestion {
   financialAccountId: string;
   fromUserId: string;
@@ -429,6 +441,13 @@ export class ApiService {
 
   listAccountBalances(accountId: string) {
     return this.http.get<FinancialAccountMemberBalance[]>(`${environment.apiBaseUrl}/accounts/${accountId}/balances`);
+  }
+
+  listAccountMemberPeriodSpending(accountId: string, from: string, to: string) {
+    return this.http.get<FinancialAccountMemberPeriodSpending[]>(
+      `${environment.apiBaseUrl}/accounts/${accountId}/member-spending`,
+      { params: new HttpParams().set('from', from).set('to', to) }
+    );
   }
 
   listAccountSettlementSuggestions(accountId: string) {

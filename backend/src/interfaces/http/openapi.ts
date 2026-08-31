@@ -1963,6 +1963,70 @@ export const openApiSpec = {
         })
       }
     },
+    '/accounts/:accountId/member-spending': {
+      get: {
+        summary: 'Summarize paid, owed, and balance amounts by shared-account member for a period',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'accountId',
+            required: true,
+            schema: { type: 'string', format: 'uuid' }
+          },
+          queryParam('from', 'string', 'ISO datetime lower bound'),
+          queryParam('to', 'string', 'ISO datetime upper bound')
+        ],
+        responses: withUnauthorized({
+          '200': {
+            description: 'Shared-account member period summary',
+            content: {
+              'application/json': {
+                examples: {
+                  listed: {
+                    value: {
+                      data: [
+                        {
+                          financialAccountId: '2f815f2d-e52c-4e17-a741-e1305fbce12d',
+                          userId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
+                          preferredName: 'Eduardo',
+                          firstName: 'Eduardo',
+                          lastName: 'Salas',
+                          currency: 'CLP',
+                          paidAmount: 20000,
+                          owedAmount: 25000,
+                          balanceAmount: -9000
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Invalid period or personal account',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: {
+                  personalOnly: { value: { error: 'This operation is only available for shared accounts.' } }
+                }
+              }
+            }
+          },
+          '404': {
+            description: 'Financial account not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+                examples: { missingAccount: { value: { error: 'Financial account not found.' } } }
+              }
+            }
+          }
+        })
+      }
+    },
     '/accounts/:accountId/settlement-suggestions': {
       get: {
         summary: 'List suggested shared-account settlements',

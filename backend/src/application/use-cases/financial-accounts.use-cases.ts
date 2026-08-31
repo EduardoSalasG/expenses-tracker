@@ -120,6 +120,12 @@ export class FinancialAccountsUseCases {
     return this.financialAccounts.listBalances(financialAccountId);
   }
 
+  async listMemberPeriodSpending(actorUserId: string, financialAccountId: string, from: string, to: string) {
+    const membership = await this.requireMember(actorUserId, financialAccountId);
+    this.requireSharedAccount(membership.account);
+    return this.financialAccounts.listMemberPeriodSpending({ financialAccountId, from, to });
+  }
+
   async listSettlementSuggestions(actorUserId: string, financialAccountId: string): Promise<FinancialAccountSettlementSuggestion[]> {
     const membership = await this.requireMember(actorUserId, financialAccountId);
     this.requireSharedAccount(membership.account);

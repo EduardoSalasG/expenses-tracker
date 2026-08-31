@@ -4,9 +4,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
 import { AccountContextService } from '../core/account-context.service';
-import { ApiService, type Category, type CurrentUser, type Expense, type MonthlyBudget, type Report } from '../core/api.service';
+import { ApiService, type Category, type CurrentUser, type Expense, type FinancialAccountMemberPeriodSpending, type MonthlyBudget, type Report } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -233,6 +233,23 @@ interface CategoryVariationRow {
         </mat-card>
       </section>
 
+      @if (isSharedAccount()) {
+        <section class="mt-4">
+          <mat-card class="page-panel chart-panel p-5">
+            <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 class="text-lg font-semibold">{{ t('dashboard_shared_member_spending') }}</h2>
+                <p class="mt-1 text-sm text-brand-muted">{{ t('dashboard_shared_member_spending_desc') }}</p>
+              </div>
+              <span class="text-xs font-medium uppercase tracking-wide text-brand-muted">{{ periodLabel() }}</span>
+            </div>
+            <div class="h-72 sm:h-80">
+              <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
+            </div>
+          </mat-card>
+        </section>
+      }
+
       <section class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <mat-card id="dashboard-recent-expenses" class="page-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_recent_expenses') }}</h2>
@@ -371,6 +388,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('subcategoryChart') private subcategoryChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('weeklyChart') private weeklyChartCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('installmentsChart') private installmentsChartCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('memberSpendingChart') private memberSpendingChartCanvas?: ElementRef<HTMLCanvasElement>;
 
   readonly loading = signal(true);
   readonly error = signal('');
@@ -382,11 +400,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly periodTotals = signal<PeriodTotalRow[]>([]);
   readonly categoryTotals = signal<CategoryTotalRow[]>([]);
   readonly upcomingInstallments = signal<PeriodTotalRow[]>([]);
+  readonly memberPeriodSpending = signal<FinancialAccountMemberPeriodSpending[]>([]);
   readonly selectedCategoryId = signal<string | null>(null);
   readonly viewMode = signal<'monthly' | 'yearly'>('monthly');
   readonly selectedMonth = signal(new Date().toISOString().slice(0, 7));
   readonly selectedYear = signal(new Date().getUTCFullYear());
   readonly availableYears = signal(buildYearOptions());
+  readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly periodLabel = computed(() => {
     if (this.viewMode() === 'monthly') {
       const [year, month] = this.selectedMonth().split('-').map(Number);
@@ -438,6 +458,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private subcategoryChart?: Chart;
   private weeklyChart?: Chart;
   private installmentsChart?: Chart;
+  private memberSpendingChart?: Chart;
   private viewReady = false;
   private mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
   private dashboardRequestId = 0;
@@ -475,6 +496,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.subcategoryChart?.destroy();
     this.weeklyChart?.destroy();
     this.installmentsChart?.destroy();
+    this.memberSpendingChart?.destroy();
   }
 
   setViewMode(mode: 'monthly' | 'yearly') {
@@ -619,6 +641,76 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderSubcategoryChart();
     this.renderWeeklyChart();
     this.renderInstallmentsChart();
+    this.renderMemberSpendingChart();
+  }
+
+  private renderMemberSpendingChart() {
+    const canvas = this.memberSpendingChartCanvas?.nativeElement;
+    if (!canvas || !this.isSharedAccount()) {
+      this.memberSpendingChart?.destroy();
+      this.memberSpendingChart = undefined;
+      return;
+    }
+    const rows = this.memberPeriodSpending();
+    const labels = rows.map((row) => `${row.preferredName} (${row.currency})`);
+    const config: ChartConfiguration<'bar'> = {
+      type: 'bar',
+      plugins: [chartAreaBackgroundPlugin],
+      data: {
+        labels: labels.length ? labels : [this.t('common_no_data')],
+        datasets: [
+          {
+            label: this.t('dashboard_shared_paid'),
+            data: labels.length ? rows.map((row) => row.paidAmount) : [0],
+            backgroundColor: '#2563EB'
+          },
+          {
+            label: this.t('dashboard_shared_owed'),
+            data: labels.length ? rows.map((row) => row.owedAmount) : [0],
+            backgroundColor: '#0F766E'
+          },
+          {
+            label: this.t('dashboard_shared_period_balance'),
+            data: labels.length ? rows.map((row) => row.balanceAmount) : [0],
+            backgroundColor: '#D97706'
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        responsive: true,
+        indexAxis: 'y',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: this.chartColors().text, boxWidth: 12, usePointStyle: true } },
+          chartAreaBackground: { color: this.chartColors().surfaceMuted },
+          tooltip: {
+            backgroundColor: this.chartColors().surface,
+            titleColor: this.chartColors().text,
+            bodyColor: this.chartColors().text,
+            borderColor: this.chartColors().grid,
+            borderWidth: 1,
+            callbacks: {
+              label: (context: TooltipItem<'bar'>) => `${context.dataset.label}: ${this.formatMoney(
+                rows[context.dataIndex]?.currency ?? this.accountService.activeAccount()?.currency ?? 'CLP',
+                Number(context.raw)
+              )}`
+            }
+          }
+        } as never,
+        scales: {
+          x: {
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { color: this.chartColors().grid }
+          },
+          y: {
+            ticks: { color: this.chartColors().text, font: { weight: 600 } },
+            grid: { display: false }
+          }
+        }
+      }
+    };
+    this.memberSpendingChart?.destroy();
+    this.memberSpendingChart = new Chart(canvas, config);
   }
 
   private renderCurrencyChart() {
@@ -930,9 +1022,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       budgets: this.api.monthlyBudgets(),
       periodTotals: seriesRequest,
       categoryTotals: this.api.periodExpenseCategoryTotals(range.from, range.to),
-      upcomingInstallments: this.api.upcomingExpenseInstallments(installmentsStartMonth, 6)
+      upcomingInstallments: this.api.upcomingExpenseInstallments(installmentsStartMonth, 6),
+      memberPeriodSpending: this.isSharedAccount()
+        ? this.api.listAccountMemberPeriodSpending(currentAccountId, range.from, range.to)
+        : of([] as FinancialAccountMemberPeriodSpending[])
     }).subscribe({
-      next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals, upcomingInstallments }) => {
+      next: ({ user, recentExpenses, report, categories, budgets, periodTotals, categoryTotals, upcomingInstallments, memberPeriodSpending }) => {
         if (requestId !== this.dashboardRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
         this.user.set(user);
         this.recentExpenses.set(recentExpenses);
@@ -943,6 +1038,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.categoryTotals.set(categoryTotals);
         this.syncSelectedCategory(categoryTotals);
         this.upcomingInstallments.set(upcomingInstallments);
+        this.memberPeriodSpending.set(memberPeriodSpending);
         this.loading.set(false);
         if (!user.telegramChatId) {
           this.api.createTelegramRegistrationLink(user.phoneNumber).subscribe({

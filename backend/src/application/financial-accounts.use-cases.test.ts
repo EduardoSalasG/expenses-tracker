@@ -567,6 +567,146 @@ describe('FinancialAccountsUseCases', () => {
       })
     ]);
   });
+
+  it('summarizes shared-account paid, owed, and balance amounts for a selected period', async () => {
+    const users = new InMemoryUserRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users, expenses);
+    const categories = new InMemoryCategoryRepository();
+    const budgets = new InMemoryBudgetRepository();
+    const banks = new InMemoryBankOptionRepository();
+    const paymentMethods = new InMemoryPaymentMethodOptionRepository();
+    const useCases = new FinancialAccountsUseCases(financialAccounts, categories, budgets, banks, paymentMethods, users);
+    const finance = new FinanceUseCases(
+      expenses,
+      new InMemoryIncomeRepository(),
+      budgets,
+      categories,
+      banks,
+      paymentMethods,
+      financialAccounts
+    );
+
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56933333331',
+      firstName: 'Eduardo',
+      lastName: 'Salas',
+      preferredName: 'Eduardo',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'eduardo.period@example.com',
+      preferredLanguage: 'es'
+    });
+    const member = await users.upsertByPhoneNumber({
+      phoneNumber: '+56933333332',
+      firstName: 'Vane',
+      lastName: 'Perez',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'vane.period@example.com',
+      preferredLanguage: 'es'
+    });
+    const personal = await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await useCases.createSharedAccount({
+      userId: owner.id,
+      tenantId: owner.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Viaje',
+      currency: 'CLP'
+    });
+    await financialAccounts.upsertMember({
+      financialAccountId: shared.account.id,
+      userId: member.id,
+      role: 'member',
+      status: 'active'
+    });
+    const category = await categories.create({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      name: 'Food',
+      isDefault: false
+    });
+
+    await finance.createExpense({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      userId: owner.id,
+      createdByUserId: owner.id,
+      paidByUserId: owner.id,
+      date: '2026-08-11T00:00:00.000Z',
+      amount: 20000,
+      currency: 'CLP',
+      concept: 'Cena',
+      categoryId: category.id,
+      allocationMode: 'equal',
+      paymentMethod: { kind: 'cash' }
+    });
+    await finance.createExpense({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      userId: member.id,
+      createdByUserId: member.id,
+      paidByUserId: member.id,
+      date: '2026-08-15T00:00:00.000Z',
+      amount: 30000,
+      currency: 'CLP',
+      concept: 'Hotel',
+      categoryId: category.id,
+      allocationMode: 'custom',
+      allocations: [
+        { owedByUserId: owner.id, amount: 15000 },
+        { owedByUserId: member.id, amount: 15000 }
+      ],
+      paymentMethod: { kind: 'cash' }
+    });
+    await finance.createExpense({
+      tenantId: owner.tenantId,
+      financialAccountId: shared.account.id,
+      userId: owner.id,
+      createdByUserId: owner.id,
+      paidByUserId: owner.id,
+      date: '2026-09-01T00:00:00.000Z',
+      amount: 7000,
+      currency: 'CLP',
+      concept: 'Fuera de periodo',
+      categoryId: category.id,
+      paymentMethod: { kind: 'cash' }
+    });
+    await useCases.createSettlement({
+      actorUserId: owner.id,
+      financialAccountId: shared.account.id,
+      paidByUserId: member.id,
+      receivedByUserId: owner.id,
+      currency: 'CLP',
+      amount: 4000,
+      settledAt: '2026-08-20T00:00:00.000Z'
+    });
+
+    const summary = await useCases.listMemberPeriodSpending(
+      owner.id,
+      shared.account.id,
+      '2026-08-01T00:00:00.000Z',
+      '2026-08-31T23:59:59.999Z'
+    );
+
+    expect(summary).toEqual([
+      expect.objectContaining({
+        userId: owner.id,
+        currency: 'CLP',
+        paidAmount: 20000,
+        owedAmount: 25000,
+        balanceAmount: -9000
+      }),
+      expect.objectContaining({
+        userId: member.id,
+        currency: 'CLP',
+        paidAmount: 30000,
+        owedAmount: 25000,
+        balanceAmount: 9000
+      })
+    ]);
+  });
 });
 
 class CapturingEmailProvider implements EmailProvider {

@@ -498,6 +498,19 @@
           }
         },
         {
+          "name": "List Member Spending By Period",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/accounts/{{accountId}}/member-spending?from=2026-08-01T00%3A00%3A00.000Z&to=2026-08-31T23%3A59%3A59.999Z"
+          }
+        },
+        {
           "name": "List Settlement Suggestions",
           "request": {
             "method": "GET",
