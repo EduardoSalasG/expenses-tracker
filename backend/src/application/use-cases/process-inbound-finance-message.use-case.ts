@@ -2119,6 +2119,9 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
         netAmount: 0
       }];
     },
+    async listMemberPeriodSpending() {
+      return [];
+    },
     async listSettlementSuggestions() {
       return [];
     },

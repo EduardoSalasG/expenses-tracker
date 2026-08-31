@@ -1,6 +1,6 @@
 import type { PoolClient, QueryResultRow } from 'pg';
 import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
-import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
+import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberPeriodSpending, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
@@ -443,6 +443,84 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
       [financialAccountId]
     );
     return result.rows.map(mapFinancialAccountMemberBalance);
+  }
+
+  async listMemberPeriodSpending(input: { financialAccountId: string; from: string; to: string }) {
+    const result = await this.pool.query(
+      `with active_members as (
+         select fam.financial_account_id, fam.user_id, u.first_name, u.last_name, u.preferred_name
+         from financial_account_members fam
+         join users u on u.id = fam.user_id
+         where fam.financial_account_id = $1 and fam.status = 'active'
+       ),
+       period_expenses as (
+         select e.id, e.paid_by_user_id, e.currency, e.amount
+         from expenses e
+         where e.financial_account_id = $1
+           and e.expense_date >= $2
+           and e.expense_date <= $3
+           and e.paid_by_user_id is not null
+       ),
+       period_allocations as (
+         select ea.expense_id, ea.owed_by_user_id, ea.amount
+         from expense_allocations ea
+         join period_expenses pe on pe.id = ea.expense_id
+         union all
+         select pe.id, pe.paid_by_user_id, pe.amount
+         from period_expenses pe
+         where not exists (select 1 from expense_allocations ea where ea.expense_id = pe.id)
+       ),
+       paid_totals as (
+         select paid_by_user_id as user_id, currency, sum(amount)::numeric as paid_amount
+         from period_expenses
+         group by paid_by_user_id, currency
+       ),
+       owed_totals as (
+         select pa.owed_by_user_id as user_id, pe.currency, sum(pa.amount)::numeric as owed_amount
+         from period_allocations pa
+         join period_expenses pe on pe.id = pa.expense_id
+         group by pa.owed_by_user_id, pe.currency
+       ),
+       settlement_entries as (
+         select fas.paid_by_user_id as user_id, fas.currency, sum(fas.amount)::numeric as delta
+         from financial_account_settlements fas
+         where fas.financial_account_id = $1 and fas.settled_at >= $2 and fas.settled_at <= $3
+         group by fas.paid_by_user_id, fas.currency
+         union all
+         select fas.received_by_user_id, fas.currency, -sum(fas.amount)::numeric
+         from financial_account_settlements fas
+         where fas.financial_account_id = $1 and fas.settled_at >= $2 and fas.settled_at <= $3
+         group by fas.received_by_user_id, fas.currency
+       ),
+       settlement_totals as (
+         select user_id, currency, sum(delta)::numeric as delta
+         from settlement_entries
+         group by user_id, currency
+       ),
+       currencies as (
+         select currency from financial_accounts where id = $1
+         union select currency from period_expenses
+         union select currency from settlement_totals
+       )
+       select
+         am.financial_account_id,
+         am.user_id,
+         am.first_name,
+         am.last_name,
+         am.preferred_name,
+         c.currency,
+         coalesce(pt.paid_amount, 0)::numeric as paid_amount,
+         coalesce(ot.owed_amount, 0)::numeric as owed_amount,
+         (coalesce(pt.paid_amount, 0) - coalesce(ot.owed_amount, 0) + coalesce(st.delta, 0))::numeric as balance_amount
+       from active_members am
+       cross join currencies c
+       left join paid_totals pt on pt.user_id = am.user_id and pt.currency = c.currency
+       left join owed_totals ot on ot.user_id = am.user_id and ot.currency = c.currency
+       left join settlement_totals st on st.user_id = am.user_id and st.currency = c.currency
+       order by am.preferred_name asc, c.currency asc`,
+      [input.financialAccountId, input.from, input.to]
+    );
+    return result.rows.map(mapFinancialAccountMemberPeriodSpending);
   }
 
   async listSettlementSuggestions(financialAccountId: string) {
@@ -1866,6 +1944,20 @@ function mapFinancialAccountMemberBalance(row: QueryResultRow): FinancialAccount
     preferredName: row.preferred_name,
     currency: row.currency,
     netAmount: Number(row.net_amount)
+  };
+}
+
+function mapFinancialAccountMemberPeriodSpending(row: QueryResultRow): FinancialAccountMemberPeriodSpending {
+  return {
+    financialAccountId: row.financial_account_id,
+    userId: row.user_id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    preferredName: row.preferred_name,
+    currency: row.currency,
+    paidAmount: Number(row.paid_amount),
+    owedAmount: Number(row.owed_amount),
+    balanceAmount: Number(row.balance_amount)
   };
 }
 

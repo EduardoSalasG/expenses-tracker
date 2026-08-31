@@ -287,7 +287,7 @@ Implemented in backend and frontend:
 - account-scoped system/default catalogs plus custom categories, banks, and payment methods
 - visibility of movements created by every active member, with author attribution in history
 - split allocations with payer attribution, equal split, and custom split persistence
-- balances by member
+- period-based member spending with paid amount, allocated share, and a clear in-credit, owing, or settled balance status
 - suggested settlements derived from current balances
 - recorded settlements and settlement history
 - Telegram shared-account split and settlement handling

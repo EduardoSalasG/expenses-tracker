@@ -27,6 +27,7 @@ import type {
   FinancialAccount,
   FinancialAccountInvitation,
   FinancialAccountMemberBalance,
+  FinancialAccountMemberPeriodSpending,
   FinancialAccountMember,
   FinancialAccountMemberProfile,
   FinancialAccountSettlementSuggestion,
@@ -351,6 +352,61 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
         currency: account.currency,
         netAmount: roundMoney(balances.get(member.userId) ?? 0)
       } satisfies FinancialAccountMemberBalance));
+  }
+
+  async listMemberPeriodSpending(input: { financialAccountId: string; from: string; to: string }) {
+    const account = this.accounts.get(input.financialAccountId);
+    if (!account) return [];
+
+    const expenses = (await this.expenseReader?.listAllByFinancialAccount(input.financialAccountId) ?? [])
+      .filter((expense) => expense.date >= input.from && expense.date <= input.to);
+    const settlements = [...this.settlements.values()]
+      .filter((settlement) =>
+        settlement.financialAccountId === input.financialAccountId &&
+        settlement.settledAt >= input.from &&
+        settlement.settledAt <= input.to
+      );
+    const members = (await this.listMembers(input.financialAccountId)).filter((member) => member.status === 'active');
+    const currencies = new Set([account.currency, ...expenses.map((expense) => expense.currency), ...settlements.map((settlement) => settlement.currency)]);
+    const totals = new Map<string, { paidAmount: number; owedAmount: number; settlementDelta: number }>();
+    const key = (userId: string, currency: string) => `${userId}:${currency}`;
+    const entry = (userId: string, currency: string) => {
+      const mapKey = key(userId, currency);
+      const current = totals.get(mapKey) ?? { paidAmount: 0, owedAmount: 0, settlementDelta: 0 };
+      totals.set(mapKey, current);
+      return current;
+    };
+
+    for (const expense of expenses) {
+      if (!expense.paidByUserId) continue;
+      entry(expense.paidByUserId, expense.currency).paidAmount += expense.amount;
+      const allocations = expense.allocations?.length
+        ? expense.allocations
+        : [{ owedByUserId: expense.paidByUserId, amount: expense.amount }];
+      for (const allocation of allocations) {
+        entry(allocation.owedByUserId, expense.currency).owedAmount += allocation.amount;
+      }
+    }
+
+    for (const settlement of settlements) {
+      entry(settlement.paidByUserId, settlement.currency).settlementDelta += settlement.amount;
+      entry(settlement.receivedByUserId, settlement.currency).settlementDelta -= settlement.amount;
+    }
+
+    return members.flatMap((member) => [...currencies].sort().map((currency) => {
+      const total = entry(member.userId, currency);
+      return {
+        financialAccountId: input.financialAccountId,
+        userId: member.userId,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        preferredName: member.preferredName,
+        currency,
+        paidAmount: roundMoney(total.paidAmount),
+        owedAmount: roundMoney(total.owedAmount),
+        balanceAmount: roundMoney(total.paidAmount - total.owedAmount + total.settlementDelta)
+      } satisfies FinancialAccountMemberPeriodSpending;
+    }));
   }
 
   async listSettlementSuggestions(financialAccountId: string) {

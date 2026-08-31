@@ -3,6 +3,7 @@ import type {
   FinancialAccountId,
   FinancialAccountInvitation,
   FinancialAccountMemberBalance,
+  FinancialAccountMemberPeriodSpending,
   FinancialAccountMember,
   FinancialAccountMemberProfile,
   FinancialAccountMemberRole,
@@ -45,6 +46,11 @@ export interface FinancialAccountRepository {
   removeMember(financialAccountId: FinancialAccountId, userId: UserId): Promise<boolean>;
   countActiveOwners(financialAccountId: FinancialAccountId): Promise<number>;
   listBalances(financialAccountId: FinancialAccountId): Promise<FinancialAccountMemberBalance[]>;
+  listMemberPeriodSpending(input: {
+    financialAccountId: FinancialAccountId;
+    from: string;
+    to: string;
+  }): Promise<FinancialAccountMemberPeriodSpending[]>;
   listSettlementSuggestions(financialAccountId: FinancialAccountId): Promise<FinancialAccountSettlementSuggestion[]>;
   listSettlements(financialAccountId: FinancialAccountId): Promise<FinancialAccountSettlement[]>;
   createSettlement(input: {
