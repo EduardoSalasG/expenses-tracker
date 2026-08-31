@@ -470,6 +470,61 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(rows.map((row) => row.installmentNumber)).toEqual([3, 2, 1]);
     expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto guardado.');
     expect(messaging.messages.at(-1)?.body).toContain('Cuotas: 3 de $166.667.');
+    expect(messaging.messages.at(-1)?.body).toContain('Primera cuota: 6 de mayo de 2026.');
+  });
+
+  it('uses the first installment date stated in a Telegram expense message', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439042',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Vane',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, '1000');
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(),
+      new NoopMessagingProvider(),
+      new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-installments-first-date',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:1000',
+      providerUserId: '1000',
+      replyTo: '1000',
+      message: '500000 supermercado, tdc bci, 3 cuotas, primera cuota el 2026-09-05'
+    });
+
+    expect(result.status).toBe('saved');
+    const rows = await expenses.listRecent(user.tenantId, 10);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.firstInstallmentDate)).toEqual([
+      '2026-09-05T00:00:00.000Z',
+      '2026-09-05T00:00:00.000Z',
+      '2026-09-05T00:00:00.000Z'
+    ]);
+    expect(rows.map((row) => row.date)).toEqual([
+      '2026-11-05T00:00:00.000Z',
+      '2026-10-05T00:00:00.000Z',
+      '2026-09-05T00:00:00.000Z'
+    ]);
   });
 
   it('switches Telegram to a shared account and saves subsequent expenses and incomes there', async () => {

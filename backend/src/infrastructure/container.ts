@@ -100,7 +100,12 @@ export function createContainer(config: AppConfig) {
     budgets,
     banks,
     paymentMethodOptions,
-    users
+    users,
+    {
+      email,
+      frontendPublicOrigin: config.frontendPublicOrigin,
+      now: clock.now
+    }
   );
   const processInboundFinanceMessage = new ProcessInboundFinanceMessageUseCase(
     users,

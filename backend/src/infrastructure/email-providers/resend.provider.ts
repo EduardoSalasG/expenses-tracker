@@ -38,7 +38,7 @@ export class ResendEmailProvider implements EmailProvider {
         status: response.status,
         responseBody
       });
-      throw new Error('Could not send magic link email.');
+      throw new Error('Could not send email.');
     }
   }
 }

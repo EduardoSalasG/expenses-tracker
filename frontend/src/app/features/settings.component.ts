@@ -861,7 +861,7 @@ export class SettingsComponent {
         this.lastInvitationEmail.set(invitation.email);
         this.inviteForm.reset({ email: '' });
         this.savingInvitation.set(false);
-        this.inviteMessage.set(this.t('accounts_invite_success'));
+        this.inviteMessage.set(this.t(invitation.emailSentAt ? 'accounts_invite_email_sent' : 'accounts_invite_link_only'));
       },
       error: () => {
         this.savingInvitation.set(false);

@@ -19,8 +19,16 @@ import type {
   PaymentMethodOptionRepository,
   UserRepository
 } from '../ports.js';
+import type { EmailProvider } from '../ports.js';
+import { buildFinancialAccountInvitationEmail } from '../financial-account-invitation-email.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface InvitationNotificationOptions {
+  email?: EmailProvider;
+  frontendPublicOrigin?: string;
+  now?: () => Date;
+}
 
 export class FinancialAccountsUseCases {
   constructor(
@@ -29,7 +37,8 @@ export class FinancialAccountsUseCases {
     private readonly budgets: BudgetRepository,
     private readonly banks: BankOptionRepository,
     private readonly paymentMethods: PaymentMethodOptionRepository,
-    private readonly users: UserRepository
+    private readonly users: UserRepository,
+    private readonly invitationNotifications: InvitationNotificationOptions = {}
   ) {}
 
   listAccounts(userId: string) {
@@ -168,16 +177,17 @@ export class FinancialAccountsUseCases {
     financialAccountId: string;
     email: string;
   }) {
-    await this.requireManager(input.actorUserId, input.financialAccountId);
+    const membership = await this.requireManager(input.actorUserId, input.financialAccountId);
+    const now = this.now();
     const invitation = await this.financialAccounts.createInvitation({
       financialAccountId: input.financialAccountId,
       invitedByUserId: input.actorUserId,
       email: input.email,
       role: 'member',
       token: randomUUID(),
-      expiresAt: new Date(Date.now() + INVITATION_TTL_MS).toISOString()
+      expiresAt: new Date(now.getTime() + INVITATION_TTL_MS).toISOString()
     });
-    return invitation;
+    return this.deliverInvitationEmail({ invitation, account: membership.account, inviterUserId: input.actorUserId });
   }
 
   async acceptInvitation(input: {
@@ -325,6 +335,45 @@ export class FinancialAccountsUseCases {
   private requireSharedAccount(account: FinancialAccount) {
     if (account.type !== 'shared') {
       throw new Error('This operation is only available for shared accounts.');
+    }
+  }
+
+  private now() {
+    return this.invitationNotifications.now?.() ?? new Date();
+  }
+
+  private async deliverInvitationEmail(input: {
+    invitation: FinancialAccountInvitation;
+    account: FinancialAccount;
+    inviterUserId: string;
+  }) {
+    const email = this.invitationNotifications.email;
+    const origin = this.invitationNotifications.frontendPublicOrigin?.replace(/\/$/, '');
+    if (!email || !origin) return input.invitation;
+
+    const [inviter, recipient] = await Promise.all([
+      this.users.findById(input.inviterUserId),
+      this.users.findByEmail(input.invitation.email)
+    ]);
+    if (!inviter) return input.invitation;
+
+    const acceptanceUrl = `${origin}/settings?accountInvitationToken=${encodeURIComponent(input.invitation.token)}`;
+    const message = buildFinancialAccountInvitationEmail({
+      accountName: input.account.name,
+      inviter,
+      recipient,
+      acceptanceUrl,
+      expiresAt: input.invitation.expiresAt
+    });
+
+    try {
+      await email.send({ to: input.invitation.email, ...message });
+      return await this.financialAccounts.markInvitationEmailSent(input.invitation.token, this.now().toISOString())
+        ?? input.invitation;
+    } catch (error) {
+      const deliveryError = error instanceof Error ? error.message : 'Could not send invitation email.';
+      return await this.financialAccounts.markInvitationEmailDeliveryFailed(input.invitation.token, deliveryError)
+        ?? input.invitation;
     }
   }
 

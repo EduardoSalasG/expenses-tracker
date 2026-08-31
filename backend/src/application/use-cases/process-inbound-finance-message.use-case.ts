@@ -1006,7 +1006,9 @@ export class ProcessInboundFinanceMessageUseCase {
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
       installmentCount: interpreted.installmentCount ?? 1,
-      firstInstallmentDate: this.clock.now().toISOString(),
+      firstInstallmentDate: interpreted.firstInstallmentDate
+        ? `${interpreted.firstInstallmentDate}T00:00:00.000Z`
+        : this.clock.now().toISOString(),
       purchaseDate: this.clock.now().toISOString(),
       paymentMethod: scopedPaymentSelection.paymentMethod,
       paymentMethodOptionId: scopedPaymentSelection.paymentMethodOptionId,
@@ -1745,8 +1747,8 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
   const purchaseAmount = expense.totalAmount ?? expense.amount;
   const installmentLine = (expense.installmentCount ?? 1) > 1
     ? user.preferredLanguage === 'en'
-      ? `Installments: ${expense.installmentCount} of ${formatMoney(expense.currency, expense.amount, 'en')}.`
-      : `Cuotas: ${expense.installmentCount} de ${formatMoney(expense.currency, expense.amount, 'es')}.`
+      ? `Installments: ${expense.installmentCount} of ${formatMoney(expense.currency, expense.amount, 'en')}. First charge: ${formatMessageDate(expense.firstInstallmentDate ?? expense.date, 'en')}.`
+      : `Cuotas: ${expense.installmentCount} de ${formatMoney(expense.currency, expense.amount, 'es')}. Primera cuota: ${formatMessageDate(expense.firstInstallmentDate ?? expense.date, 'es')}.`
     : undefined;
   if (user.preferredLanguage === 'en') {
     return [
@@ -1764,6 +1766,15 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
     `Concepto: ${expense.concept}.`,
     `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
   ].filter(Boolean).join('\n');
+}
+
+function formatMessageDate(value: string, language: 'es' | 'en') {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-CL', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(new Date(value));
 }
 
 function findReferencedMovement(
@@ -2148,6 +2159,12 @@ function createFallbackFinancialAccountRepository(): FinancialAccountRepository 
       return undefined;
     },
     async markInvitationAccepted() {
+      return undefined;
+    },
+    async markInvitationEmailSent() {
+      return undefined;
+    },
+    async markInvitationEmailDeliveryFailed() {
       return undefined;
     },
     async findMessagingContext() {

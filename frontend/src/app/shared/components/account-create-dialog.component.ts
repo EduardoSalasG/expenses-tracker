@@ -227,7 +227,7 @@ export class AccountCreateDialogComponent {
         this.lastInvitationLink.set(`${origin}/settings?accountInvitationToken=${encodeURIComponent(invitation.token)}`);
         this.inviteForm.reset({ email: '' });
         this.savingInvitation.set(false);
-        this.inviteMessage.set(this.t('accounts_invite_success'));
+        this.inviteMessage.set(this.t(invitation.emailSentAt ? 'accounts_invite_email_sent' : 'accounts_invite_link_only'));
       },
       error: () => {
         this.savingInvitation.set(false);

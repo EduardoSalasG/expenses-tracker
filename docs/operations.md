@@ -170,6 +170,8 @@ The Oracle deployment workflow runs `db:bootstrap` before it recreates the API c
 
 The workflow then verifies the container route and the real HTTPS Nginx virtual host for `/me/account-context`; an anonymous request must return `401`, never `404`. It uses HTTPS deliberately because the HTTP vhost redirects to HTTPS with `301`. For a normal deployment from `main`, inspect the GitHub Actions log rather than running these commands manually.
 
+Shared-account invitation emails use the existing Resend configuration (`RESEND_API_KEY` and `RESEND_FROM_EMAIL`). The `031_financial_account_invitation_email_delivery.sql` migration is applied by the same bootstrap. If Resend cannot deliver an email, the invitation remains pending and the owner can still share its acceptance link from Settings; inspect `email_delivery_error` before retrying manually.
+
 Production run order:
 
 ```bash
