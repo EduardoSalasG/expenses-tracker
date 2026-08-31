@@ -59,6 +59,12 @@ interface CategoryVariationRow {
   deltaPercent: number | null;
 }
 
+export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 'settled' {
+  if (amount > 0.004) return 'credit';
+  if (amount < -0.004) return 'debt';
+  return 'settled';
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -234,6 +240,20 @@ interface CategoryVariationRow {
           </div>
           <div class="h-72 sm:h-80">
             <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
+          </div>
+          <div class="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Member period balances">
+            @for (member of memberPeriodSpending(); track member.userId + member.currency) {
+              <div class="flex min-w-0 items-center gap-3 rounded border px-3 py-3" [class]="memberBalanceCardClasses(member.balanceAmount)">
+                <mat-icon class="shrink-0" [attr.aria-hidden]="true">{{ memberBalanceIcon(member.balanceAmount) }}</mat-icon>
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-semibold text-brand-ink">{{ member.preferredName }}</div>
+                  <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                    <span class="text-brand-muted">{{ t('dashboard_shared_period_balance') }}</span>
+                    <strong>{{ t(memberBalanceLabel(member.balanceAmount)) }} {{ formatMoney(member.currency, abs(member.balanceAmount)) }}</strong>
+                  </div>
+                </div>
+              </div>
+            }
           </div>
         </mat-card>
       } @else {
@@ -580,6 +600,32 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.abs(value);
   }
 
+  memberBalanceLabel(amount: number) {
+    const state = memberPeriodBalanceState(amount);
+    if (state === 'credit') return 'dashboard_shared_credit';
+    if (state === 'debt') return 'dashboard_shared_debt';
+    return 'dashboard_shared_settled';
+  }
+
+  memberBalanceIcon(amount: number) {
+    const state = memberPeriodBalanceState(amount);
+    if (state === 'credit') return 'trending_up';
+    if (state === 'debt') return 'trending_down';
+    return 'check_circle';
+  }
+
+  memberBalanceCardClasses(amount: number) {
+    const base = 'flex min-w-0 items-center gap-3 rounded border px-3 py-3';
+    const state = memberPeriodBalanceState(amount);
+    if (state === 'credit') {
+      return `${base} border-[var(--semantic-success-border)] bg-[var(--semantic-success-bg)] text-[var(--semantic-success-text)]`;
+    }
+    if (state === 'debt') {
+      return `${base} border-[var(--semantic-danger-border)] bg-[var(--semantic-danger-bg)] text-[var(--semantic-danger-text)]`;
+    }
+    return `${base} border-brand-border bg-brand-surface-muted text-brand-muted`;
+  }
+
   private formatTotals(totals?: Record<string, number>) {
     if (!totals || !Object.keys(totals).length) return this.t('dashboard_no_movement');
     return Object.entries(totals)
@@ -661,7 +707,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             backgroundColor: '#2563EB'
           },
           {
-            label: this.t('dashboard_shared_owed'),
+            label: this.t('dashboard_shared_assigned_share'),
             data: labels.length ? rows.map((row) => row.owedAmount) : [0],
             backgroundColor: '#0F766E'
           },
