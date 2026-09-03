@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: deploy-backend-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -47,7 +47,8 @@ jobs:
 
       - name: Normalize image name
         run: |
-          echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
 
       - name: Login to GitHub Container Registry
         run: |
@@ -55,25 +56,32 @@ jobs:
             -u "${{ github.actor }}" \
             --password-stdin
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         run: |
-          docker build \
+          docker buildx build \
+            --provenance=false \
+            --push \
             -f backend/Dockerfile \
             -t $IMAGE_NAME:${{ github.sha }} \
             -t $IMAGE_NAME:latest \
             .
 
-      - name: Push Docker image
-        run: |
-          docker push $IMAGE_NAME:${{ github.sha }}
-          docker push $IMAGE_NAME:latest
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle_deploy_key
           chmod 600 ~/.ssh/oracle_deploy_key
           ssh-keyscan -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy production compose file to server
+        run: |
+          ssh -i ~/.ssh/oracle_deploy_key \
+            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} \
+            "mkdir -p ${{ env.CONTAINER_DIR }}"
+          scp -i ~/.ssh/oracle_deploy_key \
+            backend/compose.production.yaml \
+            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }}:${{ env.CONTAINER_DIR }}/compose.yaml
 
       - name: Deploy on Oracle VM
         run: |
@@ -83,17 +91,41 @@ jobs:
 
               cd "${{ env.CONTAINER_DIR }}"
 
+              exec 9>/tmp/expenses-tracker-backend-deploy.lock
+              flock -w 900 9 || {
+                echo "Could not acquire backend deploy lock."
+                exit 1
+              }
+
               echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \
                 -u "${{ secrets.GHCR_USERNAME }}" \
                 --password-stdin
 
-              docker compose pull expenses-tracker-backend
+              REMOTE_IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')
+              export BACKEND_IMAGE="$REMOTE_IMAGE_NAME:${{ github.sha }}"
+              if [ -z "$BACKEND_IMAGE" ]; then
+                echo "BACKEND_IMAGE is not set."
+                exit 1
+              fi
+
+              echo "Pulling exact backend image: $BACKEND_IMAGE"
+              docker pull "$BACKEND_IMAGE"
               # bootstrap runs tracked migrations first, then idempotently applies
               # the system defaults required by a brand-new database.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
               docker compose up -d --force-recreate --remove-orphans expenses-tracker-backend
+
+              expected_image_id=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
+              running_image_id=$(docker inspect expenses-tracker-backend --format '{{.Image}}')
+              if [ "$running_image_id" != "$expected_image_id" ]; then
+                echo "Running container image does not match $BACKEND_IMAGE."
+                echo "Expected: $expected_image_id"
+                echo "Running:  $running_image_id"
+                docker compose ps
+                exit 1
+              fi
 
               for attempt in $(seq 1 30); do
                 if curl -fsS http://127.0.0.1:3000/health > /dev/null; then

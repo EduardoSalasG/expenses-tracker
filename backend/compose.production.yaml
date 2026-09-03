@@ -1,0 +1,9 @@
+services:
+  expenses-tracker-backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/eduardosalasg/expenses-tracker-backend:latest}
+    container_name: expenses-tracker-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3000:3000"

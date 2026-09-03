@@ -36,6 +36,7 @@ GitHub Actions builds and deploys the production backend from `main`. Release va
 - bilingual QA
 - Swagger/docs final pass
 - confirm the deployment log completed the idempotent financial-account backfill for legacy data
+- confirm the running backend image ID matches the immutable Git commit image selected by the workflow
 
 ## Gitflow
 
