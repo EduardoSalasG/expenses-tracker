@@ -202,18 +202,45 @@ export class CategoriesComponent {
   private createCategory(payload: { name: string; parentId?: string }, reset: () => void, message: string) {
     this.saving.set(true);
     this.message.set('');
+    const knownCategoryIds = new Set(this.categories().map((category) => category.id));
+    const requestedAccountId = this.accountService.activeAccountId();
     this.api.createCategory(payload).subscribe({
       next: () => {
-        this.saving.set(false);
-        this.message.set(message);
-        reset();
-        this.load();
+        this.completeCategoryCreation(reset, message);
       },
       error: () => {
-        this.saving.set(false);
-        this.message.set(this.t('categories_create_error'));
+        this.api.categories().subscribe({
+          next: (categories) => {
+            const created = categories.find((category) =>
+              !knownCategoryIds.has(category.id) &&
+              normalizedName(category.name) === normalizedName(payload.name) &&
+              (category.parentId ?? undefined) === (payload.parentId ?? undefined)
+            );
+
+            if (created && requestedAccountId === this.accountService.activeAccountId()) {
+              this.categories.set(categories);
+              this.completeCategoryCreation(reset, message, false);
+              return;
+            }
+
+            this.completeCategoryCreationError();
+          },
+          error: () => this.completeCategoryCreationError()
+        });
       }
     });
+  }
+
+  private completeCategoryCreation(reset: () => void, message: string, reload = true) {
+    this.saving.set(false);
+    this.message.set(message);
+    reset();
+    if (reload) this.load();
+  }
+
+  private completeCategoryCreationError() {
+    this.saving.set(false);
+    this.message.set(this.t('categories_create_error'));
   }
 
   private startOnboarding() {
@@ -240,4 +267,8 @@ export class CategoriesComponent {
       }
     ]);
   }
+}
+
+function normalizedName(value: string) {
+  return value.trim().toLocaleLowerCase();
 }

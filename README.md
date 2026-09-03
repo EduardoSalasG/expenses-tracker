@@ -93,6 +93,7 @@ Next likely expansion after this MVP:
 Each runtime image has its own Dockerfile:
 
 - `backend/Dockerfile`
+- `backend/compose.production.yaml` is copied to Oracle by CI and pins each deployment to the immutable commit image through `BACKEND_IMAGE`.
 - `frontend/Dockerfile`
 - `database/Dockerfile`
 

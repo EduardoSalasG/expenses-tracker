@@ -194,23 +194,49 @@ export class AccountCreateDialogComponent {
   createAccount() {
     if (this.createAccountForm.invalid || this.savingAccount()) return;
     const value = this.createAccountForm.getRawValue();
+    const name = value.name.trim();
+    const currency = value.currency.trim().toUpperCase();
+    const knownAccountIds = new Set(this.accountService.accountMemberships().map((membership) => membership.account.id));
     this.savingAccount.set(true);
     this.accountMessage.set('');
     this.api.createAccount({
-      name: value.name.trim(),
-      currency: value.currency.trim().toUpperCase()
+      name,
+      currency
     }).subscribe({
-      next: (membership) => {
-        this.accountService.insertAccount(membership);
-        this.createdMembership.set(membership);
-        this.savingAccount.set(false);
-        this.accountMessage.set(this.t('accounts_create_success'));
-      },
+      next: (membership) => this.completeAccountCreation(membership),
       error: () => {
-        this.savingAccount.set(false);
-        this.accountMessage.set(this.t('accounts_create_error'));
+        this.api.listAccounts().subscribe({
+          next: (memberships) => {
+            const created = memberships.find((membership) =>
+              !knownAccountIds.has(membership.account.id) &&
+              membership.account.type === 'shared' &&
+              normalizedAccountName(membership.account.name) === normalizedAccountName(name) &&
+              membership.account.currency.toUpperCase() === currency
+            );
+
+            if (created) {
+              this.completeAccountCreation(created);
+              return;
+            }
+
+            this.completeAccountCreationError();
+          },
+          error: () => this.completeAccountCreationError()
+        });
       }
     });
+  }
+
+  private completeAccountCreation(membership: FinancialAccountMembership) {
+    this.accountService.insertAccount(membership);
+    this.createdMembership.set(membership);
+    this.savingAccount.set(false);
+    this.accountMessage.set(this.t('accounts_create_success'));
+  }
+
+  private completeAccountCreationError() {
+    this.savingAccount.set(false);
+    this.accountMessage.set(this.t('accounts_create_error'));
   }
 
   inviteMember() {
@@ -248,4 +274,8 @@ export class AccountCreateDialogComponent {
   feedbackTone(message: string) {
     return message.includes('No se pudo') || message.includes('Could not') ? 'error' : 'success';
   }
+}
+
+function normalizedAccountName(value: string) {
+  return value.trim().toLocaleLowerCase();
 }
