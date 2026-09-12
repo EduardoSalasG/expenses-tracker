@@ -22,6 +22,7 @@ import {
   type PaymentMethodOption
 } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
+import { categoryDisplayName, categoryPathLabel } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -410,12 +411,12 @@ export class ExpensesComponent implements OnInit {
   }
 
   categoryName(categoryId: string) {
-    return this.categories().find((category) => category.id === categoryId)?.name ?? this.t('expenses_uncategorized');
+    const category = this.categories().find((item) => item.id === categoryId);
+    return category ? categoryDisplayName(this.t, category) : this.t('expenses_uncategorized');
   }
 
   categoryLabel(category: Category) {
-    if (!category.parentId) return category.name;
-    return `${this.categoryName(category.parentId)} / ${category.name}`;
+    return categoryPathLabel(this.t, this.categories(), category.id, this.t('expenses_uncategorized'));
   }
 
   paymentLabel(expense: Expense) {
@@ -516,8 +517,8 @@ export class ExpensesComponent implements OnInit {
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_amount') }}</mat-label><input matInput id="expense-amount" type="number" formControlName="amount" name="expenseAmount"></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_currency') }}</mat-label><input matInput id="expense-currency" formControlName="currency" maxlength="3" name="expenseCurrency"></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_date') }}</mat-label><input matInput id="expense-date" type="date" formControlName="date" name="expenseDate"></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select id="expense-category" formControlName="categoryId" name="expenseCategory" aria-label="Expense category">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select id="expense-subcategory" formControlName="subcategoryId" name="expenseSubcategory" aria-label="Expense subcategory"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ category.name }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_category') }}</mat-label><mat-select id="expense-category" formControlName="categoryId" name="expenseCategory" aria-label="Expense category">@for (category of rootCategories(); track category.id) {<mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>}<mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ t('expenses_subcategory') }}</mat-label><mat-select id="expense-subcategory" formControlName="subcategoryId" name="expenseSubcategory" aria-label="Expense subcategory"><mat-option [value]="''">{{ t('expenses_none') }}</mat-option>@for (category of subcategoriesForForm(); track category.id) {<mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>}@if (selectedCategoryId()) {<mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>}</mat-select></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ t('expenses_payment_method') }}</mat-label><mat-select id="expense-payment-method" formControlName="paymentMethodOptionId" name="expensePaymentMethod" aria-label="Expense payment method">@for (option of paymentMethodOptions(); track option.id) {<mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>}<mat-option [value]="createPaymentMethodOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
           @if (selectedPaymentMethodKind() === 'card' || selectedPaymentMethodKind() === 'transfer') {
             <mat-form-field appearance="outline"><mat-label>{{ t('expenses_bank') }}</mat-label><mat-select id="expense-bank" formControlName="bankOptionId" name="expenseBank" aria-label="Expense bank"><mat-option [value]="''">{{ t('expenses_select_bank') }}</mat-option>@for (bank of bankOptions(); track bank.id) {<mat-option [value]="bank.id">{{ bank.name }}</mat-option>}<mat-option [value]="createBankOption">{{ t('expenses_create_new_option') }}</mat-option></mat-select></mat-form-field>
@@ -816,6 +817,10 @@ export class ExpenseCreateDialogComponent {
 
   paymentMethodOptionLabel(option: PaymentMethodOption) {
     return option.isDefault ? translatePaymentMethodOption(this.t, option) : option.name;
+  }
+
+  displayCategoryName(category: Category) {
+    return categoryDisplayName(this.t, category);
   }
 
   isSharedAccount() {

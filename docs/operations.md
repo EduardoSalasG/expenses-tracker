@@ -38,6 +38,18 @@ GitHub Actions builds and deploys the production backend from `main`. Release va
 - confirm the deployment log completed the idempotent financial-account backfill for legacy data
 - confirm the running backend image ID matches the immutable Git commit image selected by the workflow
 
+## Immutable Backend Deployment
+
+The backend workflow never deploys the mutable `latest` tag. GitHub Actions publishes both `latest` and an immutable tag equal to the Git commit SHA, then exports that exact SHA tag as `BACKEND_IMAGE` on Oracle. The server pulls it explicitly and recreates the API container with `--force-recreate`.
+
+Before the workflow succeeds, it verifies all of the following:
+
+- the running container image ID equals the image ID for the pushed commit SHA
+- the local `/health` endpoint responds successfully
+- the authenticated-route probe for `/me/account-context` returns anonymous `401` through both the container port and the real HTTPS Nginx virtual host
+
+If any check fails, the deploy fails in GitHub Actions. Do not use `latest` or manually recreate the production container as a normal deployment path; inspect the failed workflow log instead.
+
 ## Gitflow
 
 Use `main` as the production branch. Netlify and the Oracle backend deployment workflow deploy from `main` only.
@@ -217,3 +229,4 @@ Run this checklist before promoting `dev` to `main`:
   - Report and budget status responses in Spanish.
 - Set user language to `en` and repeat the same checks in English.
 - Verify frontend labels on `dashboard`, `expenses`, `incomes`, `budgets`, `categories`, and `settings` in both languages.
+- Verify system category and subcategory labels switch between Spanish and English across the dashboard, expense forms/history, budgets, and category catalog; custom names must remain unchanged.

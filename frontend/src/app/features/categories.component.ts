@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ApiService, type Category } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
+import { categoryDisplayName } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
@@ -63,7 +64,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <mat-label>{{ t('categories_parent') }}</mat-label>
             <mat-select id="subcategory-parent" name="subcategoryParentId" formControlName="parentId">
               @for (category of rootCategories(); track category.id) {
-                <mat-option [value]="category.id">{{ category.name }}</mat-option>
+                <mat-option [value]="category.id">{{ displayName(category) }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
@@ -98,7 +99,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <div class="rounded border border-brand-border bg-brand-surface p-4 shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h3 class="font-semibold">{{ category.name }}</h3>
+                  <h3 class="font-semibold">{{ displayName(category) }}</h3>
                   <div class="mt-1 text-xs text-brand-muted">{{ category.isDefault ? t('categories_default') : t('categories_custom') }}</div>
                 </div>
                 <span class="rounded bg-brand-surface-muted px-2 py-1 text-xs text-brand-muted">{{ subcategories(category.id).length }} {{ t('categories_sub_count') }}</span>
@@ -108,7 +109,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                 <div class="mt-4 grid gap-2">
                   @for (subcategory of subcategories(category.id); track subcategory.id) {
                     <div class="grid gap-1 rounded border border-brand-border/70 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                      <span>{{ subcategory.name }}</span>
+                      <span>{{ displayName(subcategory) }}</span>
                       <span class="text-xs text-brand-muted">{{ subcategory.isDefault ? t('categories_default') : t('categories_custom') }}</span>
                     </div>
                   }
@@ -197,6 +198,10 @@ export class CategoriesComponent {
 
   subcategories(parentId: string) {
     return this.categories().filter((category) => category.parentId === parentId);
+  }
+
+  displayName(category: Category) {
+    return categoryDisplayName(this.t, category);
   }
 
   private createCategory(payload: { name: string; parentId?: string }, reset: () => void, message: string) {
