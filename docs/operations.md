@@ -217,3 +217,4 @@ Run this checklist before promoting `dev` to `main`:
   - Report and budget status responses in Spanish.
 - Set user language to `en` and repeat the same checks in English.
 - Verify frontend labels on `dashboard`, `expenses`, `incomes`, `budgets`, `categories`, and `settings` in both languages.
+- Verify system category and subcategory labels switch between Spanish and English across the dashboard, expense forms/history, budgets, and category catalog; custom names must remain unchanged.

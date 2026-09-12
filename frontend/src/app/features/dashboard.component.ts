@@ -7,6 +7,7 @@ import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 
 import { forkJoin, of } from 'rxjs';
 import { AccountContextService } from '../core/account-context.service';
 import { ApiService, type Category, type CurrentUser, type Expense, type FinancialAccountMemberPeriodSpending, type MonthlyBudget, type Report } from '../core/api.service';
+import { categoryDisplayName } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -567,12 +568,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   categoryName(categoryId: string) {
-    return this.categories().find((category) => category.id === categoryId)?.name ?? 'Uncategorized';
+    const category = this.categories().find((item) => item.id === categoryId);
+    return category ? categoryDisplayName(this.t, category) : this.t('expenses_uncategorized');
   }
 
   subcategoryName(subcategoryId?: string) {
     if (!subcategoryId) return this.t('dashboard_without_subcategory');
-    return this.categories().find((category) => category.id === subcategoryId)?.name ?? this.t('dashboard_without_subcategory');
+    const category = this.categories().find((item) => item.id === subcategoryId);
+    return category ? categoryDisplayName(this.t, category) : this.t('dashboard_without_subcategory');
   }
 
   paymentLabel(expense: Expense) {
@@ -672,7 +675,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!report?.expenseVariationByCategory?.length) return [];
     return [...report.expenseVariationByCategory]
       .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
-      .slice(0, 8);
+      .slice(0, 8)
+      .map((row) => ({ ...row, categoryName: this.categoryName(row.categoryId) }));
   }
 
   private renderCharts() {

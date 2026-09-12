@@ -6,6 +6,7 @@ This is the current product scope, grouped by user-facing capability rather than
 
 - Create, edit, delete, filter, and review expenses and incomes.
 - Organize movements with system categories, subcategories, banks, and payment methods.
+- View system categories and subcategories in the preferred app language without renaming custom catalog entries.
 - Add account-specific categories, banks, and payment methods without leaving a movement form.
 - Keep a permanent monthly budget by category or subcategory and review remaining budget.
 - Track purchases in installments and see future charges for multi-installment purchases.

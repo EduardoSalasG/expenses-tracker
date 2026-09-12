@@ -12,6 +12,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
+import { categoryDisplayName, categoryPathLabel } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
@@ -83,7 +84,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
           <mat-label>{{ t('expenses_category') }}</mat-label>
           <mat-select formControlName="categoryId" name="budgetCategory" aria-label="Budget category">
             @for (category of rootCategories(); track category.id) {
-              <mat-option [value]="category.id">{{ category.name }}</mat-option>
+              <mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>
             }
             <mat-option [value]="createCategoryOption">{{ t('expenses_create_new_option') }}</mat-option>
           </mat-select>
@@ -93,7 +94,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
           <mat-select formControlName="subcategoryId" name="budgetSubcategory" aria-label="Budget subcategory">
             <mat-option [value]="''">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
-              <mat-option [value]="category.id">{{ category.name }}</mat-option>
+              <mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>
             }
             @if (selectedCategoryId()) {
               <mat-option [value]="createSubcategoryOption">{{ t('expenses_create_new_option') }}</mat-option>
@@ -399,10 +400,11 @@ export class BudgetsComponent {
   }
 
   private categoryLabel(categoryId: string): string {
-    const category = this.categories().find((item) => item.id === categoryId);
-    if (!category) return this.t('expenses_uncategorized');
-    if (!category.parentId) return category.name;
-    return `${this.categoryLabel(category.parentId)} / ${category.name}`;
+    return categoryPathLabel(this.t, this.categories(), categoryId, this.t('expenses_uncategorized'));
+  }
+
+  displayCategoryName(category: Category) {
+    return categoryDisplayName(this.t, category);
   }
 
   private formatTotalsByCurrency(budgets: MonthlyBudget[]) {
