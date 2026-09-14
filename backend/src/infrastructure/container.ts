@@ -3,6 +3,7 @@ import { createPool, pingDatabase } from './database.js';
 import { ResendEmailProvider } from './email-providers/resend.provider.js';
 import { createLogger } from './logger.js';
 import { createMessageInterpreter } from './message-interpreter.provider.js';
+import { createCategoryTranslator } from './category-translator.provider.js';
 import { ScryptPasswordHasher } from './password-hasher.service.js';
 import { JwtTokenService } from './token.service.js';
 import { ChannelMessagingRouter } from './messaging-providers/channel-messaging-router.js';
@@ -61,6 +62,7 @@ import {
   UpdateReportPreferencesUseCase,
   VerifyOtpUseCase
 } from '../application/use-cases.js';
+import { CategoryTranslationService } from '../application/services/category-translation.service.js';
 
 export function createContainer(config: AppConfig) {
   const logger = createLogger();
@@ -93,6 +95,7 @@ export function createContainer(config: AppConfig) {
     telegram: telegramMessaging
   });
   const interpreter = createMessageInterpreter(config, logger);
+  const categoryTranslations = new CategoryTranslationService(categories, createCategoryTranslator(config, logger));
   const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions, financialAccounts);
   const financialAccountsUseCases = new FinancialAccountsUseCases(
     financialAccounts,
@@ -131,6 +134,7 @@ export function createContainer(config: AppConfig) {
     financialAccounts,
     tokens,
     messaging,
+    categoryTranslations,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {
       if (!pool) {
