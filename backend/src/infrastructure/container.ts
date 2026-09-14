@@ -96,7 +96,16 @@ export function createContainer(config: AppConfig) {
   });
   const interpreter = createMessageInterpreter(config, logger);
   const categoryTranslations = new CategoryTranslationService(categories, createCategoryTranslator(config, logger));
-  const finance = new FinanceUseCases(expenses, incomes, budgets, categories, banks, paymentMethodOptions, financialAccounts);
+  const finance = new FinanceUseCases(
+    expenses,
+    incomes,
+    budgets,
+    categories,
+    banks,
+    paymentMethodOptions,
+    financialAccounts,
+    categoryTranslations
+  );
   const financialAccountsUseCases = new FinancialAccountsUseCases(
     financialAccounts,
     categories,
@@ -124,7 +133,8 @@ export function createContainer(config: AppConfig) {
     messaging,
     interpreter,
     clock,
-    { frontendPublicOrigin: config.frontendPublicOrigin }
+    { frontendPublicOrigin: config.frontendPublicOrigin },
+    categoryTranslations
   );
 
   return {
