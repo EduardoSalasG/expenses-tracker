@@ -750,12 +750,58 @@ export class PostgresCategoryRepository implements CategoryRepository {
 
   async create(input: Omit<Category, 'id'>) {
     const result = await this.pool.query(
-      `insert into categories (tenant_id, financial_account_id, name, parent_id, is_default)
-       values ($1, $2, $3, $4, $5)
+      `insert into categories (
+         tenant_id, financial_account_id, name, name_es, name_en, translation_source, parent_id, is_default
+       ) values ($1, $2, $3, $4, $5, $6, $7, $8)
        returning *`,
-      [input.tenantId, input.financialAccountId ?? null, input.name, input.parentId ?? null, input.isDefault]
+      [
+        input.tenantId,
+        input.financialAccountId ?? null,
+        input.name,
+        input.nameEs ?? null,
+        input.nameEn ?? null,
+        input.translationSource ?? null,
+        input.parentId ?? null,
+        input.isDefault
+      ]
     );
     return mapCategory(result.rows[0]);
+  }
+
+  async updateTranslations(input: {
+    categoryId: string;
+    nameEs: string;
+    nameEn: string;
+    translationSource: Category['translationSource'];
+  }) {
+    const result = await this.pool.query(
+      `update categories
+       set name_es = coalesce(name_es, $2),
+           name_en = coalesce(name_en, $3),
+           translation_source = case
+             when translation_source = 'manual' then 'manual'
+             else $4
+           end,
+           updated_at = now()
+       where id = $1
+         and translation_source is distinct from 'manual'
+       returning *`,
+      [input.categoryId, input.nameEs, input.nameEn, input.translationSource]
+    );
+    return result.rows[0] ? mapCategory(result.rows[0]) : undefined;
+  }
+
+  async listMissingTranslations(limit: number) {
+    const result = await this.pool.query(
+      `select *
+       from categories
+       where translation_source is distinct from 'manual'
+         and (name_es is null or name_en is null)
+       order by created_at asc, id asc
+       limit $1`,
+      [limit]
+    );
+    return result.rows.map(mapCategory);
   }
 
   async ensureDefaults(tenantId: string) {
@@ -1749,6 +1795,9 @@ function mapCategory(row: QueryResultRow): Category {
     tenantId: row.tenant_id,
     financialAccountId: row.financial_account_id ?? undefined,
     name: row.name,
+    nameEs: row.name_es ?? undefined,
+    nameEn: row.name_en ?? undefined,
+    translationSource: row.translation_source ?? undefined,
     parentId: row.parent_id ?? undefined,
     isDefault: row.is_default
   };
