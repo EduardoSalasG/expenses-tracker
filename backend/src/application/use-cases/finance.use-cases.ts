@@ -10,6 +10,7 @@ import type {
 } from '../ports.js';
 import { normalizeCategorySelection } from '../services/category-normalization.service.js';
 import { PaymentSelectionService } from '../services/payment-selection.service.js';
+import { CategoryTranslationService } from '../services/category-translation.service.js';
 import { totalsByCurrency } from '../services/reporting.service.js';
 
 export class FinanceUseCases {
@@ -34,7 +35,8 @@ export class FinanceUseCases {
       update: async () => undefined,
       delete: async () => false
     },
-    private readonly financialAccounts?: FinancialAccountRepository
+    private readonly financialAccounts?: FinancialAccountRepository,
+    private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
   ) {
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
@@ -180,8 +182,14 @@ export class FinanceUseCases {
     return this.categories.listByTenant(tenantId, financialAccountId);
   }
 
-  createCategory(input: Omit<Category, 'id'>) {
-    return this.categories.create(input);
+  async createCategory(input: Omit<Category, 'id'>) {
+    const created = await this.categories.create(input);
+    if (!this.categoryTranslations) return created;
+
+    const parent = input.parentId
+      ? (await this.categories.listByTenant(input.tenantId, input.financialAccountId)).find((category) => category.id === input.parentId)
+      : undefined;
+    return this.categoryTranslations.localize(created, parent?.name);
   }
 
   listBankOptions(tenantId: string, financialAccountId?: string) {

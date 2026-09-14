@@ -117,6 +117,11 @@ jobs:
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
               docker compose up -d --force-recreate --remove-orphans expenses-tracker-backend
 
+              # Best effort: an LLM outage must never fail an otherwise healthy deploy.
+              if ! docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
+                echo "Warning: category translation backfill failed; incomplete labels will retry on the next deploy."
+              fi
+
               expected_image_id=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
               running_image_id=$(docker inspect expenses-tracker-backend --format '{{.Image}}')
               if [ "$running_image_id" != "$expected_image_id" ]; then

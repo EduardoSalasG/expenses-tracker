@@ -38,6 +38,8 @@ Evidence:
 - [ ] Create manual income in web (modal flow)
 - [ ] Dashboard updates for selected month
 - [ ] Budget progress includes category/subcategory expenses
+- [ ] Recent expenses are limited to the selected dashboard period, excluding later installments
+- [ ] Default and custom category labels render in Spanish and English
 
 Evidence:
 - expense id:

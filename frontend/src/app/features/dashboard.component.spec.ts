@@ -1,5 +1,5 @@
 import type { Category } from '../core/api.service';
-import { DashboardComponent, memberPeriodBalanceState } from './dashboard.component';
+import { DashboardComponent, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
 
 describe('memberPeriodBalanceState', () => {
@@ -18,6 +18,8 @@ describe('DashboardComponent category labels', () => {
       id: 'food',
       tenantId: 'system',
       name: 'Food',
+      nameEs: 'Comida',
+      nameEn: 'Food',
       isDefault: true
     };
     const component: {
@@ -33,5 +35,13 @@ describe('DashboardComponent category labels', () => {
     };
 
     expect(DashboardComponent.prototype.categoryName.call(component as unknown as DashboardComponent, category.id)).toBe('Comida');
+  });
+
+  it('limits recent expenses to the selected period', () => {
+    expect(recentExpenseFilters(rangeFromMonth('2026-09'))).toEqual({
+      from: '2026-09-01T00:00:00.000Z',
+      to: '2026-09-30T23:59:59.000Z',
+      limit: 5
+    });
   });
 });

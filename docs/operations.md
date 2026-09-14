@@ -179,7 +179,7 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
 
 Shared accounts are active in the runtime. The following runbook remains relevant only when upgrading an existing database that predates the account model.
 
-The Oracle deployment workflow runs `db:bootstrap` before it recreates the API container. `bootstrap` runs every tracked migration and then idempotently applies the system defaults, so it is safe for both a new and an existing database. It also runs the idempotent financial-account backfill for environments upgraded from the pre-account model.
+The Oracle deployment workflow runs `db:bootstrap` before it recreates the API container. `bootstrap` runs every tracked migration and then idempotently applies the system defaults, so it is safe for both a new and an existing database. It also runs the idempotent financial-account backfill for environments upgraded from the pre-account model. After the API is healthy, it runs the best-effort category translation backfill. That task sends only a category name, optional parent name, and root/subcategory role to the configured provider; it never sends tenant, account, user, movement, or budget data. Provider failures leave the deployment healthy and retry on a later deploy.
 
 The workflow then verifies the container route and the real HTTPS Nginx virtual host for `/me/account-context`; an anonymous request must return `401`, never `404`. It uses HTTPS deliberately because the HTTP vhost redirects to HTTPS with `301`. For a normal deployment from `main`, inspect the GitHub Actions log rather than running these commands manually.
 

@@ -14,6 +14,7 @@ import {
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter, type InterpretedMessage, type MessageInterpreterContext } from './message-interpreter.js';
 import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
+import type { Category } from '../domain/index.js';
 
 describe('ProcessInboundFinanceMessageUseCase', () => {
   it('audits and ignores unregistered senders', async () => {
@@ -360,6 +361,16 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const expenses = new InMemoryExpenseRepository();
     const drafts = new InMemoryMessagingPendingDraftRepository();
     const messaging = new CapturingMessagingProvider();
+    const translations = {
+      localize: async (category: Category) => (
+        await categories.updateTranslations({
+          categoryId: category.id,
+          nameEs: 'Pilates',
+          nameEn: 'Pilates',
+          translationSource: 'automatic'
+        }) ?? category
+      )
+    };
     const user = await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
       firstName: 'Test',
@@ -383,7 +394,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       messaging,
       new DeterministicMessageInterpreter(),
       { now: () => new Date('2026-05-06T00:00:00.000Z') },
-      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' },
+      translations
     );
 
     const first = await useCase.execute({
@@ -417,6 +429,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const health = tenantCategories.find((category) => category.name === 'Health' && !category.parentId);
     const pilates = tenantCategories.find((category) => category.name === 'Pilates' && category.parentId === health?.id);
     expect(pilates).toBeDefined();
+    expect(pilates).toMatchObject({ nameEs: 'Pilates', nameEn: 'Pilates', translationSource: 'automatic' });
     expect(pilates?.financialAccountId).toBe(`fallback-account-${user.id}`);
     const [expense] = await expenses.listRecent(user.tenantId, 10);
     expect(expense.categoryId).toBe(health?.id);

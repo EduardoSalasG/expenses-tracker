@@ -615,6 +615,32 @@ export class InMemoryCategoryRepository implements CategoryRepository {
     return category;
   }
 
+  async updateTranslations(input: {
+    categoryId: string;
+    nameEs: string;
+    nameEn: string;
+    translationSource: Category['translationSource'];
+  }) {
+    const index = this.categories.findIndex((category) => category.id === input.categoryId);
+    if (index < 0) return undefined;
+    const existing = this.categories[index];
+    if (existing.translationSource === 'manual') return existing;
+    const updated = {
+      ...existing,
+      nameEs: existing.nameEs ?? input.nameEs,
+      nameEn: existing.nameEn ?? input.nameEn,
+      translationSource: input.translationSource
+    };
+    this.categories[index] = updated;
+    return updated;
+  }
+
+  async listMissingTranslations(limit: number) {
+    return this.categories
+      .filter((category) => category.translationSource !== 'manual' && (!category.nameEs || !category.nameEn))
+      .slice(0, limit);
+  }
+
   async ensureDefaults(tenantId: string) {
     void tenantId;
     if (this.categories.some((category) => category.tenantId === SYSTEM_TENANT_ID && category.isDefault)) return;
