@@ -412,11 +412,11 @@ export class ExpensesComponent implements OnInit {
 
   categoryName(categoryId: string) {
     const category = this.categories().find((item) => item.id === categoryId);
-    return category ? categoryDisplayName(this.t, category) : this.t('expenses_uncategorized');
+    return category ? categoryDisplayName((key) => this.t(key), category) : this.t('expenses_uncategorized');
   }
 
   categoryLabel(category: Category) {
-    return categoryPathLabel(this.t, this.categories(), category.id, this.t('expenses_uncategorized'));
+    return categoryPathLabel((key) => this.t(key), this.categories(), category.id, this.t('expenses_uncategorized'));
   }
 
   paymentLabel(expense: Expense) {
@@ -820,7 +820,7 @@ export class ExpenseCreateDialogComponent {
   }
 
   displayCategoryName(category: Category) {
-    return categoryDisplayName(this.t, category);
+    return categoryDisplayName((key) => this.t(key), category);
   }
 
   isSharedAccount() {

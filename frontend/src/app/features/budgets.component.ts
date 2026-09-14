@@ -400,11 +400,11 @@ export class BudgetsComponent {
   }
 
   private categoryLabel(categoryId: string): string {
-    return categoryPathLabel(this.t, this.categories(), categoryId, this.t('expenses_uncategorized'));
+    return categoryPathLabel((key) => this.t(key), this.categories(), categoryId, this.t('expenses_uncategorized'));
   }
 
   displayCategoryName(category: Category) {
-    return categoryDisplayName(this.t, category);
+    return categoryDisplayName((key) => this.t(key), category);
   }
 
   private formatTotalsByCurrency(budgets: MonthlyBudget[]) {

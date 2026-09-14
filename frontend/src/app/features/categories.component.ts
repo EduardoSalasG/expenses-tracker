@@ -201,7 +201,7 @@ export class CategoriesComponent {
   }
 
   displayName(category: Category) {
-    return categoryDisplayName(this.t, category);
+    return categoryDisplayName((key) => this.t(key), category);
   }
 
   private createCategory(payload: { name: string; parentId?: string }, reset: () => void, message: string) {

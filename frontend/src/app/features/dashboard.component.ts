@@ -569,13 +569,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   categoryName(categoryId: string) {
     const category = this.categories().find((item) => item.id === categoryId);
-    return category ? categoryDisplayName(this.t, category) : this.t('expenses_uncategorized');
+    return category ? categoryDisplayName((key) => this.t(key), category) : this.t('expenses_uncategorized');
   }
 
   subcategoryName(subcategoryId?: string) {
     if (!subcategoryId) return this.t('dashboard_without_subcategory');
     const category = this.categories().find((item) => item.id === subcategoryId);
-    return category ? categoryDisplayName(this.t, category) : this.t('dashboard_without_subcategory');
+    return category ? categoryDisplayName((key) => this.t(key), category) : this.t('dashboard_without_subcategory');
   }
 
   paymentLabel(expense: Expense) {
