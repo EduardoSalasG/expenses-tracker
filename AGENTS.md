@@ -17,7 +17,7 @@ This repo supports a multi-agent workflow, but all changes still land through `d
 4. Functional QA Agent
    - Validates the user flow end to end on desktop/mobile when UI or messaging flows are affected.
 5. Release Agent
-   - Runs the release checklist and controls promotion from `dev` to `main`.
+   - Runs the release checklist, controls promotion from `dev` to `main`, and supervises every production deployment after the `main` push.
 
 ## Required Flow
 1. Design before code for non-trivial changes.
@@ -26,6 +26,7 @@ This repo supports a multi-agent workflow, but all changes still land through `d
 4. Update living documentation when behavior changes.
 5. Commit on `dev`.
 6. Merge to `main` only after review + QA + release gate.
+7. After every `main` push, monitor the matching GitHub Actions run, the Netlify production deploy, and public health checks before closing the release.
 
 ## Definition of Done
 - Backend builds if backend changed.

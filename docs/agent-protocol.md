@@ -25,7 +25,7 @@ Use agents to reduce integration mistakes, not to fragment ownership.
   - Output: validated flows, visible issues, device notes
 - Release
   - Input: approved change on `dev`
-  - Output: commit, push, merge `dev -> main`, final status
+  - Output: commit, push, merge `dev -> main`, deployment supervision, final status
 
 ## Mandatory Checks
 - Build affected apps.
@@ -47,3 +47,13 @@ Use agents to reduce integration mistakes, not to fragment ownership.
 - QA completed
 - merge to `main`
 - push `main`
+
+## Post-Main Deployment Supervision
+Run this after every update pushed to `main`; it is part of the release gate, not an optional follow-up.
+
+1. Release Agent: use `gh run list --branch main` and verify that the backend workflow for the released SHA completes successfully. Inspect failed logs before reporting a failure.
+2. Deployment QA Agent: use Netlify CLI/API and verify that the production deploy is `ready` and references the same SHA.
+3. Release Agent: verify `https://api.expenses-tracker.eduardosalasg.dev/health` returns `{"status":"ok"}` and the Netlify site returns HTTP 200.
+4. Report the SHA, GitHub Actions run, Netlify deploy, and public-check results. Do not call the release complete while any of these is pending or failing.
+
+When the runtime permits parallel agents, delegate the GitHub Actions check, Netlify check, and public smoke check to separate agents. If it does not, the Release Agent performs all three checks directly and records that limitation.
