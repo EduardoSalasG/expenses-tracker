@@ -814,6 +814,7 @@
           "name": "List Categories",
           "request": {
             "method": "GET",
+            "description": "Each category response includes canonical name plus optional nameEs, nameEn, and translationSource (system, automatic, or manual).",
             "header": [
               {
                 "key": "Authorization",
@@ -827,6 +828,7 @@
           "name": "Create Category",
           "request": {
             "method": "POST",
+            "description": "New custom labels are localized through the configured provider. Creation remains successful when the provider is unavailable.",
             "header": [
               {
                 "key": "Authorization",

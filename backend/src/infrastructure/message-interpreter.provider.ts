@@ -130,7 +130,7 @@ function systemPrompt() {
     'Preserve the original concept wording. Do not shorten, rewrite, translate, or normalize the concept unless the user explicitly asked to update it.',
     'The user currency is tenant-level configuration. Do not infer a different currency from arbitrary words like "sueldo", "mayo", or merchant names.',
     'Only set currency when the message includes an explicit ISO code or unmistakable symbol.',
-    'Use categoryName and subcategoryName only from the supplied category list.',
+    'Use categoryName and subcategoryName only from the supplied category list. Each name is canonical; aliases are valid user-input variants but must never be returned.',
     'When a supplied category has subcategories, choose the most specific valid match available.',
     'Use payment methods only from the supplied paymentMethodOptions. Normalize informal phrases like tdc to credit card, tdd to debit card, transferencia to transfer, efectivo to cash.',
     'Use banks only from the supplied bank list. Match abbreviations and aliases conservatively, for example BCI to Banco de Credito e Inversiones.',
@@ -343,10 +343,15 @@ function categoryOptions(categories: MessageInterpreterContext['categories']) {
     .filter((category) => !category.parentId)
     .map((category) => ({
       name: category.name,
+      aliases: categoryAliases(category),
       subcategories: categories
         .filter((subcategory) => subcategory.parentId === category.id)
-        .map((subcategory) => subcategory.name)
+        .map((subcategory) => ({ name: subcategory.name, aliases: categoryAliases(subcategory) }))
     }));
+}
+
+function categoryAliases(category: MessageInterpreterContext['categories'][number]) {
+  return [...new Set([category.name, category.nameEs, category.nameEn].filter((value): value is string => Boolean(value)))];
 }
 
 function bankOptions(banks: MessageInterpreterContext['banks']) {

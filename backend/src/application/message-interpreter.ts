@@ -291,7 +291,7 @@ export function inferCategoryCandidateFromText(categories: Category[], text: str
   const normalized = normalizeName(text);
   const exactSubcategory = categories
     .filter((category) => category.parentId)
-    .find((category) => tokenIncludes(normalized, normalizeName(category.name)));
+    .find((category) => categoryAliases(category).some((alias) => tokenIncludes(normalized, alias)));
   if (exactSubcategory) {
     const parent = categories.find((category) => category.id === exactSubcategory.parentId);
     return {
@@ -303,7 +303,7 @@ export function inferCategoryCandidateFromText(categories: Category[], text: str
 
   const exactRoot = categories
     .filter((category) => !category.parentId)
-    .find((category) => tokenIncludes(normalized, normalizeName(category.name)));
+    .find((category) => categoryAliases(category).some((alias) => tokenIncludes(normalized, alias)));
   if (exactRoot) {
     return { categoryName: exactRoot.name, source: 'exact_category' };
   }
@@ -329,8 +329,14 @@ function findCategory(categories: Category[], name?: string, allowSubcategory = 
   const normalized = normalizeName(name);
   return categories.find((category) =>
     (allowSubcategory || !category.parentId) &&
-    normalizeName(category.name) === normalized
+    categoryAliases(category).includes(normalized)
   );
+}
+
+function categoryAliases(category: Category) {
+  return [...new Set([category.name, category.nameEs, category.nameEn]
+    .filter((value): value is string => Boolean(value))
+    .map(normalizeName))];
 }
 
 function normalizeName(value: string) {

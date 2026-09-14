@@ -45,6 +45,20 @@ export const openApiSpec = {
           isDefault: { type: 'boolean', example: true }
         }
       },
+      Category: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string', format: 'uuid' },
+          financialAccountId: { type: 'string', format: 'uuid', nullable: true },
+          name: { type: 'string', description: 'Canonical category name used by internal references.' },
+          nameEs: { type: 'string', nullable: true, readOnly: true },
+          nameEn: { type: 'string', nullable: true, readOnly: true },
+          translationSource: { type: 'string', enum: ['system', 'automatic', 'manual'], nullable: true, readOnly: true },
+          parentId: { type: 'string', format: 'uuid', nullable: true },
+          isDefault: { type: 'boolean' }
+        }
+      },
       PaymentMethodOption: {
         type: 'object',
         properties: {
@@ -1473,8 +1487,8 @@ export const openApiSpec = {
                   listed: {
                     value: {
                       data: [
-                        { id: 'root-category-id', name: 'Food', parentId: null },
-                        { id: 'subcategory-id', name: 'Restaurants', parentId: 'root-category-id' }
+                        { id: 'root-category-id', name: 'Food', nameEs: 'Comida', nameEn: 'Food', translationSource: 'system', parentId: null },
+                        { id: 'subcategory-id', name: 'Restaurants', nameEs: 'Restaurantes', nameEn: 'Restaurants', translationSource: 'system', parentId: 'root-category-id' }
                       ]
                     }
                   }
@@ -1507,8 +1521,8 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 examples: {
-                  createdRoot: { value: { data: { id: 'root-category-id', name: 'Food', parentId: null } } },
-                  createdSubcategory: { value: { data: { id: 'subcategory-id', name: 'Restaurants', parentId: 'root-category-id' } } }
+                  createdRoot: { value: { data: { id: 'root-category-id', name: 'Investments', nameEs: 'Inversiones', nameEn: 'Investments', translationSource: 'automatic', parentId: null } } },
+                  createdSubcategory: { value: { data: { id: 'subcategory-id', name: 'Dance', nameEs: 'Baile', nameEn: 'Dance', translationSource: 'automatic', parentId: 'root-category-id' } } }
                 }
               }
             }

@@ -181,6 +181,9 @@ export interface Category {
   tenantId?: string;
   financialAccountId?: string;
   name: string;
+  nameEs?: string;
+  nameEn?: string;
+  translationSource?: 'system' | 'automatic' | 'manual';
   parentId?: string;
   isDefault: boolean;
 }

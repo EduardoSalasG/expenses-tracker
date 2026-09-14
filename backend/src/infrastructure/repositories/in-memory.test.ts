@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryExpenseRepository } from './in-memory.js';
+import { InMemoryCategoryRepository, InMemoryExpenseRepository } from './in-memory.js';
 
 describe('InMemoryExpenseRepository installments', () => {
   it('returns only multi-installment expenses in upcoming installment totals', async () => {
@@ -71,5 +71,35 @@ describe('InMemoryExpenseRepository installments', () => {
       expect.objectContaining({ owedByUserId: 'user-1', amount: 2000 }),
       expect.objectContaining({ owedByUserId: 'user-2', amount: 3000 })
     ]);
+  });
+});
+
+describe('InMemoryCategoryRepository translations', () => {
+  it('keeps manual translations when an automatic retry runs', async () => {
+    const categories = new InMemoryCategoryRepository();
+    const category = await categories.create({
+      tenantId: 'tenant-1',
+      financialAccountId: 'account-1',
+      name: 'Dance',
+      isDefault: false
+    });
+
+    await categories.updateTranslations({
+      categoryId: category.id,
+      nameEs: 'Danza',
+      nameEn: 'Dance',
+      translationSource: 'manual'
+    });
+    await categories.updateTranslations({
+      categoryId: category.id,
+      nameEs: 'Baile',
+      nameEn: 'Dance',
+      translationSource: 'automatic'
+    });
+
+    expect((await categories.listByTenant('tenant-1', 'account-1'))[0]).toMatchObject({
+      nameEs: 'Danza',
+      translationSource: 'manual'
+    });
   });
 });

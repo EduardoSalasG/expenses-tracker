@@ -283,7 +283,7 @@ The active messaging webhook is Telegram only:
 POST /webhooks/telegram
 ```
 
-Inbound text is interpreted through the `MessageInterpreterPort`. The default deterministic interpreter supports basic expense, income, report, and budget-status intents. Set `MESSAGE_INTERPRETER_PROVIDER=openrouter`, `MESSAGE_INTERPRETER_BASE_URL=https://openrouter.ai/api/v1`, and `MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324` to use OpenRouter. Use `openai-compatible` for another chat completions provider with the same request shape. The provider only proposes structured JSON; the backend still validates required fields, tenant scope, categories, and persistence rules before saving or replying.
+Inbound text is interpreted through the `MessageInterpreterPort`. The default deterministic interpreter supports basic expense, income, report, and budget-status intents. Set `MESSAGE_INTERPRETER_PROVIDER=openrouter`, `MESSAGE_INTERPRETER_BASE_URL=https://openrouter.ai/api/v1`, and `MESSAGE_INTERPRETER_MODEL=deepseek/DeepSeek-V3-0324` to use OpenRouter. Use `openai-compatible` for another chat completions provider with the same request shape. The provider only proposes structured JSON; the backend still validates required fields, tenant scope, categories, and persistence rules before saving or replying. Category labels persist `name_es` and `name_en`; the interpreter accepts either label as an alias but always stores the canonical category id.
 
 Natural Telegram examples:
 

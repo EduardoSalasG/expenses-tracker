@@ -24,6 +24,7 @@ import type {
   FinancialAccountMembershipRecord,
   UserRepository
 } from '../ports.js';
+import type { CategoryTranslationService } from '../services/category-translation.service.js';
 import {
   categoryByInterpretedName,
   inferCategoryCandidateFromText,
@@ -66,6 +67,7 @@ export class ProcessInboundFinanceMessageUseCase {
   private readonly pendingDrafts: MessagingPendingDraftRepository;
   private readonly messaging: MessagingProvider;
   private readonly interpreter: MessageInterpreterPort;
+  private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>;
   private readonly clock: Clock;
   private readonly options: { frontendPublicOrigin: string };
 
@@ -83,7 +85,8 @@ export class ProcessInboundFinanceMessageUseCase {
     messaging: MessagingProvider,
     interpreter: MessageInterpreterPort,
     clock: Clock,
-    options: { frontendPublicOrigin: string }
+    options: { frontendPublicOrigin: string },
+    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
   );
   constructor(
     users: UserRepository,
@@ -98,7 +101,8 @@ export class ProcessInboundFinanceMessageUseCase {
     messaging: MessagingProvider,
     interpreter: MessageInterpreterPort,
     clock: Clock,
-    options: { frontendPublicOrigin: string }
+    options: { frontendPublicOrigin: string },
+    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
   );
   constructor(
     users: UserRepository,
@@ -114,7 +118,8 @@ export class ProcessInboundFinanceMessageUseCase {
     messagingOrInterpreter: MessagingProvider | MessageInterpreterPort,
     interpreterOrClock: MessageInterpreterPort | Clock,
     clockOrOptions: Clock | { frontendPublicOrigin: string },
-    maybeOptions?: { frontendPublicOrigin: string }
+    maybeOptions?: { frontendPublicOrigin: string } | Pick<CategoryTranslationService, 'localize'>,
+    maybeCategoryTranslations?: Pick<CategoryTranslationService, 'localize'>
   ) {
     this.users = users;
     this.financialAccounts = isFinancialAccountRepository(financialAccountsOrCategories)
@@ -132,6 +137,9 @@ export class ProcessInboundFinanceMessageUseCase {
     this.interpreter = (isFinancialAccountRepository(financialAccountsOrCategories) ? interpreterOrClock : messagingOrInterpreter) as MessageInterpreterPort;
     this.clock = (isFinancialAccountRepository(financialAccountsOrCategories) ? clockOrOptions : interpreterOrClock) as Clock;
     this.options = (isFinancialAccountRepository(financialAccountsOrCategories) ? maybeOptions : clockOrOptions) as { frontendPublicOrigin: string };
+    this.categoryTranslations = isFinancialAccountRepository(financialAccountsOrCategories)
+      ? maybeCategoryTranslations
+      : maybeOptions as Pick<CategoryTranslationService, 'localize'> | undefined;
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
 
@@ -707,6 +715,9 @@ export class ProcessInboundFinanceMessageUseCase {
       input.channel ?? 'whatsapp',
       input.providerUserId
     );
+    const parent = createRequest.parentId
+      ? categories.find((item) => item.id === createRequest.parentId)
+      : undefined;
     const created = await this.categories.create({
       tenantId: user.tenantId,
       financialAccountId: financialAccount.id,
@@ -714,11 +725,14 @@ export class ProcessInboundFinanceMessageUseCase {
       parentId: createRequest.parentId,
       isDefault: false
     });
+    const localized = this.categoryTranslations
+      ? await this.categoryTranslations.localize(created, parent?.name)
+      : created;
     const refreshedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const category = createRequest.parentId
       ? refreshedCategories.find((item) => item.id === createRequest.parentId)
       : created;
-    const subcategory = createRequest.parentId ? created : undefined;
+    const subcategory = createRequest.parentId ? localized : undefined;
     const completedDraft = {
       ...draft.expenseDraft,
       categoryName: category?.name,

@@ -569,13 +569,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   categoryName(categoryId: string) {
     const category = this.categories().find((item) => item.id === categoryId);
-    return category ? categoryDisplayName((key) => this.t(key), category) : this.t('expenses_uncategorized');
+    return category ? categoryDisplayName(this.i18n.language(), category) : this.t('expenses_uncategorized');
   }
 
   subcategoryName(subcategoryId?: string) {
     if (!subcategoryId) return this.t('dashboard_without_subcategory');
     const category = this.categories().find((item) => item.id === subcategoryId);
-    return category ? categoryDisplayName((key) => this.t(key), category) : this.t('dashboard_without_subcategory');
+    return category ? categoryDisplayName(this.i18n.language(), category) : this.t('dashboard_without_subcategory');
   }
 
   paymentLabel(expense: Expense) {
@@ -1066,7 +1066,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       : this.api.yearlyExpensesMonthlyTotals(this.selectedYear());
     forkJoin({
       user: this.api.me(),
-      recentExpenses: this.api.recentExpenses(5),
+      recentExpenses: this.api.expenses(recentExpenseFilters(range)),
       report: this.api.report(range.from, range.to),
       categories: this.api.categories(),
       budgets: this.api.monthlyBudgets(),
@@ -1177,7 +1177,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 }
 
-function rangeFromMonth(month: string) {
+export function rangeFromMonth(month: string) {
   const [year, monthNumber] = month.split('-').map(Number);
   const from = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
   const to = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
@@ -1185,6 +1185,10 @@ function rangeFromMonth(month: string) {
     from: from.toISOString(),
     to: to.toISOString(),
   };
+}
+
+export function recentExpenseFilters(range: { from: string; to: string }) {
+  return { ...range, limit: 5 };
 }
 
 function rangeFromYear(year: number) {
