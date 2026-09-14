@@ -8,6 +8,7 @@ Important behavior:
 - `pnpm db:bootstrap` is the canonical setup command for a brand-new database. It runs migrations and then inserts the system-owned default category catalog.
 - `pnpm db:seed` is optional and only loads demo/local sample data.
 - `pnpm db:backfill:financial-accounts` is a one-time historical backfill for the shared-accounts foundation. It creates one personal financial account per existing user and links legacy financial rows to it.
+- `pnpm db:backfill:category-translations` fills missing Spanish and English display labels for existing categories. It is repeatable and preserves manual labels.
 - `pnpm db:export:tenant` exports one user tenant only, so local personal data can be moved to production without dumping the entire database.
 - A brand-new production database is **not** auto-filled with demo users or business data just because the backend starts.
 
@@ -108,6 +109,7 @@ Use cases:
 - `pnpm db:migrate`: existing environment upgrade
 - `pnpm db:seed`: optional local/demo sample users
 - `pnpm db:backfill:financial-accounts`: existing environment only, after migration `028_shared_accounts_foundation.sql`
+- `pnpm db:backfill:category-translations`: existing environment only, after migration `038_category_localized_names.sql`; uses the configured OpenRouter-compatible provider and may be rerun safely.
 - `pnpm db:export:tenant`: export only one tenant/user dataset
 
 For an existing local database created before the messaging table rename, run the targeted migration:

@@ -33,6 +33,5 @@ set name_es = translations.name_es,
     translation_source = 'system',
     updated_at = now()
 from translations
-where category.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
-  and category.is_default = true
+where category.is_default = true
   and category.name = translations.name;

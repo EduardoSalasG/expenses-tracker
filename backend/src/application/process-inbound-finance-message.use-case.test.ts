@@ -14,6 +14,7 @@ import {
 } from '../infrastructure/repositories/in-memory.js';
 import { DeterministicMessageInterpreter, type InterpretedMessage, type MessageInterpreterContext } from './message-interpreter.js';
 import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
+import type { Category } from '../domain/index.js';
 
 describe('ProcessInboundFinanceMessageUseCase', () => {
   it('audits and ignores unregistered senders', async () => {
@@ -361,7 +362,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const drafts = new InMemoryMessagingPendingDraftRepository();
     const messaging = new CapturingMessagingProvider();
     const translations = {
-      localize: async (category: { id: string }) => (
+      localize: async (category: Category) => (
         await categories.updateTranslations({
           categoryId: category.id,
           nameEs: 'Pilates',

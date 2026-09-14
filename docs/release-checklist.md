@@ -14,6 +14,7 @@ Use this checklist for every production promotion from `dev` to `main`.
 
 - Run `pnpm db:migrate` against staging/prod-like DB.
 - Verify migration log has no partial failures.
+- Run `pnpm --filter @expenses-tracker/backend db:backfill:category-translations`; verify translated/skipped/failed counts. A provider outage is non-blocking and incomplete rows retry on the next deploy.
 - Run smoke queries:
   - users count
   - expenses/incomes list by tenant
@@ -36,6 +37,7 @@ Use this checklist for every production promotion from `dev` to `main`.
 
 - Frontend labels/screens in `es` and `en`:
   - landing, login/register, dashboard, expenses, incomes, budgets, categories, settings
+- Confirm default and custom category/subcategory labels use persisted `nameEs`/`nameEn`, and Telegram resolves either label to the canonical category.
 - Messaging output in `es` and `en`:
   - link/account guidance
   - save confirmations
