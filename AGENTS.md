@@ -28,8 +28,9 @@ This repo supports a multi-agent workflow, but all changes still land through `d
 6. Verify build/tests for affected surfaces.
 7. Update living documentation when behavior changes.
 8. Commit on `dev`.
-9. Merge to `main` only after review + QA + release gate.
-10. After every `main` push, monitor the matching GitHub Actions run, the Netlify production deploy, and public health checks before closing the release.
+9. Group compatible changes on `dev` and select a Semantic Versioning (`MAJOR.MINOR.PATCH`) increment before release. Update `CHANGELOG.md`, version manifests, release notes, and the frontend version display together.
+10. Merge `dev` to `main` only after review + QA + release gate. Create and push an annotated `vMAJOR.MINOR.PATCH` tag on the exact promoted `main` commit; record its immutable SHA so rollback targets the last healthy tag.
+11. After every `main` push, monitor the matching GitHub Actions run, the Netlify production deploy, and public health checks before closing the release. Then synchronize `main` back to `dev`.
 
 ## Definition of Done
 - Backend builds if backend changed.
