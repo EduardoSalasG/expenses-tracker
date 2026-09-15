@@ -120,6 +120,8 @@ Keep `backend/.env` outside Git. Production deployments need:
 - `MESSAGE_INTERPRETER_MODEL`
 - `FRONTEND_ORIGIN`
 
+Before a production deploy, verify that `JWT_SECRET` is not the development default, `DATABASE_URL` is not the local default, `FRONTEND_ORIGIN` contains only explicit HTTPS origins (never `*`), and `TELEGRAM_WEBHOOK_SECRET_TOKEN` is a unique value of at least 16 characters whenever `TELEGRAM_BOT_TOKEN` is configured. The backend rejects an invalid production configuration before it accepts traffic; it also omits the Telegram webhook route when no webhook secret is configured.
+
 For OpenRouter, configure:
 
 ```text

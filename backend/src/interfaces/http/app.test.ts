@@ -7,6 +7,14 @@ import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
 
 describe('Messaging routes', () => {
+  it('does not expose the Telegram webhook without its verification secret', async () => {
+    const app = createApp(createContainer(testConfig({ telegramWebhookSecretToken: '' })));
+
+    const response = await request(app).post('/webhooks/telegram').send({ message: {} });
+
+    expect(response.status).toBe(404);
+  });
+
   it('does not expose WhatsApp webhook route in telegram-only mode', async () => {
     const app = createApp(createContainer(testConfig()));
     const response = await request(app).post('/webhooks/whatsapp').send({ entry: [] });
@@ -140,6 +148,7 @@ describe('Telegram webhook', () => {
     const app = createApp(createContainer(testConfig()));
     const response = await request(app)
       .post('/webhooks/telegram')
+      .set('x-telegram-bot-api-secret-token', 'telegram-test-secret')
       .send({
         message: {
           message_id: 77,
@@ -168,7 +177,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     whatsappTestRecipientPhone: '',
     telegramBotToken: '',
     telegramBotApiBaseUrl: 'https://api.telegram.org',
-    telegramWebhookSecretToken: '',
+    telegramWebhookSecretToken: 'telegram-test-secret',
     messageInterpreterProvider: 'deterministic',
     messageInterpreterApiKey: '',
     messageInterpreterBaseUrl: 'https://api.deepseek.com',

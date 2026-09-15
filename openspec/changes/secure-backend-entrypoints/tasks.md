@@ -6,9 +6,9 @@
 
 ## 2. Configuración y canales productivos
 
-- [ ] 2.1 Añadir pruebas de configuración para secreto JWT predeterminado, CORS incompleto y canales habilitados sin secreto; verificar rechazo de arranque en producción.
-- [ ] 2.2 Aplicar refinamientos Zod y composición condicional de rutas inbound; verificar que una configuración válida conserva health y que una inválida no inicia.
-- [ ] 2.3 Documentar variables obligatorias y actualizar ejemplos/operaciones; ejecutar `pnpm --filter @expenses-tracker/backend build`.
+- [x] 2.1 Añadir pruebas de configuración para secreto JWT predeterminado, CORS incompleto y canales habilitados sin secreto; verificar rechazo de arranque en producción.
+- [x] 2.2 Aplicar refinamientos Zod y composición condicional de rutas inbound; verificar que una configuración válida conserva health y que una inválida no inicia.
+- [x] 2.3 Documentar variables obligatorias y actualizar ejemplos/operaciones; ejecutar `pnpm --filter @expenses-tracker/backend build`.
 
 ## 3. Abuso y contrato de errores
 

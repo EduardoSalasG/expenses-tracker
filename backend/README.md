@@ -28,7 +28,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `JWT_SECRET`: signing secret for access and refresh tokens.
 - `TELEGRAM_BOT_TOKEN`: Telegram bot HTTP API token.
 - `TELEGRAM_BOT_API_BASE_URL`: Telegram API base URL (`https://api.telegram.org`).
-- `TELEGRAM_WEBHOOK_SECRET_TOKEN`: optional secret expected in `x-telegram-bot-api-secret-token` for webhook hardening.
+- `TELEGRAM_WEBHOOK_SECRET_TOKEN`: secret expected in `x-telegram-bot-api-secret-token`. The Telegram webhook route is not registered without it; production requires a unique value of at least 16 characters when `TELEGRAM_BOT_TOKEN` is configured.
 - `RESEND_API_KEY`: Resend API key used to send email magic links.
 - `RESEND_API_BASE_URL`: Resend REST API base URL (`https://api.resend.com`).
 - `RESEND_FROM_EMAIL`: verified sender used for magic-link emails.
@@ -40,7 +40,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_HTTP_REFERER`: optional site URL sent as `HTTP-Referer` when provider is OpenRouter. If omitted, backend falls back to `FRONTEND_ORIGIN` public URL.
 - `MESSAGE_INTERPRETER_APP_NAME`: optional app name sent as `X-Title` when provider is OpenRouter.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
-- `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list.
+- `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list. Production requires explicit HTTPS origins and rejects `*`.
 - `TELEGRAM_BOT_USERNAME`: bot username without the leading `@`. Required for generating Telegram registration deep links from the web.
 - `LEGACY_BUDGETS_ENDPOINTS_ENABLED`: keeps deprecated `GET/PUT /budgets/monthly` aliases enabled (`true` by default). Set to `false` to enforce `/budgets` only.
 
@@ -73,7 +73,7 @@ For normal development, run the backend locally and keep only PostgreSQL in Dock
 docker compose up --build backend
 ```
 
-The container expects `DATABASE_URL`, `JWT_SECRET`, Telegram configuration, and `FRONTEND_ORIGIN`.
+The container expects `DATABASE_URL`, a unique `JWT_SECRET`, Telegram configuration, and `FRONTEND_ORIGIN`. Production rejects local development database/JWT defaults, wildcard CORS, and an enabled Telegram bot without a webhook secret.
 
 ## Architecture
 
