@@ -66,4 +66,3 @@ Si una migración no es reversible, el rollback debe usar una corrección hacia 
 - [ ] Se creó y publicó un tag anotado `vX.Y.Z` sobre `main`.
 - [ ] El despliegue, API y frontend productivos están sanos.
 - [ ] `dev` fue sincronizada con `main`.
-
