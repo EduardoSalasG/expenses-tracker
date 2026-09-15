@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-15
+goal: Confirmar eventos con rapidez, deduplicar antes de efectos y obtener
+  trazabilidad segura de produccion.

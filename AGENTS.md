@@ -17,15 +17,19 @@ This repo supports a multi-agent workflow, but all changes still land through `d
 4. Functional QA Agent
    - Validates the user flow end to end on desktop/mobile when UI or messaging flows are affected.
 5. Release Agent
-   - Runs the release checklist and controls promotion from `dev` to `main`.
+   - Runs the release checklist, controls promotion from `dev` to `main`, and supervises every production deployment after the `main` push.
 
 ## Required Flow
 1. Design before code for non-trivial changes.
-2. Implement in the smallest coherent slice possible.
-3. Verify build/tests for affected surfaces.
-4. Update living documentation when behavior changes.
-5. Commit on `dev`.
-6. Merge to `main` only after review + QA + release gate.
+2. After a plan is approved, refine it with OpenSpec before implementation. If OpenSpec is unavailable, record that limitation and ask for direction before substituting another planning format.
+3. Use Superpowers to structure discovery, design, planning, implementation, debugging, and verification. Use Codebase Memory first for structural code discovery and traceability; validate index coverage and read source directly when coverage is incomplete or stale.
+4. For frontend work, use Impeccable for UX/UI, accessibility, responsive, performance, and visual-system reviews; use Apple Design for interaction, typography, motion, feedback, reduced-motion, and spatial-consistency decisions. Preserve or deliberately improve the established visual system rather than introducing unrelated styling. Design mobile-first because mobile is the primary user context; verify at 320 px, a representative mobile width, and desktop, including touch targets, reachability, keyboard access, zoom, loading/error/empty states, and reduced-motion behavior.
+5. Implement in the smallest coherent slice possible.
+6. Verify build/tests for affected surfaces.
+7. Update living documentation when behavior changes.
+8. Commit on `dev`.
+9. Merge to `main` only after review + QA + release gate.
+10. After every `main` push, monitor the matching GitHub Actions run, the Netlify production deploy, and public health checks before closing the release.
 
 ## Definition of Done
 - Backend builds if backend changed.
