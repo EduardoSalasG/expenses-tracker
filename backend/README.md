@@ -156,7 +156,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /auth/telegram/registration-link` is an optional convenience flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration or links Telegram in the web app without asking for the Telegram chat id manually.
 
-`POST /auth/telegram/link-token` generates a short-lived one-time token for a known Telegram chat id. The bot uses it to build a secure web login link after `/start`.
+Telegram link tokens are generated only by the verified bot webhook after `/start`; clients never provide a Telegram chat id to mint one.
 
 `POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
 
@@ -269,7 +269,6 @@ The final auth/messaging pass must explicitly cover:
 - `POST /auth/magic-link/request`
 - `POST /auth/magic-link/consume`
 - `POST /auth/telegram/registration-link`
-- `POST /auth/telegram/link-token`
 - `POST /auth/telegram/consume-link-token`
 - `POST /auth/otp/request`
 - `POST /auth/otp/verify`

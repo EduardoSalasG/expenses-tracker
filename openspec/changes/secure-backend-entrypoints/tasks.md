@@ -1,8 +1,8 @@
 ## 1. Vínculo de mensajería seguro
 
-- [ ] 1.1 Escribir pruebas HTTP que demuestren que una solicitud anónima no puede emitir ni consumir una sesión mediante un chatId; verificar que fallan contra el comportamiento actual.
-- [ ] 1.2 Restringir la emisión de vínculo a sesión autenticada o webhook verificado y derivar el chat desde el contexto de servidor; verificar las pruebas de 1.1 y los flujos de vínculo admitidos.
-- [ ] 1.3 Actualizar rutas, Swagger y pruebas de regresión del vínculo; ejecutar `pnpm --filter @expenses-tracker/backend test`.
+- [x] 1.1 Escribir pruebas HTTP que demuestren que una solicitud anónima no puede emitir ni consumir una sesión mediante un chatId; verificar que fallan contra el comportamiento actual.
+- [x] 1.2 Restringir la emisión de vínculo a sesión autenticada o webhook verificado y derivar el chat desde el contexto de servidor; verificar las pruebas de 1.1 y los flujos de vínculo admitidos.
+- [x] 1.3 Actualizar rutas, Swagger y pruebas de regresión del vínculo; ejecutar `pnpm --filter @expenses-tracker/backend test`.
 
 ## 2. Configuración y canales productivos
 

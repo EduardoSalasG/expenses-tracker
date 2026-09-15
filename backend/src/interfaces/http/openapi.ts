@@ -522,39 +522,6 @@ export const openApiSpec = {
         }
       }
     },
-    '/auth/telegram/link-token': {
-      post: {
-        summary: 'Create one-time Telegram link token',
-        requestBody: jsonBody({ chatId: { type: 'string', example: '123456789' } }, ['chatId']),
-        responses: {
-          '200': {
-            description: 'Link token created',
-            content: {
-              'application/json': {
-                examples: {
-                  created: {
-                    value: {
-                      token: '5f50d30e-7f96-4ad2-b16f-2a38e8576b95',
-                      expiresAt: '2026-06-10T18:15:00.000Z'
-                    }
-                  }
-                }
-              }
-            }
-          },
-          '400': {
-            description: 'Validation error',
-            content: {
-              'application/json': {
-                examples: {
-                  invalidChat: { value: { error: 'Validation failed.' } }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     '/auth/telegram/consume-link-token': {
       post: {
         summary: 'Consume Telegram link token',

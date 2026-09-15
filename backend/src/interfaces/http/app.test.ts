@@ -12,6 +12,16 @@ describe('Messaging routes', () => {
     const response = await request(app).post('/webhooks/whatsapp').send({ entry: [] });
     expect(response.status).toBe(404);
   });
+
+  it('does not let an anonymous client mint a Telegram login token for an arbitrary chat', async () => {
+    const app = createApp(createContainer(testConfig()));
+
+    const response = await request(app)
+      .post('/auth/telegram/link-token')
+      .send({ chatId: 'another-users-chat' });
+
+    expect(response.status).toBe(404);
+  });
 });
 
 describe('extractWhatsAppMessages', () => {

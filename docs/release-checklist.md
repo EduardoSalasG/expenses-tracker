@@ -60,7 +60,6 @@ Use this checklist for every production promotion from `dev` to `main`.
   - `/auth/magic-link/request`
   - `/auth/magic-link/consume`
   - `/auth/telegram/registration-link`
-  - `/auth/telegram/link-token`
   - `/auth/telegram/consume-link-token`
   - `/webhooks/telegram`
 - Verify finance maintenance flows:

@@ -309,23 +309,6 @@
           }
         },
         {
-          "name": "Create Telegram Link Token",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"chatId\": \"{{telegramChatId}}\"\n}"
-            },
-            "url": "{{baseUrl}}/auth/telegram/link-token"
-          }
-        },
-        {
           "name": "Create Telegram Registration Link",
           "request": {
             "method": "POST",
