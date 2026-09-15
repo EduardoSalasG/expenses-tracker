@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-15
+goal: Garantizar flujos operables por teclado, lector de pantalla y tacto en
+  toda la aplicacion autenticada.

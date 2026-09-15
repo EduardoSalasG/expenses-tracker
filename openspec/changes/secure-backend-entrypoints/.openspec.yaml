@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-15
+goal: Eliminar toma de cuentas, configuracion insegura y abuso de endpoints
+  publicos antes de cambios de experiencia.
