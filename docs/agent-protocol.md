@@ -35,6 +35,14 @@ Use agents to reduce integration mistakes, not to fragment ownership.
 - Verify README/diagrams for setup or workflow changes.
 - Verify i18n when public/private copy changes.
 
+## Session Continuity and Budget
+
+1. At the beginning of a session, read the latest `docs/next-session-handoff-*.md`, compare it against `git status` and recent commits, and report any drift before implementation.
+2. When the agent cannot see the 5-hour usage meter, ask the user for the current percentage before a non-trivial slice. Reserve enough budget for discovery, TDD, implementation, verification, documentation, and commit.
+3. Do not start a slice that cannot be safely closed within the reported budget. Prefer a documented handoff to an incomplete code change.
+4. Before a low-budget pause or session end, update/create the handoff with: reported budget, branch/commit, completed and pending OpenSpec tasks, tests/build evidence, blockers, known gaps, and the exact next slice.
+5. A handoff is context, not source of truth. Structural and behavioral claims still require Codebase Memory coverage and direct source or test evidence.
+
 ## Escalation Rules
 - Stop and redesign if the change breaks contracts across backend/frontend/database.
 - Do not merge mixed-purpose changes in one release commit unless they are technically inseparable.
