@@ -585,17 +585,35 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
 }
 
 export class InMemoryOtpRepository implements OtpRepository {
-  private readonly otps = new Map<string, { code: string; expiresAt: Date }>();
+  private readonly otps = new Map<string, { code: string; expiresAt: Date; issuedAt: Date; failedAttempts: number }>();
 
-  async create(phoneNumber: string, code: string, expiresAt: Date) {
-    this.otps.set(phoneNumber, { code, expiresAt });
+  async issue(input: { phoneNumber: string; code: string; expiresAt: Date; now: Date; cooldownMs: number }) {
+    const existing = this.otps.get(input.phoneNumber);
+    if (existing) {
+      const retryAfterMilliseconds = existing.issuedAt.getTime() + input.cooldownMs - input.now.getTime();
+      if (retryAfterMilliseconds > 0) {
+        return { issued: false as const, retryAfterSeconds: Math.ceil(retryAfterMilliseconds / 1000) };
+      }
+    }
+    this.otps.set(input.phoneNumber, {
+      code: input.code,
+      expiresAt: input.expiresAt,
+      issuedAt: input.now,
+      failedAttempts: 0
+    });
+    return { issued: true as const };
   }
 
   async verify(phoneNumber: string, code: string, now: Date) {
     const otp = this.otps.get(phoneNumber);
-    const valid = Boolean(otp && otp.code === code && otp.expiresAt >= now);
-    if (valid) this.otps.delete(phoneNumber);
-    return valid;
+    if (!otp || otp.expiresAt < now) return { verified: false, attemptsExhausted: false };
+    if (otp.failedAttempts >= 5) return { verified: false, attemptsExhausted: true };
+    if (otp.code === code) {
+      this.otps.delete(phoneNumber);
+      return { verified: true, attemptsExhausted: false };
+    }
+    otp.failedAttempts += 1;
+    return { verified: false, attemptsExhausted: false };
   }
 }
 
@@ -713,15 +731,25 @@ export class InMemoryBankOptionRepository implements BankOptionRepository {
     return bank;
   }
 
-  async update(input: { tenantId: string; bankOptionId: string; name: string }) {
-    const index = this.banks.findIndex((bank) => bank.id === input.bankOptionId && bank.tenantId === input.tenantId && !bank.isDefault);
+  async update(input: { tenantId: string; financialAccountId?: string; bankOptionId: string; name: string }) {
+    const index = this.banks.findIndex((bank) =>
+      bank.id === input.bankOptionId &&
+      bank.tenantId === input.tenantId &&
+      bank.financialAccountId === input.financialAccountId &&
+      !bank.isDefault
+    );
     if (index < 0) return undefined;
     this.banks[index] = { ...this.banks[index], name: input.name };
     return this.banks[index];
   }
 
-  async delete(input: { tenantId: string; bankOptionId: string }) {
-    const index = this.banks.findIndex((bank) => bank.id === input.bankOptionId && bank.tenantId === input.tenantId && !bank.isDefault);
+  async delete(input: { tenantId: string; financialAccountId?: string; bankOptionId: string }) {
+    const index = this.banks.findIndex((bank) =>
+      bank.id === input.bankOptionId &&
+      bank.tenantId === input.tenantId &&
+      bank.financialAccountId === input.financialAccountId &&
+      !bank.isDefault
+    );
     if (index < 0) return false;
     this.banks.splice(index, 1);
     return true;
@@ -761,13 +789,19 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
 
   async update(input: {
     tenantId: string;
+    financialAccountId?: string;
     paymentMethodOptionId: string;
     code: string;
     name: string;
     kind: PaymentMethodOption['kind'];
     cardType?: PaymentMethodOption['cardType'];
   }) {
-    const index = this.paymentMethods.findIndex((method) => method.id === input.paymentMethodOptionId && method.tenantId === input.tenantId && !method.isDefault);
+    const index = this.paymentMethods.findIndex((method) =>
+      method.id === input.paymentMethodOptionId &&
+      method.tenantId === input.tenantId &&
+      method.financialAccountId === input.financialAccountId &&
+      !method.isDefault
+    );
     if (index < 0) return undefined;
     this.paymentMethods[index] = {
       ...this.paymentMethods[index],
@@ -779,8 +813,13 @@ export class InMemoryPaymentMethodOptionRepository implements PaymentMethodOptio
     return this.paymentMethods[index];
   }
 
-  async delete(input: { tenantId: string; paymentMethodOptionId: string }) {
-    const index = this.paymentMethods.findIndex((method) => method.id === input.paymentMethodOptionId && method.tenantId === input.tenantId && !method.isDefault);
+  async delete(input: { tenantId: string; financialAccountId?: string; paymentMethodOptionId: string }) {
+    const index = this.paymentMethods.findIndex((method) =>
+      method.id === input.paymentMethodOptionId &&
+      method.tenantId === input.tenantId &&
+      method.financialAccountId === input.financialAccountId &&
+      !method.isDefault
+    );
     if (index < 0) return false;
     this.paymentMethods.splice(index, 1);
     return true;
@@ -825,7 +864,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const expense = this.expenses.find((item) =>
       item.tenantId === input.tenantId &&
       item.id === input.expenseId &&
-      (!input.financialAccountId || !item.financialAccountId || item.financialAccountId === input.financialAccountId)
+      (!input.financialAccountId || item.financialAccountId === input.financialAccountId)
     );
     return expense ? buildProjectedExpenses(expense)[0] : undefined;
   }
@@ -834,7 +873,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const index = this.expenses.findIndex((expense) =>
       expense.tenantId === input.tenantId &&
       expense.id === input.expenseId &&
-      (!input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
+      (!input.financialAccountId || expense.financialAccountId === input.financialAccountId)
     );
     if (index === -1) return false;
     this.expenses.splice(index, 1);
@@ -863,7 +902,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const index = this.expenses.findIndex((expense) =>
       expense.tenantId === input.tenantId &&
       expense.id === input.expenseId &&
-      (!input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
+      (!input.financialAccountId || expense.financialAccountId === input.financialAccountId)
     );
     if (index < 0) return undefined;
     const purchaseDate = input.date ?? this.expenses[index].purchaseDate ?? this.expenses[index].date;
@@ -920,7 +959,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   }) {
     return this.projectedExpenses()
       .filter((expense) => expense.tenantId === input.tenantId)
-      .filter((expense) => !input.financialAccountId || !expense.financialAccountId || expense.financialAccountId === input.financialAccountId)
+      .filter((expense) => !input.financialAccountId || expense.financialAccountId === input.financialAccountId)
       .filter((expense) => !input.from || expense.date >= input.from)
       .filter((expense) => !input.to || expense.date <= input.to)
       .filter((expense) => !input.categoryId || expense.categoryId === input.categoryId || expense.subcategoryId === input.categoryId)
@@ -934,7 +973,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     return this.projectedExpenses()
       .filter((expense) => expense.tenantId === tenantId)
-      .filter((expense) => !financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId)
+      .filter((expense) => !financialAccountId || expense.financialAccountId === financialAccountId)
       .sort(sortProjectedExpenses)
       .slice(0, limit);
   }
@@ -945,7 +984,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     const normalizedTo = to ?? '';
     return this.projectedExpenses().filter((expense) =>
       expense.tenantId === tenantId &&
-      (!financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId) &&
+      (!financialAccountId || expense.financialAccountId === financialAccountId) &&
       expense.date >= normalizedFrom &&
       expense.date <= normalizedTo
     );
@@ -954,7 +993,7 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
   async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const source = this.projectedExpenses().filter((expense) =>
       expense.tenantId === tenantId &&
-      (!financialAccountId || !expense.financialAccountId || expense.financialAccountId === financialAccountId) &&
+      (!financialAccountId || expense.financialAccountId === financialAccountId) &&
       new Date(expense.date).getUTCFullYear() === year
     );
     return aggregateCurrencyTotalsBy(source, (expense) => {
@@ -1062,7 +1101,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     const index = this.incomes.findIndex((income) =>
       income.tenantId === input.tenantId &&
       income.id === input.incomeId &&
-      (!input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
+      (!input.financialAccountId || income.financialAccountId === input.financialAccountId)
     );
     if (index === -1) return false;
     this.incomes.splice(index, 1);
@@ -1081,7 +1120,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     const index = this.incomes.findIndex((income) =>
       income.tenantId === input.tenantId &&
       income.id === input.incomeId &&
-      (!input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
+      (!input.financialAccountId || income.financialAccountId === input.financialAccountId)
     );
     if (index < 0) return undefined;
     this.incomes[index] = {
@@ -1104,7 +1143,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
   }) {
     return this.incomes
       .filter((income) => income.tenantId === input.tenantId)
-      .filter((income) => !input.financialAccountId || !income.financialAccountId || income.financialAccountId === input.financialAccountId)
+      .filter((income) => !input.financialAccountId || income.financialAccountId === input.financialAccountId)
       .filter((income) => !input.from || income.date >= input.from)
       .filter((income) => !input.to || income.date <= input.to)
       .filter((income) => !input.currency || income.currency === input.currency)
@@ -1118,7 +1157,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     const normalizedTo = to ?? '';
     return this.incomes.filter((income) =>
       income.tenantId === tenantId &&
-      (!financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId) &&
+      (!financialAccountId || income.financialAccountId === financialAccountId) &&
       income.date >= normalizedFrom &&
       income.date <= normalizedTo
     );
@@ -1128,7 +1167,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     const { financialAccountId, limit } = normalizeScopedRecentArgs(financialAccountIdOrLimit, limitMaybe);
     return this.incomes
       .filter((income) => income.tenantId === tenantId)
-      .filter((income) => !financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId)
+      .filter((income) => !financialAccountId || income.financialAccountId === financialAccountId)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit);
   }
@@ -1136,7 +1175,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
   async yearlyMonthlyTotalsByTenant(tenantId: string, financialAccountId: string | undefined, year: number) {
     const source = this.incomes.filter((income) =>
       income.tenantId === tenantId &&
-      (!financialAccountId || !income.financialAccountId || income.financialAccountId === financialAccountId) &&
+      (!financialAccountId || income.financialAccountId === financialAccountId) &&
       new Date(income.date).getUTCFullYear() === year
     );
     return aggregateCurrencyTotalsBy(source, (income) => {
@@ -1302,7 +1341,7 @@ export class InMemoryBudgetRepository implements BudgetRepository {
   async listMonthly(tenantId: string, financialAccountId?: string) {
     return this.budgets.filter((budget) =>
       budget.tenantId === tenantId &&
-      (!financialAccountId || !budget.financialAccountId || budget.financialAccountId === financialAccountId)
+      (!financialAccountId || budget.financialAccountId === financialAccountId)
     );
   }
 }

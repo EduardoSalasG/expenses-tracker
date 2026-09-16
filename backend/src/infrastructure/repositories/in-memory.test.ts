@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryCategoryRepository, InMemoryExpenseRepository } from './in-memory.js';
+import {
+  InMemoryBankOptionRepository,
+  InMemoryIncomeRepository,
+  InMemoryPaymentMethodOptionRepository
+} from './in-memory.js';
+import type {
+  BankOptionRepository,
+  PaymentMethodOptionRepository
+} from '../../application/ports.js';
 
 describe('InMemoryExpenseRepository installments', () => {
   it('returns only multi-installment expenses in upcoming installment totals', async () => {
@@ -71,6 +80,136 @@ describe('InMemoryExpenseRepository installments', () => {
       expect.objectContaining({ owedByUserId: 'user-1', amount: 2000 }),
       expect.objectContaining({ owedByUserId: 'user-2', amount: 3000 })
     ]);
+  });
+});
+
+describe('In-memory finance repository account isolation', () => {
+  it('rejects every foreign-account financial mutation within the same tenant', async () => {
+    const tenantId = 'tenant-1';
+    const sourceAccountId = 'account-source';
+    const foreignAccountId = 'account-foreign';
+    const expenses = new InMemoryExpenseRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const banks: BankOptionRepository = new InMemoryBankOptionRepository();
+    const paymentMethods: PaymentMethodOptionRepository = new InMemoryPaymentMethodOptionRepository();
+
+    const expense = await expenses.create({
+      tenantId,
+      financialAccountId: sourceAccountId,
+      userId: 'user-1',
+      date: '2026-09-16T00:00:00.000Z',
+      amount: 1000,
+      currency: 'CLP',
+      concept: 'Expense source',
+      categoryId: 'category-1',
+      paymentMethod: { kind: 'cash' }
+    });
+    const income = await incomes.create({
+      tenantId,
+      financialAccountId: sourceAccountId,
+      userId: 'user-1',
+      date: '2026-09-16T00:00:00.000Z',
+      amount: 2000,
+      currency: 'CLP',
+      concept: 'Income source'
+    });
+    const bank = await banks.create({ tenantId, financialAccountId: sourceAccountId, name: 'Bank source', isDefault: false });
+    const paymentMethod = await paymentMethods.create({
+      tenantId,
+      financialAccountId: sourceAccountId,
+      code: 'source-card',
+      name: 'Card source',
+      kind: 'card',
+      cardType: 'credit',
+      isDefault: false
+    });
+
+    await expect(expenses.update({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      expenseId: expense.id,
+      concept: 'tampered'
+    })).resolves.toBeUndefined();
+    await expect(expenses.delete({ tenantId, financialAccountId: foreignAccountId, expenseId: expense.id })).resolves.toBe(false);
+    await expect(incomes.update({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      incomeId: income.id,
+      concept: 'tampered'
+    })).resolves.toBeUndefined();
+    await expect(incomes.delete({ tenantId, financialAccountId: foreignAccountId, incomeId: income.id })).resolves.toBe(false);
+    await expect(banks.update({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      bankOptionId: bank.id,
+      name: 'tampered'
+    })).resolves.toBeUndefined();
+    await expect(banks.delete({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      bankOptionId: bank.id
+    })).resolves.toBe(false);
+    await expect(paymentMethods.update({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      paymentMethodOptionId: paymentMethod.id,
+      code: 'tampered',
+      name: 'tampered',
+      kind: 'card',
+      cardType: 'credit'
+    })).resolves.toBeUndefined();
+    await expect(paymentMethods.delete({
+      tenantId,
+      financialAccountId: foreignAccountId,
+      paymentMethodOptionId: paymentMethod.id
+    })).resolves.toBe(false);
+
+    expect((await expenses.findById({ tenantId, financialAccountId: sourceAccountId, expenseId: expense.id }))?.concept).toBe('Expense source');
+    expect((await incomes.list({ tenantId, financialAccountId: sourceAccountId, limit: 10 }))[0]?.concept).toBe('Income source');
+    expect((await banks.findAccessibleById(tenantId, bank.id, sourceAccountId))?.name).toBe('Bank source');
+    expect((await paymentMethods.findAccessibleById(tenantId, paymentMethod.id, sourceAccountId))?.name).toBe('Card source');
+  });
+
+  it('does not expose or mutate personal movements from a shared account in the same tenant', async () => {
+    const tenantId = 'tenant-1';
+    const sharedAccountId = 'shared-account';
+    const expenses = new InMemoryExpenseRepository();
+    const incomes = new InMemoryIncomeRepository();
+    const personalExpense = await expenses.create({
+      tenantId,
+      userId: 'user-1',
+      date: '2026-09-16T00:00:00.000Z',
+      amount: 1000,
+      currency: 'CLP',
+      concept: 'personal expense',
+      categoryId: 'category-1',
+      paymentMethod: { kind: 'cash' }
+    });
+    const personalIncome = await incomes.create({
+      tenantId,
+      userId: 'user-1',
+      date: '2026-09-16T00:00:00.000Z',
+      amount: 2000,
+      currency: 'CLP',
+      concept: 'personal income'
+    });
+
+    await expect(expenses.findById({ tenantId, financialAccountId: sharedAccountId, expenseId: personalExpense.id })).resolves.toBeUndefined();
+    await expect(expenses.update({
+      tenantId,
+      financialAccountId: sharedAccountId,
+      expenseId: personalExpense.id,
+      concept: 'tampered'
+    })).resolves.toBeUndefined();
+    await expect(expenses.delete({ tenantId, financialAccountId: sharedAccountId, expenseId: personalExpense.id })).resolves.toBe(false);
+    await expect(incomes.list({ tenantId, financialAccountId: sharedAccountId, limit: 10 })).resolves.toEqual([]);
+    await expect(incomes.update({
+      tenantId,
+      financialAccountId: sharedAccountId,
+      incomeId: personalIncome.id,
+      concept: 'tampered'
+    })).resolves.toBeUndefined();
+    await expect(incomes.delete({ tenantId, financialAccountId: sharedAccountId, incomeId: personalIncome.id })).resolves.toBe(false);
   });
 });
 

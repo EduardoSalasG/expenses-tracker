@@ -709,24 +709,54 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
 export class PostgresOtpRepository implements OtpRepository {
   constructor(private readonly pool: DatabasePool) {}
 
-  async create(phoneNumber: string, code: string, expiresAt: Date) {
-    await this.pool.query(
-      `insert into otp_codes (phone_number, code, expires_at)
-       values ($1, $2, $3)
-       on conflict (phone_number) do update set code = excluded.code, expires_at = excluded.expires_at, consumed_at = null, created_at = now()`,
-      [phoneNumber, code, expiresAt]
+  async issue(input: { phoneNumber: string; code: string; expiresAt: Date; now: Date; cooldownMs: number }) {
+    const result = await this.pool.query(
+      `insert into otp_codes (phone_number, code, expires_at, created_at)
+       values ($1, $2, $3, $4)
+       on conflict (phone_number) do update
+       set code = excluded.code, expires_at = excluded.expires_at, consumed_at = null, created_at = excluded.created_at, failed_attempts = 0
+       where otp_codes.created_at <= excluded.created_at - ($5 * interval '1 millisecond')
+       returning created_at`,
+      [input.phoneNumber, input.code, input.expiresAt, input.now, input.cooldownMs]
     );
+    if (result.rows[0]) return { issued: true as const };
+
+    const existing = await this.pool.query(
+      'select created_at from otp_codes where phone_number = $1',
+      [input.phoneNumber]
+    );
+    const issuedAt = new Date(existing.rows[0].created_at).getTime();
+    return {
+      issued: false as const,
+      retryAfterSeconds: Math.max(1, Math.ceil((issuedAt + input.cooldownMs - input.now.getTime()) / 1000))
+    };
   }
 
   async verify(phoneNumber: string, code: string, now: Date) {
-    const result = await this.pool.query(
+    const verified = await this.pool.query(
       `update otp_codes
        set consumed_at = $3
-       where phone_number = $1 and code = $2 and expires_at >= $3 and consumed_at is null
+       where phone_number = $1 and code = $2 and expires_at >= $3 and consumed_at is null and failed_attempts < 5
        returning phone_number`,
       [phoneNumber, code, now]
     );
-    return result.rowCount === 1;
+    if (verified.rows[0]) return { verified: true, attemptsExhausted: false };
+
+    const failedAttempt = await this.pool.query(
+      `update otp_codes
+       set failed_attempts = failed_attempts + 1
+       where phone_number = $1 and expires_at >= $2 and consumed_at is null and failed_attempts < 5
+       returning failed_attempts`,
+      [phoneNumber, now]
+    );
+    if (failedAttempt.rows[0]) return { verified: false, attemptsExhausted: false };
+
+    const existing = await this.pool.query(
+      `select failed_attempts from otp_codes
+       where phone_number = $1 and expires_at >= $2 and consumed_at is null`,
+      [phoneNumber, now]
+    );
+    return { verified: false, attemptsExhausted: Number(existing.rows[0]?.failed_attempts ?? 0) >= 5 };
   }
 }
 

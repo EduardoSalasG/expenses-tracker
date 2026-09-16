@@ -181,18 +181,18 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 examples: {
-                  existingUser: {
-                    value: { sent: true, requiresRegistration: false }
-                  },
-                  newUser: {
-                    value: { sent: true, requiresRegistration: true }
-                  }
+                  accepted: { value: { sent: true } }
                 }
               }
             }
           },
           '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
-          '500': { description: 'Provider delivery failed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { telegramNotLinked: { value: { error: 'Telegram chat is not linked. Open the bot and send /link +<your-phone-number>, then request OTP again.' } } } } } }
+          '429': {
+            description: 'OTP cooldown or rate limit exceeded',
+            headers: { 'Retry-After': { schema: { type: 'integer' }, description: 'Seconds until another request is allowed.' } },
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { throttled: { value: { error: 'Too many OTP requests.' } } } } }
+          },
+          '500': { description: 'Unexpected delivery failure', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
         }
       }
     },

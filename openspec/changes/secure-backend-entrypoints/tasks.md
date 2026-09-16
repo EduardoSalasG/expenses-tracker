@@ -12,12 +12,14 @@
 
 ## 3. Abuso y contrato de errores
 
-- [ ] 3.1 Crear pruebas con reloj controlado para cooldown OTP, límite por IP/identidad, 429/Retry-After y respuesta no enumerable; verificar fallo inicial.
-- [ ] 3.2 Implementar rate-limit y estado de OTP mediante puertos testeables; verificar límites, expiración y rutas legítimas.
-- [ ] 3.3 Definir `AppError`, adaptador Zod, request ID y middleware de error opaco; verificar contratos 400, 401, 403, 404, 409, 422 y 500 sin datos internos.
-- [ ] 3.4 Actualizar Swagger/Postman y ejecutar tests, lint y build backend completos.
+- [x] 3.1 Crear pruebas con reloj controlado para cooldown OTP, límite por IP/identidad, 429/Retry-After y respuesta no enumerable; verificar fallo inicial.
+- [x] 3.2 Implementar rate-limit y estado de OTP mediante puertos testeables; verificar límites, expiración y rutas legítimas.
+- [x] 3.3 Definir `AppError`, adaptador Zod, request ID y middleware de error opaco; verificar contratos 400, 401, 403, 404, 409, 422 y 500 sin datos internos.
+- [x] 3.4 Actualizar Swagger/Postman y ejecutar tests, lint y build backend completos.
+
+> Nota de verificación 3.4: `pnpm --filter @expenses-tracker/backend lint` permanece bloqueado por una brecha preexistente: ESLint 9.39.4 no encuentra `eslint.config.*`. La suite Vitest y el build TypeScript sí completaron correctamente; la configuración de lint requiere una slice separada.
 
 ## 4. Revisión de seguridad
 
-- [ ] 4.1 Añadir matriz de pruebas de aislamiento por cuenta para mutaciones e IDs ajenos; verificar rechazo en cada ruta afectada.
-- [ ] 4.2 Revisar logs de prueba para confirmar que no contienen tokens, cuerpos de webhook ni detalles internos; documentar la brecha de integración PostgreSQL si no hay servicio CI disponible.
+- [x] 4.1 Añadir matriz de pruebas de aislamiento por cuenta para mutaciones e IDs ajenos; verificar rechazo en cada ruta afectada.
+- [x] 4.2 Revisar logs de prueba para confirmar que no contienen tokens, cuerpos de webhook ni detalles internos; documentar la brecha de integración PostgreSQL si no hay servicio CI disponible.

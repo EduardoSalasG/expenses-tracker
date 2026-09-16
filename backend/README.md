@@ -146,7 +146,7 @@ Primary authentication is web-native. Telegram is optional and can be linked dur
 
 `POST /auth/magic-link/consume` exchanges a one-time email token for access/refresh tokens. Tokens expire after 15 minutes and are single-use.
 
-`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is a fallback flow for Telegram-linked users rather than the primary way into the web app.
+`POST /auth/otp/request` sends a Telegram OTP and returns the non-enumerable acknowledgement `{ "sent": true }`. It applies a 60-second cooldown, 5 requests per phone number and 20 per IP every 15 minutes; throttling returns `429` with `Retry-After`. This is a fallback flow for Telegram-linked users rather than the primary way into the web app.
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
@@ -438,6 +438,8 @@ PostgreSQL integration repository tests (requires a migrated local DB and `DATAB
 $env:RUN_DB_INTEGRATION_TESTS='true'
 pnpm --filter @expenses-tracker/backend test
 ```
+
+When `RUN_DB_INTEGRATION_TESTS` is not `true`, Vitest skips the PostgreSQL integration suites. This is an explicit coverage gap, not a successful database verification; run them against a migrated PostgreSQL service before a release that changes persistence or account isolation.
 
 Local QA without Telegram real:
 

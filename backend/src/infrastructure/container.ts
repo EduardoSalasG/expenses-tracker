@@ -63,10 +63,12 @@ import {
   VerifyOtpUseCase
 } from '../application/use-cases.js';
 import { CategoryTranslationService } from '../application/services/category-translation.service.js';
+import { InMemoryRateLimitStore } from './rate-limit.store.js';
 
 export function createContainer(config: AppConfig) {
   const logger = createLogger();
   const clock = { now: () => new Date() };
+  const rateLimits = new InMemoryRateLimitStore();
   const pool = config.useInMemoryRepositories ? undefined : createPool(config);
   const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
   const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
@@ -144,6 +146,7 @@ export function createContainer(config: AppConfig) {
     financialAccounts,
     tokens,
     messaging,
+    rateLimits,
     categoryTranslations,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {

@@ -10,7 +10,7 @@ sequenceDiagram
   API->>Users: Find user by phone
   API->>OTP: Store code with expiry
   API->>Telegram: Send OTP
-  API-->>Frontend: sent + requiresRegistration
+  API-->>Frontend: sent
   alt Existing user
     User->>Frontend: Enter code
   else New user
