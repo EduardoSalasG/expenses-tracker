@@ -28,6 +28,7 @@ import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
+import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.component';
 
 const CREATE_CATEGORY_OPTION = '__create_category__';
 const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
@@ -50,7 +51,8 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
     MatSlideToggleModule,
     ReactiveFormsModule,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    DisclosurePanelComponent
   ],
   template: `
     <app-page-header [title]="t('expenses_title')" [eyebrow]="t('expenses_subtitle')"></app-page-header>
@@ -67,17 +69,13 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           (change)="changeMonth($event)"
         >
         <div class="flex items-center gap-2">
-          <button id="expenses-filter-toggle" mat-stroked-button type="button" (click)="toggleFilters()">
-            <mat-icon>tune</mat-icon>
-            {{ t('expenses_filters_more') }}
-          </button>
           <button id="expenses-new-button" mat-flat-button color="primary" type="button" (click)="openNewExpenseDialog()">
             <mat-icon>add</mat-icon>
             {{ t('expenses_new') }}
           </button>
         </div>
       </div>
-      @if (filtersOpen()) {
+      <app-disclosure-panel [label]="t('expenses_filters_more')" [open]="filtersOpen() || hasSecondaryFilters()" class="mt-4 block">
         <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="mt-4 grid gap-4 lg:grid-cols-6">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
@@ -114,6 +112,9 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
             <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
           </div>
         </form>
+      </app-disclosure-panel>
+      @if (hasSecondaryFilters()) {
+        <p class="mt-3 text-sm text-brand-muted">{{ t('expenses_active_filters') }}</p>
       }
     </mat-card>
 
@@ -240,6 +241,10 @@ export class ExpensesComponent implements OnInit {
 
   toggleFilters() {
     this.filtersOpen.set(!this.filtersOpen());
+  }
+
+  hasSecondaryFilters() {
+    return hasSecondaryExpenseFilters(this.filters.getRawValue());
   }
 
   openNewExpenseDialog() {
@@ -1113,6 +1118,11 @@ function startOfDay(date: string) {
 function endOfDay(date: string) {
   return new Date(`${date}T23:59:59.999`).toISOString();
 }
+
+export function hasSecondaryExpenseFilters(filters: { categoryId: string; currency: string; paymentMethodKind: string }) {
+  return Boolean(filters.categoryId || filters.currency || filters.paymentMethodKind);
+}
+
 function paymentMethodPayload(option: PaymentMethodOption, bank?: BankOption) {
   if (option.kind === 'card') return { kind: 'card' as const, bank: bank?.name, cardType: option.cardType };
   if (option.kind === 'transfer') return { kind: 'transfer' as const, bank: bank?.name };
