@@ -11,6 +11,7 @@ import { categoryDisplayName } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
+import { ChartDataTableComponent, type ChartDataRow } from '../shared/components/chart-data-table.component';
 
 Chart.register(...registerables);
 
@@ -69,7 +70,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent],
   template: `
     @if (showTelegramBanner()) {
       <section class="mb-4">
@@ -197,6 +198,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-64 sm:h-72">
             <canvas #currencyChart aria-label="Cash flow by currency chart"></canvas>
           </div>
+          <app-chart-data-table [label]="t('dashboard_income_vs_expenses')" [rows]="currencyChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
 
         <mat-card class="page-panel chart-panel p-5">
@@ -204,6 +206,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-64 sm:h-72">
             <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
           </div>
+          <app-chart-data-table [label]="t('dashboard_expenses_by_category')" [rows]="categoryChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
 
         <mat-card class="page-panel chart-panel p-5">
@@ -217,6 +220,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-64 sm:h-72">
             <canvas #subcategoryChart aria-label="Expenses by subcategory chart"></canvas>
           </div>
+          <app-chart-data-table [label]="t('dashboard_expenses_by_subcategory')" [rows]="subcategoryChartRows()" [emptyLabel]="t('dashboard_no_subcategory_data')" />
         </mat-card>
       </section>
 
@@ -228,6 +232,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-64 sm:h-72">
             <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
           </div>
+          <app-chart-data-table [label]="viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month')" [rows]="periodChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
 
       @if (isSharedAccount()) {
@@ -242,6 +247,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-72 sm:h-80">
             <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
           </div>
+          <app-chart-data-table [label]="t('dashboard_shared_member_spending')" [rows]="memberChartRows()" [emptyLabel]="t('common_no_data')" />
           <div class="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Member period balances">
             @for (member of memberPeriodSpending(); track member.userId + member.currency) {
               <div class="flex min-w-0 items-center gap-3 rounded border px-3 py-3" [class]="memberBalanceCardClasses(member.balanceAmount)">
@@ -263,6 +269,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <div class="h-64 sm:h-72">
             <canvas #installmentsChart aria-label="Upcoming installments chart"></canvas>
           </div>
+          <app-chart-data-table [label]="t('dashboard_upcoming_installments')" [rows]="installmentChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
       }
       </section>
@@ -628,6 +635,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     return `${base} border-brand-border bg-brand-surface-muted text-brand-muted`;
   }
+
+  currencyChartRows(): ChartDataRow[] {
+    const report = this.report();
+    if (!report) return [];
+    return [...new Set([...Object.keys(report.incomeTotalsByCurrency), ...Object.keys(report.expenseTotalsByCurrency)])].sort().map((currency) => ({
+      label: currency,
+      value: `${this.t('dashboard_income')}: ${this.formatMoney(currency, report.incomeTotalsByCurrency[currency] ?? 0)} · ${this.t('dashboard_expenses')}: ${this.formatMoney(currency, report.expenseTotalsByCurrency[currency] ?? 0)}`
+    }));
+  }
+
+  categoryChartRows(): ChartDataRow[] { return this.categoryTotals().map((row) => ({ label: `${this.categoryName(row.categoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  subcategoryChartRows(): ChartDataRow[] { return this.categoryTotals().filter((row) => row.categoryId === this.selectedCategoryId()).map((row) => ({ label: `${this.subcategoryName(row.subcategoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  periodChartRows(): ChartDataRow[] { return this.periodTotals().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  installmentChartRows(): ChartDataRow[] { return this.upcomingInstallments().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  memberChartRows(): ChartDataRow[] { return this.memberPeriodSpending().map((row) => ({ label: `${row.preferredName} (${row.currency})`, value: `${this.t('dashboard_shared_paid')}: ${this.formatMoney(row.currency, row.paidAmount)} · ${this.t('dashboard_shared_assigned_share')}: ${this.formatMoney(row.currency, row.owedAmount)}` })); }
 
   private formatTotals(totals?: Record<string, number>) {
     if (!totals || !Object.keys(totals).length) return this.t('dashboard_no_movement');
