@@ -12,6 +12,9 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { ChartDataTableComponent, type ChartDataRow } from '../shared/components/chart-data-table.component';
+import { ActionPriorityComponent } from '../shared/components/action-priority.component';
+import { FinancialMetricComponent } from '../shared/components/financial-metric.component';
+import { deriveDashboardPriorities, type DashboardPriority } from './dashboard-priority';
 
 Chart.register(...registerables);
 
@@ -70,7 +73,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent, ActionPriorityComponent, FinancialMetricComponent],
   template: `
     @if (showTelegramBanner()) {
       <section class="mb-4">
@@ -166,29 +169,29 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
     } @else if (error()) {
       <mat-card class="border p-4 text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)] bg-[var(--semantic-danger-bg)]">{{ error() }}</mat-card>
     } @else {
-      <section class="grid gap-4 lg:grid-cols-3">
-        <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? t('dashboard_this_month_expenses') : t('dashboard_this_year_expenses') }}</div>
-          <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ expenseTotalLabel() }}</div>
-          <div class="mt-3 text-sm text-brand-muted">{{ report()?.expenses?.length ?? 0 }} {{ t('dashboard_expense_records') }}</div>
-        </mat-card>
-        <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">{{ viewMode() === 'monthly' ? t('dashboard_this_month_income') : t('dashboard_this_year_income') }}</div>
-          <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ incomeTotalLabel() }}</div>
-          <div class="mt-3 text-sm text-brand-muted">{{ report()?.incomes?.length ?? 0 }} {{ t('dashboard_income_records') }}</div>
-        </mat-card>
-        <mat-card class="page-panel p-5">
-          <div class="text-sm font-medium text-brand-muted">{{ t('dashboard_budget_progress') }}</div>
-          @if (overallBudget()) {
-            <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ overallBudget()?.progress }}%</div>
-            <mat-progress-bar class="mt-4" mode="determinate" [value]="overallBudget()?.progress ?? 0" />
-            <div class="mt-3 text-sm text-brand-muted">{{ overallBudget()?.spentLabel }} {{ t('dashboard_spent_of') }} {{ overallBudget()?.amountLabel }}</div>
-          } @else {
-            <div class="mt-2 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_no_budget') }}</div>
-            <div class="mt-3 text-sm text-brand-muted">{{ t('dashboard_create_budgets_hint') }}</div>
-          }
-        </mat-card>
+      <section aria-labelledby="dashboard-health-heading" class="grid gap-4">
+        <div>
+          <h2 id="dashboard-health-heading" class="text-lg font-semibold text-brand-ink">{{ t('dashboard_financial_health') }}</h2>
+          <p class="mt-1 text-sm text-brand-muted">{{ periodLabel() }}</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <app-financial-metric [label]="viewMode() === 'monthly' ? t('dashboard_this_month_expenses') : t('dashboard_this_year_expenses')" [value]="expenseTotalLabel()" [context]="(report()?.expenses?.length ?? 0) + ' ' + t('dashboard_expense_records')" tone="warning" />
+          <app-financial-metric [label]="viewMode() === 'monthly' ? t('dashboard_this_month_income') : t('dashboard_this_year_income')" [value]="incomeTotalLabel()" [context]="(report()?.incomes?.length ?? 0) + ' ' + t('dashboard_income_records')" tone="positive" />
+          <app-financial-metric [label]="t('dashboard_net_balance')" [value]="netBalanceLabel()" [context]="periodLabel()" />
+          <app-financial-metric [label]="t('dashboard_budget_progress')" [value]="overallBudget() ? overallBudget()?.progress + '%' : t('dashboard_no_budget')" [context]="overallBudget() ? overallBudget()?.spentLabel + ' ' + t('dashboard_spent_of') + ' ' + overallBudget()?.amountLabel : t('dashboard_create_budgets_hint')" [tone]="overallBudget() && overallBudget()!.progress >= 100 ? 'danger' : 'neutral'" />
+        </div>
       </section>
+
+      @if (dashboardPriorities().length) {
+        <section aria-labelledby="dashboard-priorities-heading" class="mt-4">
+          <h2 id="dashboard-priorities-heading" class="text-lg font-semibold text-brand-ink">{{ t('dashboard_priorities') }}</h2>
+          <div class="mt-3 grid gap-3 lg:grid-cols-2">
+            @for (priority of dashboardPriorities(); track priority.id) {
+              <app-action-priority [title]="t(priority.titleKey)" [description]="priorityDescription(priority)" [tone]="priority.tone" [link]="priority.route" [queryParams]="priority.queryParams" />
+            }
+          </div>
+        </section>
+      }
 
       <section id="dashboard-charts" class="mt-4 grid gap-4 xl:grid-cols-3">
         <mat-card class="page-panel chart-panel p-5">
@@ -468,6 +471,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       amountLabel: this.formatMoney(currency, amount)
     };
   });
+  readonly dashboardPriorities = computed(() => deriveDashboardPriorities({
+    budgetProgress: this.budgetProgress(),
+    upcomingInstallments: this.upcomingInstallments(),
+    memberBalances: this.memberPeriodSpending()
+  }));
   readonly showTelegramBanner = computed(() => {
     const user = this.user();
     if (!user || user.telegramChatId) return false;
@@ -634,6 +642,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       return `${base} border-[var(--semantic-danger-border)] bg-[var(--semantic-danger-bg)] text-[var(--semantic-danger-text)]`;
     }
     return `${base} border-brand-border bg-brand-surface-muted text-brand-muted`;
+  }
+
+  priorityDescription(priority: DashboardPriority) {
+    return Object.entries(priority.context ?? {}).reduce(
+      (description, [key, value]) => description.replace(`{${key}}`, value),
+      this.t(priority.descriptionKey)
+    );
   }
 
   currencyChartRows(): ChartDataRow[] {

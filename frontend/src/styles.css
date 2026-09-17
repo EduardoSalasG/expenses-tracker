@@ -37,6 +37,11 @@
   --semantic-warning-bg: #fffbeb;
   --semantic-warning-border: #fde68a;
   --semantic-warning-text: #92400e;
+  --surface-raised: var(--brand-surface);
+  --surface-subtle: var(--brand-surface-muted);
+  --content-primary: var(--brand-ink);
+  --content-secondary: var(--brand-muted);
+  --focus-ring: color-mix(in srgb, var(--brand-blue) 45%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,6 +78,26 @@
     --semantic-warning-border: #92400e;
     --semantic-warning-text: #fcd34d;
   }
+}
+
+.financial-focus:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.financial-priority--info {
+  border-color: color-mix(in srgb, var(--brand-blue) 36%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-blue) 8%, var(--surface-raised));
+}
+
+.financial-priority--warning {
+  border-color: var(--semantic-warning-border);
+  background: var(--semantic-warning-bg);
+}
+
+.financial-priority--danger {
+  border-color: var(--semantic-danger-border);
+  background: var(--semantic-danger-bg);
 }
 
 html,

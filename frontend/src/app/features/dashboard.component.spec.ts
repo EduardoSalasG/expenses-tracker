@@ -1,12 +1,45 @@
 import type { Category } from '../core/api.service';
 import { DashboardComponent, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
+import { deriveDashboardPriorities } from './dashboard-priority';
 
 describe('memberPeriodBalanceState', () => {
   it('classifies positive, negative, and settled member balances', () => {
     expect(memberPeriodBalanceState(9000)).toBe('credit');
     expect(memberPeriodBalanceState(-9000)).toBe('debt');
     expect(memberPeriodBalanceState(0)).toBe('settled');
+  });
+});
+
+describe('deriveDashboardPriorities', () => {
+  it('prioritizes a budget that has reached its limit', () => {
+    expect(deriveDashboardPriorities({
+      budgetProgress: [{ label: 'Comida', progress: 100 }],
+      upcomingInstallments: [],
+      memberBalances: []
+    })).toEqual([
+      jasmine.objectContaining({
+        id: 'budget-comida',
+        tone: 'danger',
+        titleKey: 'dashboard_priority_budget_title',
+        route: '/budgets'
+      })
+    ]);
+  });
+
+  it('includes upcoming charges and shared debts without inventing a priority for healthy data', () => {
+    expect(deriveDashboardPriorities({
+      budgetProgress: [{ label: 'Transporte', progress: 32 }],
+      upcomingInstallments: [{ periodKey: '2026-10', currency: 'CLP', total: 19000 }],
+      memberBalances: [{ userId: 'user-1', preferredName: 'Ana', currency: 'CLP', balanceAmount: -3500 }]
+    })).toEqual([
+      jasmine.objectContaining({ id: 'upcoming-installments', tone: 'info', route: '/expenses' }),
+      jasmine.objectContaining({ id: 'shared-debt-user-1-CLP', tone: 'warning', route: '/settings', queryParams: { section: 'accounts' } })
+    ]);
+  });
+
+  it('returns no priorities when all sources are healthy', () => {
+    expect(deriveDashboardPriorities({ budgetProgress: [], upcomingInstallments: [], memberBalances: [] })).toEqual([]);
   });
 });
 
