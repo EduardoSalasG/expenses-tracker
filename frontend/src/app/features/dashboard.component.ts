@@ -645,11 +645,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }));
   }
 
-  categoryChartRows(): ChartDataRow[] { return this.categoryTotals().map((row) => ({ label: `${this.categoryName(row.categoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  categoryChartRows(): ChartDataRow[] { return this.categoryChartTotals().map((row) => ({ label: `${this.categoryName(row.categoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   subcategoryChartRows(): ChartDataRow[] { return this.categoryTotals().filter((row) => row.categoryId === this.selectedCategoryId()).map((row) => ({ label: `${this.subcategoryName(row.subcategoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   periodChartRows(): ChartDataRow[] { return this.periodTotals().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   installmentChartRows(): ChartDataRow[] { return this.upcomingInstallments().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   memberChartRows(): ChartDataRow[] { return this.memberPeriodSpending().map((row) => ({ label: `${row.preferredName} (${row.currency})`, value: `${this.t('dashboard_shared_paid')}: ${this.formatMoney(row.currency, row.paidAmount)} · ${this.t('dashboard_shared_assigned_share')}: ${this.formatMoney(row.currency, row.owedAmount)}` })); }
+
+  private categoryChartTotals() {
+    const totalsMap = this.categoryTotals().reduce<Record<string, { categoryId: string; currency: string; total: number }>>((grouped, row) => {
+      const key = `${row.categoryId}:${row.currency}`;
+      if (!grouped[key]) grouped[key] = { categoryId: row.categoryId, currency: row.currency, total: 0 };
+      grouped[key].total += Number(row.total);
+      return grouped;
+    }, {});
+    return Object.values(totalsMap).sort((left, right) => right.total - left.total);
+  }
 
   private formatTotals(totals?: Record<string, number>) {
     if (!totals || !Object.keys(totals).length) return this.t('dashboard_no_movement');
@@ -830,17 +840,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderCategoryChart() {
     const canvas = this.categoryChartCanvas?.nativeElement;
-    const totalsRows = this.categoryTotals();
     if (!canvas) return;
-    const totalsMap = totalsRows.reduce<Record<string, { categoryId: string; currency: string; total: number }>>((grouped, row) => {
-      const key = `${row.categoryId}:${row.currency}`;
-      if (!grouped[key]) {
-        grouped[key] = { categoryId: row.categoryId, currency: row.currency, total: 0 };
-      }
-      grouped[key].total += Number(row.total);
-      return grouped;
-    }, {});
-    const totals = Object.values(totalsMap).sort((left, right) => right.total - left.total);
+    const totals = this.categoryChartTotals();
     const labels = totals.map((row) => `${this.categoryName(row.categoryId)} (${row.currency})`);
     const config: ChartConfiguration<'doughnut'> = {
       type: 'doughnut',

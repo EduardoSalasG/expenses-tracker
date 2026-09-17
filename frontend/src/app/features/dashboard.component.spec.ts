@@ -42,22 +42,34 @@ describe('DashboardComponent category labels', () => {
     i18n.setLanguage('es');
     const component = {
       i18n,
-      categoryTotals: () => [{ categoryId: 'food', subcategoryId: 'groceries', currency: 'CLP', total: 12500 }],
+      categoryTotals: () => [
+        { categoryId: 'food', subcategoryId: 'groceries', currency: 'CLP', total: 12500 },
+        { categoryId: 'food', subcategoryId: 'restaurants', currency: 'CLP', total: 2500 }
+      ],
       selectedCategoryId: () => 'food',
       periodTotals: () => [],
       upcomingInstallments: () => [],
       memberPeriodSpending: () => [],
       categoryName: () => 'Comida',
-      subcategoryName: () => 'Supermercado',
+      subcategoryName: (subcategoryId?: string) => subcategoryId === 'restaurants' ? 'Restaurantes' : 'Supermercado',
       formatMoney: (_currency: string, amount: number) => `$${amount.toLocaleString('es-CL')}`,
+      report: () => ({
+        incomeTotalsByCurrency: { CLP: 24000 },
+        expenseTotalsByCurrency: { CLP: 15000 }
+      }),
+      categoryChartTotals: DashboardComponent.prototype['categoryChartTotals'],
       t(key: string) { return this.i18n.t(key); }
     };
 
     expect(DashboardComponent.prototype.categoryChartRows.call(component as unknown as DashboardComponent)).toEqual([
-      { label: 'Comida (CLP)', value: '$12.500' }
+      { label: 'Comida (CLP)', value: '$15.000' }
+    ]);
+    expect(DashboardComponent.prototype.currencyChartRows.call(component as unknown as DashboardComponent)).toEqual([
+      { label: 'CLP', value: 'Ingresos: $24.000 · Gastos: $15.000' }
     ]);
     expect(DashboardComponent.prototype.subcategoryChartRows.call(component as unknown as DashboardComponent)).toEqual([
-      { label: 'Supermercado (CLP)', value: '$12.500' }
+      { label: 'Supermercado (CLP)', value: '$12.500' },
+      { label: 'Restaurantes (CLP)', value: '$2.500' }
     ]);
     expect(DashboardComponent.prototype.periodChartRows.call(component as unknown as DashboardComponent)).toEqual([]);
     expect(DashboardComponent.prototype.installmentChartRows.call(component as unknown as DashboardComponent)).toEqual([]);
