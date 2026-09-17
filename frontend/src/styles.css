@@ -599,6 +599,26 @@ table {
     var(--brand-bg);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 60;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-160%);
+  border-radius: 0.5rem;
+  background: var(--brand-navy);
+  color: white;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 3px;
+}
+
 .auth-field {
   display: grid;
   gap: 0.5rem;

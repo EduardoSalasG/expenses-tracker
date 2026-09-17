@@ -1,8 +1,8 @@
 ## 1. Shell móvil accesible
 
-- [ ] 1.1 Añadir skip link, landmark `main` enfocable y claves i18n; verificar foco y texto localizado con prueba ChromeHeadless.
-- [ ] 1.2 Gestionar foco del menú Más al abrir/cerrar con Escape y conservar atributos ARIA; verificar navegación por teclado con prueba unitaria.
-- [ ] 1.3 Ajustar objetivos táctiles, padding y estados de foco del shell para 320 px, móvil y escritorio; verificar build y revisión responsive.
+- [x] 1.1 Añadir skip link, landmark `main` enfocable y claves i18n; verificar foco y texto localizado con prueba ChromeHeadless.
+- [x] 1.2 Gestionar foco del menú Más al abrir/cerrar con Escape y conservar atributos ARIA; verificar navegación por teclado con prueba unitaria.
+- [x] 1.3 Ajustar objetivos táctiles, padding y estados de foco del shell para 320 px, móvil y escritorio; verificar build y revisión responsive.
 
 ## 2. Visualizaciones financieras equivalentes
 
