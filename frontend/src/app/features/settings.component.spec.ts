@@ -144,6 +144,9 @@ describe('SettingsComponent', () => {
     expect(version?.textContent?.trim()).toBe('Versión 0.1.0');
     expect(version?.getAttribute('aria-label')).toBe('Versión de la aplicación 0.1.0');
     expect(version?.querySelector('button, a, input, select, textarea')).toBeNull();
+    expect(version?.getAttribute('tabindex')).toBe('0');
+    version?.focus();
+    expect(document.activeElement).toBe(version);
     expect(fixture.nativeElement.lastElementChild).toBe(version);
   });
 });

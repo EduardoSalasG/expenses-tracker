@@ -642,8 +642,9 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
     }
 
     <footer
-      class="mt-8 border-t border-brand-border px-4 pt-4 text-center text-xs leading-5 text-brand-muted sm:px-6"
+      class="mt-8 border-t border-brand-border px-4 pt-4 text-center text-sm leading-5 text-brand-muted outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-ink sm:px-6"
       data-testid="app-version"
+      tabindex="0"
       [attr.aria-label]="t('settings_version_accessible_label') + ' ' + appVersion"
     >
       {{ t('settings_version_label') }} {{ appVersion }}
