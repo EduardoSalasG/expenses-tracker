@@ -15,6 +15,7 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 - El webhook Telegram solo se registra cuando existe su secreto de verificación.
 - Se actualizaron Swagger, Postman, README, checklist y operaciones para reflejar los flujos seguros.
+- La versión de `package.json` raíz se valida y se propaga a los manifiestos y al módulo visible del frontend antes de compilar o liberar.
 
 ## [0.1.0] - Baseline histórico
 

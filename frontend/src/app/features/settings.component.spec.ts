@@ -85,7 +85,17 @@ describe('SettingsComponent', () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { queryParamMap: convertToParamMap({}) } }
         },
-        { provide: I18nService, useValue: { t: (key: string) => key, applyUserPreference: () => {}, language: () => 'es' } }
+        {
+          provide: I18nService,
+          useValue: {
+            t: (key: string) => ({
+              settings_version_label: 'Versión',
+              settings_version_accessible_label: 'Versión de la aplicación'
+            }[key] ?? key),
+            applyUserPreference: () => {},
+            language: () => 'es'
+          }
+        }
       ]
     }).compileComponents();
 
@@ -124,5 +134,16 @@ describe('SettingsComponent', () => {
 
     expect(api.updateReportPreferences).toHaveBeenCalledWith(['weekly', 'monthly'] as ReportFrequency[]);
     expect(component.message()).toBe('settings_preferences_saved');
+  });
+
+  it('renders the exact localized release version as the final, non-interactive settings metadata', () => {
+    const version = fixture.nativeElement.querySelector('[data-testid="app-version"]') as HTMLElement | null;
+
+    expect(version).withContext('the version is discoverable at the end of Settings').not.toBeNull();
+    expect(version?.tagName).toBe('FOOTER');
+    expect(version?.textContent?.trim()).toBe('Versión 0.1.0');
+    expect(version?.getAttribute('aria-label')).toBe('Versión de la aplicación 0.1.0');
+    expect(version?.querySelector('button, a, input, select, textarea')).toBeNull();
+    expect(fixture.nativeElement.lastElementChild).toBe(version);
   });
 });

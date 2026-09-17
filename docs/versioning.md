@@ -14,12 +14,13 @@ Los pre-releases usan `-alpha.N`, `-beta.N` o `-rc.N` solo cuando se publica una
 
 ## Fuente de verdad
 
-La versión de una release se conserva de forma coherente en:
+`package.json` en la raíz del repositorio es la fuente canónica de la versión. Antes de cualquier build o release, `pnpm run version:check` valida que esa versión sea SemVer y que coincida exactamente con:
 
-1. el manifiesto de la aplicación que construye el frontend;
-2. los manifiestos de servicios que se distribuyen con la release;
-3. un tag Git anotado con formato `vMAJOR.MINOR.PATCH` en el commit de `main` promovido a producción;
-4. las notas de release, con los cambios incluidos, migraciones y riesgos conocidos.
+1. `backend/package.json`;
+2. `frontend/package.json`;
+3. `frontend/src/app/generated/app-version.ts`, que se genera con `pnpm run version:sync` y no se edita a mano.
+
+El incremento de una release también debe quedar en el changelog, las notas de release, y un tag Git anotado `vMAJOR.MINOR.PATCH` sobre el commit de `main` promovido a producción. El módulo generado evita cargar manifiestos en el navegador durante la ejecución.
 
 El frontend muestra esa misma versión al final de Configuración, en texto discreto y accesible. Debe poder leerse con zoom y lector de pantalla sin interferir con acciones de configuración.
 
@@ -27,8 +28,8 @@ El frontend muestra esa misma versión al final de Configuración, en texto disc
 
 1. Las funcionalidades y correcciones se integran en `dev` y actualizan pruebas, documentación y OpenSpec cuando corresponde.
 2. Antes de promover, se decide el incremento SemVer a partir del cambio acumulado en `dev`.
-3. Se actualiza la versión y el changelog en un commit de release en `dev`.
-4. Se verifican build, pruebas, contratos API, documentación y QA de la superficie afectada.
+3. Se actualiza `package.json`, se ejecuta `pnpm run version:sync` y se revisan el changelog y las notas de release en un commit de release en `dev`.
+4. Se ejecuta `pnpm run version:check`; después se verifican build, pruebas, contratos API, documentación y QA de la superficie afectada.
 5. Se fusiona `dev` en `main` mediante un commit de merge rastreable.
 6. Se crea un tag anotado `vX.Y.Z` sobre el commit de `main` que se desplegará y se publica junto con `main`.
 7. Se supervisan GitHub Actions, despliegue productivo y health checks. Las notas de release registran el SHA, tag, fecha, resultado y cualquier limitación.
@@ -48,18 +49,19 @@ No se etiqueta `dev`, no se reutiliza un tag existente y no se crea un tag antes
 
 Un rollback productivo apunta al último tag de release confirmado como sano, nunca a un SHA elegido informalmente.
 
-1. Identificar el último tag sano y revisar sus notas de release, migraciones y compatibilidad de datos.
-2. Re-desplegar el artefacto inmutable asociado a ese tag/SHA.
-3. Ejecutar health checks y una verificación funcional mínima.
-4. Abrir un incidente o registro de rollback con tag origen, tag destino, motivo, impacto y hora.
-5. Regularizar `dev` y `main` con una corrección posterior; no reescribir historial ni mover tags publicados.
+1. El Release Agent previsualiza el destino sin modificar Git ni desplegar: `pnpm run release:rollback:preview -- --tag vX.Y.Z`. El comando confirma el SHA inmutable asociado al tag anotado.
+2. Identificar el último tag sano y revisar sus notas de release, migraciones y compatibilidad de datos.
+3. Re-desplegar el artefacto inmutable asociado a ese tag/SHA.
+4. El Release Agent ejecuta `/health/live`, `/health/ready` y una verificación funcional mínima antes de registrar el resultado.
+5. Abrir un incidente o registro de rollback con tag origen, tag destino, motivo, impacto y hora.
+6. Regularizar `dev` y `main` con una corrección posterior; no reescribir historial ni mover tags publicados.
 
 Si una migración no es reversible, el rollback debe usar una corrección hacia adelante o un procedimiento de restauración de datos previamente documentado.
 
 ## Lista de verificación de release
 
-- [ ] La versión elegida respeta SemVer.
-- [ ] Los manifiestos y la versión visible en frontend coinciden.
+- [ ] La versión elegida respeta SemVer y `pnpm run version:check` pasó.
+- [ ] Los manifiestos, el módulo generado y la versión visible en frontend coinciden.
 - [ ] Changelog y notas de release incluyen el SHA y las migraciones.
 - [ ] Pruebas, build, documentación y QA están verificados.
 - [ ] `dev` fue fusionada en `main`.

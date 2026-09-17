@@ -5,6 +5,8 @@ Use this checklist for every production promotion from `dev` to `main`.
 ## 1) Pre-merge gates
 
 - Branch is `dev` and up to date with `origin/dev`.
+- Select the SemVer increment and update only root `package.json` as the canonical source.
+- Run `pnpm run version:sync`, review the generated frontend version module, then run `pnpm run version:check`.
 - No pending DB migration conflicts.
 - `pnpm --filter @expenses-tracker/backend test`
 - `pnpm --filter @expenses-tracker/backend build`
@@ -74,9 +76,12 @@ Use this checklist for every production promotion from `dev` to `main`.
   - `database/query-analysis.md` if SQL/functions/index usage changed
   - `docs/swagger-audit-YYYY-MM-DD.md` when a final endpoint-by-endpoint pass is completed
 
-## 6) Production promotion
+## 6) Production promotion and traceability
 
 - Merge `dev` -> `main`.
+- Record the immutable `main` SHA selected for production.
+- Create and push an annotated `vMAJOR.MINOR.PATCH` tag on that exact `main` SHA; never tag `dev` or create a historical tag retroactively.
+- Complete `docs/release-notes-template.md` with the version, SHA, migrations, risks and evidence.
 - Confirm Netlify + Oracle backend deploys completed.
 - Post-deploy checks:
   - `/health/live`, `/health/ready`
@@ -85,3 +90,4 @@ Use this checklist for every production promotion from `dev` to `main`.
   - one expense save from messaging channel
   - dashboard loads with current month/year view
 - Save evidence in `docs/post-deploy-qa-template.md` (one file per release run or copied section).
+- For a rollback, first run `pnpm run release:rollback:preview -- --tag vMAJOR.MINOR.PATCH`; it is read-only and identifies the immutable deploy target before any operational action.

@@ -34,6 +34,7 @@ Use agents to reduce integration mistakes, not to fragment ownership.
 - Verify Swagger for API changes.
 - Verify README/diagrams for setup or workflow changes.
 - Verify i18n when public/private copy changes.
+- For any release, run `pnpm run version:check`; root `package.json` is canonical and the backend manifest, frontend manifest, and generated frontend version module must match it exactly.
 
 ## Session Continuity and Budget
 
@@ -55,6 +56,11 @@ Use agents to reduce integration mistakes, not to fragment ownership.
 - QA completed
 - merge to `main`
 - push `main`
+- record the resulting immutable `main` SHA
+- create and push an annotated `vMAJOR.MINOR.PATCH` tag on that exact SHA
+- complete release notes and preserve post-deploy evidence
+
+Do not tag `dev`, reuse/move an existing tag, or create a retroactive tag for the historical `0.1.0` baseline. Before any rollback operation, use the read-only preview command documented in `docs/versioning.md` to identify the known-good tag and SHA.
 
 ## Post-Main Deployment Supervision
 Run this after every update pushed to `main`; it is part of the release gate, not an optional follow-up.

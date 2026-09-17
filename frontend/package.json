@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "ng serve --host 0.0.0.0 --port 4200 --disable-host-check",
+    "prebuild": "node ../scripts/version-sync.mjs --check",
     "build": "ng build",
     "test": "ng test --watch=false",
     "lint": "ng lint"

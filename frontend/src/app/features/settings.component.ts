@@ -26,6 +26,7 @@ import {
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
+import { APP_VERSION } from '../generated/app-version';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
@@ -639,6 +640,14 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
         </div>
       </section>
     }
+
+    <footer
+      class="mt-8 border-t border-brand-border px-4 pt-4 text-center text-xs leading-5 text-brand-muted sm:px-6"
+      data-testid="app-version"
+      [attr.aria-label]="t('settings_version_accessible_label') + ' ' + appVersion"
+    >
+      {{ t('settings_version_label') }} {{ appVersion }}
+    </footer>
   `
 })
 export class SettingsComponent {
@@ -646,6 +655,7 @@ export class SettingsComponent {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   readonly frequencies = frequencies;
+  readonly appVersion = APP_VERSION;
   readonly settingsSections = settingsSections;
   readonly activeSettingsSection = signal<SettingsSectionId | null>(null);
   readonly user = signal<CurrentUser | null>(null);
