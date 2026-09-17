@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -37,7 +37,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
   { key: 'yearly', labelKey: 'settings_frequency_yearly', descriptionKey: 'settings_frequency_yearly_desc' }
 ];
 
-type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
+export type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
 
 const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: string; descriptionKey: string }> = [
   { id: 'profile', icon: 'person', titleKey: 'settings_section_profile_title', descriptionKey: 'settings_section_profile_description' },
@@ -47,6 +47,10 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
   { id: 'telegram', icon: 'send', titleKey: 'settings_section_telegram_title', descriptionKey: 'settings_section_telegram_description' },
   { id: 'session', icon: 'logout', titleKey: 'settings_section_session_title', descriptionKey: 'settings_section_session_description' }
 ];
+
+export function parseSettingsSection(value: string | null): SettingsSectionId | null {
+  return settingsSections.some((section) => section.id === value) ? value as SettingsSectionId : null;
+}
 
 @Component({
   selector: 'app-settings',
@@ -107,7 +111,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             </button>
             @if (activeSettingsMetadata(); as section) {
               <div>
-                <h2 class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
+                <h2 #settingsSectionHeading tabindex="-1" class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
                 <p class="mt-1 text-sm text-brand-muted">{{ t(section.descriptionKey) }}</p>
               </div>
             }
@@ -652,6 +656,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
   `
 })
 export class SettingsComponent {
+  @ViewChild('settingsSectionHeading') private settingsSectionHeading?: ElementRef<HTMLElement>;
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -737,6 +742,8 @@ export class SettingsComponent {
     private readonly i18n: I18nService,
     private readonly onboarding: OnboardingService
   ) {
+    const linkedSection = parseSettingsSection(this.route.snapshot.queryParamMap.get('section'));
+    if (linkedSection) this.openSettingsSection(linkedSection, false);
     this.load();
     effect(() => {
       const currentAccountId = this.accountService.activeAccountId();
@@ -746,12 +753,25 @@ export class SettingsComponent {
     });
   }
 
-  openSettingsSection(section: SettingsSectionId) {
+  openSettingsSection(section: SettingsSectionId, syncUrl = true) {
     this.activeSettingsSection.set(section);
+    if (syncUrl) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { section },
+        queryParamsHandling: 'merge'
+      });
+    }
+    setTimeout(() => this.settingsSectionHeading?.nativeElement.focus());
   }
 
   closeSettingsSection() {
     this.activeSettingsSection.set(null);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { section: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   activeSettingsMetadata() {

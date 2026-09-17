@@ -3,7 +3,7 @@ import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { SettingsComponent } from './settings.component';
+import { parseSettingsSection, SettingsComponent } from './settings.component';
 import {
   ApiService,
   type CurrentUser,
@@ -148,5 +148,11 @@ describe('SettingsComponent', () => {
     version?.focus();
     expect(document.activeElement).toBe(version);
     expect(fixture.nativeElement.lastElementChild).toBe(version);
+  });
+
+  it('accepts only known sections from a deep link', () => {
+    expect(parseSettingsSection('catalogs')).toBe('catalogs');
+    expect(parseSettingsSection('delete-all')).toBeNull();
+    expect(parseSettingsSection(null)).toBeNull();
   });
 });
