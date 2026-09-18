@@ -95,7 +95,7 @@ import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.
                       }
                     </div>
                   } @else {
-                    <p class="text-sm text-brand-muted">{{ t('categories_no_sub') }}</p>
+                    <app-empty-state [message]="t('categories_no_sub')" />
                   }
                 </div>
               </mat-expansion-panel>

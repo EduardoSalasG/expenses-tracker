@@ -28,6 +28,7 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { APP_VERSION } from '../generated/app-version';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKey: string }> = [
@@ -68,7 +69,8 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
     MatSelectModule,
     MatSnackBarModule,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    EmptyStateComponent
   ],
   template: `
     <app-page-header [title]="t('settings_title')" [eyebrow]="t('settings_subtitle')"></app-page-header>
@@ -433,7 +435,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                     }
                   </div>
                 } @empty {
-                  <div class="text-sm text-brand-muted">{{ t('common_no_data') }}</div>
+                  <app-empty-state [message]="t('common_no_data')" />
                 }
               </div>
             </div>
@@ -465,7 +467,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_balances_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_balances_empty')" />
                   }
                 </div>
               </div>
@@ -494,7 +496,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_suggestions_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_suggestions_empty')" />
                   }
                 </div>
               </div>
@@ -586,7 +588,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_settlement_history_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_settlement_history_empty')" />
                   }
                 </div>
               </div>
