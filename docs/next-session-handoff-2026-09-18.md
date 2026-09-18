@@ -8,10 +8,11 @@
 
 ## Estado de ramas y árbol
 
-- Release `v0.1.2` promovida y publicada el 2026-09-18. El tag anotado y `main` apuntan al SHA inmutable `7abb7239b68609e440fd5e77ed460129e915db4d`.
-- GitHub Actions `35351790931` finalizó correctamente; Netlify publicó ese mismo SHA en estado `ready`.
-- Los checks públicos de Netlify, `/health/live` y `/health/ready` devolvieron HTTP `200`.
-- `main` se sincronizó posteriormente en `dev` mediante `01919b1 chore: sync main after v0.1.2`.
+- Release `v0.2.0` promovida y publicada el 2026-09-18. El tag anotado y `main` apuntan al SHA inmutable `0ed43c4eee428791a944424d276accde45a326c2`.
+- GitHub Actions `35360075543` finalizó correctamente; construyó la imagen inmutable y completó el despliegue Oracle/Nginx.
+- Los checks públicos de Netlify, `/health/live` y `/health/ready` devolvieron HTTP `200`; readiness confirmó PostgreSQL `ok`.
+- La API de Netlify no pudo aportar el SHA del deploy porque requiere una credencial no disponible en sesión.
+- `main` se sincronizó posteriormente en `dev` mediante `cab139d chore: sync main after v0.2.0`.
 
 ## Trabajo completado en el cambio `atomic-design-system-dashboard`
 
@@ -35,7 +36,8 @@
 
 - Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell`, `release-version-traceability` y `secure-backend-entrypoints` están completas, sus delta specs se sincronizaron y los cuatro cambios quedaron archivados el 2026-09-18.
 - La QA funcional visual de las superficies financieras fue confirmada por la persona usuaria el 2026-09-18; la cobertura Playwright queda como mejora futura del pipeline, no como bloqueo de la release.
-- `durable-webhook-operations` no representa trabajo parcialmente implementado: contiene solo propuesta; aún faltan specs, diseño y tareas antes de abrir su implementación.
+- `durable-webhook-operations` fue especificado e implementado: el inbox persistente, reintentos, worker y documentación operativa están en `v0.2.0` junto con `040_inbound_webhook_events.sql`.
+- La prueba Angular de foco del menú móvil `More` permanece como deuda explícitamente aceptada para esta release (45/46 pruebas frontend); evitar encadenar arreglos sin rediseñar su estrategia de prueba o reproducirla contra una aplicación real.
 
 ## Caso productivo diferido
 
