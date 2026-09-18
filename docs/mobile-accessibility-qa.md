@@ -32,6 +32,8 @@
 - La instancia local de frontend no tenía backend disponible durante la comprobación; por eso Dashboard y Categorías no pudieron validarse con datos reales desde UI. Las pruebas aisladas y el build son la evidencia automatizada para esas superficies hasta realizar QA con una API de desarrollo operativa.
 - `impeccable detect` no encontró un antipatrón nuevo en los componentes revisados. Conserva advertencias preexistentes en `styles.css` por la tipografía Inter y una franja lateral del formulario de invitación de cuentas; no se modificaron en este cambio para no alterar el sistema visual establecido.
 
+- La implementación de estados compartidos se completó en Dashboard, Gastos, Categorías y Configuración: los errores/cargas usan `FeedbackBanner` y los vacíos usan `EmptyState`, incluido el vacío de tabla de Gastos. Las pruebas ChromeHeadless afectadas y los builds frontend/backend están aprobados.
+
 ### Auditoría de evidencia — 2026-09-18
 
 - Se cerró la tarea OpenSpec 2.3: las prioridades declaradas usan rutas existentes (`/budgets`, `/expenses` y `/settings?section=accounts`), `ActionPriorityComponent` las renderiza como enlaces alcanzables por teclado y los gráficos conservan `app-chart-data-table` con filas localizadas. La ejecución focalizada de las pruebas de dashboard y primitives terminó con código 0.
