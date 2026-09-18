@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ActivatedRoute, Params, Router } from '@angular/router';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { catchError } from 'rxjs/operators';
 import { forkJoin, of } from 'rxjs';
@@ -34,6 +35,43 @@ const CREATE_CATEGORY_OPTION = '__create_category__';
 const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
 const CREATE_BANK_OPTION = '__create_bank__';
 const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
+
+export type ExpenseFilterParams = {
+  month?: string;
+  categoryId?: string;
+  currency?: string;
+  paymentMethodKind?: 'cash' | 'transfer' | 'card';
+};
+
+const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
+const filterIdentifierPattern = /^[A-Za-z0-9_-]{1,128}$/;
+const paymentMethodKinds = new Set<ExpenseFilterParams['paymentMethodKind']>(['cash', 'transfer', 'card']);
+
+export function parseExpenseFilterParams(params: Record<string, string | null | undefined>): ExpenseFilterParams {
+  const result: ExpenseFilterParams = {};
+  const { month, categoryId, currency, paymentMethodKind } = params;
+  if (month && monthPattern.test(month)) result.month = month;
+  if (categoryId && filterIdentifierPattern.test(categoryId)) result.categoryId = categoryId;
+  if (currency && /^[A-Za-z]{3}$/.test(currency)) result.currency = currency.toUpperCase();
+  if (paymentMethodKind && paymentMethodKinds.has(paymentMethodKind as ExpenseFilterParams['paymentMethodKind'])) {
+    result.paymentMethodKind = paymentMethodKind as ExpenseFilterParams['paymentMethodKind'];
+  }
+  return result;
+}
+
+export function serializeExpenseFilters(filters: {
+  month: string;
+  categoryId?: string;
+  currency?: string;
+  paymentMethodKind?: ExpenseFilterParams['paymentMethodKind'] | '';
+}): Params {
+  return {
+    month: filters.month,
+    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+    ...(filters.currency ? { currency: filters.currency.toUpperCase() } : {}),
+    ...(filters.paymentMethodKind ? { paymentMethodKind: filters.paymentMethodKind } : {})
+  };
+}
 
 @Component({
   selector: 'app-expenses',
@@ -75,8 +113,8 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
           </button>
         </div>
       </div>
-      <app-disclosure-panel [label]="t('expenses_filters_more')" [open]="filtersOpen() || hasSecondaryFilters()" class="mt-4 block">
-        <form [formGroup]="filters" (ngSubmit)="loadExpenses()" class="mt-4 grid gap-4 lg:grid-cols-6">
+      <app-disclosure-panel [label]="t('expenses_filters_more')" triggerId="expenses-filter-toggle" [open]="filtersOpen() || hasSecondaryFilters()" class="mt-4 block">
+        <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="mt-4 grid gap-4 lg:grid-cols-6">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
             <input matInput id="expenses-filter-from" type="date" formControlName="from" name="expensesFrom">
@@ -192,6 +230,8 @@ export class ExpensesComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly accountService = inject(AccountContextService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly t = (key: string) => this.i18n.t(key);
   readonly categories = signal<Category[]>([]);
   readonly bankOptions = signal<BankOption[]>([]);
@@ -225,8 +265,24 @@ export class ExpensesComponent implements OnInit {
   }
 
   ngOnInit() {
+    const linkedFilters = parseExpenseFilterParams({
+      month: this.route.snapshot.queryParamMap.get('month'),
+      categoryId: this.route.snapshot.queryParamMap.get('categoryId'),
+      currency: this.route.snapshot.queryParamMap.get('currency'),
+      paymentMethodKind: this.route.snapshot.queryParamMap.get('paymentMethodKind')
+    });
+    if (linkedFilters.month) {
+      this.selectedMonth.set(linkedFilters.month);
+      this.periodState.setSelectedMonth(linkedFilters.month);
+    }
     const monthRange = this.range();
-    this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
+    this.filters.patchValue({
+      from: monthRange.fromInput,
+      to: monthRange.toInput,
+      categoryId: linkedFilters.categoryId ?? '',
+      currency: linkedFilters.currency ?? '',
+      paymentMethodKind: linkedFilters.paymentMethodKind ?? ''
+    });
   }
 
   changeMonth(event: Event) {
@@ -236,6 +292,7 @@ export class ExpensesComponent implements OnInit {
     this.periodState.setSelectedMonth(value);
     const monthRange = rangeFromMonth(value);
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
+    this.syncFiltersToUrl();
     this.loadExpenses();
   }
 
@@ -245,6 +302,11 @@ export class ExpensesComponent implements OnInit {
 
   hasSecondaryFilters() {
     return hasSecondaryExpenseFilters(this.filters.getRawValue());
+  }
+
+  applyFilters() {
+    this.syncFiltersToUrl();
+    this.loadExpenses();
   }
 
   openNewExpenseDialog() {
@@ -303,7 +365,21 @@ export class ExpensesComponent implements OnInit {
   clearFilters() {
     const monthRange = this.range();
     this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, categoryId: '', currency: '', paymentMethodKind: '' });
+    this.syncFiltersToUrl();
     this.loadExpenses();
+  }
+
+  private syncFiltersToUrl() {
+    const filters = this.filters.getRawValue();
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: serializeExpenseFilters({
+        month: this.selectedMonth(),
+        categoryId: filters.categoryId,
+        currency: filters.currency,
+        paymentMethodKind: filters.paymentMethodKind as ExpenseFilterParams['paymentMethodKind'] | ''
+      })
+    });
   }
 
   private reloadAccountScopedData() {

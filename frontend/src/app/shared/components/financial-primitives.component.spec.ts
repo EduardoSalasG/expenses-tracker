@@ -42,4 +42,14 @@ describe('financial design primitives', () => {
     expect(details?.open).toBeFalse();
     expect(fixture.nativeElement.querySelector('summary')?.textContent).toContain('Más filtros');
   });
+
+  it('exposes an optional stable trigger id for guided navigation', async () => {
+    await TestBed.configureTestingModule({ imports: [DisclosurePanelComponent] }).compileComponents();
+    const fixture: ComponentFixture<DisclosurePanelComponent> = TestBed.createComponent(DisclosurePanelComponent);
+    fixture.componentRef.setInput('label', 'Más filtros');
+    fixture.componentRef.setInput('triggerId', 'expenses-filter-toggle');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('summary')?.id).toBe('expenses-filter-toggle');
+  });
 });

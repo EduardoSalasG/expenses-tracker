@@ -80,7 +80,7 @@ describe('SettingsComponent', () => {
             user: signal<CurrentUser | null>(user)
           }
         },
-        { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigateByUrl']) },
+        { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigate', 'navigateByUrl']) },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { queryParamMap: convertToParamMap({}) } }
@@ -154,5 +154,15 @@ describe('SettingsComponent', () => {
     expect(parseSettingsSection('catalogs')).toBe('catalogs');
     expect(parseSettingsSection('delete-all')).toBeNull();
     expect(parseSettingsSection(null)).toBeNull();
+  });
+
+  it('keeps a valid deep-linked section in focus without replacing the query parameter', () => {
+    const component = fixture.componentInstance;
+    const router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+
+    component.openSettingsSection('catalogs', false);
+
+    expect(component.activeSettingsSection()).toBe('catalogs');
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });

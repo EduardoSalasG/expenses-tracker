@@ -17,3 +17,17 @@
 
 - Activar `prefers-reduced-motion` y confirmar que no hay transiciones esenciales ni skeletons animados persistentes.
 - Confirmar que banners de carga/éxito/error mantienen regiones vivas y texto de recuperación.
+
+## Dashboard financiero progresivo — matriz de QA
+
+| Superficie | 320 px | Teclado/foco | Reduced motion | Vacío/error |
+| --- | --- | --- | --- | --- |
+| Dashboard | Salud y acciones apilan antes del análisis; pendiente de datos locales para evidencia visual completa. | Los enlaces de prioridad usan rutas existentes; cubierto por prueba de composición. | No se añadió movimiento decorativo. | Las tablas textuales de gráficos conservan su estado localizado. |
+| Gastos | Confirmado localmente el 2026-09-18: `scrollWidth` 305 px en viewport 320 px y activador de filtros de 44 px. | `#expenses-filter-toggle` es un `summary` alcanzable y estable para onboarding. | `details` nativo, sin transición añadida. | Filtros URL inválidos vuelven a valores seguros; vacío localizado visible. |
+| Categorías | Pendiente de datos locales para validar la lista con contenido. | El filtro progresivo reutiliza `details` nativo. | Sin transición añadida. | Mantiene el estado existente localizado. |
+| Configuración | Confirmado en 390 px con `?section=catalogs`. | El encabezado «Bancos y medios de pago» recibió foco tras el deep link. | Sin transición añadida. | El error de carga local se anunció sin bloquear el encabezado ni el retroceso. |
+
+### Limitaciones reproducibles
+
+- La instancia local de frontend no tenía backend disponible durante la comprobación; por eso Dashboard y Categorías no pudieron validarse con datos reales desde UI. Las pruebas aisladas y el build son la evidencia automatizada para esas superficies hasta realizar QA con una API de desarrollo operativa.
+- `impeccable detect` no encontró un antipatrón nuevo en los componentes revisados. Conserva advertencias preexistentes en `styles.css` por la tipografía Inter y una franja lateral del formulario de invitación de cuentas; no se modificaron en este cambio para no alterar el sistema visual establecido.
