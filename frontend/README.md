@@ -21,14 +21,14 @@ pnpm --filter @expenses-tracker/frontend start
 The app runs at:
 
 ```text
-http://localhost:4200
+http://localhost:4300
 ```
 
-In local development, Angular proxies `/api` requests to `http://localhost:3000`
+In local development, Angular proxies `/api` requests to `http://localhost:3100`
 and removes the `/api` prefix before forwarding to Express.
 
 The local dev server is configured with `--host 0.0.0.0` and `--disable-host-check`
-so ngrok hosts can reach port `4200` without Vite rejecting the forwarded `Host`
+so ngrok hosts can reach port `4300` without Vite rejecting the forwarded `Host`
 header. Restart `pnpm dev:frontend` after changing these settings.
 
 ## Docker

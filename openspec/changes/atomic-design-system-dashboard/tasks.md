@@ -8,7 +8,7 @@
 
 - [x] 2.1 Extraer helpers puros que deriven salud financiera y prioridades desde el reporte, presupuestos, cuotas y balances ya cargados; verificar prueba roja/verde para cada prioridad.
 - [ ] 2.2 Reorganizar el dashboard mobile-first para mostrar salud financiera y prioridades antes de actividad y análisis; verificar orden semántico, teclado y ancho de 320 px.
-- [ ] 2.3 Conectar prioridades a rutas existentes con contexto mínimo y conservar alternativas textuales de Chart.js; verificar rutas, tablas accesibles y prueba del dashboard.
+- [x] 2.3 Conectar prioridades a rutas existentes con contexto mínimo y conservar alternativas textuales de Chart.js; verificar rutas, tablas accesibles y prueba del dashboard.
 
 ## 3. Navegación financiera progresiva
 

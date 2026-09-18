@@ -31,3 +31,8 @@
 
 - La instancia local de frontend no tenía backend disponible durante la comprobación; por eso Dashboard y Categorías no pudieron validarse con datos reales desde UI. Las pruebas aisladas y el build son la evidencia automatizada para esas superficies hasta realizar QA con una API de desarrollo operativa.
 - `impeccable detect` no encontró un antipatrón nuevo en los componentes revisados. Conserva advertencias preexistentes en `styles.css` por la tipografía Inter y una franja lateral del formulario de invitación de cuentas; no se modificaron en este cambio para no alterar el sistema visual establecido.
+
+### Auditoría de evidencia — 2026-09-18
+
+- Se cerró la tarea OpenSpec 2.3: las prioridades declaradas usan rutas existentes (`/budgets`, `/expenses` y `/settings?section=accounts`), `ActionPriorityComponent` las renderiza como enlaces alcanzables por teclado y los gráficos conservan `app-chart-data-table` con filas localizadas. La ejecución focalizada de las pruebas de dashboard y primitives terminó con código 0.
+- No se cierran 1.3, 2.2, 3.3 ni 4.2. En particular, Gastos mantiene su fila vacía como una celda de tabla, no como `app-empty-state`, por lo que 1.3 requiere una migración adicional además de QA. Dashboard y Categorías siguen sin evidencia visual con datos reales; esa falta también impide confirmar los flujos vacío/error, foco, zoom, lector de pantalla y reduced motion requeridos por las demás tareas.

@@ -106,7 +106,7 @@ pnpm dev:backend
 pnpm dev:frontend
 ```
 
-Stop Dockerized app containers if they are occupying ports `3000` or `4200`:
+The local stack uses ports `3100`, `4300`, and `6543` to avoid common development collisions:
 
 ```bash
 pnpm dev:stop-app-containers
@@ -120,10 +120,10 @@ docker compose up --build
 
 Services:
 
-- Frontend: `http://localhost:4200`
-- Backend: `http://localhost:3000`
-- Swagger: `http://localhost:3000/api/docs`
-- PostgreSQL from host: `postgres://expenses:expenses@localhost:5433/expenses_tracker`
+- Frontend: `http://localhost:4300`
+- Backend: `http://localhost:3100`
+- Swagger: `http://localhost:3100/api/docs`
+- PostgreSQL from host: `postgres://expenses:expenses@localhost:6543/expenses_tracker`
 
 If local backend scripts connect to the Docker database, make sure `backend/.env` uses that same `DATABASE_URL`.
 Docker Compose loads `backend/.env` for Telegram credentials, while overriding `DATABASE_URL` inside the container to use the internal `database:5432` host.

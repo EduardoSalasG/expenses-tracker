@@ -7,11 +7,12 @@ RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
-
-RUN pnpm install --frozen-lockfile
-
+COPY frontend/src/app/generated/app-version.ts frontend/src/app/generated/app-version.ts
 COPY backend backend
 COPY database database
+COPY scripts scripts
+
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm --filter @expenses-tracker/backend build
 RUN pnpm --filter @expenses-tracker/backend deploy --prod --legacy /prod/backend

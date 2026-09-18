@@ -28,6 +28,7 @@ import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.component';
 
@@ -89,6 +90,7 @@ export function serializeExpenseFilters(filters: {
     MatSlideToggleModule,
     ReactiveFormsModule,
     FeedbackBannerComponent,
+    EmptyStateComponent,
     PageHeaderComponent,
     DisclosurePanelComponent
   ],
@@ -215,7 +217,7 @@ export function serializeExpenseFilters(filters: {
                 </td>
               </tr>
             } @empty {
-              <tr><td class="py-6 text-brand-muted" [attr.colspan]="isSharedAccount() ? 7 : 6">{{ t('expenses_empty_filters') }}</td></tr>
+              <tr><td class="py-3" [attr.colspan]="isSharedAccount() ? 7 : 6"><app-empty-state [message]="t('expenses_empty_filters')" /></td></tr>
             }
           </tbody>
         </table>

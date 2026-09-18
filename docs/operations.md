@@ -144,22 +144,22 @@ This command is local-only and does not touch the webhook, database, or Telegram
 After starting services:
 
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/health/live
-curl http://localhost:3000/health/ready
-curl http://localhost:3000/api/docs
+curl http://localhost:3100/health
+curl http://localhost:3100/health/live
+curl http://localhost:3100/health/ready
+curl http://localhost:3100/api/docs
 ```
 
 Frontend:
 
 ```text
-http://localhost:4200/login
+http://localhost:4300/login
 ```
 
 Public locale detection:
 
 ```bash
-curl http://localhost:3000/public/context
+curl http://localhost:3100/public/context
 ```
 
 If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a known IP and verify the backend returns:

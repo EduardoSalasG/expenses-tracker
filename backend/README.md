@@ -24,7 +24,7 @@ pnpm --filter @expenses-tracker/backend dev
 ## Environment
 
 - `PORT`: API port.
-- `DATABASE_URL`: PostgreSQL connection string. For the Docker database from the host, use `postgres://expenses:expenses@localhost:5433/expenses_tracker`.
+- `DATABASE_URL`: PostgreSQL connection string. For the Docker database from the host, use `postgres://expenses:expenses@localhost:6543/expenses_tracker`.
 - `JWT_SECRET`: signing secret for access and refresh tokens.
 - `TELEGRAM_BOT_TOKEN`: Telegram bot HTTP API token.
 - `TELEGRAM_BOT_API_BASE_URL`: Telegram API base URL (`https://api.telegram.org`).
@@ -254,7 +254,7 @@ The web app consumes these catalogs directly in expense creation/edit forms and 
 Start the backend and open:
 
 ```text
-http://localhost:3000/api/docs
+http://localhost:3100/api/docs
 ```
 
 When running through Docker Compose, the backend is exposed at the same URL.
