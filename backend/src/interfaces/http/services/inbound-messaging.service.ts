@@ -143,6 +143,28 @@ export class InboundMessagingService {
     }
   }
 
+  async enqueue(batch: InboundMessagingBatch) {
+    const now = new Date();
+    for (const [index, message] of batch.messages.entries()) {
+      const providerEventId = message.providerMessageId ?? `${message.providerUserId ?? message.replyTo ?? 'unknown'}:${index}:${message.message}`;
+      await this.container.inboundEvents.enqueue({
+        channel: batch.channel,
+        providerEventId,
+        payload: { ...batch, messages: [message], statuses: [] },
+        now
+      });
+    }
+  }
+
+  async processPending(limit = 10) {
+    const events = await this.container.inboundEvents.claim({ now: new Date(), limit });
+    for (const event of events) {
+      await this.receive(event.payload as InboundMessagingBatch);
+      await this.container.inboundEvents.markProcessed(event.id);
+    }
+    return events.length;
+  }
+
   private async buildTelegramLoginUrl(chatId: string) {
     const { token } = await this.container.useCases.requestTelegramLinkToken.execute(chatId);
     return `${this.container.config.frontendPublicOrigin.replace(/\/$/, '')}/login?linkToken=${encodeURIComponent(token)}`;

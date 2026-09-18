@@ -30,4 +30,8 @@ export class PostgresInboundEventStore implements InboundEventStore {
       attempts: row.attempts, status: row.status, nextAttemptAt: row.next_attempt_at
     }));
   }
+
+  async markProcessed(id: string) {
+    await this.pool.query(`update inbound_webhook_events set status = 'processed', updated_at = now() where id = $1`, [id]);
+  }
 }

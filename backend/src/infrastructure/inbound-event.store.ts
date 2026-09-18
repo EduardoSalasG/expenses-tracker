@@ -25,4 +25,8 @@ export class InMemoryInboundEventStore implements InboundEventStore {
         return { ...event };
       });
   }
+
+  async markProcessed(id: string) {
+    for (const event of this.events.values()) if (event.id === id) event.status = 'processed';
+  }
 }
