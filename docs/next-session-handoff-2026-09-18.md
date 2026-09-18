@@ -33,7 +33,7 @@
 
 ## Limitación y siguiente bloque recomendado
 
-- `docker compose ps` no mostró servicios en desarrollo. La app local pudo mostrar estados de error, pero no datos reales; falta QA visual del dashboard y categorías con API de desarrollo disponible, en 320 px, móvil representativo y escritorio, más zoom, lector de pantalla y reduced motion.
+- `docker compose ps` no mostró servicios en desarrollo. Se intentó `docker compose up -d database backend`: Docker comenzó a reconstruir imágenes, pero no dejó servicios activos al consultar el estado. La app local pudo mostrar estados de error, pero no datos reales; falta QA visual del dashboard y categorías con API de desarrollo disponible, en 320 px, móvil representativo y escritorio, más zoom, lector de pantalla y reduced motion.
 - En `atomic-design-system-dashboard` quedaron sin cerrar 1.3, 2.2, 2.3, 3.3 y 4.2. Antes de marcarlas, completar QA con datos reales y verificar los estados vacíos/feedback de las cuatro superficies.
 - Después, si toda la evidencia se completa, actualizar tareas y decidir si se archiva el cambio. No promover release sin el gate pendiente de `release-version-traceability`.
 
