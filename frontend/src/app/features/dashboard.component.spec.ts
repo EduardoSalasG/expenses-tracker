@@ -1,12 +1,45 @@
 import type { Category } from '../core/api.service';
 import { DashboardComponent, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
+import { deriveDashboardPriorities } from './dashboard-priority';
 
 describe('memberPeriodBalanceState', () => {
   it('classifies positive, negative, and settled member balances', () => {
     expect(memberPeriodBalanceState(9000)).toBe('credit');
     expect(memberPeriodBalanceState(-9000)).toBe('debt');
     expect(memberPeriodBalanceState(0)).toBe('settled');
+  });
+});
+
+describe('deriveDashboardPriorities', () => {
+  it('prioritizes a budget that has reached its limit', () => {
+    expect(deriveDashboardPriorities({
+      budgetProgress: [{ label: 'Comida', progress: 100 }],
+      upcomingInstallments: [],
+      memberBalances: []
+    })).toEqual([
+      jasmine.objectContaining({
+        id: 'budget-comida',
+        tone: 'danger',
+        titleKey: 'dashboard_priority_budget_title',
+        route: '/budgets'
+      })
+    ]);
+  });
+
+  it('includes upcoming charges and shared debts without inventing a priority for healthy data', () => {
+    expect(deriveDashboardPriorities({
+      budgetProgress: [{ label: 'Transporte', progress: 32 }],
+      upcomingInstallments: [{ periodKey: '2026-10', currency: 'CLP', total: 19000 }],
+      memberBalances: [{ userId: 'user-1', preferredName: 'Ana', currency: 'CLP', balanceAmount: -3500 }]
+    })).toEqual([
+      jasmine.objectContaining({ id: 'upcoming-installments', tone: 'info', route: '/expenses' }),
+      jasmine.objectContaining({ id: 'shared-debt-user-1-CLP', tone: 'warning', route: '/settings', queryParams: { section: 'accounts' } })
+    ]);
+  });
+
+  it('returns no priorities when all sources are healthy', () => {
+    expect(deriveDashboardPriorities({ budgetProgress: [], upcomingInstallments: [], memberBalances: [] })).toEqual([]);
   });
 });
 
@@ -35,6 +68,45 @@ describe('DashboardComponent category labels', () => {
     };
 
     expect(DashboardComponent.prototype.categoryName.call(component as unknown as DashboardComponent, category.id)).toBe('Comida');
+  });
+
+  it('derives localized textual rows from the same chart totals, including an empty state', () => {
+    const i18n = new I18nService();
+    i18n.setLanguage('es');
+    const component = {
+      i18n,
+      categoryTotals: () => [
+        { categoryId: 'food', subcategoryId: 'groceries', currency: 'CLP', total: 12500 },
+        { categoryId: 'food', subcategoryId: 'restaurants', currency: 'CLP', total: 2500 }
+      ],
+      selectedCategoryId: () => 'food',
+      periodTotals: () => [],
+      upcomingInstallments: () => [],
+      memberPeriodSpending: () => [],
+      categoryName: () => 'Comida',
+      subcategoryName: (subcategoryId?: string) => subcategoryId === 'restaurants' ? 'Restaurantes' : 'Supermercado',
+      formatMoney: (_currency: string, amount: number) => `$${amount.toLocaleString('es-CL')}`,
+      report: () => ({
+        incomeTotalsByCurrency: { CLP: 24000 },
+        expenseTotalsByCurrency: { CLP: 15000 }
+      }),
+      categoryChartTotals: DashboardComponent.prototype['categoryChartTotals'],
+      t(key: string) { return this.i18n.t(key); }
+    };
+
+    expect(DashboardComponent.prototype.categoryChartRows.call(component as unknown as DashboardComponent)).toEqual([
+      { label: 'Comida (CLP)', value: '$15.000' }
+    ]);
+    expect(DashboardComponent.prototype.currencyChartRows.call(component as unknown as DashboardComponent)).toEqual([
+      { label: 'CLP', value: 'Ingresos: $24.000 · Gastos: $15.000' }
+    ]);
+    expect(DashboardComponent.prototype.subcategoryChartRows.call(component as unknown as DashboardComponent)).toEqual([
+      { label: 'Supermercado (CLP)', value: '$12.500' },
+      { label: 'Restaurantes (CLP)', value: '$2.500' }
+    ]);
+    expect(DashboardComponent.prototype.periodChartRows.call(component as unknown as DashboardComponent)).toEqual([]);
+    expect(DashboardComponent.prototype.installmentChartRows.call(component as unknown as DashboardComponent)).toEqual([]);
+    expect(DashboardComponent.prototype.memberChartRows.call(component as unknown as DashboardComponent)).toEqual([]);
   });
 
   it('limits recent expenses to the selected period', () => {

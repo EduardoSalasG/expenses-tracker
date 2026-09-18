@@ -24,11 +24,11 @@ pnpm --filter @expenses-tracker/backend dev
 ## Environment
 
 - `PORT`: API port.
-- `DATABASE_URL`: PostgreSQL connection string. For the Docker database from the host, use `postgres://expenses:expenses@localhost:5433/expenses_tracker`.
+- `DATABASE_URL`: PostgreSQL connection string. For the Docker database from the host, use `postgres://expenses:expenses@localhost:6543/expenses_tracker`.
 - `JWT_SECRET`: signing secret for access and refresh tokens.
 - `TELEGRAM_BOT_TOKEN`: Telegram bot HTTP API token.
 - `TELEGRAM_BOT_API_BASE_URL`: Telegram API base URL (`https://api.telegram.org`).
-- `TELEGRAM_WEBHOOK_SECRET_TOKEN`: optional secret expected in `x-telegram-bot-api-secret-token` for webhook hardening.
+- `TELEGRAM_WEBHOOK_SECRET_TOKEN`: secret expected in `x-telegram-bot-api-secret-token`. The Telegram webhook route is not registered without it; production requires a unique value of at least 16 characters when `TELEGRAM_BOT_TOKEN` is configured.
 - `RESEND_API_KEY`: Resend API key used to send email magic links.
 - `RESEND_API_BASE_URL`: Resend REST API base URL (`https://api.resend.com`).
 - `RESEND_FROM_EMAIL`: verified sender used for magic-link emails.
@@ -40,7 +40,7 @@ pnpm --filter @expenses-tracker/backend dev
 - `MESSAGE_INTERPRETER_HTTP_REFERER`: optional site URL sent as `HTTP-Referer` when provider is OpenRouter. If omitted, backend falls back to `FRONTEND_ORIGIN` public URL.
 - `MESSAGE_INTERPRETER_APP_NAME`: optional app name sent as `X-Title` when provider is OpenRouter.
 - `OTP_DEBUG_RESPONSE_ENABLED`: when `true` outside production, `POST /auth/otp/request` includes `debugCode` in the JSON response for local testing.
-- `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list.
+- `FRONTEND_ORIGIN`: allowed CORS origin. Supports comma-separated values for localhost, tunnels, and Netlify. Telegram `/start` link generation uses the last public URL from this list. Production requires explicit HTTPS origins and rejects `*`.
 - `TELEGRAM_BOT_USERNAME`: bot username without the leading `@`. Required for generating Telegram registration deep links from the web.
 - `LEGACY_BUDGETS_ENDPOINTS_ENABLED`: keeps deprecated `GET/PUT /budgets/monthly` aliases enabled (`true` by default). Set to `false` to enforce `/budgets` only.
 
@@ -73,7 +73,7 @@ For normal development, run the backend locally and keep only PostgreSQL in Dock
 docker compose up --build backend
 ```
 
-The container expects `DATABASE_URL`, `JWT_SECRET`, Telegram configuration, and `FRONTEND_ORIGIN`.
+The container expects `DATABASE_URL`, a unique `JWT_SECRET`, Telegram configuration, and `FRONTEND_ORIGIN`. Production rejects local development database/JWT defaults, wildcard CORS, and an enabled Telegram bot without a webhook secret.
 
 ## Architecture
 
@@ -146,7 +146,7 @@ Primary authentication is web-native. Telegram is optional and can be linked dur
 
 `POST /auth/magic-link/consume` exchanges a one-time email token for access/refresh tokens. Tokens expire after 15 minutes and are single-use.
 
-`POST /auth/otp/request` sends a Telegram OTP and returns `requiresRegistration`. This is a fallback flow for Telegram-linked users rather than the primary way into the web app.
+`POST /auth/otp/request` sends a Telegram OTP and returns the non-enumerable acknowledgement `{ "sent": true }`. It applies a 60-second cooldown, 5 requests per phone number and 20 per IP every 15 minutes; throttling returns `429` with `Retry-After`. This is a fallback flow for Telegram-linked users rather than the primary way into the web app.
 
 For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restart the backend. The OTP response will include `debugCode`; this is blocked by convention in production because the container only enables it when `NODE_ENV !== 'production'`.
 
@@ -156,7 +156,7 @@ For local troubleshooting only, set `OTP_DEBUG_RESPONSE_ENABLED=true` and restar
 
 `POST /auth/telegram/registration-link` is an optional convenience flow. It accepts only the phone number and returns a deep link to the Telegram bot. After the user taps `/start`, the bot sends back a login link token that resumes registration or links Telegram in the web app without asking for the Telegram chat id manually.
 
-`POST /auth/telegram/link-token` generates a short-lived one-time token for a known Telegram chat id. The bot uses it to build a secure web login link after `/start`.
+Telegram link tokens are generated only by the verified bot webhook after `/start`; clients never provide a Telegram chat id to mint one.
 
 `POST /auth/telegram/consume-link-token` supports the Telegram deep-link login flow:
 
@@ -254,7 +254,7 @@ The web app consumes these catalogs directly in expense creation/edit forms and 
 Start the backend and open:
 
 ```text
-http://localhost:3000/api/docs
+http://localhost:3100/api/docs
 ```
 
 When running through Docker Compose, the backend is exposed at the same URL.
@@ -269,7 +269,6 @@ The final auth/messaging pass must explicitly cover:
 - `POST /auth/magic-link/request`
 - `POST /auth/magic-link/consume`
 - `POST /auth/telegram/registration-link`
-- `POST /auth/telegram/link-token`
 - `POST /auth/telegram/consume-link-token`
 - `POST /auth/otp/request`
 - `POST /auth/otp/verify`
@@ -439,6 +438,8 @@ PostgreSQL integration repository tests (requires a migrated local DB and `DATAB
 $env:RUN_DB_INTEGRATION_TESTS='true'
 pnpm --filter @expenses-tracker/backend test
 ```
+
+When `RUN_DB_INTEGRATION_TESTS` is not `true`, Vitest skips the PostgreSQL integration suites. This is an explicit coverage gap, not a successful database verification; run them against a migrated PostgreSQL service before a release that changes persistence or account isolation.
 
 Local QA without Telegram real:
 

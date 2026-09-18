@@ -1,10 +1,11 @@
 {
   "name": "@expenses-tracker/backend",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "prebuild": "node ../scripts/version-sync.mjs --check",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "db:bootstrap": "tsx src/infrastructure/db-runner.ts bootstrap",

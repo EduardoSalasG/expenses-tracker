@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { AppContainer } from '../../infrastructure/container.js';
+import { AppError } from '../../application/app-error.js';
 
 export interface AuthenticatedRequest extends Request {
   auth: {
@@ -14,7 +15,7 @@ export function requireAuth(container: AppContainer) {
     const authorization = request.header('authorization');
     const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
     if (!token) {
-      response.status(401).json({ error: 'Missing bearer token.' });
+      next(new AppError(401, 'AUTH_REQUIRED', 'Authentication required.'));
       return;
     }
 
@@ -28,7 +29,7 @@ export function requireAuth(container: AppContainer) {
       if (requestedFinancialAccountId) {
         const accessibleMembership = await container.financialAccounts.findAccessibleById(payload.userId, requestedFinancialAccountId);
         if (!accessibleMembership) {
-          response.status(403).json({ error: 'Financial account is not accessible.' });
+          next(new AppError(403, 'ACCOUNT_FORBIDDEN', 'Financial account is not accessible.'));
           return;
         }
         activeAccount = accessibleMembership.account;
@@ -46,7 +47,7 @@ export function requireAuth(container: AppContainer) {
       };
       next();
     } catch {
-      response.status(401).json({ error: 'Invalid bearer token.' });
+      next(new AppError(401, 'AUTH_INVALID', 'Authentication failed.'));
     }
   };
 }

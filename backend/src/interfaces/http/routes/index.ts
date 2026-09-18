@@ -9,7 +9,9 @@ import { registerTelegramWebhookRoutes } from './telegram-webhook.routes.js';
 export function registerRoutes(app: Express, container: AppContainer) {
   registerPublicRoutes(app);
   registerAuthRoutes(app, container);
-  registerTelegramWebhookRoutes(app, container);
+  if (container.config.telegramWebhookSecretToken) {
+    registerTelegramWebhookRoutes(app, container);
+  }
   registerProfileRoutes(app, container);
   registerFinanceRoutes(app, container);
 }

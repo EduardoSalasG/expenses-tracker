@@ -21,13 +21,22 @@ export class RequestOtpUseCase {
       throw new Error('Telegram chat id is required for new users.');
     }
 
+    const now = this.clock.now();
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(this.clock.now().getTime() + 10 * 60 * 1000);
-    await this.otps.create(input.phoneNumber, code, expiresAt);
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
+    const issued = await this.otps.issue({
+      phoneNumber: input.phoneNumber,
+      code,
+      expiresAt,
+      now,
+      cooldownMs: 60 * 1000
+    });
+    if (!issued.issued) {
+      throw { code: 'OTP_COOLDOWN', retryAfterSeconds: issued.retryAfterSeconds };
+    }
     await this.messaging.sendText(targetChatId, buildOtpMessage(existingUser?.preferredLanguage ?? 'es', code), { channel: 'telegram' });
     return {
       sent: true,
-      requiresRegistration: !existingUser,
       ...(this.options.exposeOtpInResponse ? { debugCode: code } : {})
     };
   }
@@ -195,8 +204,11 @@ export class VerifyOtpUseCase {
   ) {}
 
   async execute(input: { phoneNumber: string; code: string; firstName?: string; lastName?: string; preferredName?: string; email?: string; countryOfResidence?: string; preferredCurrency?: string; preferredLanguage?: 'es' | 'en'; telegramChatId?: string }) {
-    const verified = await this.otps.verify(input.phoneNumber, input.code, this.clock.now());
-    if (!verified) {
+    const verification = await this.otps.verify(input.phoneNumber, input.code, this.clock.now());
+    if (verification.attemptsExhausted) {
+      throw { code: 'OTP_ATTEMPTS_EXHAUSTED' };
+    }
+    if (!verification.verified) {
       throw new Error('Invalid or expired OTP.');
     }
 

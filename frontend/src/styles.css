@@ -37,6 +37,11 @@
   --semantic-warning-bg: #fffbeb;
   --semantic-warning-border: #fde68a;
   --semantic-warning-text: #92400e;
+  --surface-raised: var(--brand-surface);
+  --surface-subtle: var(--brand-surface-muted);
+  --content-primary: var(--brand-ink);
+  --content-secondary: var(--brand-muted);
+  --focus-ring: color-mix(in srgb, var(--brand-blue) 45%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,6 +78,26 @@
     --semantic-warning-border: #92400e;
     --semantic-warning-text: #fcd34d;
   }
+}
+
+.financial-focus:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.financial-priority--info {
+  border-color: color-mix(in srgb, var(--brand-blue) 36%, var(--brand-border));
+  background: color-mix(in srgb, var(--brand-blue) 8%, var(--surface-raised));
+}
+
+.financial-priority--warning {
+  border-color: var(--semantic-warning-border);
+  background: var(--semantic-warning-bg);
+}
+
+.financial-priority--danger {
+  border-color: var(--semantic-danger-border);
+  background: var(--semantic-danger-bg);
 }
 
 html,
@@ -597,6 +622,30 @@ table {
   background:
     linear-gradient(180deg, var(--brand-surface) 0, var(--brand-bg) 240px),
     var(--brand-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 60;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-160%);
+  border-radius: 0.5rem;
+  background: var(--brand-navy);
+  color: white;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--brand-blue);
+  outline-offset: 3px;
 }
 
 .auth-field {

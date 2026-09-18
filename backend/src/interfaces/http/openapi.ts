@@ -181,18 +181,18 @@ export const openApiSpec = {
             content: {
               'application/json': {
                 examples: {
-                  existingUser: {
-                    value: { sent: true, requiresRegistration: false }
-                  },
-                  newUser: {
-                    value: { sent: true, requiresRegistration: true }
-                  }
+                  accepted: { value: { sent: true } }
                 }
               }
             }
           },
           '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
-          '500': { description: 'Provider delivery failed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { telegramNotLinked: { value: { error: 'Telegram chat is not linked. Open the bot and send /link +<your-phone-number>, then request OTP again.' } } } } } }
+          '429': {
+            description: 'OTP cooldown or rate limit exceeded',
+            headers: { 'Retry-After': { schema: { type: 'integer' }, description: 'Seconds until another request is allowed.' } },
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' }, examples: { throttled: { value: { error: 'Too many OTP requests.' } } } } }
+          },
+          '500': { description: 'Unexpected delivery failure', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
         }
       }
     },
@@ -515,39 +515,6 @@ export const openApiSpec = {
               'application/json': {
                 examples: {
                   invalidToken: { value: { error: 'Invalid refresh token.' } }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    '/auth/telegram/link-token': {
-      post: {
-        summary: 'Create one-time Telegram link token',
-        requestBody: jsonBody({ chatId: { type: 'string', example: '123456789' } }, ['chatId']),
-        responses: {
-          '200': {
-            description: 'Link token created',
-            content: {
-              'application/json': {
-                examples: {
-                  created: {
-                    value: {
-                      token: '5f50d30e-7f96-4ad2-b16f-2a38e8576b95',
-                      expiresAt: '2026-06-10T18:15:00.000Z'
-                    }
-                  }
-                }
-              }
-            }
-          },
-          '400': {
-            description: 'Validation error',
-            content: {
-              'application/json': {
-                examples: {
-                  invalidChat: { value: { error: 'Validation failed.' } }
                 }
               }
             }

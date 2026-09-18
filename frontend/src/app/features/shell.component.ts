@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -29,6 +29,9 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, MatDialogModule, MatFormFieldModule, MatIconModule, MatSelectModule, MatToolbarModule],
   template: `
+    <a class="skip-link" href="#main-content" data-testid="skip-to-main" (click)="focusMainContent($event)">
+      {{ t('skip_to_main') }}
+    </a>
     <mat-toolbar class="fixed left-0 right-0 top-0 z-30 !h-auto !min-h-16 border-b border-brand-border !bg-brand-surface !px-4 !py-3 !font-sans !text-brand-ink md:!h-[88px] md:!min-h-[88px] md:!py-3">
       <div class="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div class="flex min-w-0 items-center gap-3 overflow-hidden">
@@ -89,6 +92,8 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
         <button
           type="button"
           class="shell-mobile-link shell-mobile-more-trigger"
+          #moreTrigger
+          data-testid="mobile-more-trigger"
           [class.shell-mobile-link--active]="isMoreMenuOpen || isMoreRouteActive()"
           [attr.aria-label]="t('nav_more')"
           [attr.aria-expanded]="isMoreMenuOpen"
@@ -102,6 +107,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
           <div id="shell-mobile-more-menu" class="shell-mobile-more-menu" role="menu" [attr.aria-label]="t('nav_more')">
             @for (link of mobileMoreLinks; track link[0]) {
               <a
+                #firstMoreMenuItem
                 [routerLink]="link[0]"
                 [attr.aria-label]="t(link[1])"
                 routerLinkActive="shell-mobile-more-link--active"
@@ -117,13 +123,16 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
         }
       </nav>
 
-      <section class="min-w-0 px-3 pb-28 pt-4 md:px-8 md:pb-10 md:pt-8">
+      <main id="main-content" #mainContent tabindex="-1" class="min-w-0 px-3 pb-28 pt-4 outline-none md:px-8 md:pb-10 md:pt-8">
         <router-outlet></router-outlet>
-      </section>
+      </main>
     </div>
   `
 })
 export class ShellComponent implements OnInit {
+  @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
+  @ViewChild('moreTrigger') private moreTrigger?: ElementRef<HTMLButtonElement>;
+  @ViewChild('firstMoreMenuItem') private firstMoreMenuItem?: ElementRef<HTMLElement>;
   readonly createSharedAccountOption = CREATE_SHARED_ACCOUNT_OPTION;
 
   constructor(
@@ -171,15 +180,27 @@ export class ShellComponent implements OnInit {
 
   toggleMoreMenu() {
     this.isMoreMenuOpen = !this.isMoreMenuOpen;
+    if (this.isMoreMenuOpen) {
+      setTimeout(() => this.firstMoreMenuItem?.nativeElement.focus());
+    }
   }
 
   closeMoreMenu() {
+    const wasOpen = this.isMoreMenuOpen;
     this.isMoreMenuOpen = false;
+    if (wasOpen) {
+      setTimeout(() => this.moreTrigger?.nativeElement.focus());
+    }
   }
 
   @HostListener('document:keydown.escape')
   onEscape() {
     this.closeMoreMenu();
+  }
+
+  focusMainContent(event: MouseEvent) {
+    event.preventDefault();
+    this.mainContent?.nativeElement.focus();
   }
 
   isMoreRouteActive() {

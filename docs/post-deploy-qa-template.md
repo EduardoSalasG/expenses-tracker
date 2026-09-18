@@ -5,6 +5,7 @@ Use this template after each `dev -> main` promotion.
 ## Deployment context
 
 - Date:
+- Version and annotated tag:
 - Commit:
 - Frontend URL (Netlify):
 - Backend URL (Oracle API):

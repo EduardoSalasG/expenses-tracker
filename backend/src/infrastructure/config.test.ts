@@ -1,6 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 
 describe('loadConfig', () => {
+  it.each([
+    ['uses the development JWT secret', { JWT_SECRET: 'change-me-local-secret' }],
+    ['uses the local development database URL', { JWT_SECRET: 'production-secret', DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/expenses_tracker' }],
+    ['allows every CORS origin', { JWT_SECRET: 'production-secret', FRONTEND_ORIGIN: '*' }],
+    ['enables Telegram without a webhook secret', { JWT_SECRET: 'production-secret', TELEGRAM_BOT_TOKEN: 'bot-token', TELEGRAM_WEBHOOK_SECRET_TOKEN: '' }]
+  ])('rejects production configuration that %s', async (_reason, overrides) => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgres://production.example/expenses');
+    vi.stubEnv('JWT_SECRET', 'production-secret');
+    vi.stubEnv('FRONTEND_ORIGIN', 'https://expenses.example');
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
+    vi.stubEnv('TELEGRAM_WEBHOOK_SECRET_TOKEN', '');
+    for (const [key, value] of Object.entries(overrides)) vi.stubEnv(key, value);
+
+    const { loadConfig } = await import('./config.js');
+
+    expect(() => loadConfig()).toThrow();
+    vi.unstubAllEnvs();
+  });
+
   it('parses string false as false for USE_IN_MEMORY_REPOSITORIES', async () => {
     vi.resetModules();
     vi.stubEnv('USE_IN_MEMORY_REPOSITORIES', 'false');

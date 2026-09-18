@@ -58,10 +58,6 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1)
 });
 
-export const createTelegramLinkTokenSchema = z.object({
-  chatId: z.string().min(2)
-});
-
 export const createTelegramRegistrationLinkSchema = z.object({
   phoneNumber: phoneNumberSchema
 });

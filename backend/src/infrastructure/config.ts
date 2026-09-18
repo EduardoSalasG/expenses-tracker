@@ -14,11 +14,14 @@ const optionalNumberEnvSchema = (defaultValue: number) => z.preprocess((value) =
   return Number.isFinite(parsed) ? parsed : defaultValue;
 }, z.number());
 
+const developmentJwtSecret = 'change-me-local-secret';
+const developmentDatabaseUrl = 'postgres://postgres:postgres@localhost:5432/expenses_tracker';
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
-  DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/expenses_tracker'),
-  JWT_SECRET: z.string().min(8).default('change-me-local-secret'),
+  DATABASE_URL: z.string().default(developmentDatabaseUrl),
+  JWT_SECRET: z.string().min(8).default(developmentJwtSecret),
   JWT_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().default(30),
   WHATSAPP_VERIFY_TOKEN: z.string().default('local-verify-token'),
@@ -45,6 +48,25 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().default('http://localhost:4200'),
   USE_IN_MEMORY_REPOSITORIES: booleanEnvSchema.default(false),
   LEGACY_BUDGETS_ENDPOINTS_ENABLED: booleanEnvSchema.default(true)
+}).superRefine((env, context) => {
+  if (env.NODE_ENV !== 'production') return;
+
+  if (env.JWT_SECRET === developmentJwtSecret) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['JWT_SECRET'], message: 'JWT_SECRET must not use the development default in production.' });
+  }
+
+  if (env.DATABASE_URL === developmentDatabaseUrl) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['DATABASE_URL'], message: 'DATABASE_URL must be configured for production.' });
+  }
+
+  const origins = parseFrontendOrigins(env.FRONTEND_ORIGIN);
+  if (origins.length === 0 || origins.includes('*') || origins.some((origin) => !isHttpsUrl(origin))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['FRONTEND_ORIGIN'], message: 'FRONTEND_ORIGIN must contain explicit HTTPS origins in production.' });
+  }
+
+  if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET_TOKEN.trim().length < 16) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['TELEGRAM_WEBHOOK_SECRET_TOKEN'], message: 'Telegram requires a webhook secret of at least 16 characters in production.' });
+  }
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -115,6 +137,14 @@ function isHttpUrl(value: string) {
   try {
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isHttpsUrl(value: string) {
+  try {
+    return new URL(value).protocol === 'https:';
   } catch {
     return false;
   }

@@ -15,6 +15,7 @@ import { OnboardingService } from '../core/onboarding.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
+import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.component';
 
 @Component({
   selector: 'app-categories',
@@ -28,7 +29,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    DisclosurePanelComponent
   ],
   template: `
     <app-page-header [title]="t('categories_title')" [eyebrow]="t('categories_subtitle')">
@@ -50,11 +52,12 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
       <app-feedback-banner [message]="loading() ? t('categories_loading') : ''" tone="info" />
 
       @if (rootCategories().length) {
-        <div class="grid gap-3 border-b border-brand-border pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+        <div class="grid gap-3 border-b border-brand-border pb-4">
           <mat-form-field appearance="outline" class="w-full">
             <mat-label>{{ t('categories_search') }}</mat-label>
             <input matInput type="search" [value]="searchTerm()" (input)="setSearchTerm($event)" [attr.aria-label]="t('categories_search')">
           </mat-form-field>
+          <app-disclosure-panel [label]="t('categories_filter_label')" [open]="libraryFilter() !== 'all'">
           <div class="flex flex-wrap gap-2" role="group" [attr.aria-label]="t('categories_filter_label')">
             @for (filter of libraryFilters; track filter) {
               <button mat-stroked-button type="button" [attr.aria-pressed]="libraryFilter() === filter" (click)="setLibraryFilter(filter)">
@@ -62,6 +65,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
               </button>
             }
           </div>
+          </app-disclosure-panel>
         </div>
 
         @if (visibleRootCategories().length) {
@@ -91,7 +95,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                       }
                     </div>
                   } @else {
-                    <p class="text-sm text-brand-muted">{{ t('categories_no_sub') }}</p>
+                    <app-empty-state [message]="t('categories_no_sub')" />
                   }
                 </div>
               </mat-expansion-panel>

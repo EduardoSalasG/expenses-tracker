@@ -267,6 +267,67 @@ describe('FinancialAccountsUseCases', () => {
     expect(members.some((member) => member.userId === invited.id && member.role === 'member' && member.status === 'active')).toBe(true);
   });
 
+  it('rejects invitation, settlement, and member mutations from a non-member of a shared account', async () => {
+    const users = new InMemoryUserRepository();
+    const financialAccounts = new InMemoryFinancialAccountRepository(users);
+    const useCases = new FinancialAccountsUseCases(
+      financialAccounts,
+      new InMemoryCategoryRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      users
+    );
+    const owner = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111201',
+      firstName: 'Owner',
+      lastName: 'User',
+      preferredName: 'Owner',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'owner-isolation@example.com',
+      preferredLanguage: 'es'
+    });
+    const outsider = await users.upsertByPhoneNumber({
+      phoneNumber: '+56911111202',
+      firstName: 'Outsider',
+      lastName: 'User',
+      preferredName: 'Outsider',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP',
+      email: 'outsider-isolation@example.com',
+      preferredLanguage: 'es'
+    });
+    const personal = await financialAccounts.ensurePersonalAccount(owner.id);
+    const shared = await useCases.createSharedAccount({
+      userId: owner.id,
+      tenantId: owner.tenantId,
+      sourceFinancialAccountId: personal.id,
+      name: 'Cuenta aislada',
+      currency: 'CLP'
+    });
+
+    await expect(useCases.inviteMember({
+      actorUserId: outsider.id,
+      financialAccountId: shared.account.id,
+      email: 'new-member@example.com'
+    })).rejects.toThrow('Financial account not found.');
+    await expect(useCases.createSettlement({
+      actorUserId: outsider.id,
+      financialAccountId: shared.account.id,
+      paidByUserId: owner.id,
+      receivedByUserId: outsider.id,
+      currency: 'CLP',
+      amount: 1000,
+      settledAt: '2026-09-16T00:00:00.000Z'
+    })).rejects.toThrow('Financial account not found.');
+    await expect(useCases.removeMember({
+      actorUserId: outsider.id,
+      financialAccountId: shared.account.id,
+      memberUserId: owner.id
+    })).rejects.toThrow('Financial account not found.');
+  });
+
   it('records that a shared-account invitation email was delivered', async () => {
     const users = new InMemoryUserRepository();
     const financialAccounts = new InMemoryFinancialAccountRepository(users);

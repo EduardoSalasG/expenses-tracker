@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,7 +26,9 @@ import {
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
+import { APP_VERSION } from '../generated/app-version';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
 
 const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKey: string }> = [
@@ -36,7 +38,7 @@ const frequencies: Array<{ key: ReportFrequency; labelKey: string; descriptionKe
   { key: 'yearly', labelKey: 'settings_frequency_yearly', descriptionKey: 'settings_frequency_yearly_desc' }
 ];
 
-type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
+export type SettingsSectionId = 'profile' | 'reports' | 'catalogs' | 'accounts' | 'telegram' | 'session';
 
 const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: string; descriptionKey: string }> = [
   { id: 'profile', icon: 'person', titleKey: 'settings_section_profile_title', descriptionKey: 'settings_section_profile_description' },
@@ -46,6 +48,10 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
   { id: 'telegram', icon: 'send', titleKey: 'settings_section_telegram_title', descriptionKey: 'settings_section_telegram_description' },
   { id: 'session', icon: 'logout', titleKey: 'settings_section_session_title', descriptionKey: 'settings_section_session_description' }
 ];
+
+export function parseSettingsSection(value: string | null): SettingsSectionId | null {
+  return settingsSections.some((section) => section.id === value) ? value as SettingsSectionId : null;
+}
 
 @Component({
   selector: 'app-settings',
@@ -63,7 +69,8 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
     MatSelectModule,
     MatSnackBarModule,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    EmptyStateComponent
   ],
   template: `
     <app-page-header [title]="t('settings_title')" [eyebrow]="t('settings_subtitle')"></app-page-header>
@@ -106,7 +113,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
             </button>
             @if (activeSettingsMetadata(); as section) {
               <div>
-                <h2 class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
+                <h2 #settingsSectionHeading tabindex="-1" class="text-xl font-semibold text-brand-ink">{{ t(section.titleKey) }}</h2>
                 <p class="mt-1 text-sm text-brand-muted">{{ t(section.descriptionKey) }}</p>
               </div>
             }
@@ -428,7 +435,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
                     }
                   </div>
                 } @empty {
-                  <div class="text-sm text-brand-muted">{{ t('common_no_data') }}</div>
+                  <app-empty-state [message]="t('common_no_data')" />
                 }
               </div>
             </div>
@@ -460,7 +467,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_balances_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_balances_empty')" />
                   }
                 </div>
               </div>
@@ -489,7 +496,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_suggestions_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_suggestions_empty')" />
                   }
                 </div>
               </div>
@@ -581,7 +588,7 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
                       </div>
                     </div>
                   } @empty {
-                    <div class="text-sm text-brand-muted">{{ t('accounts_settlement_history_empty') }}</div>
+                    <app-empty-state [message]="t('accounts_settlement_history_empty')" />
                   }
                 </div>
               </div>
@@ -639,13 +646,24 @@ const settingsSections: Array<{ id: SettingsSectionId; icon: string; titleKey: s
         </div>
       </section>
     }
+
+    <footer
+      class="mt-8 border-t border-brand-border px-4 pt-4 text-center text-sm leading-5 text-brand-muted outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-ink sm:px-6"
+      data-testid="app-version"
+      tabindex="0"
+      [attr.aria-label]="t('settings_version_accessible_label') + ' ' + appVersion"
+    >
+      {{ t('settings_version_label') }} {{ appVersion }}
+    </footer>
   `
 })
 export class SettingsComponent {
+  @ViewChild('settingsSectionHeading') private settingsSectionHeading?: ElementRef<HTMLElement>;
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   readonly frequencies = frequencies;
+  readonly appVersion = APP_VERSION;
   readonly settingsSections = settingsSections;
   readonly activeSettingsSection = signal<SettingsSectionId | null>(null);
   readonly user = signal<CurrentUser | null>(null);
@@ -726,6 +744,8 @@ export class SettingsComponent {
     private readonly i18n: I18nService,
     private readonly onboarding: OnboardingService
   ) {
+    const linkedSection = parseSettingsSection(this.route.snapshot.queryParamMap.get('section'));
+    if (linkedSection) this.openSettingsSection(linkedSection, false);
     this.load();
     effect(() => {
       const currentAccountId = this.accountService.activeAccountId();
@@ -735,12 +755,25 @@ export class SettingsComponent {
     });
   }
 
-  openSettingsSection(section: SettingsSectionId) {
+  openSettingsSection(section: SettingsSectionId, syncUrl = true) {
     this.activeSettingsSection.set(section);
+    if (syncUrl) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { section },
+        queryParamsHandling: 'merge'
+      });
+    }
+    setTimeout(() => this.settingsSectionHeading?.nativeElement.focus());
   }
 
   closeSettingsSection() {
     this.activeSettingsSection.set(null);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { section: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   activeSettingsMetadata() {

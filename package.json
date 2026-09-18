@@ -1,6 +1,6 @@
 {
   "name": "expenses-tracker",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -23,7 +23,11 @@
     "reports:docker:weekly": "docker compose run --rm -e REPORT_FREQUENCY=weekly report-worker",
     "reports:docker:monthly": "docker compose run --rm -e REPORT_FREQUENCY=monthly report-worker",
     "reports:docker:yearly": "docker compose run --rm -e REPORT_FREQUENCY=yearly report-worker",
-    "build": "pnpm -r build",
+    "version:sync": "node scripts/version-sync.mjs --sync",
+    "version:check": "node scripts/version-sync.mjs --check",
+    "release:rollback:preview": "node scripts/release-rollback-preview.mjs",
+    "release:verify": "pnpm run version:check && pnpm run build",
+    "build": "pnpm run version:check && pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"
   },

@@ -1244,11 +1244,13 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       preferredCurrency: 'CLP'
     });
     await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
     if (!education) throw new Error('Missing Education category in test defaults.');
     await expenses.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-06T00:00:00.000Z',
       amount: 14000,
@@ -1285,7 +1287,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
 
     expect(result.status).toBe('expense_updated');
-    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    const [updated] = await expenses.listRecent(user.tenantId, financialAccountId, 10);
     const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
     const restaurants = tenantCategories.find((category) => category.name === 'Restaurants' && category.parentId === food?.id);
     expect(updated.categoryId).toBe(food?.id);
@@ -1309,11 +1311,13 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     await users.linkTelegramChatByPhone(user.phoneNumber, '999');
     await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
     if (!food) throw new Error('Missing Food category in test defaults.');
     await expenses.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-06T00:00:00.000Z',
       amount: 25000,
@@ -1353,7 +1357,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
 
     expect(result.status).toBe('expense_updated');
-    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    const [updated] = await expenses.listRecent(user.tenantId, financialAccountId, 10);
     expect(updated.amount).toBe(30000);
     expect(updated.concept).toContain('cena sushi burger');
     expect(messaging.messages.at(-1)?.body).toContain('Vane, Gasto actualizado.');
@@ -1376,11 +1380,13 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     await users.linkTelegramChatByPhone(user.phoneNumber, '999');
     await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const education = tenantCategories.find((category) => category.name === 'Education' && !category.parentId);
     if (!education) throw new Error('Missing Education category in test defaults.');
     await expenses.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-06T00:00:00.000Z',
       amount: 14000,
@@ -1420,7 +1426,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
 
     expect(result.status).toBe('expense_updated');
-    const [updated] = await expenses.listRecent(user.tenantId, 10);
+    const [updated] = await expenses.listRecent(user.tenantId, financialAccountId, 10);
     const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
     const restaurants = tenantCategories.find((category) => category.name === 'Restaurants' && category.parentId === food?.id);
     expect(updated.categoryId).toBe(food?.id);
@@ -1444,8 +1450,10 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     await users.linkTelegramChatByPhone(user.phoneNumber, '999');
     await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
     await incomes.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-03T00:00:00.000Z',
       amount: 1200000,
@@ -1482,7 +1490,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
 
     expect(result.status).toBe('income_updated');
-    const [updated] = await incomes.listRecent(user.tenantId, 10);
+    const [updated] = await incomes.listRecent(user.tenantId, financialAccountId, 10);
     expect(updated.amount).toBe(1250000);
     expect(updated.concept).toContain('sueldo mayo');
     expect(messaging.messages.at(-1)?.body).toContain('Vane, Ingreso actualizado.');
@@ -1506,18 +1514,21 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     await users.linkTelegramChatByPhone(user.phoneNumber, '999');
     await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
     const tenantCategories = await categories.listByTenant(user.tenantId);
     const food = tenantCategories.find((category) => category.name === 'Food' && !category.parentId);
     if (!food) throw new Error('Missing Food category in test defaults.');
 
     await budgets.upsertMonthly({
       tenantId: user.tenantId,
+      financialAccountId,
       categoryId: food.id,
       amount: 100000,
       currency: 'CLP'
     });
     await expenses.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-06T00:00:00.000Z',
       amount: 35000,
@@ -1529,6 +1540,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const incomes = new InMemoryIncomeRepository();
     await incomes.create({
       tenantId: user.tenantId,
+      financialAccountId,
       userId: user.id,
       date: '2026-05-02T00:00:00.000Z',
       amount: 150000,

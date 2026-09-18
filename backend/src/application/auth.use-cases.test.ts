@@ -13,17 +13,32 @@ import { ScryptPasswordHasher } from '../infrastructure/password-hasher.service.
 import type { User } from '../domain/index.js';
 
 describe('auth use cases', () => {
-  it('marks OTP requests for unknown phones as requiring registration', async () => {
+  it('returns the same public result for an unknown phone', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
     const useCase = new RequestOtpUseCase(users, otps, new CapturingMessagingProvider(), fixedClock());
 
     const result = await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
 
-    expect(result).toEqual({ sent: true, requiresRegistration: true });
+    expect(result).toEqual({ sent: true });
   });
 
-  it('marks OTP requests for existing users as OTP-only login', async () => {
+  it('rejects a second OTP request during the 60-second cooldown', async () => {
+    const clock = mutableClock();
+    const useCase = new RequestOtpUseCase(
+      new InMemoryUserRepository(),
+      new InMemoryOtpRepository(),
+      new CapturingMessagingProvider(),
+      clock
+    );
+
+    await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
+
+    await expect(useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' }))
+      .rejects.toMatchObject({ code: 'OTP_COOLDOWN', retryAfterSeconds: 60 });
+  });
+
+  it('returns the same public result for an existing phone', async () => {
     const users = new InMemoryUserRepository();
     await users.upsertByPhoneNumber({
       phoneNumber: '+56982439041',
@@ -38,7 +53,7 @@ describe('auth use cases', () => {
 
     const result = await useCase.execute({ phoneNumber: '+56982439041', telegramChatId: '12345' });
 
-    expect(result).toEqual({ sent: true, requiresRegistration: false });
+    expect(result).toEqual({ sent: true });
   });
 
   it('can expose the OTP in development diagnostics when explicitly enabled', async () => {
@@ -70,7 +85,7 @@ describe('auth use cases', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
-    await otps.create(existing.phoneNumber, '123456', new Date('2026-05-10T00:10:00.000Z'));
+    await issueOtp(otps, existing.phoneNumber, '123456');
     const messaging = new CapturingMessagingProvider();
     const useCase = new VerifyOtpUseCase(
       users,
@@ -95,7 +110,7 @@ describe('auth use cases', () => {
 
   it('requires registration fields for new users during OTP verification', async () => {
     const otps = new InMemoryOtpRepository();
-    await otps.create('+56982439041', '123456', new Date('2026-05-10T00:10:00.000Z'));
+    await issueOtp(otps, '+56982439041', '123456');
     const useCase = new VerifyOtpUseCase(
       new InMemoryUserRepository(),
       otps,
@@ -111,11 +126,52 @@ describe('auth use cases', () => {
       .rejects.toThrow('Registration details are required for new users.');
   });
 
+  it('invalidates an OTP after five failed verification attempts', async () => {
+    const otps = new InMemoryOtpRepository();
+    await issueOtp(otps, '+56982439041', '123456');
+    const useCase = new VerifyOtpUseCase(
+      new InMemoryUserRepository(),
+      otps,
+      new InMemoryCategoryRepository(),
+      new InMemoryFinancialAccountRepository(),
+      new FakeTokenService(),
+      fixedClock(),
+      new CapturingMessagingProvider(),
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(useCase.execute({ phoneNumber: '+56982439041', code: '000000' }))
+        .rejects.toThrow('Invalid or expired OTP.');
+    }
+
+    await expect(useCase.execute({ phoneNumber: '+56982439041', code: '123456' }))
+      .rejects.toMatchObject({ code: 'OTP_ATTEMPTS_EXHAUSTED' });
+  });
+
+  it('rejects an OTP after its expiration time', async () => {
+    const otps = new InMemoryOtpRepository();
+    await issueOtp(otps, '+56982439041', '123456');
+    const useCase = new VerifyOtpUseCase(
+      new InMemoryUserRepository(),
+      otps,
+      new InMemoryCategoryRepository(),
+      new InMemoryFinancialAccountRepository(),
+      new FakeTokenService(),
+      { now: () => new Date('2026-05-10T00:10:00.001Z') },
+      new CapturingMessagingProvider(),
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({ phoneNumber: '+56982439041', code: '123456' }))
+      .rejects.toThrow('Invalid or expired OTP.');
+  });
+
   it('sends a registration greeting with Telegram usage examples for new users', async () => {
     const users = new InMemoryUserRepository();
     const otps = new InMemoryOtpRepository();
     const messaging = new CapturingMessagingProvider();
-    await otps.create('+56982439041', '123456', new Date('2026-05-10T00:10:00.000Z'));
+    await issueOtp(otps, '+56982439041', '123456');
     const useCase = new VerifyOtpUseCase(
       users,
       otps,
@@ -292,6 +348,26 @@ describe('auth use cases', () => {
 
 function fixedClock() {
   return { now: () => new Date('2026-05-10T00:00:00.000Z') };
+}
+
+function mutableClock() {
+  let current = new Date('2026-05-10T00:00:00.000Z');
+  return {
+    now: () => current,
+    advance(milliseconds: number) {
+      current = new Date(current.getTime() + milliseconds);
+    }
+  };
+}
+
+async function issueOtp(otps: InMemoryOtpRepository, phoneNumber: string, code: string) {
+  await otps.issue({
+    phoneNumber,
+    code,
+    now: new Date('2026-05-10T00:00:00.000Z'),
+    expiresAt: new Date('2026-05-10T00:10:00.000Z'),
+    cooldownMs: 60 * 1000
+  });
 }
 
 class CapturingMessagingProvider implements MessagingProvider {

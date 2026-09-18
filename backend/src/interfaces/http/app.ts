@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { randomUUID } from 'node:crypto';
 import swaggerUi from 'swagger-ui-express';
 import type { AppContainer } from '../../infrastructure/container.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
@@ -12,6 +13,10 @@ export function createApp(container: AppContainer) {
   const app = express();
   app.set('trust proxy', true);
   app.use(helmet());
+  app.use((request, _response, next) => {
+    (request as typeof request & { id?: string }).id = request.header('x-request-id')?.trim() || randomUUID();
+    next();
+  });
   // In dev, when exposing the API via ngrok, the Origin will be the ngrok domain.
   // Allow configuring multiple allowed origins via comma-separated FRONTEND_ORIGIN.
   // Set FRONTEND_ORIGIN="*" to allow any origin (dev only).

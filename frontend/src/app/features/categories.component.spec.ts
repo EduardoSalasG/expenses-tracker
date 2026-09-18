@@ -103,6 +103,12 @@ describe('CategoriesComponent', () => {
     expect(component.visibleRootCategories()).toEqual([leisure]);
   });
 
+  it('keeps library type filters in a progressive disclosure', () => {
+    const summary = fixture.nativeElement.querySelector('app-disclosure-panel summary') as HTMLElement | null;
+
+    expect(summary?.textContent).toContain('categories_filter_label');
+  });
+
   it('keeps a root visible when one of its children matches the custom filter', () => {
     const component = fixture.componentInstance;
     const customChild: Category = { ...delivery, id: 'delivery-custom', isDefault: false };

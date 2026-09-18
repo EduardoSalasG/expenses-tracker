@@ -6,11 +6,12 @@ export interface PaymentMethodOptionRepository {
   create(input: Omit<PaymentMethodOption, 'id'>): Promise<PaymentMethodOption>;
   update(input: {
     tenantId: TenantId;
+    financialAccountId?: string;
     paymentMethodOptionId: string;
     code: string;
     name: string;
     kind: PaymentMethodOption['kind'];
     cardType?: PaymentMethodOption['cardType'];
   }): Promise<PaymentMethodOption | undefined>;
-  delete(input: { tenantId: TenantId; paymentMethodOptionId: string }): Promise<boolean>;
+  delete(input: { tenantId: TenantId; financialAccountId?: string; paymentMethodOptionId: string }): Promise<boolean>;
 }

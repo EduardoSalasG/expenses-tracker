@@ -3,7 +3,7 @@ import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { SettingsComponent } from './settings.component';
+import { parseSettingsSection, SettingsComponent } from './settings.component';
 import {
   ApiService,
   type CurrentUser,
@@ -80,12 +80,22 @@ describe('SettingsComponent', () => {
             user: signal<CurrentUser | null>(user)
           }
         },
-        { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigateByUrl']) },
+        { provide: Router, useValue: jasmine.createSpyObj<Router>('Router', ['navigate', 'navigateByUrl']) },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { queryParamMap: convertToParamMap({}) } }
         },
-        { provide: I18nService, useValue: { t: (key: string) => key, applyUserPreference: () => {}, language: () => 'es' } }
+        {
+          provide: I18nService,
+          useValue: {
+            t: (key: string) => ({
+              settings_version_label: 'Versión',
+              settings_version_accessible_label: 'Versión de la aplicación'
+            }[key] ?? key),
+            applyUserPreference: () => {},
+            language: () => 'es'
+          }
+        }
       ]
     }).compileComponents();
 
@@ -124,5 +134,35 @@ describe('SettingsComponent', () => {
 
     expect(api.updateReportPreferences).toHaveBeenCalledWith(['weekly', 'monthly'] as ReportFrequency[]);
     expect(component.message()).toBe('settings_preferences_saved');
+  });
+
+  it('renders the exact localized release version as the final, non-interactive settings metadata', () => {
+    const version = fixture.nativeElement.querySelector('[data-testid="app-version"]') as HTMLElement | null;
+
+    expect(version).withContext('the version is discoverable at the end of Settings').not.toBeNull();
+    expect(version?.tagName).toBe('FOOTER');
+    expect(version?.textContent?.trim()).toBe('Versión 0.1.0');
+    expect(version?.getAttribute('aria-label')).toBe('Versión de la aplicación 0.1.0');
+    expect(version?.querySelector('button, a, input, select, textarea')).toBeNull();
+    expect(version?.getAttribute('tabindex')).toBe('0');
+    version?.focus();
+    expect(document.activeElement).toBe(version);
+    expect(fixture.nativeElement.lastElementChild).toBe(version);
+  });
+
+  it('accepts only known sections from a deep link', () => {
+    expect(parseSettingsSection('catalogs')).toBe('catalogs');
+    expect(parseSettingsSection('delete-all')).toBeNull();
+    expect(parseSettingsSection(null)).toBeNull();
+  });
+
+  it('keeps a valid deep-linked section in focus without replacing the query parameter', () => {
+    const component = fixture.componentInstance;
+    const router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+
+    component.openSettingsSection('catalogs', false);
+
+    expect(component.activeSettingsSection()).toBe('catalogs');
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });
