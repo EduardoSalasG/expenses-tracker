@@ -7,7 +7,7 @@
 ## 2. Versión en Configuración
 
 - [x] 2.1 Añadir al componente de Configuración el valor de versión generado y las claves de i18n necesarias; verificar que se renderiza como último contenido después de las secciones funcionales.
-- [ ] 2.2 Aplicar estilos secundarios del sistema visual para el metadato de versión, con contraste y separación adecuados; verificar en 320 px, un ancho móvil representativo y escritorio.
+- [x] 2.2 Aplicar estilos secundarios del sistema visual para el metadato de versión, con contraste y separación adecuados; verificar en 320 px, un ancho móvil representativo y escritorio.
 - [x] 2.3 Ampliar las pruebas de Configuración para comprobar valor exacto, orden final, texto accesible, navegación por teclado y comportamiento con zoom/reduced motion cuando aplique; verificar las pruebas unitarias afectadas.
 
 ## 3. Operación de release y documentación
