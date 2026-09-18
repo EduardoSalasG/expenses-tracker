@@ -14,6 +14,8 @@ import { PeriodStateService } from '../core/period-state.service';
 import { ChartDataTableComponent, type ChartDataRow } from '../shared/components/chart-data-table.component';
 import { ActionPriorityComponent } from '../shared/components/action-priority.component';
 import { FinancialMetricComponent } from '../shared/components/financial-metric.component';
+import { EmptyStateComponent } from '../shared/components/empty-state.component';
+import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { deriveDashboardPriorities, type DashboardPriority } from './dashboard-priority';
 
 Chart.register(...registerables);
@@ -73,7 +75,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent, ActionPriorityComponent, FinancialMetricComponent],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent, ActionPriorityComponent, FinancialMetricComponent, EmptyStateComponent, FeedbackBannerComponent],
   template: `
     @if (showTelegramBanner()) {
       <section class="mb-4">
@@ -167,7 +169,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
         <mat-card class="p-4"><div class="h-24 animate-pulse rounded bg-brand-bg"></div></mat-card>
       </section>
     } @else if (error()) {
-      <mat-card class="border p-4 text-[var(--semantic-danger-text)] border-[var(--semantic-danger-border)] bg-[var(--semantic-danger-bg)]">{{ error() }}</mat-card>
+      <app-feedback-banner [message]="error()" tone="error" />
     } @else {
       <section aria-labelledby="dashboard-health-heading" class="grid gap-4">
         <div>
@@ -294,7 +296,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
                 <strong class="whitespace-nowrap text-left sm:text-right">{{ formatMoney(expense.currency, expense.amount) }}</strong>
               </div>
             } @empty {
-              <p class="text-brand-muted">{{ t('dashboard_no_expenses') }}</p>
+              <app-empty-state [message]="t('dashboard_no_expenses')" />
             }
           </div>
         </mat-card>
@@ -314,7 +316,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
                 </div>
               </div>
             } @empty {
-              <p class="text-brand-muted">{{ t('dashboard_no_budgets_month') }}</p>
+              <app-empty-state [message]="t('dashboard_no_budgets_month')" />
             }
           </div>
         </mat-card>
@@ -345,7 +347,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
                 </div>
               </div>
             } @empty {
-              <p class="text-brand-muted">{{ t('dashboard_no_variation') }}</p>
+              <app-empty-state [message]="t('dashboard_no_variation')" />
             }
           </div>
         </mat-card>
