@@ -8,10 +8,10 @@
 
 ## Estado de ramas y árbol
 
-- Rama activa: `dev`.
-- Último commit: `6f1cd44 feat: persist progressive expense filters`.
-- Árbol de trabajo limpio al registrar este handoff.
-- No promover `dev -> main`: siguen pendientes las verificaciones de release de `release-version-traceability` y la QA visual completa del cambio activo.
+- Release `v0.1.2` promovida y publicada el 2026-09-18. El tag anotado y `main` apuntan al SHA inmutable `7abb7239b68609e440fd5e77ed460129e915db4d`.
+- GitHub Actions `35351790931` finalizó correctamente; Netlify publicó ese mismo SHA en estado `ready`.
+- Los checks públicos de Netlify, `/health/live` y `/health/ready` devolvieron HTTP `200`.
+- `main` se sincronizó posteriormente en `dev` mediante `01919b1 chore: sync main after v0.1.2`.
 
 ## Trabajo completado en el cambio `atomic-design-system-dashboard`
 
@@ -31,11 +31,10 @@
 - QA local: Gastos a 320 px sin desborde (`scrollWidth 305` en viewport 320), trigger de 44 px, URL inválida con fallback seguro; Configuración a 390 px confirmó foco en «Bancos y medios de pago» desde `?section=catalogs`.
 - `impeccable detect`: sin hallazgos nuevos en el bloque. Persisten advertencias preexistentes por Inter y una franja lateral en `styles.css`.
 
-## Limitación y siguiente bloque recomendado
+## Cierre y siguiente trabajo
 
-- `docker compose ps` no mostró servicios en desarrollo. Se intentó `docker compose up -d database backend`: Docker comenzó a reconstruir imágenes, pero no dejó servicios activos al consultar el estado. La app local pudo mostrar estados de error, pero no datos reales; falta QA visual del dashboard y categorías con API de desarrollo disponible, en 320 px, móvil representativo y escritorio, más zoom, lector de pantalla y reduced motion.
-- En `atomic-design-system-dashboard` quedaron sin cerrar 1.3, 2.2, 2.3, 3.3 y 4.2. Antes de marcarlas, completar QA con datos reales y verificar los estados vacíos/feedback de las cuatro superficies.
-- Después, si toda la evidencia se completa, actualizar tareas y decidir si se archiva el cambio. No promover release sin el gate pendiente de `release-version-traceability`.
+- Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell` y `release-version-traceability` están completas. Falta únicamente decidir la sincronización y archivado formal de sus delta specs OpenSpec.
+- La QA funcional visual de las superficies financieras fue confirmada por la persona usuaria el 2026-09-18; la cobertura Playwright queda como mejora futura del pipeline, no como bloqueo de la release.
 
 ## Caso productivo diferido
 
