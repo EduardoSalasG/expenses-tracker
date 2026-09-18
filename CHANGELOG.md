@@ -6,6 +6,19 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-18
+
+### Added
+
+- Dashboard financiero orientado a salud, prioridades y enlaces accionables.
+- Filtros progresivos de gastos con estado URL validado y secciones de Configuración enlazables.
+
+### Changed
+
+- Estados de carga, error y vacío unificados en las superficies financieras.
+- Puertos locales movidos a frontend `4300`, backend `3100` y PostgreSQL `6543`.
+- Dockerfiles actualizados para incluir los artefactos de versionado requeridos por los builds.
+
 ### Security
 
 - Se eliminó la emisión pública de tokens de enlace Telegram para impedir que un cliente anónimo genere un acceso para un `chatId` arbitrario.

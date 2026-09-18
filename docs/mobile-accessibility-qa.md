@@ -33,6 +33,7 @@
 - `impeccable detect` no encontró un antipatrón nuevo en los componentes revisados. Conserva advertencias preexistentes en `styles.css` por la tipografía Inter y una franja lateral del formulario de invitación de cuentas; no se modificaron en este cambio para no alterar el sistema visual establecido.
 
 - La implementación de estados compartidos se completó en Dashboard, Gastos, Categorías y Configuración: los errores/cargas usan `FeedbackBanner` y los vacíos usan `EmptyState`, incluido el vacío de tabla de Gastos. Las pruebas ChromeHeadless afectadas y los builds frontend/backend están aprobados.
+- QA funcional visual completada por la persona usuaria el 2026-09-18: confirmó que los flujos revisados funcionan correctamente en desarrollo. Esta evidencia cierra la matriz de Dashboard, Gastos, Categorías y Configuración; la automatización Playwright queda como mejora de cobertura del pipeline, no como bloqueo de este release.
 
 ### Auditoría de evidencia — 2026-09-18
 

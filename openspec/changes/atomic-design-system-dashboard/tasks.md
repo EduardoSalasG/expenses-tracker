@@ -7,7 +7,7 @@
 ## 2. Dashboard orientado a decisiones
 
 - [x] 2.1 Extraer helpers puros que deriven salud financiera y prioridades desde el reporte, presupuestos, cuotas y balances ya cargados; verificar prueba roja/verde para cada prioridad.
-- [ ] 2.2 Reorganizar el dashboard mobile-first para mostrar salud financiera y prioridades antes de actividad y análisis; verificar orden semántico, teclado y ancho de 320 px.
+- [x] 2.2 Reorganizar el dashboard mobile-first para mostrar salud financiera y prioridades antes de actividad y análisis; verificar orden semántico, teclado y ancho de 320 px.
 - [x] 2.3 Conectar prioridades a rutas existentes con contexto mínimo y conservar alternativas textuales de Chart.js; verificar rutas, tablas accesibles y prueba del dashboard.
 
 ## 3. Navegación financiera progresiva
@@ -19,5 +19,5 @@
 ## 4. Calidad, documentación y entrega
 
 - [x] 4.1 Ejecutar pruebas frontend afectadas y build; verificar que no haya fallas, errores de compilación ni regresiones de localización.
-- [ ] 4.2 Revisar dashboard, gastos, categorías y configuración a 320 px, móvil representativo y escritorio; verificar objetivos táctiles, zoom, foco, teclado, lector de pantalla y reduced motion.
+- [x] 4.2 Revisar dashboard, gastos, categorías y configuración a 320 px, móvil representativo y escritorio; verificar objetivos táctiles, zoom, foco, teclado, lector de pantalla y reduced motion.
 - [x] 4.3 Ejecutar detector Impeccable y `openspec validate atomic-design-system-dashboard --strict`; documentar evidencia y cualquier limitación reproducible.
