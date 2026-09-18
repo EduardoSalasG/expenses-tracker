@@ -20,6 +20,7 @@
     "db:backfill:category-translations": "tsx src/infrastructure/db-backfill-category-translations.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
+    "worker:inbound-events": "tsx src/infrastructure/process-inbound-events.ts",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
