@@ -8,6 +8,7 @@ export type { EmailProvider } from './email.provider.js';
 export type { CategoryTotalByPeriod, CurrencyTotalByPeriod, ExpenseRepository } from './expense.repository.js';
 export type { FinancialAccountMembershipRecord, FinancialAccountRepository } from './financial-account.repository.js';
 export type { IncomeRepository } from './income.repository.js';
+export type { InboundEventRecord, InboundEventStore } from './inbound-event.store.js';
 export type { MessageInterpreterPort } from './message-interpreter.port.js';
 export type { MessagingMessageAuditRepository } from './messaging-message-audit.repository.js';
 export type { MessagingPendingDraftRepository } from './messaging-pending-draft.repository.js';
