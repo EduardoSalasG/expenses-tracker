@@ -19,4 +19,4 @@
 ## 4. Validación y promoción futura
 
 - [x] 4.1 Ejecutar validación de OpenSpec, pruebas de versión, builds y pruebas frontend/backend afectadas; verificar evidencia de comandos y declarar explícitamente cualquier limitación de sandbox.
-- [ ] 4.2 En la primera ventana de release, seleccionar PATCH/MINOR/MAJOR, completar el changelog, promover el commit verificado de `dev` a `main` y crear `vX.Y.Z` anotado sobre su SHA; verificar CI, Netlify, health checks y sincronizar `main` de vuelta a `dev`.
+- [x] 4.2 En la primera ventana de release, seleccionar PATCH/MINOR/MAJOR, completar el changelog, promover el commit verificado de `dev` a `main` y crear `vX.Y.Z` anotado sobre su SHA; verificar CI, Netlify, health checks y sincronizar `main` de vuelta a `dev`.

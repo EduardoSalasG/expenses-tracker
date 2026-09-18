@@ -30,7 +30,7 @@ export class TelegramWebhookController {
       return;
     }
 
-    await this.inboundMessaging.receive({
+    await this.inboundMessaging.enqueue({
       channel: 'telegram',
       providerName: 'Telegram',
       bodyShape: request.body?.message ? 'message' : 'unknown',

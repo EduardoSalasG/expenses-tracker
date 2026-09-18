@@ -1,6 +1,6 @@
 {
   "name": "@expenses-tracker/backend",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "db:backfill:category-translations": "tsx src/infrastructure/db-backfill-category-translations.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
+    "worker:inbound-events": "node dist/infrastructure/process-inbound-events.js",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""

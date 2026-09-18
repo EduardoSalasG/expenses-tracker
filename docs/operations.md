@@ -169,6 +169,16 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
 
 ## Production Hardening Notes
 
+## Durable inbound webhook worker
+
+Webhooks verificados se guardan en `inbound_webhook_events` antes de responder. Ejecutar el worker de forma periódica (cron o scheduler) para procesar la bandeja:
+
+```bash
+pnpm --filter @expenses-tracker/backend worker:inbound-events
+```
+
+La clave única por canal/evento evita duplicados. Los fallos reintentan hasta tres veces con backoff y luego quedan en `dead_letter`; revisar conteos y errores saneados sin consultar ni registrar payloads completos.
+
 - Use `GET /health/live` for container liveness.
 - Use `GET /health/ready` for readiness; it verifies DB connectivity when PostgreSQL mode is enabled.
 - Report worker exits with `exitCode=1` when one or more deliveries fail. Configure scheduler/platform alerts on non-zero exit status.

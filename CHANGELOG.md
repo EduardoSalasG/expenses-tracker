@@ -6,6 +6,21 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-18
+
+### Added
+
+- Bandeja duradera para eventos entrantes de Telegram y WhatsApp, con deduplicación por proveedor, reintentos con backoff y estado terminal de dead-letter.
+- Worker ejecutable para procesar el inbox de eventos entrantes desde el artefacto backend de producción.
+
+### Fixed
+
+- Resolución de cuentas personales en PostgreSQL: la cuenta persistida ahora se recupera después de crearla, incluso cuando aún no existía en la transacción.
+
+### Changed
+
+- Los controladores de webhook encolan eventos verificados antes de procesarlos, evitando que una caída transitoria pierda un mensaje recibido.
+
 ## [0.1.2] - 2026-09-18
 
 ### Added

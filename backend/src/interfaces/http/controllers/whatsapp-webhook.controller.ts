@@ -22,7 +22,7 @@ export class WhatsAppWebhookController {
   receive = async (request: Request, response: Response) => {
     const messages = extractWhatsAppMessages(request.body);
     const statuses = extractWhatsAppStatuses(request.body);
-    await this.inboundMessaging.receive({
+    await this.inboundMessaging.enqueue({
       channel: 'whatsapp',
       providerName: 'WhatsApp',
       bodyShape: request.body?.entry ? 'entry_changes' : request.body?.field ? 'field_value' : 'unknown',

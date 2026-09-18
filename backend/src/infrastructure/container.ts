@@ -64,12 +64,15 @@ import {
 } from '../application/use-cases.js';
 import { CategoryTranslationService } from '../application/services/category-translation.service.js';
 import { InMemoryRateLimitStore } from './rate-limit.store.js';
+import { InMemoryInboundEventStore } from './inbound-event.store.js';
+import { PostgresInboundEventStore } from './postgres-inbound-event.store.js';
 
 export function createContainer(config: AppConfig) {
   const logger = createLogger();
   const clock = { now: () => new Date() };
   const rateLimits = new InMemoryRateLimitStore();
   const pool = config.useInMemoryRepositories ? undefined : createPool(config);
+  const inboundEvents = pool ? new PostgresInboundEventStore(pool) : new InMemoryInboundEventStore();
   const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
   const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
@@ -147,6 +150,7 @@ export function createContainer(config: AppConfig) {
     tokens,
     messaging,
     rateLimits,
+    inboundEvents,
     categoryTranslations,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {

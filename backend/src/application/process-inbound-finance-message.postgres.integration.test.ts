@@ -10,6 +10,7 @@ import {
   PostgresBudgetRepository,
   PostgresCategoryRepository,
   PostgresExpenseRepository,
+  PostgresFinancialAccountRepository,
   PostgresIncomeRepository,
   PostgresMessagingMessageAuditRepository,
   PostgresMessagingPendingDraftRepository,
@@ -100,6 +101,7 @@ async function createIntegrationContext() {
   const config = loadConfig();
   const pool = createPool(config);
   const users = new PostgresUserRepository(pool);
+  const financialAccounts = new PostgresFinancialAccountRepository(pool);
   const categories = new PostgresCategoryRepository(pool);
   const expenses = new PostgresExpenseRepository(pool);
   const incomes = new PostgresIncomeRepository(pool);
@@ -113,6 +115,7 @@ async function createIntegrationContext() {
 
   const useCase = new ProcessInboundFinanceMessageUseCase(
     users,
+    financialAccounts,
     categories,
     expenses,
     incomes,
