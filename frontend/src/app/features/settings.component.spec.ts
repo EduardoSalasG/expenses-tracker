@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { parseSettingsSection, SettingsComponent } from './settings.component';
+import { APP_VERSION } from '../generated/app-version';
 import {
   ApiService,
   type CurrentUser,
@@ -141,8 +142,8 @@ describe('SettingsComponent', () => {
 
     expect(version).withContext('the version is discoverable at the end of Settings').not.toBeNull();
     expect(version?.tagName).toBe('FOOTER');
-    expect(version?.textContent?.trim()).toBe('Versión 0.1.0');
-    expect(version?.getAttribute('aria-label')).toBe('Versión de la aplicación 0.1.0');
+    expect(version?.textContent?.trim()).toBe(`Versión ${APP_VERSION}`);
+    expect(version?.getAttribute('aria-label')).toBe(`Versión de la aplicación ${APP_VERSION}`);
     expect(version?.querySelector('button, a, input, select, textarea')).toBeNull();
     expect(version?.getAttribute('tabindex')).toBe('0');
     version?.focus();
