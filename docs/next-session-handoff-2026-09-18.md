@@ -33,8 +33,9 @@
 
 ## Cierre y siguiente trabajo
 
-- Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell` y `release-version-traceability` están completas. Falta únicamente decidir la sincronización y archivado formal de sus delta specs OpenSpec.
+- Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell`, `release-version-traceability` y `secure-backend-entrypoints` están completas, sus delta specs se sincronizaron y los cuatro cambios quedaron archivados el 2026-09-18.
 - La QA funcional visual de las superficies financieras fue confirmada por la persona usuaria el 2026-09-18; la cobertura Playwright queda como mejora futura del pipeline, no como bloqueo de la release.
+- `durable-webhook-operations` no representa trabajo parcialmente implementado: contiene solo propuesta; aún faltan specs, diseño y tareas antes de abrir su implementación.
 
 ## Caso productivo diferido
 
