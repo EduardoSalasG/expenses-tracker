@@ -14,4 +14,5 @@ export interface InboundEventStore {
   enqueue(input: { channel: MessagingChannel; providerEventId: string; payload: unknown; now: Date }): Promise<{ accepted: boolean }>;
   claim(input: { now: Date; limit?: number }): Promise<InboundEventRecord[]>;
   markProcessed(id: string): Promise<void>;
+  markFailed(input: { id: string; attempts: number; now: Date; errorMessage: string }): Promise<void>;
 }

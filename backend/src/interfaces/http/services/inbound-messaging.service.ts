@@ -159,8 +159,14 @@ export class InboundMessagingService {
   async processPending(limit = 10) {
     const events = await this.container.inboundEvents.claim({ now: new Date(), limit });
     for (const event of events) {
-      await this.receive(event.payload as InboundMessagingBatch);
-      await this.container.inboundEvents.markProcessed(event.id);
+      try {
+        await this.receive(event.payload as InboundMessagingBatch);
+        await this.container.inboundEvents.markProcessed(event.id);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Inbound event processing failed.';
+        await this.container.inboundEvents.markFailed({ id: event.id, attempts: event.attempts, now: new Date(), errorMessage });
+        this.container.logger.warn('Inbound event processing failed.', { eventId: event.id, attempts: event.attempts });
+      }
     }
     return events.length;
   }

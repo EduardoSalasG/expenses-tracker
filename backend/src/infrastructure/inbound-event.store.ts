@@ -29,4 +29,11 @@ export class InMemoryInboundEventStore implements InboundEventStore {
   async markProcessed(id: string) {
     for (const event of this.events.values()) if (event.id === id) event.status = 'processed';
   }
+
+  async markFailed(input: { id: string; attempts: number; now: Date; errorMessage: string }) {
+    for (const event of this.events.values()) if (event.id === input.id) {
+      event.status = input.attempts >= 3 ? 'dead_letter' : 'pending';
+      event.nextAttemptAt = new Date(input.now.getTime() + Math.min(60_000, 1_000 * 2 ** input.attempts));
+    }
+  }
 }

@@ -34,4 +34,9 @@ export class PostgresInboundEventStore implements InboundEventStore {
   async markProcessed(id: string) {
     await this.pool.query(`update inbound_webhook_events set status = 'processed', updated_at = now() where id = $1`, [id]);
   }
+
+  async markFailed(input: { id: string; attempts: number; now: Date; errorMessage: string }) {
+    const deadLetter = input.attempts >= 3;
+    await this.pool.query(`update inbound_webhook_events set status = $2, next_attempt_at = $3, last_error = $4, updated_at = now() where id = $1`, [input.id, deadLetter ? 'dead_letter' : 'pending', new Date(input.now.getTime() + Math.min(60_000, 1_000 * 2 ** input.attempts)), input.errorMessage.slice(0, 240)]);
+  }
 }
