@@ -176,11 +176,17 @@ export class PostgresFinancialAccountRepository implements FinancialAccountRepos
   constructor(private readonly pool: DatabasePool) {}
 
   async ensurePersonalAccount(userId: string) {
-    const result = await this.pool.query(
-      `select fa.*
-       from financial_accounts fa
-       where fa.id = ensure_personal_financial_account($1)`,
+    const ensured = await this.pool.query<{ financial_account_id: string }>(
+      `select ensure_personal_financial_account($1) as financial_account_id`,
       [userId]
+    );
+    const financialAccountId = ensured.rows[0]?.financial_account_id;
+    if (!financialAccountId) {
+      throw new Error('Could not ensure personal financial account.');
+    }
+    const result = await this.pool.query(
+      `select * from financial_accounts where id = $1`,
+      [financialAccountId]
     );
     const account = mapFinancialAccount(result.rows[0]);
     await this.pool.query(
