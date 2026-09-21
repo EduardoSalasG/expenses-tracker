@@ -6,6 +6,22 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-21
+
+### Added
+
+- Filtros avanzados para el historial de gastos: búsqueda parcial por concepto, categoría, subcategoría, banco, método de pago, moneda y tipo de método.
+- Búsqueda parcial por concepto y estado URL persistente para el historial de ingresos.
+
+### Changed
+
+- El gráfico semanal del dashboard mensual ahora muestra la semana calendario que contiene el primer día del mes seleccionado, incluso cuando incluye días del mes adyacente.
+- El historial móvil de gastos prioriza la categoría y trunca de forma segura las etiquetas largas de banco o método de pago.
+
+### Fixed
+
+- La búsqueda de gastos usa límites UTC coherentes con los gráficos del dashboard.
+
 ## [0.2.0] - 2026-09-18
 
 ### Added
