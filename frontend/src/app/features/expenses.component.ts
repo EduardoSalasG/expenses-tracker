@@ -342,9 +342,9 @@ export class ExpensesComponent implements OnInit {
       return;
     }
     const f = this.filters.getRawValue();
+    const dateRange = expenseDateRange(f.from, f.to);
     this.api.expenses({
-      from: f.from ? startOfDay(f.from) : undefined,
-      to: f.to ? endOfDay(f.to) : undefined,
+      ...dateRange,
       categoryId: f.categoryId || undefined,
       currency: f.currency ? f.currency.toUpperCase() : undefined,
       paymentMethodKind: f.paymentMethodKind ? f.paymentMethodKind as 'cash' | 'transfer' | 'card' : undefined,
@@ -1190,11 +1190,15 @@ export class QuickCreatePaymentMethodDialogComponent {
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
+export function expenseDateRange(from?: string, to?: string): { from?: string; to?: string } {
+  return {
+    from: from ? `${from}T00:00:00.000Z` : undefined,
+    to: to ? `${to}T23:59:59.999Z` : undefined
+  };
+}
+
 function startOfDay(date: string) {
   return new Date(`${date}T00:00:00.000`).toISOString();
-}
-function endOfDay(date: string) {
-  return new Date(`${date}T23:59:59.999`).toISOString();
 }
 
 export function hasSecondaryExpenseFilters(filters: { categoryId: string; currency: string; paymentMethodKind: string }) {

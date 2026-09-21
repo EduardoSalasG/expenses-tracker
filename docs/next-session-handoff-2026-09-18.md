@@ -40,6 +40,8 @@
 - La prueba Angular de foco del menú móvil `More` fue cerrada post-release en `dev`: se verificó que el componente invoca foco sobre los elementos correctos y se reemplazó la aserción no fiable de `document.activeElement` de la fixture Karma. El gate posterior aprobó 125 pruebas backend y 46 frontend.
 - `53cd40f fix: accept CRLF in version synchronization checks` evita falsos negativos de `version:check` al cambiar de rama en Windows; su regresión está cubierta por `version-sync.test.ts`.
 
-## Caso productivo diferido
+## Conciliación dashboard / buscador de gastos
 
-- Para investigar el monto cercano a $19.000: solicitar mes, cuenta activa y referencia/concepto, o autorización explícita para inspección de solo lectura del entorno productivo.
+- La auditoría de consultas identificó una divergencia de límites temporales: los gráficos de categoría agrupan `expense_installments.due_date` con meses UTC, mientras que el buscador convertía `YYYY-MM-DD` usando la zona horaria del navegador. En Chile eso excluía del buscador las cuotas con vencimiento entre `00:00:00Z` y el inicio local del primer día del mes, aunque el gráfico sí las contabilizaba.
+- El arreglo en `dev` fija los límites del buscador en UTC (`00:00:00.000Z` a `23:59:59.999Z`) y agrega una regresión unitaria. No consulta ni modifica datos productivos.
+- Queda pendiente contrastar el caso concreto cercano a $19.000 en producción mediante mes, cuenta y referencia/concepto, o con autorización explícita de lectura de ese entorno. La revisión de código también detectó que la serie semanal del dashboard usa la semana actual aun al consultar otro mes; es una decisión funcional separada, no la causa de la discrepancia de categorías.

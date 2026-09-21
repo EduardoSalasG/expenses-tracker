@@ -1,10 +1,18 @@
 import {
+  expenseDateRange,
   hasSecondaryExpenseFilters,
   parseExpenseFilterParams,
   serializeExpenseFilters
 } from './expenses.component';
 
 describe('expense filter disclosure', () => {
+  it('uses UTC month boundaries so filters match dashboard report totals in every browser timezone', () => {
+    expect(expenseDateRange('2026-09-01', '2026-09-30')).toEqual({
+      from: '2026-09-01T00:00:00.000Z',
+      to: '2026-09-30T23:59:59.999Z'
+    });
+  });
+
   it('identifies active secondary filters without treating the period as secondary', () => {
     expect(hasSecondaryExpenseFilters({ categoryId: '', currency: '', paymentMethodKind: '' })).toBeFalse();
     expect(hasSecondaryExpenseFilters({ categoryId: 'food', currency: '', paymentMethodKind: '' })).toBeTrue();
