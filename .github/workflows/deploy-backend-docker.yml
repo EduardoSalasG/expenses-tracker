@@ -196,7 +196,12 @@ jobs:
               '; then
                 echo "Nginx did not expose the current GET /expenses filter contract."
                 nginx -T 2>&1 || true
-                grep -R --line-number --include='*.conf' -E 'server_name|proxy_pass' /etc/nginx 2>/dev/null || true
+                echo "Readable Nginx upstream declarations:"
+                grep -R --line-number -E 'server_name|proxy_pass' /etc/nginx 2>/dev/null || true
+                echo "Listening TCP services:"
+                ss -ltnp 2>/dev/null || ss -ltn || true
+                echo "Running containers and published ports:"
+                docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'
                 exit 1
               fi
           EOF
