@@ -187,18 +187,16 @@ jobs:
               proxy_swagger=$(curl -ksS \
                 --resolve "${{ env.PUBLIC_API_HOST }}:443:127.0.0.1" \
                 "https://${{ env.PUBLIC_API_HOST }}/api/docs/swagger-ui-init.js?release=${{ github.sha }}")
-              if ! printf '%s' "$proxy_swagger" | node -e '
-                let source = "";
-                process.stdin.on("data", (chunk) => { source += chunk; });
-                process.stdin.on("end", () => {
-                  const expensesStart = source.indexOf("\"/expenses\"");
-                  const expensesPost = source.indexOf("\"post\"", expensesStart);
-                  const getContract = source.slice(expensesStart, expensesPost);
-                  if (expensesStart < 0 || expensesPost < 0 || !getContract.includes("\"name\": \"subcategoryId\"")) process.exit(1);
-                });
+              if ! printf '%s' "$proxy_swagger" | awk '
+                /"\/expenses":/ { expenses = 1; next }
+                expenses && /"get":/ { get = 1; next }
+                expenses && get && /"post":/ { exit 1 }
+                expenses && get && /"name": "subcategoryId"/ { found = 1; exit 0 }
+                END { exit found ? 0 : 1 }
               '; then
                 echo "Nginx did not expose the current GET /expenses filter contract."
-                sudo nginx -T
+                nginx -T 2>&1 || true
+                grep -R --line-number --include='*.conf' -E 'server_name|proxy_pass' /etc/nginx 2>/dev/null || true
                 exit 1
               fi
           EOF
@@ -207,15 +205,12 @@ jobs:
         run: |
           public_swagger=$(curl --retry 5 --retry-delay 2 --fail --silent --show-error \
             "https://${{ env.PUBLIC_API_HOST }}/api/docs/swagger-ui-init.js?release=${{ github.sha }}")
-          if ! printf '%s' "$public_swagger" | node -e '
-            let source = "";
-            process.stdin.on("data", (chunk) => { source += chunk; });
-            process.stdin.on("end", () => {
-              const expensesStart = source.indexOf("\"/expenses\"");
-              const expensesPost = source.indexOf("\"post\"", expensesStart);
-              const getContract = source.slice(expensesStart, expensesPost);
-              if (expensesStart < 0 || expensesPost < 0 || !getContract.includes("\"name\": \"subcategoryId\"")) process.exit(1);
-            });
+          if ! printf '%s' "$public_swagger" | awk '
+            /"\/expenses":/ { expenses = 1; next }
+            expenses && /"get":/ { get = 1; next }
+            expenses && get && /"post":/ { exit 1 }
+            expenses && get && /"name": "subcategoryId"/ { found = 1; exit 0 }
+            END { exit found ? 0 : 1 }
           '; then
             echo "Public API did not expose the deployed GET /expenses filter contract."
             exit 1
