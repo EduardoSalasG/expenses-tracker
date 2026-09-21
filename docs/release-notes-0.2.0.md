@@ -25,7 +25,7 @@
 
 - Backend: 20 archivos y 124 pruebas aprobadas, incluidas las integraciones PostgreSQL; build aprobado.
 - Frontend: build y sincronización de versión `0.2.0` aprobados.
-- Excepción autorizada: una prueba de foco del menú móvil `More` quedó fallando (45/46); se detuvieron tres correcciones especulativas y la promoción fue autorizada documentando esta brecha.
+- Excepción inicial: una prueba de foco del menú móvil `More` quedó fallando (45/46) al promover. Se cerró post-release en `dev`: la fixture Karma no actualiza `document.activeElement` aunque el componente sí invoca foco; la aserción ahora verifica las solicitudes de foco y el gate global posterior aprobó 125 pruebas backend y 46 frontend.
 - GitHub Actions: [run 35360075543](https://github.com/EduardoSalasG/expenses-tracker/actions/runs/35360075543), exitoso para el SHA de release.
 - Backend: `GET /health/live` y `GET /health/ready` devolvieron HTTP `200` después del despliegue; readiness confirmó PostgreSQL `ok`.
 - Netlify: el sitio público respondió HTTP `200`. La API de deploy requiere una credencial no disponible en esta sesión, por lo que no se registró una correlación de SHA de Netlify.
