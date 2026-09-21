@@ -1,5 +1,5 @@
 import type { Category } from '../core/api.service';
-import { DashboardComponent, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
+import { DashboardComponent, buildWeekLabels, monthWeekStartIsoDate, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
 import { deriveDashboardPriorities } from './dashboard-priority';
 
@@ -8,6 +8,27 @@ describe('memberPeriodBalanceState', () => {
     expect(memberPeriodBalanceState(9000)).toBe('credit');
     expect(memberPeriodBalanceState(-9000)).toBe('debt');
     expect(memberPeriodBalanceState(0)).toBe('settled');
+  });
+});
+
+describe('monthly weekly-chart period', () => {
+  it('anchors a month starting on Monday to its first complete calendar week', () => {
+    expect(monthWeekStartIsoDate('2026-06')).toBe('2026-06-01');
+  });
+
+  it('keeps the complete Monday-to-Sunday week when a month starts midweek', () => {
+    expect(monthWeekStartIsoDate('2026-09')).toBe('2026-08-31');
+    expect(buildWeekLabels('2026-08-31', 'es-CL').map((label) => label.isoDate)).toEqual([
+      '2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'
+    ]);
+  });
+
+  it('labels weekly days with both the day and month so a split week is unambiguous', () => {
+    const labels = buildWeekLabels('2026-08-31', 'en-US').map((label) => label.display);
+    expect(labels[0]).toContain('31');
+    expect(labels[0]).toMatch(/Aug/i);
+    expect(labels[1]).toContain('1');
+    expect(labels[1]).toMatch(/Sep/i);
   });
 });
 

@@ -232,12 +232,12 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
       <section class="mt-4 grid gap-4 xl:grid-cols-2">
         <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">
-            {{ viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month') }}
+            {{ weeklyChartTitle() }}
           </h2>
           <div class="h-64 sm:h-72">
             <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
           </div>
-          <app-chart-data-table [label]="viewMode() === 'monthly' ? t('dashboard_week_expenses') : t('dashboard_year_expenses_by_month')" [rows]="periodChartRows()" [emptyLabel]="t('common_no_data')" />
+          <app-chart-data-table [label]="weeklyChartTitle()" [rows]="periodChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
 
       @if (isSharedAccount()) {
@@ -664,7 +664,19 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   categoryChartRows(): ChartDataRow[] { return this.categoryChartTotals().map((row) => ({ label: `${this.categoryName(row.categoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   subcategoryChartRows(): ChartDataRow[] { return this.categoryTotals().filter((row) => row.categoryId === this.selectedCategoryId()).map((row) => ({ label: `${this.subcategoryName(row.subcategoryId)} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
-  periodChartRows(): ChartDataRow[] { return this.periodTotals().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
+  periodChartRows(): ChartDataRow[] {
+    const weekLabels = this.viewMode() === 'monthly'
+      ? new Map(buildWeekLabels(monthWeekStartIsoDate(this.selectedMonth()), this.locale()).map((label) => [label.isoDate, label.display]))
+      : undefined;
+    return this.periodTotals().map((row) => ({
+      label: `${weekLabels?.get(row.periodKey) ?? row.periodKey} (${row.currency})`,
+      value: this.formatMoney(row.currency, row.total)
+    }));
+  }
+
+  weeklyChartTitle() {
+    return this.viewMode() === 'monthly' ? this.t('dashboard_period_week_expenses') : this.t('dashboard_year_expenses_by_month');
+  }
   installmentChartRows(): ChartDataRow[] { return this.upcomingInstallments().map((row) => ({ label: `${row.periodKey} (${row.currency})`, value: this.formatMoney(row.currency, row.total) })); }
   memberChartRows(): ChartDataRow[] { return this.memberPeriodSpending().map((row) => ({ label: `${row.preferredName} (${row.currency})`, value: `${this.t('dashboard_shared_paid')}: ${this.formatMoney(row.currency, row.paidAmount)} · ${this.t('dashboard_shared_assigned_share')}: ${this.formatMoney(row.currency, row.owedAmount)}` })); }
 
@@ -962,7 +974,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const rows = this.periodTotals();
     if (!canvas) return;
     const labels = this.viewMode() === 'monthly'
-      ? buildWeekLabels(weekStartIsoDate(), this.locale())
+      ? buildWeekLabels(monthWeekStartIsoDate(this.selectedMonth()), this.locale())
       : buildYearMonthLabels(this.selectedYear(), this.locale());
     const currencyBuckets = rows.reduce<Record<string, Record<string, number>>>((acc, row) => {
       if (!acc[row.currency]) acc[row.currency] = {};
@@ -1102,7 +1114,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.selectedMonth()
       : `${this.selectedYear()}-01`;
     const seriesRequest = this.viewMode() === 'monthly'
-      ? this.api.weeklyExpensesDailyTotals(weekStartIsoDate())
+      ? this.api.weeklyExpensesDailyTotals(monthWeekStartIsoDate(this.selectedMonth()))
       : this.api.yearlyExpensesMonthlyTotals(this.selectedYear());
     forkJoin({
       user: this.api.me(),
@@ -1245,22 +1257,23 @@ function buildYearOptions() {
   return Array.from({ length: 6 }, (_, index) => currentYear - index);
 }
 
-function weekStartIsoDate() {
-  const now = new Date();
-  const day = now.getUTCDay();
+export function monthWeekStartIsoDate(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const firstDay = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
+  const day = firstDay.getUTCDay();
   const offsetToMonday = day === 0 ? 6 : day - 1;
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offsetToMonday, 0, 0, 0));
+  const monday = new Date(Date.UTC(firstDay.getUTCFullYear(), firstDay.getUTCMonth(), firstDay.getUTCDate() - offsetToMonday, 0, 0, 0));
   return `${monday.getUTCFullYear()}-${String(monday.getUTCMonth() + 1).padStart(2, '0')}-${String(monday.getUTCDate()).padStart(2, '0')}`;
 }
 
-function buildWeekLabels(weekStartIso: string, locale: string) {
+export function buildWeekLabels(weekStartIso: string, locale: string) {
   const [year, month, day] = weekStartIso.split('-').map(Number);
   const monday = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
   const labels: Array<{ display: string; isoDate: string; indexToken: string }> = [];
   for (let i = 0; i < 7; i += 1) {
     const start = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + i, 0, 0, 0));
     labels.push({
-      display: new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(start),
+      display: new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(start),
       isoDate: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`,
       indexToken: ''
     });
