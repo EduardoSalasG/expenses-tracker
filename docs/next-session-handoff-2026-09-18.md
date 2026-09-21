@@ -36,7 +36,7 @@
 
 - Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell`, `release-version-traceability` y `secure-backend-entrypoints` están completas, sus delta specs se sincronizaron y los cuatro cambios quedaron archivados el 2026-09-18.
 - La QA funcional visual de las superficies financieras fue confirmada por la persona usuaria el 2026-09-18; la cobertura Playwright queda como mejora futura del pipeline, no como bloqueo de la release.
-- `durable-webhook-operations` fue especificado e implementado: el inbox persistente, reintentos, worker y documentación operativa están en `v0.2.0` junto con `040_inbound_webhook_events.sql`.
+- `durable-webhook-operations` fue especificado, implementado, sincronizado a specs principales y archivado el 2026-09-21: el inbox persistente, reintentos, worker y documentación operativa están en `v0.2.0` junto con `040_inbound_webhook_events.sql`.
 - La prueba Angular de foco del menú móvil `More` fue cerrada post-release en `dev`: se verificó que el componente invoca foco sobre los elementos correctos y se reemplazó la aserción no fiable de `document.activeElement` de la fixture Karma. El gate posterior aprobó 125 pruebas backend y 46 frontend.
 - `53cd40f fix: accept CRLF in version synchronization checks` evita falsos negativos de `version:check` al cambiar de rama en Windows; su regresión está cubierta por `version-sync.test.ts`.
 
