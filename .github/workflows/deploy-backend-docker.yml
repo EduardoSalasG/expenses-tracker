@@ -108,14 +108,21 @@ jobs:
                 exit 1
               fi
 
-              echo "Pulling exact backend image: $BACKEND_IMAGE"
+              echo "Deploying image: $BACKEND_IMAGE"
               docker pull "$BACKEND_IMAGE"
+              resolved_image=$(docker compose config --images)
+              echo "Compose resolved image: $resolved_image"
+              if [ "$resolved_image" != "$BACKEND_IMAGE" ]; then
+                echo "Compose resolved the wrong image. Expected: $BACKEND_IMAGE; resolved: $resolved_image"
+                exit 1
+              fi
+
               # bootstrap runs tracked migrations first, then idempotently applies
               # the system defaults required by a brand-new database.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
-              docker compose up -d --force-recreate --remove-orphans expenses-tracker-backend
+              docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend
 
               # Best effort: an LLM outage must never fail an otherwise healthy deploy.
               if ! docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
@@ -124,11 +131,21 @@ jobs:
 
               expected_image_id=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
               running_image_id=$(docker inspect expenses-tracker-backend --format '{{.Image}}')
+              running_config_image=$(docker inspect expenses-tracker-backend --format '{{.Config.Image}}')
+              created_at=$(docker inspect expenses-tracker-backend --format '{{.Created}}')
+              echo "Expected image ID: $expected_image_id"
+              echo "Running image ID:  $running_image_id"
+              echo "Running image:     $running_config_image"
+              echo "Container created: $created_at"
               if [ "$running_image_id" != "$expected_image_id" ]; then
                 echo "Running container image does not match $BACKEND_IMAGE."
                 echo "Expected: $expected_image_id"
                 echo "Running:  $running_image_id"
                 docker compose ps
+                exit 1
+              fi
+              if [ "$running_config_image" != "$BACKEND_IMAGE" ]; then
+                echo "Running container was not created from the expected SHA-tagged image."
                 exit 1
               fi
 
@@ -157,7 +174,19 @@ jobs:
                 exit 1
               fi
 
-              docker image prune -f
+              direct_swagger=$(curl -fsS "http://127.0.0.1:3000/api/docs/swagger-ui-init.js?release=${{ github.sha }}")
+              if ! printf '%s' "$direct_swagger" | awk '
+                /"\/expenses":/ { expenses = 1; next }
+                expenses && /"get":/ { get = 1; next }
+                expenses && get && /"post":/ { exit 1 }
+                expenses && get && /"name": "subcategoryId"/ { found = 1; exit 0 }
+                END { exit found ? 0 : 1 }
+              '; then
+                echo "Direct backend does not expose the current GET /expenses filter contract."
+                exit 1
+              fi
+
+              docker image prune -a -f --filter "until=168h"
           EOF
 
       - name: Reload Nginx and verify its API upstream
