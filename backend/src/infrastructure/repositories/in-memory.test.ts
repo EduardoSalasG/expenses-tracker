@@ -83,6 +83,105 @@ describe('InMemoryExpenseRepository installments', () => {
   });
 });
 
+describe('In-memory transaction filters', () => {
+  it('combines scoped expense filters and matches concept without case sensitivity', async () => {
+    const expenses = new InMemoryExpenseRepository();
+    const tenantId = 'tenant-1';
+    const financialAccountId = 'account-1';
+
+    const matching = await expenses.create({
+      tenantId,
+      financialAccountId,
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 15000,
+      currency: 'CLP',
+      concept: 'Netflix Familiar',
+      categoryId: 'other',
+      subcategoryId: 'subscriptions',
+      paymentMethodOptionId: 'visa-card',
+      bankOptionId: 'long-bank',
+      paymentMethod: { kind: 'card', bank: 'Banco de Prueba', cardType: 'credit' }
+    });
+    await expenses.create({
+      tenantId,
+      financialAccountId,
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 9000,
+      currency: 'CLP',
+      concept: 'Spotify Familiar',
+      categoryId: 'other',
+      subcategoryId: 'subscriptions',
+      paymentMethodOptionId: 'visa-card',
+      bankOptionId: 'long-bank',
+      paymentMethod: { kind: 'card', bank: 'Banco de Prueba', cardType: 'credit' }
+    });
+    await expenses.create({
+      tenantId,
+      financialAccountId: 'other-account',
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 15000,
+      currency: 'CLP',
+      concept: 'Netflix Familiar',
+      categoryId: 'other',
+      subcategoryId: 'subscriptions',
+      paymentMethodOptionId: 'visa-card',
+      bankOptionId: 'long-bank',
+      paymentMethod: { kind: 'card', bank: 'Banco de Prueba', cardType: 'credit' }
+    });
+
+    await expect(expenses.list({
+      tenantId,
+      financialAccountId,
+      concept: 'NETFLIX',
+      subcategoryId: 'subscriptions',
+      paymentMethodOptionId: 'visa-card',
+      bankOptionId: 'long-bank',
+      limit: 10
+    })).resolves.toEqual([expect.objectContaining({ id: matching.id })]);
+  });
+
+  it('matches income concept without case sensitivity within the active account', async () => {
+    const incomes = new InMemoryIncomeRepository();
+    const matching = await incomes.create({
+      tenantId: 'tenant-1',
+      financialAccountId: 'account-1',
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 100000,
+      currency: 'CLP',
+      concept: 'Sueldo Septiembre'
+    });
+    await incomes.create({
+      tenantId: 'tenant-1',
+      financialAccountId: 'account-1',
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 10000,
+      currency: 'CLP',
+      concept: 'Devolución'
+    });
+    await incomes.create({
+      tenantId: 'tenant-1',
+      financialAccountId: 'other-account',
+      userId: 'user-1',
+      date: '2026-09-12T12:00:00.000Z',
+      amount: 100000,
+      currency: 'CLP',
+      concept: 'Sueldo Septiembre'
+    });
+
+    await expect(incomes.list({
+      tenantId: 'tenant-1',
+      financialAccountId: 'account-1',
+      concept: 'sueldo',
+      limit: 10
+    })).resolves.toEqual([expect.objectContaining({ id: matching.id })]);
+  });
+});
+
 describe('In-memory finance repository account isolation', () => {
   it('rejects every foreign-account financial mutation within the same tenant', async () => {
     const tenantId = 'tenant-1';

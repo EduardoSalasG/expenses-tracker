@@ -50,6 +50,10 @@ export interface ExpenseRepository {
     from?: string;
     to?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    paymentMethodOptionId?: string;
+    bankOptionId?: string;
+    concept?: string;
     currency?: string;
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;

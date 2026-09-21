@@ -132,6 +132,10 @@ export class FinanceUseCases {
     from?: string;
     to?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    paymentMethodOptionId?: string;
+    bankOptionId?: string;
+    concept?: string;
     currency?: string;
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit?: number;
@@ -172,6 +176,7 @@ export class FinanceUseCases {
     financialAccountId?: string;
     from?: string;
     to?: string;
+    concept?: string;
     currency?: string;
     limit?: number;
   }) {

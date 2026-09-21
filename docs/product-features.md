@@ -4,7 +4,7 @@ This is the current product scope, grouped by user-facing capability rather than
 
 ## Personal Finance
 
-- Create, edit, delete, filter, and review expenses and incomes.
+- Create, edit, delete, filter, and review expenses and incomes. Expense history supports partial concept search plus category, subcategory, bank, payment-method, currency, and payment-kind filters; income history supports partial concept and currency search.
 - Organize movements with system categories, subcategories, banks, and payment methods.
 - View system categories and subcategories in the preferred app language without renaming custom catalog entries.
 - Add account-specific categories, banks, and payment methods without leaving a movement form.
@@ -32,7 +32,7 @@ This is the current product scope, grouped by user-facing capability rather than
 ## Experience, Language, and Safety
 
 - Spanish and English public experience, with automatic public locale default and manual selection.
-- Responsive desktop and mobile layouts, dark mode, first-run onboarding, accessible form labels, and compact mobile movement history.
+- Responsive desktop and mobile layouts, dark mode, first-run onboarding, accessible form labels, and compact mobile movement history that prioritizes the expense category over long bank or payment labels.
 - JWT access/refresh sessions, protected routes, tenant and financial-account authorization, webhook verification, duplicate-message handling, liveness/readiness probes, and audit logging.
 
 ## Delivery and Data Operations

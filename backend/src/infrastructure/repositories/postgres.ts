@@ -1184,6 +1184,10 @@ export class PostgresExpenseRepository implements ExpenseRepository {
     from?: string;
     to?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    paymentMethodOptionId?: string;
+    bankOptionId?: string;
+    concept?: string;
     currency?: string;
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
@@ -1195,10 +1199,14 @@ export class PostgresExpenseRepository implements ExpenseRepository {
          and ($3::timestamptz is null or i.due_date >= $3)
          and ($4::timestamptz is null or i.due_date <= $4)
          and ($5::uuid is null or e.category_id = $5 or e.subcategory_id = $5)
-         and ($6::char(3) is null or e.currency = $6)
-         and ($7::text is null or e.payment_method_kind = $7)`,
+         and ($6::uuid is null or e.subcategory_id = $6)
+         and ($7::uuid is null or e.payment_method_option_id = $7)
+         and ($8::uuid is null or e.bank_option_id = $8)
+         and ($9::text is null or e.concept ilike '%' || $9 || '%')
+         and ($10::char(3) is null or e.currency = $10)
+         and ($11::text is null or e.payment_method_kind = $11)`,
         orderClause: 'order by i.due_date desc, i.installment_number asc, e.created_at desc',
-        limitClause: 'limit $8'
+        limitClause: 'limit $12'
       })}`,
       [
         input.tenantId,
@@ -1206,6 +1214,10 @@ export class PostgresExpenseRepository implements ExpenseRepository {
         input.from ?? null,
         input.to ?? null,
         input.categoryId ?? null,
+        input.subcategoryId ?? null,
+        input.paymentMethodOptionId ?? null,
+        input.bankOptionId ?? null,
+        input.concept ?? null,
         input.currency ?? null,
         input.paymentMethodKind ?? null,
         input.limit
@@ -1393,6 +1405,7 @@ export class PostgresIncomeRepository implements IncomeRepository {
     financialAccountId?: string;
     from?: string;
     to?: string;
+    concept?: string;
     currency?: string;
     limit: number;
   }) {
@@ -1402,11 +1415,12 @@ export class PostgresIncomeRepository implements IncomeRepository {
           and ($2::uuid is null or i.financial_account_id = $2)
           and ($3::timestamptz is null or i.income_date >= $3)
           and ($4::timestamptz is null or i.income_date <= $4)
-          and ($5::char(3) is null or i.currency = $5)`,
+          and ($5::text is null or i.concept ilike '%' || $5 || '%')
+          and ($6::char(3) is null or i.currency = $6)`,
         orderClause: 'order by i.income_date desc, i.created_at desc',
-        limitClause: 'limit $6'
+        limitClause: 'limit $7'
       }),
-      [input.tenantId, input.financialAccountId ?? null, input.from ?? null, input.to ?? null, input.currency ?? null, input.limit]
+      [input.tenantId, input.financialAccountId ?? null, input.from ?? null, input.to ?? null, input.concept ?? null, input.currency ?? null, input.limit]
     );
     return result.rows.map(mapIncome);
   }

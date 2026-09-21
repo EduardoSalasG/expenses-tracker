@@ -1352,7 +1352,8 @@ select option:focus {
     grid-template-areas:
       "concept amount"
       "date date"
-      "category payment"
+      "category category"
+      "payment payment"
       "actions actions";
   }
 
@@ -1360,7 +1361,8 @@ select option:focus {
     grid-template-areas:
       "concept amount"
       "date recorded"
-      "category payment"
+      "category category"
+      "payment payment"
       "actions actions";
   }
 
@@ -1407,10 +1409,12 @@ select option:focus {
 
   .responsive-table .transaction-cell--category {
     grid-area: category;
+    min-width: 0;
   }
 
   .responsive-table .transaction-cell--payment {
     grid-area: payment;
+    min-width: 0;
   }
 
   .responsive-table .transaction-cell--recorded {
@@ -1465,6 +1469,16 @@ select option:focus {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .responsive-table .transaction-tag--category {
+    font-weight: 600;
+  }
+
+  .responsive-table .transaction-tag--payment {
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
   }
 
   .app-surface {

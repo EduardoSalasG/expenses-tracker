@@ -39,7 +39,11 @@ const CREATE_PAYMENT_METHOD_OPTION = '__create_payment_method__';
 
 export type ExpenseFilterParams = {
   month?: string;
+  concept?: string;
   categoryId?: string;
+  subcategoryId?: string;
+  paymentMethodOptionId?: string;
+  bankOptionId?: string;
   currency?: string;
   paymentMethodKind?: 'cash' | 'transfer' | 'card';
 };
@@ -50,9 +54,13 @@ const paymentMethodKinds = new Set<ExpenseFilterParams['paymentMethodKind']>(['c
 
 export function parseExpenseFilterParams(params: Record<string, string | null | undefined>): ExpenseFilterParams {
   const result: ExpenseFilterParams = {};
-  const { month, categoryId, currency, paymentMethodKind } = params;
+  const { month, concept, categoryId, subcategoryId, paymentMethodOptionId, bankOptionId, currency, paymentMethodKind } = params;
   if (month && monthPattern.test(month)) result.month = month;
+  if (concept?.trim()) result.concept = concept.trim().slice(0, 160);
   if (categoryId && filterIdentifierPattern.test(categoryId)) result.categoryId = categoryId;
+  if (subcategoryId && filterIdentifierPattern.test(subcategoryId)) result.subcategoryId = subcategoryId;
+  if (paymentMethodOptionId && filterIdentifierPattern.test(paymentMethodOptionId)) result.paymentMethodOptionId = paymentMethodOptionId;
+  if (bankOptionId && filterIdentifierPattern.test(bankOptionId)) result.bankOptionId = bankOptionId;
   if (currency && /^[A-Za-z]{3}$/.test(currency)) result.currency = currency.toUpperCase();
   if (paymentMethodKind && paymentMethodKinds.has(paymentMethodKind as ExpenseFilterParams['paymentMethodKind'])) {
     result.paymentMethodKind = paymentMethodKind as ExpenseFilterParams['paymentMethodKind'];
@@ -62,13 +70,21 @@ export function parseExpenseFilterParams(params: Record<string, string | null | 
 
 export function serializeExpenseFilters(filters: {
   month: string;
+  concept?: string;
   categoryId?: string;
+  subcategoryId?: string;
+  paymentMethodOptionId?: string;
+  bankOptionId?: string;
   currency?: string;
   paymentMethodKind?: ExpenseFilterParams['paymentMethodKind'] | '';
 }): Params {
   return {
     month: filters.month,
+    ...(filters.concept?.trim() ? { concept: filters.concept.trim() } : {}),
     ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+    ...(filters.subcategoryId ? { subcategoryId: filters.subcategoryId } : {}),
+    ...(filters.paymentMethodOptionId ? { paymentMethodOptionId: filters.paymentMethodOptionId } : {}),
+    ...(filters.bankOptionId ? { bankOptionId: filters.bankOptionId } : {}),
     ...(filters.currency ? { currency: filters.currency.toUpperCase() } : {}),
     ...(filters.paymentMethodKind ? { paymentMethodKind: filters.paymentMethodKind } : {})
   };
@@ -126,10 +142,23 @@ export function serializeExpenseFilters(filters: {
             <input matInput id="expenses-filter-to" type="date" formControlName="to" name="expensesTo">
           </mat-form-field>
           <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_concept') }}</mat-label>
+            <input matInput id="expenses-filter-concept" formControlName="concept" name="expensesConcept" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_category') }}</mat-label>
             <mat-select id="expenses-filter-category" formControlName="categoryId" name="expensesCategory" aria-label="Expense category filter">
               <mat-option value="">{{ t('expenses_all') }}</mat-option>
-              @for (category of categories(); track category.id) {
+              @for (category of rootCategories(); track category.id) {
+                <mat-option [value]="category.id">{{ categoryLabel(category) }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_subcategory') }}</mat-label>
+            <mat-select id="expenses-filter-subcategory" formControlName="subcategoryId" name="expensesSubcategory" aria-label="Expense subcategory filter">
+              <mat-option value="">{{ t('expenses_all') }}</mat-option>
+              @for (category of filterSubcategories(); track category.id) {
                 <mat-option [value]="category.id">{{ categoryLabel(category) }}</mat-option>
               }
             </mat-select>
@@ -137,6 +166,24 @@ export function serializeExpenseFilters(filters: {
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_currency') }}</mat-label>
             <input matInput id="expenses-filter-currency" formControlName="currency" maxlength="3" name="expensesCurrency">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_payment_method') }}</mat-label>
+            <mat-select id="expenses-filter-payment-option" formControlName="paymentMethodOptionId" name="expensesPaymentMethodOption" aria-label="Expense payment option filter">
+              <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
+              @for (option of paymentMethodOptions(); track option.id) {
+                <mat-option [value]="option.id">{{ paymentMethodOptionLabel(option) }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_bank') }}</mat-label>
+            <mat-select id="expenses-filter-bank" formControlName="bankOptionId" name="expensesBank" aria-label="Expense bank filter">
+              <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
+              @for (bank of bankOptions(); track bank.id) {
+                <mat-option [value]="bank.id">{{ bank.name }}</mat-option>
+              }
+            </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_payment_method') }}</mat-label>
@@ -198,7 +245,7 @@ export function serializeExpenseFilters(filters: {
                   }
                 </td>
                 <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon aria-hidden="true">sell</mat-icon>{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></td>
-                <td [attr.data-label]="t('expenses_payment_method')" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
+                <td [attr.data-label]="t('expenses_payment_method')" [attr.title]="paymentLabel(expense)" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
                 @if (isSharedAccount()) {
                   <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon>{{ recordedBy(expense) }}</span></td>
                 }
@@ -248,13 +295,20 @@ export class ExpensesComponent implements OnInit {
   readonly error = signal('');
   readonly filtersOpen = signal(false);
   readonly selectedMonth = signal(this.periodState.selectedMonth());
+  readonly selectedFilterCategoryId = signal('');
   readonly filters = inject(FormBuilder).nonNullable.group({
     from: [''],
     to: [''],
+    concept: [''],
     categoryId: [''],
+    subcategoryId: [''],
+    paymentMethodOptionId: [''],
+    bankOptionId: [''],
     currency: [''],
     paymentMethodKind: ['']
   });
+  readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
+  readonly filterSubcategories = computed(() => this.categories().filter((category) => category.parentId === this.selectedFilterCategoryId()));
   readonly range = computed(() => rangeFromMonth(this.selectedMonth()));
 
   constructor(private readonly api: ApiService) {
@@ -269,7 +323,11 @@ export class ExpensesComponent implements OnInit {
   ngOnInit() {
     const linkedFilters = parseExpenseFilterParams({
       month: this.route.snapshot.queryParamMap.get('month'),
+      concept: this.route.snapshot.queryParamMap.get('concept'),
       categoryId: this.route.snapshot.queryParamMap.get('categoryId'),
+      subcategoryId: this.route.snapshot.queryParamMap.get('subcategoryId'),
+      paymentMethodOptionId: this.route.snapshot.queryParamMap.get('paymentMethodOptionId'),
+      bankOptionId: this.route.snapshot.queryParamMap.get('bankOptionId'),
       currency: this.route.snapshot.queryParamMap.get('currency'),
       paymentMethodKind: this.route.snapshot.queryParamMap.get('paymentMethodKind')
     });
@@ -281,9 +339,21 @@ export class ExpensesComponent implements OnInit {
     this.filters.patchValue({
       from: monthRange.fromInput,
       to: monthRange.toInput,
+      concept: linkedFilters.concept ?? '',
       categoryId: linkedFilters.categoryId ?? '',
+      subcategoryId: linkedFilters.subcategoryId ?? '',
+      paymentMethodOptionId: linkedFilters.paymentMethodOptionId ?? '',
+      bankOptionId: linkedFilters.bankOptionId ?? '',
       currency: linkedFilters.currency ?? '',
       paymentMethodKind: linkedFilters.paymentMethodKind ?? ''
+    });
+    this.selectedFilterCategoryId.set(linkedFilters.categoryId ?? '');
+    this.filters.controls.categoryId.valueChanges.subscribe((categoryId) => {
+      this.selectedFilterCategoryId.set(categoryId);
+      const subcategoryId = this.filters.controls.subcategoryId.value;
+      if (subcategoryId && !this.filterSubcategories().some((item) => item.id === subcategoryId)) {
+        this.filters.controls.subcategoryId.setValue('');
+      }
     });
   }
 
@@ -345,7 +415,11 @@ export class ExpensesComponent implements OnInit {
     const dateRange = expenseDateRange(f.from, f.to);
     this.api.expenses({
       ...dateRange,
+      concept: f.concept.trim() || undefined,
       categoryId: f.categoryId || undefined,
+      subcategoryId: f.subcategoryId || undefined,
+      paymentMethodOptionId: f.paymentMethodOptionId || undefined,
+      bankOptionId: f.bankOptionId || undefined,
       currency: f.currency ? f.currency.toUpperCase() : undefined,
       paymentMethodKind: f.paymentMethodKind ? f.paymentMethodKind as 'cash' | 'transfer' | 'card' : undefined,
       limit: 100
@@ -366,7 +440,7 @@ export class ExpensesComponent implements OnInit {
 
   clearFilters() {
     const monthRange = this.range();
-    this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, categoryId: '', currency: '', paymentMethodKind: '' });
+    this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, concept: '', categoryId: '', subcategoryId: '', paymentMethodOptionId: '', bankOptionId: '', currency: '', paymentMethodKind: '' });
     this.syncFiltersToUrl();
     this.loadExpenses();
   }
@@ -377,7 +451,11 @@ export class ExpensesComponent implements OnInit {
       relativeTo: this.route,
       queryParams: serializeExpenseFilters({
         month: this.selectedMonth(),
+        concept: filters.concept,
         categoryId: filters.categoryId,
+        subcategoryId: filters.subcategoryId,
+        paymentMethodOptionId: filters.paymentMethodOptionId,
+        bankOptionId: filters.bankOptionId,
         currency: filters.currency,
         paymentMethodKind: filters.paymentMethodKind as ExpenseFilterParams['paymentMethodKind'] | ''
       })
@@ -507,6 +585,10 @@ export class ExpensesComponent implements OnInit {
     if (expense.paymentMethod.kind === 'transfer') return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${this.t('expenses_transfer')}` : this.t('expenses_transfer');
     const cardType = expense.paymentMethod.cardType ? `${expense.paymentMethod.cardType === 'debit' ? this.t('expenses_debit') : this.t('expenses_credit')} ${this.t('expenses_card')}` : this.t('expenses_card');
     return expense.paymentMethod.bank ? `${expense.paymentMethod.bank} ${cardType}` : cardType;
+  }
+
+  paymentMethodOptionLabel(option: PaymentMethodOption) {
+    return option.name;
   }
 
   recordedBy(expense: Expense) {
@@ -1201,8 +1283,8 @@ function startOfDay(date: string) {
   return new Date(`${date}T00:00:00.000`).toISOString();
 }
 
-export function hasSecondaryExpenseFilters(filters: { categoryId: string; currency: string; paymentMethodKind: string }) {
-  return Boolean(filters.categoryId || filters.currency || filters.paymentMethodKind);
+export function hasSecondaryExpenseFilters(filters: { concept: string; categoryId: string; subcategoryId: string; paymentMethodOptionId: string; bankOptionId: string; currency: string; paymentMethodKind: string }) {
+  return Boolean(filters.concept || filters.categoryId || filters.subcategoryId || filters.paymentMethodOptionId || filters.bankOptionId || filters.currency || filters.paymentMethodKind);
 }
 
 function paymentMethodPayload(option: PaymentMethodOption, bank?: BankOption) {
