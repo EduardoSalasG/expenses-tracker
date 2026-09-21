@@ -67,7 +67,7 @@ Run this after every update pushed to `main`; it is part of the release gate, no
 
 1. Release Agent: use `gh run list --branch main` and verify that the backend workflow for the released SHA completes successfully. Inspect failed logs before reporting a failure.
 2. Deployment QA Agent: use Netlify CLI/API and verify that the production deploy is `ready` and references the same SHA.
-3. Release Agent: verify `https://api.expenses-tracker.eduardosalasg.dev/health` returns `{"status":"ok"}` and the Netlify site returns HTTP 200.
+3. Release Agent: verify `https://api.expenses-tracker.eduardosalasg.dev/health` returns `{"status":"ok"}`, the public Swagger contract exposes `subcategoryId` in `GET /expenses`, and the Netlify site returns HTTP 200.
 4. Report the SHA, GitHub Actions run, Netlify deploy, and public-check results. Do not call the release complete while any of these is pending or failing.
 
 When the runtime permits parallel agents, delegate the GitHub Actions check, Netlify check, and public smoke check to separate agents. If it does not, the Release Agent performs all three checks directly and records that limitation.

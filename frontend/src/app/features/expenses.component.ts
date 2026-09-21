@@ -24,6 +24,7 @@ import {
 } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
 import { categoryDisplayName, categoryPathLabel } from '../core/category-label';
+import { formatExpenseDate } from '../core/transaction-date';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
@@ -596,8 +597,7 @@ export class ExpensesComponent implements OnInit {
   }
 
   formatDate(value: string) {
-    const locale = this.i18n.language() === 'es' ? 'es-CL' : 'en-US';
-    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+    return formatExpenseDate(value, this.i18n.language());
   }
 
   formatMoney(currency: string, amount: number) {

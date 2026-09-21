@@ -6,6 +6,13 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-21
+
+### Fixed
+
+- El historial de gastos muestra las fechas de cuota en UTC, por lo que un gasto del primer día del período no aparece visualmente en el mes anterior para personas en Chile.
+- El despliegue backend valida el contrato de filtros de `GET /expenses` a través de Nginx y del dominio público; una instancia o proxy antiguo ya no puede pasar sólo con health checks.
+
 ## [0.3.0] - 2026-09-21
 
 ### Added
