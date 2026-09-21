@@ -63,6 +63,24 @@ describe('version-sync', () => {
     expect(JSON.parse(readFileSync(join(root, 'backend/package.json'), 'utf8')).version).toBe('9.9.9');
   });
 
+  it('accepts synchronized targets checked out with Windows CRLF line endings', () => {
+    const root = createWorkspace('1.2.3');
+    expect(runVersionScript(root, '--sync').status).toBe(0);
+
+    for (const relativePath of [
+      'backend/package.json',
+      'frontend/package.json',
+      'frontend/src/app/generated/app-version.ts'
+    ]) {
+      const path = join(root, relativePath);
+      writeFileSync(path, readFileSync(path, 'utf8').replace(/\n/g, '\r\n'));
+    }
+
+    const result = runVersionScript(root, '--check');
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it('rejects an invalid canonical version before it can be propagated', () => {
     const root = createWorkspace('next-release');
 

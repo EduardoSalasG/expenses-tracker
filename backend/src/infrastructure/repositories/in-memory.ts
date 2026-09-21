@@ -953,6 +953,10 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
     from?: string;
     to?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    paymentMethodOptionId?: string;
+    bankOptionId?: string;
+    concept?: string;
     currency?: string;
     paymentMethodKind?: 'cash' | 'card' | 'transfer';
     limit: number;
@@ -963,6 +967,10 @@ export class InMemoryExpenseRepository implements ExpenseRepository {
       .filter((expense) => !input.from || expense.date >= input.from)
       .filter((expense) => !input.to || expense.date <= input.to)
       .filter((expense) => !input.categoryId || expense.categoryId === input.categoryId || expense.subcategoryId === input.categoryId)
+      .filter((expense) => !input.subcategoryId || expense.subcategoryId === input.subcategoryId)
+      .filter((expense) => !input.paymentMethodOptionId || expense.paymentMethodOptionId === input.paymentMethodOptionId)
+      .filter((expense) => !input.bankOptionId || expense.bankOptionId === input.bankOptionId)
+      .filter((expense) => !input.concept || expense.concept.toLocaleLowerCase().includes(input.concept.toLocaleLowerCase()))
       .filter((expense) => !input.currency || expense.currency === input.currency)
       .filter((expense) => !input.paymentMethodKind || expense.paymentMethod.kind === input.paymentMethodKind)
       .sort(sortProjectedExpenses)
@@ -1138,6 +1146,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
     financialAccountId?: string;
     from?: string;
     to?: string;
+    concept?: string;
     currency?: string;
     limit: number;
   }) {
@@ -1146,6 +1155,7 @@ export class InMemoryIncomeRepository implements IncomeRepository {
       .filter((income) => !input.financialAccountId || income.financialAccountId === input.financialAccountId)
       .filter((income) => !input.from || income.date >= input.from)
       .filter((income) => !input.to || income.date <= input.to)
+      .filter((income) => !input.concept || income.concept.toLocaleLowerCase().includes(input.concept.toLocaleLowerCase()))
       .filter((income) => !input.currency || income.currency === input.currency)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, input.limit);

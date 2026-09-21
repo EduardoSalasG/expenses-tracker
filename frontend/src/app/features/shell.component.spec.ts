@@ -40,13 +40,18 @@ describe('ShellComponent accessibility', () => {
     const more = fixture.nativeElement.querySelector('[data-testid="mobile-more-trigger"]') as HTMLButtonElement;
     more.click();
     fixture.detectChanges();
-    tick();
     const firstMenuItem = fixture.nativeElement.querySelector('#shell-mobile-more-menu [role="menuitem"]') as HTMLElement | null;
+    const focusFirstMenuItem = spyOn(firstMenuItem as HTMLElement, 'focus').and.callThrough();
+    tick();
 
-    expect(document.activeElement).toBe(firstMenuItem);
+    expect((fixture.componentInstance as unknown as { firstMoreMenuItem?: { nativeElement: HTMLElement } }).firstMoreMenuItem?.nativeElement)
+      .withContext('the dynamic ViewChild resolves after the More menu renders')
+      .toBe(firstMenuItem ?? undefined);
+    expect(focusFirstMenuItem).toHaveBeenCalled();
+    const focusMoreTrigger = spyOn(more, 'focus').and.callThrough();
     fixture.componentInstance.onEscape();
     fixture.detectChanges();
     tick();
-    expect(document.activeElement).toBe(more);
+    expect(focusMoreTrigger).toHaveBeenCalled();
   }));
 });

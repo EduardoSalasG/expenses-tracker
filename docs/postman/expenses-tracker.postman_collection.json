@@ -701,7 +701,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/expenses?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&limit=50"
+            "url": "{{baseUrl}}/expenses?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&concept=netflix&categoryId={{categoryId}}&subcategoryId={{subcategoryId}}&paymentMethodOptionId={{paymentMethodOptionId}}&bankOptionId={{bankOptionId}}&limit=50"
           }
         },
         {
@@ -787,7 +787,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/incomes?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&limit=50"
+            "url": "{{baseUrl}}/incomes?from=2026-08-01T00:00:00.000Z&to=2026-08-31T23:59:59.999Z&concept=sueldo&limit=50"
           }
         }
       ]

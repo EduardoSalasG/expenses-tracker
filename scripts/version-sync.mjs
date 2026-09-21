@@ -35,7 +35,7 @@ function generatedModuleContent(version) {
 
 function contentMatches(path, expectedContent, errors, workspaceRoot) {
   try {
-    if (readFileSync(path, 'utf8') === expectedContent) {
+    if (readFileSync(path, 'utf8').replace(/\r\n/g, '\n') === expectedContent) {
       return true;
     }
   } catch {

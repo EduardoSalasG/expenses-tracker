@@ -175,6 +175,10 @@ export const expenseQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   categoryId: z.string().uuid().optional(),
+  subcategoryId: z.string().uuid().optional(),
+  paymentMethodOptionId: z.string().uuid().optional(),
+  bankOptionId: z.string().uuid().optional(),
+  concept: z.string().trim().min(1).max(160).optional(),
   currency: z.string().length(3).transform((value) => value.toUpperCase()).optional(),
   paymentMethodKind: z.enum(['cash', 'card', 'transfer']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50)
@@ -192,6 +196,7 @@ export const updateIncomeSchema = createIncomeSchema;
 export const incomeQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+  concept: z.string().trim().min(1).max(160).optional(),
   currency: z.string().length(3).transform((value) => value.toUpperCase()).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });

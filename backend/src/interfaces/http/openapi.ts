@@ -1055,7 +1055,11 @@ export const openApiSpec = {
         parameters: [
           queryParam('from', 'string', 'ISO datetime lower bound'),
           queryParam('to', 'string', 'ISO datetime upper bound'),
+          queryParam('concept', 'string', 'Case-insensitive partial concept search, 1-160 characters'),
           queryParam('categoryId', 'string', 'Category UUID'),
+          queryParam('subcategoryId', 'string', 'Subcategory UUID'),
+          queryParam('paymentMethodOptionId', 'string', 'Payment-method option UUID'),
+          queryParam('bankOptionId', 'string', 'Bank option UUID'),
           queryParam('currency', 'string', 'Currency code such as CLP'),
           queryParam('paymentMethodKind', 'string', 'cash, transfer, or card'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
@@ -1283,6 +1287,7 @@ export const openApiSpec = {
         parameters: [
           queryParam('from', 'string', 'ISO datetime lower bound'),
           queryParam('to', 'string', 'ISO datetime upper bound'),
+          queryParam('concept', 'string', 'Case-insensitive partial concept search, 1-160 characters'),
           queryParam('currency', 'string', 'Currency code such as CLP'),
           queryParam('limit', 'integer', 'Maximum rows, 1-200')
         ],

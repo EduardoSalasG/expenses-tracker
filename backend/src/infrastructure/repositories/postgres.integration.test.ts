@@ -5,6 +5,7 @@ import { createPool } from '../database.js';
 import {
   PostgresCategoryRepository,
   PostgresExpenseRepository,
+  PostgresIncomeRepository,
   PostgresMessagingMessageAuditRepository,
   PostgresReportDispatchRepository,
   PostgresUserRepository
@@ -74,6 +75,45 @@ describeIntegration('Postgres repositories integration', () => {
       expect(tenantARecent.some((item) => item.concept === 'tenant-b-expense')).toBe(false);
       expect(tenantBRecent.some((item) => item.concept === 'tenant-b-expense')).toBe(true);
       expect(tenantBRecent.some((item) => item.concept === 'tenant-a-expense')).toBe(false);
+    } finally {
+      await close();
+    }
+  });
+
+  it('filters expense installments and incomes by concept within one tenant', async () => {
+    const { pool, close } = createIntegrationContext();
+    try {
+      const users = new PostgresUserRepository(pool);
+      const categories = new PostgresCategoryRepository(pool);
+      const expenses = new PostgresExpenseRepository(pool);
+      const incomes = new PostgresIncomeRepository(pool);
+      const user = await users.upsertByPhoneNumber({
+        phoneNumber: randomPhone(), firstName: 'Filter', lastName: 'User', preferredName: 'Filter',
+        email: undefined, countryOfResidence: 'Chile', preferredCurrency: 'CLP'
+      });
+      await categories.ensureDefaults(user.tenantId);
+      const root = (await categories.listByTenant(user.tenantId)).find((category) => !category.parentId);
+      if (!root) throw new Error('Missing default root category in integration test.');
+      const subcategory = await categories.create({ tenantId: user.tenantId, name: 'Subscriptions', parentId: root.id, isDefault: false });
+      const matching = await expenses.create({
+        tenantId: user.tenantId, userId: user.id, date: '2026-09-12T00:00:00.000Z', amount: 15000,
+        currency: 'CLP', concept: 'Netflix Familiar', categoryId: root.id, subcategoryId: subcategory.id,
+        paymentMethod: { kind: 'card', bank: 'Banco de Prueba', cardType: 'credit' }
+      });
+      await expenses.create({
+        tenantId: user.tenantId, userId: user.id, date: '2026-09-12T00:00:00.000Z', amount: 9000,
+        currency: 'CLP', concept: 'Spotify Familiar', categoryId: root.id, subcategoryId: subcategory.id,
+        paymentMethod: { kind: 'card', bank: 'Banco de Prueba', cardType: 'credit' }
+      });
+      const income = await incomes.create({
+        tenantId: user.tenantId, userId: user.id, date: '2026-09-01T00:00:00.000Z', amount: 100000,
+        currency: 'CLP', concept: 'Sueldo Septiembre'
+      });
+
+      await expect(expenses.list({ tenantId: user.tenantId, concept: 'netflix', subcategoryId: subcategory.id, limit: 10 }))
+        .resolves.toEqual([expect.objectContaining({ id: matching.id })]);
+      await expect(incomes.list({ tenantId: user.tenantId, concept: 'SUELDO', limit: 10 }))
+        .resolves.toEqual([expect.objectContaining({ id: income.id })]);
     } finally {
       await close();
     }

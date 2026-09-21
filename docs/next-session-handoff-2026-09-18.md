@@ -8,10 +8,11 @@
 
 ## Estado de ramas y árbol
 
-- Release `v0.1.2` promovida y publicada el 2026-09-18. El tag anotado y `main` apuntan al SHA inmutable `7abb7239b68609e440fd5e77ed460129e915db4d`.
-- GitHub Actions `35351790931` finalizó correctamente; Netlify publicó ese mismo SHA en estado `ready`.
-- Los checks públicos de Netlify, `/health/live` y `/health/ready` devolvieron HTTP `200`.
-- `main` se sincronizó posteriormente en `dev` mediante `01919b1 chore: sync main after v0.1.2`.
+- Release `v0.2.0` promovida y publicada el 2026-09-18. El tag anotado y `main` apuntan al SHA inmutable `0ed43c4eee428791a944424d276accde45a326c2`.
+- GitHub Actions `35360075543` finalizó correctamente; construyó la imagen inmutable y completó el despliegue Oracle/Nginx.
+- Los checks públicos de Netlify, `/health/live` y `/health/ready` devolvieron HTTP `200`; readiness confirmó PostgreSQL `ok`.
+- La API de Netlify no pudo aportar el SHA del deploy porque requiere una credencial no disponible en sesión.
+- `main` se sincronizó posteriormente en `dev` mediante `cab139d chore: sync main after v0.2.0`.
 
 ## Trabajo completado en el cambio `atomic-design-system-dashboard`
 
@@ -35,8 +36,12 @@
 
 - Las tareas de `atomic-design-system-dashboard`, `mobile-accessible-app-shell`, `release-version-traceability` y `secure-backend-entrypoints` están completas, sus delta specs se sincronizaron y los cuatro cambios quedaron archivados el 2026-09-18.
 - La QA funcional visual de las superficies financieras fue confirmada por la persona usuaria el 2026-09-18; la cobertura Playwright queda como mejora futura del pipeline, no como bloqueo de la release.
-- `durable-webhook-operations` no representa trabajo parcialmente implementado: contiene solo propuesta; aún faltan specs, diseño y tareas antes de abrir su implementación.
+- `durable-webhook-operations` fue especificado, implementado, sincronizado a specs principales y archivado el 2026-09-21: el inbox persistente, reintentos, worker y documentación operativa están en `v0.2.0` junto con `040_inbound_webhook_events.sql`.
+- La prueba Angular de foco del menú móvil `More` fue cerrada post-release en `dev`: se verificó que el componente invoca foco sobre los elementos correctos y se reemplazó la aserción no fiable de `document.activeElement` de la fixture Karma. El gate posterior aprobó 125 pruebas backend y 46 frontend.
+- `53cd40f fix: accept CRLF in version synchronization checks` evita falsos negativos de `version:check` al cambiar de rama en Windows; su regresión está cubierta por `version-sync.test.ts`.
 
-## Caso productivo diferido
+## Conciliación dashboard / buscador de gastos
 
-- Para investigar el monto cercano a $19.000: solicitar mes, cuenta activa y referencia/concepto, o autorización explícita para inspección de solo lectura del entorno productivo.
+- La auditoría de consultas identificó una divergencia de límites temporales: los gráficos de categoría agrupan `expense_installments.due_date` con meses UTC, mientras que el buscador convertía `YYYY-MM-DD` usando la zona horaria del navegador. En Chile eso excluía del buscador las cuotas con vencimiento entre `00:00:00Z` y el inicio local del primer día del mes, aunque el gráfico sí las contabilizaba.
+- El arreglo en `dev` fija los límites del buscador en UTC (`00:00:00.000Z` a `23:59:59.999Z`) y agrega una regresión unitaria. No consulta ni modifica datos productivos.
+- Queda pendiente contrastar el caso concreto cercano a $19.000 en producción mediante mes, cuenta y referencia/concepto, o con autorización explícita de lectura de ese entorno. La revisión de código también detectó que la serie semanal del dashboard usa la semana actual aun al consultar otro mes; es una decisión funcional separada, no la causa de la discrepancia de categorías.

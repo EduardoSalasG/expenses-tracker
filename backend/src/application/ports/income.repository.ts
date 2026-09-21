@@ -22,6 +22,7 @@ export interface IncomeRepository {
     financialAccountId?: string;
     from?: string;
     to?: string;
+    concept?: string;
     currency?: string;
     limit: number;
   }): Promise<Income[]>;

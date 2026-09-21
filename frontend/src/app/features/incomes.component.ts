@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Inject } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, type Income } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
 import { I18nService } from '../core/i18n.service';
@@ -59,7 +60,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         </div>
       </div>
       @if (filtersOpen()) {
-        <form [formGroup]="filters" (ngSubmit)="loadIncomes()" class="mt-4 grid gap-4 lg:grid-cols-5">
+        <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="mt-4 grid gap-4 lg:grid-cols-5">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
             <input matInput type="date" formControlName="from" name="incomesFrom">
@@ -67,6 +68,10 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_to') }}</mat-label>
             <input matInput type="date" formControlName="to" name="incomesTo">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ t('expenses_concept') }}</mat-label>
+            <input matInput id="incomes-filter-concept" formControlName="concept" name="incomesConcept">
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_currency') }}</mat-label>
@@ -145,6 +150,8 @@ export class IncomesComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly accountService = inject(AccountContextService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly t = (key: string) => this.i18n.t(key);
   readonly incomes = signal<Income[]>([]);
   readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
@@ -155,6 +162,7 @@ export class IncomesComponent implements OnInit {
   readonly filters = inject(FormBuilder).nonNullable.group({
     from: [''],
     to: [''],
+    concept: [''],
     currency: ['']
   });
   readonly range = computed(() => rangeFromMonth(this.selectedMonth()));
@@ -170,8 +178,17 @@ export class IncomesComponent implements OnInit {
   }
 
   ngOnInit() {
+    const linkedFilters = parseIncomeFilterParams({
+      month: this.route.snapshot.queryParamMap.get('month'),
+      concept: this.route.snapshot.queryParamMap.get('concept'),
+      currency: this.route.snapshot.queryParamMap.get('currency')
+    });
+    if (linkedFilters.month) {
+      this.selectedMonth.set(linkedFilters.month);
+      this.periodState.setSelectedMonth(linkedFilters.month);
+    }
     const monthRange = this.range();
-    this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
+    this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput, concept: linkedFilters.concept ?? '', currency: linkedFilters.currency ?? '' });
   }
 
   changeMonth(event: Event) {
@@ -181,11 +198,17 @@ export class IncomesComponent implements OnInit {
     this.periodState.setSelectedMonth(value);
     const monthRange = rangeFromMonth(value);
     this.filters.patchValue({ from: monthRange.fromInput, to: monthRange.toInput });
+    this.syncFiltersToUrl();
     this.loadIncomes();
   }
 
   toggleFilters() {
     this.filtersOpen.set(!this.filtersOpen());
+  }
+
+  applyFilters() {
+    this.syncFiltersToUrl();
+    this.loadIncomes();
   }
 
   openNewIncomeDialog() {
@@ -251,6 +274,7 @@ export class IncomesComponent implements OnInit {
     this.api.incomes({
       from: f.from ? startOfDay(f.from) : undefined,
       to: f.to ? endOfDay(f.to) : undefined,
+      concept: f.concept.trim() || undefined,
       currency: f.currency ? f.currency.toUpperCase() : undefined,
       limit: 100
     }).subscribe({
@@ -270,8 +294,17 @@ export class IncomesComponent implements OnInit {
 
   clearFilters() {
     const monthRange = this.range();
-    this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, currency: '' });
+    this.filters.reset({ from: monthRange.fromInput, to: monthRange.toInput, concept: '', currency: '' });
+    this.syncFiltersToUrl();
     this.loadIncomes();
+  }
+
+  private syncFiltersToUrl() {
+    const filters = this.filters.getRawValue();
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: serializeIncomeFilters({ month: this.selectedMonth(), concept: filters.concept, currency: filters.currency })
+    });
   }
 
   totalLabel() {
@@ -455,4 +488,25 @@ function rangeFromMonth(month: string) {
   const toDate = new Date(Date.UTC(year, monthNumber, 0));
   const toInput = `${toDate.getUTCFullYear()}-${String(toDate.getUTCMonth() + 1).padStart(2, '0')}-${String(toDate.getUTCDate()).padStart(2, '0')}`;
   return { fromInput, toInput };
+}
+
+export type IncomeFilterParams = { month?: string; concept?: string; currency?: string };
+
+export function parseIncomeFilterParams(params: Record<string, string | null | undefined>): IncomeFilterParams {
+  const result: IncomeFilterParams = {};
+  const month = params['month'];
+  const concept = params['concept'];
+  const currency = params['currency'];
+  if (month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)) result.month = month;
+  if (concept?.trim()) result.concept = concept.trim().slice(0, 160);
+  if (currency && /^[A-Za-z]{3}$/.test(currency)) result.currency = currency.toUpperCase();
+  return result;
+}
+
+export function serializeIncomeFilters(filters: { month: string; concept?: string; currency?: string }) {
+  return {
+    month: filters.month,
+    ...(filters.concept?.trim() ? { concept: filters.concept.trim() } : {}),
+    ...(filters.currency ? { currency: filters.currency.toUpperCase() } : {})
+  };
 }

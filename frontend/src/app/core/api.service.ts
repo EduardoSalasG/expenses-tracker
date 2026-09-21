@@ -240,7 +240,11 @@ export interface Report {
 export interface ExpenseFilters {
   from?: string;
   to?: string;
+  concept?: string;
   categoryId?: string;
+  subcategoryId?: string;
+  paymentMethodOptionId?: string;
+  bankOptionId?: string;
   currency?: string;
   paymentMethodKind?: 'cash' | 'card' | 'transfer';
   limit?: number;
@@ -249,6 +253,7 @@ export interface ExpenseFilters {
 export interface IncomeFilters {
   from?: string;
   to?: string;
+  concept?: string;
   currency?: string;
   limit?: number;
 }
