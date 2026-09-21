@@ -4,8 +4,13 @@ import {
   parseExpenseFilterParams,
   serializeExpenseFilters
 } from './expenses.component';
+import { formatExpenseDate } from '../core/transaction-date';
 
 describe('expense filter disclosure', () => {
+  it('renders an installment date in UTC so a September boundary never appears as August in Chile', () => {
+    expect(formatExpenseDate('2026-09-01T00:00:00.000Z', 'es')).toBe('1 sept 2026');
+  });
+
   it('uses UTC month boundaries so filters match dashboard report totals in every browser timezone', () => {
     expect(expenseDateRange('2026-09-01', '2026-09-30')).toEqual({
       from: '2026-09-01T00:00:00.000Z',

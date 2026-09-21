@@ -180,4 +180,43 @@ jobs:
                 sudo nginx -T
                 exit 1
               fi
+
+              # Health and authentication exist in older releases too. Assert the
+              # list-expenses contract through the actual Nginx upstream so a stale
+              # proxy target cannot make a deployment look healthy.
+              proxy_swagger=$(curl -ksS \
+                --resolve "${{ env.PUBLIC_API_HOST }}:443:127.0.0.1" \
+                "https://${{ env.PUBLIC_API_HOST }}/api/docs/swagger-ui-init.js?release=${{ github.sha }}")
+              if ! printf '%s' "$proxy_swagger" | node -e '
+                let source = "";
+                process.stdin.on("data", (chunk) => { source += chunk; });
+                process.stdin.on("end", () => {
+                  const expensesStart = source.indexOf("\"/expenses\"");
+                  const expensesPost = source.indexOf("\"post\"", expensesStart);
+                  const getContract = source.slice(expensesStart, expensesPost);
+                  if (expensesStart < 0 || expensesPost < 0 || !getContract.includes("\"name\": \"subcategoryId\"")) process.exit(1);
+                });
+              '; then
+                echo "Nginx did not expose the current GET /expenses filter contract."
+                sudo nginx -T
+                exit 1
+              fi
           EOF
+
+      - name: Verify public expense filter contract
+        run: |
+          public_swagger=$(curl --retry 5 --retry-delay 2 --fail --silent --show-error \
+            "https://${{ env.PUBLIC_API_HOST }}/api/docs/swagger-ui-init.js?release=${{ github.sha }}")
+          if ! printf '%s' "$public_swagger" | node -e '
+            let source = "";
+            process.stdin.on("data", (chunk) => { source += chunk; });
+            process.stdin.on("end", () => {
+              const expensesStart = source.indexOf("\"/expenses\"");
+              const expensesPost = source.indexOf("\"post\"", expensesStart);
+              const getContract = source.slice(expensesStart, expensesPost);
+              if (expensesStart < 0 || expensesPost < 0 || !getContract.includes("\"name\": \"subcategoryId\"")) process.exit(1);
+            });
+          '; then
+            echo "Public API did not expose the deployed GET /expenses filter contract."
+            exit 1
+          fi
