@@ -21,6 +21,7 @@
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
     "worker:inbound-events": "node dist/infrastructure/process-inbound-events.js",
+    "worker:inbound-events:daemon": "node dist/infrastructure/process-inbound-events-daemon.js",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
