@@ -3,6 +3,7 @@ node_modules/
 .worktrees/
 dist/
 .angular/
+.codebase-memory/
 coverage/
 .env
 .env.*
