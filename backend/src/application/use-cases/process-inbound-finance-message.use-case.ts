@@ -28,7 +28,6 @@ import type { CategoryTranslationService } from '../services/category-translatio
 import {
   categoryByInterpretedName,
   inferCategoryCandidateFromText,
-  inferCategoryFromText,
   interpretedMessageSchema,
   isCompleteExpense,
   isCompleteIncome,
