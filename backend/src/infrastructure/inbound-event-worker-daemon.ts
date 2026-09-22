@@ -37,7 +37,7 @@ export async function startInboundEventWorkerDaemon(options: InboundEventWorkerD
   try {
     await runInboundEventWorker({
       ...settings,
-      processPending: options.service.processPending,
+      processPending: options.service.processPending.bind(options.service),
       close: options.container.close,
       signal: controller.signal,
       wait: options.wait

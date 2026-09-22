@@ -27,4 +27,30 @@ describe('inbound event worker daemon', () => {
     expect(info).toHaveBeenCalledWith('Inbound event worker started.', { limit: 4, pollIntervalMs: 1000 });
     expect(info).toHaveBeenCalledWith('Inbound event worker stopped.');
   });
+
+  it('preserves the inbound service receiver while processing', async () => {
+    let onTerm: (() => void) | undefined;
+    const close = vi.fn().mockResolvedValue(undefined);
+    const service = {
+      calls: 0,
+      async processPending() {
+        this.calls += 1;
+        return 0;
+      }
+    };
+
+    await startInboundEventWorkerDaemon({
+      container: { close, logger: { info: vi.fn() } },
+      service,
+      process: {
+        once: vi.fn((signal: string, callback: () => void) => {
+          if (signal === 'SIGTERM') onTerm = callback;
+        }),
+        removeListener: vi.fn()
+      },
+      wait: vi.fn(async () => onTerm?.())
+    });
+
+    expect(service.calls).toBe(1);
+  });
 });
