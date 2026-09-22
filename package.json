@@ -29,6 +29,7 @@
     "release:verify": "pnpm run version:check && pnpm run build",
     "build": "pnpm run version:check && pnpm -r build",
     "test": "pnpm -r test",
+    "test:db:integration": "node scripts/run-db-integration.mjs",
     "lint": "pnpm -r lint"
   },
   "engines": {
