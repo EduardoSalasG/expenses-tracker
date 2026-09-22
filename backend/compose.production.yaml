@@ -7,3 +7,11 @@ services:
       - .env
     ports:
       - "127.0.0.1:3000:3000"
+
+  expenses-tracker-inbound-worker:
+    image: ${BACKEND_IMAGE:-ghcr.io/eduardosalasg/expenses-tracker-backend:latest}
+    container_name: expenses-tracker-inbound-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["node", "dist/infrastructure/process-inbound-events-daemon.js"]
