@@ -277,6 +277,20 @@ describe('extractWhatsAppMessages', () => {
 });
 
 describe('extractWhatsAppStatuses', () => {
+  it('preserves an explicit empty error list', () => {
+    const statuses = extractWhatsAppStatuses({
+      field: 'messages',
+      value: { statuses: [{ id: 'wamid.empty-errors', status: 'sent', errors: [] }] }
+    });
+
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toMatchObject({
+      providerMessageId: 'wamid.empty-errors',
+      status: 'sent',
+      errors: []
+    });
+  });
+
   it('extracts delivery statuses from Meta webhook wrapper', () => {
     const statuses = extractWhatsAppStatuses({
       entry: [

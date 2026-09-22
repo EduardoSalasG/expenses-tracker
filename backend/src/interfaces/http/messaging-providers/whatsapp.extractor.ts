@@ -52,14 +52,15 @@ function statusesFromValue(value: unknown): InboundDeliveryStatus[] {
 
     const recipientId = asString(delivery?.recipient_id);
     const conversation = asRecord(delivery?.conversation);
-    const errors = asArray(delivery?.errors);
+    const rawErrors = delivery?.errors;
+    const errors = Array.isArray(rawErrors) ? rawErrors : undefined;
     return [{
       providerMessageId: asString(delivery?.id),
       recipientPhoneNumber: recipientId ? normalizeWhatsAppPhone(recipientId) : undefined,
       status: deliveryStatus,
       timestamp: asString(delivery?.timestamp),
       conversationId: asString(conversation?.id),
-      errors: errors.length > 0 ? errors : undefined
+      errors
     }];
   });
 }
