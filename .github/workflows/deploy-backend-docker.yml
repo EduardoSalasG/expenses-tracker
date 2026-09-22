@@ -110,10 +110,10 @@ jobs:
 
               echo "Deploying image: $BACKEND_IMAGE"
               docker pull "$BACKEND_IMAGE"
-              resolved_image=$(docker compose config --images)
-              echo "Compose resolved image: $resolved_image"
-              if [ "$resolved_image" != "$BACKEND_IMAGE" ]; then
-                echo "Compose resolved the wrong image. Expected: $BACKEND_IMAGE; resolved: $resolved_image"
+              resolved_images=$(docker compose config --images | sort -u)
+              echo "Compose resolved images: $resolved_images"
+              if [ "$resolved_images" != "$BACKEND_IMAGE" ]; then
+                echo "Compose resolved the wrong images. Expected only: $BACKEND_IMAGE; resolved: $resolved_images"
                 exit 1
               fi
 
@@ -122,7 +122,7 @@ jobs:
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
-              docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend
+              docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend expenses-tracker-inbound-worker
 
               # Best effort: an LLM outage must never fail an otherwise healthy deploy.
               if ! docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
@@ -130,24 +130,23 @@ jobs:
               fi
 
               expected_image_id=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
-              running_image_id=$(docker inspect expenses-tracker-backend --format '{{.Image}}')
-              running_config_image=$(docker inspect expenses-tracker-backend --format '{{.Config.Image}}')
-              created_at=$(docker inspect expenses-tracker-backend --format '{{.Created}}')
               echo "Expected image ID: $expected_image_id"
-              echo "Running image ID:  $running_image_id"
-              echo "Running image:     $running_config_image"
-              echo "Container created: $created_at"
-              if [ "$running_image_id" != "$expected_image_id" ]; then
-                echo "Running container image does not match $BACKEND_IMAGE."
-                echo "Expected: $expected_image_id"
-                echo "Running:  $running_image_id"
-                docker compose ps
-                exit 1
-              fi
-              if [ "$running_config_image" != "$BACKEND_IMAGE" ]; then
-                echo "Running container was not created from the expected SHA-tagged image."
-                exit 1
-              fi
+              for service in expenses-tracker-backend expenses-tracker-inbound-worker; do
+                running_image_id=$(docker inspect "$service" --format '{{.Image}}')
+                running_config_image=$(docker inspect "$service" --format '{{.Config.Image}}')
+                running_state=$(docker inspect "$service" --format '{{.State.Running}}')
+                created_at=$(docker inspect "$service" --format '{{.Created}}')
+                echo "$service image ID:  $running_image_id"
+                echo "$service image:     $running_config_image"
+                echo "$service running:   $running_state"
+                echo "$service created:   $created_at"
+                if [ "$running_image_id" != "$expected_image_id" ] || [ "$running_config_image" != "$BACKEND_IMAGE" ] || [ "$running_state" != "true" ]; then
+                  echo "$service does not use the expected SHA-tagged image or is not running."
+                  docker compose ps
+                  docker logs --tail=200 "$service" || true
+                  exit 1
+                fi
+              done
 
               for attempt in $(seq 1 30); do
                 if curl -fsS http://127.0.0.1:3000/health > /dev/null; then
@@ -183,6 +182,14 @@ jobs:
                 END { exit found ? 0 : 1 }
               '; then
                 echo "Direct backend does not expose the current GET /expenses filter contract."
+                exit 1
+              fi
+
+              worker_running=$(docker inspect expenses-tracker-inbound-worker --format '{{.State.Running}}')
+              if [ "$worker_running" != "true" ]; then
+                echo "Inbound worker did not remain running after API verification."
+                docker compose ps
+                docker logs --tail=200 expenses-tracker-inbound-worker || true
                 exit 1
               fi
 
