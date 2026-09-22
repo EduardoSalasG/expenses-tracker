@@ -91,6 +91,55 @@ export function serializeExpenseFilters(filters: {
   };
 }
 
+export type ExpenseActiveFilterSummaryItem = { label: string; value: string };
+
+export function expenseActiveFilterSummary(
+  filters: {
+    from: string;
+    to: string;
+    concept: string;
+    categoryId: string;
+    subcategoryId: string;
+    paymentMethodOptionId: string;
+    bankOptionId: string;
+    currency: string;
+    paymentMethodKind: string;
+  },
+  context: {
+    language: 'es' | 'en';
+    categories: Array<Pick<Category, 'id' | 'parentId' | 'name' | 'nameEs' | 'nameEn'>>;
+    bankOptions: Array<Pick<BankOption, 'id' | 'name'>>;
+    paymentMethodOptions: Array<Pick<PaymentMethodOption, 'id' | 'name'>>;
+    t: (key: string) => string;
+  }
+): ExpenseActiveFilterSummaryItem[] {
+  const items: ExpenseActiveFilterSummaryItem[] = [];
+  if (filters.from || filters.to) {
+    items.push({ label: context.t('expenses_period'), value: [filters.from, filters.to].filter(Boolean).join(' — ') });
+  }
+  if (filters.concept.trim()) items.push({ label: context.t('expenses_concept'), value: filters.concept.trim() });
+  if (filters.categoryId || filters.subcategoryId) {
+    const categoryId = filters.subcategoryId || filters.categoryId;
+    items.push({
+      label: context.t('expenses_category'),
+      value: categoryPathLabel(context.language, context.categories as Category[], categoryId, context.t('expenses_uncategorized'))
+    });
+  }
+  if (filters.currency.trim()) items.push({ label: context.t('expenses_currency'), value: filters.currency.trim().toUpperCase() });
+  if (filters.bankOptionId) {
+    const bank = context.bankOptions.find((item) => item.id === filters.bankOptionId);
+    items.push({ label: context.t('expenses_bank'), value: bank?.name ?? filters.bankOptionId });
+  }
+  if (filters.paymentMethodOptionId) {
+    const option = context.paymentMethodOptions.find((item) => item.id === filters.paymentMethodOptionId);
+    items.push({ label: context.t('expenses_payment_option'), value: option?.name ?? filters.paymentMethodOptionId });
+  }
+  if (filters.paymentMethodKind) {
+    items.push({ label: context.t('expenses_payment_method_kind'), value: context.t(`expenses_${filters.paymentMethodKind}`) });
+  }
+  return items;
+}
+
 @Component({
   selector: 'app-expenses',
   standalone: true,
@@ -169,7 +218,7 @@ export function serializeExpenseFilters(filters: {
             <input matInput id="expenses-filter-currency" formControlName="currency" maxlength="3" name="expensesCurrency">
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>{{ t('expenses_payment_method') }}</mat-label>
+            <mat-label>{{ t('expenses_payment_option') }}</mat-label>
             <mat-select id="expenses-filter-payment-option" formControlName="paymentMethodOptionId" name="expensesPaymentMethodOption" aria-label="Expense payment option filter">
               <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
               @for (option of paymentMethodOptions(); track option.id) {
@@ -187,7 +236,7 @@ export function serializeExpenseFilters(filters: {
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>{{ t('expenses_payment_method') }}</mat-label>
+            <mat-label>{{ t('expenses_payment_method_kind') }}</mat-label>
             <mat-select id="expenses-filter-payment-method" formControlName="paymentMethodKind" name="expensesPaymentMethodKind" aria-label="Expense payment method filter">
               <mat-option value="">{{ t('expenses_all_short') }}</mat-option>
               <mat-option value="cash">{{ t('expenses_cash') }}</mat-option>
@@ -202,7 +251,16 @@ export function serializeExpenseFilters(filters: {
         </form>
       </app-disclosure-panel>
       @if (hasSecondaryFilters()) {
-        <p class="mt-3 text-sm text-brand-muted">{{ t('expenses_active_filters') }}</p>
+        <section data-testid="expense-active-filter-summary" class="mt-3" [attr.aria-label]="t('expenses_active_filters')">
+          <dl class="flex flex-wrap gap-2">
+            @for (filter of activeFilterSummary(); track filter.label) {
+              <div class="min-w-0 max-w-full rounded-md border border-brand-border bg-brand-surface-muted px-3 py-2 text-sm">
+                <dt class="text-xs font-medium text-brand-muted">{{ filter.label }}</dt>
+                <dd class="truncate font-medium text-brand-ink" [attr.title]="filter.value">{{ filter.value }}</dd>
+              </div>
+            }
+          </dl>
+        </section>
       }
     </mat-card>
 
@@ -375,6 +433,16 @@ export class ExpensesComponent implements OnInit {
 
   hasSecondaryFilters() {
     return hasSecondaryExpenseFilters(this.filters.getRawValue());
+  }
+
+  activeFilterSummary() {
+    return expenseActiveFilterSummary(this.filters.getRawValue(), {
+      language: this.i18n.language(),
+      categories: this.categories(),
+      bankOptions: this.bankOptions(),
+      paymentMethodOptions: this.paymentMethodOptions(),
+      t: this.t
+    });
   }
 
   applyFilters() {
@@ -573,8 +641,7 @@ export class ExpensesComponent implements OnInit {
   }
 
   categoryName(categoryId: string) {
-    const category = this.categories().find((item) => item.id === categoryId);
-    return category ? categoryDisplayName(this.i18n.language(), category) : this.t('expenses_uncategorized');
+    return categoryPathLabel(this.i18n.language(), this.categories(), categoryId, this.t('expenses_uncategorized'));
   }
 
   categoryLabel(category: Category) {

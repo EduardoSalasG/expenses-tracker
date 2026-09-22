@@ -247,7 +247,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                       <button mat-icon-button type="button" class="!text-brand-ink" (click)="startBankEdit(bank)" [attr.aria-label]="t('common_edit')">
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deleteBankOption(bank)" [attr.aria-label]="t('common_close')">
+                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deleteBankOption(bank)" [attr.aria-label]="t('common_delete')">
                         <mat-icon>delete</mat-icon>
                       </button>
                     }
@@ -313,7 +313,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                       <button mat-icon-button type="button" class="!text-brand-ink" (click)="startPaymentMethodEdit(option)" [attr.aria-label]="t('common_edit')">
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deletePaymentMethodOption(option)" [attr.aria-label]="t('common_close')">
+                      <button mat-icon-button type="button" class="!text-rose-300" (click)="deletePaymentMethodOption(option)" [attr.aria-label]="t('common_delete')">
                         <mat-icon>delete</mat-icon>
                       </button>
                     }

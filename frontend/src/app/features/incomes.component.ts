@@ -17,6 +17,11 @@ import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
+import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.component';
+
+export function hasSecondaryIncomeFilters(filters: { concept: string; currency: string }) {
+  return Boolean(filters.concept.trim() || filters.currency.trim());
+}
 
 @Component({
   selector: 'app-incomes',
@@ -32,7 +37,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     ReactiveFormsModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    DisclosurePanelComponent
   ],
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
@@ -49,17 +55,13 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           (change)="changeMonth($event)"
         >
         <div class="flex items-center gap-2">
-          <button id="incomes-filter-toggle" mat-stroked-button type="button" (click)="toggleFilters()">
-            <mat-icon>tune</mat-icon>
-            {{ t('expenses_filters_more') }}
-          </button>
           <button id="incomes-new-button" mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
             <mat-icon>add</mat-icon>
             {{ t('incomes_new') }}
           </button>
         </div>
       </div>
-      @if (filtersOpen()) {
+      <app-disclosure-panel [label]="t('expenses_filters_more')" triggerId="incomes-filter-toggle" [open]="hasSecondaryFilters()" class="mt-4 block">
         <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="mt-4 grid gap-4 lg:grid-cols-5">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
@@ -82,7 +84,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
           </div>
         </form>
-      }
+      </app-disclosure-panel>
     </mat-card>
 
     <mat-card id="incomes-history-panel" class="page-panel p-5">
@@ -157,7 +159,6 @@ export class IncomesComponent implements OnInit {
   readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly filtersOpen = signal(false);
   readonly selectedMonth = signal(this.periodState.selectedMonth());
   readonly filters = inject(FormBuilder).nonNullable.group({
     from: [''],
@@ -202,8 +203,8 @@ export class IncomesComponent implements OnInit {
     this.loadIncomes();
   }
 
-  toggleFilters() {
-    this.filtersOpen.set(!this.filtersOpen());
+  hasSecondaryFilters() {
+    return hasSecondaryIncomeFilters(this.filters.getRawValue());
   }
 
   applyFilters() {

@@ -65,8 +65,14 @@ describe('SettingsComponent', () => {
       botUrl: 'https://t.me/test_bot',
       phoneNumber: user.phoneNumber
     }));
-    api.bankOptions.and.returnValue(of([]));
-    api.paymentMethodOptions.and.returnValue(of([]));
+    api.bankOptions.and.returnValue(of([{ id: 'bank-1', name: 'Banco de prueba', isDefault: false }]));
+    api.paymentMethodOptions.and.returnValue(of([{
+      id: 'payment-1',
+      code: 'TEST_CARD',
+      name: 'Tarjeta de prueba',
+      kind: 'card',
+      isDefault: false
+    }]));
     api.accountContext.and.returnValue(of(accountContext));
     api.listAccountMembers.and.returnValue(of([]));
 
@@ -149,6 +155,17 @@ describe('SettingsComponent', () => {
     version?.focus();
     expect(document.activeElement).toBe(version);
     expect(fixture.nativeElement.lastElementChild).toBe(version);
+  });
+
+  it('announces catalog deletion rather than an unrelated close action', () => {
+    fixture.componentInstance.openSettingsSection('catalogs', false);
+    fixture.detectChanges();
+    const labels = [...fixture.nativeElement.querySelectorAll('button')]
+      .filter((button: HTMLButtonElement) => button.querySelector('mat-icon')?.textContent?.trim() === 'delete')
+      .map((button: HTMLButtonElement) => button.getAttribute('aria-label'));
+
+    expect(labels).toContain('common_delete');
+    expect(labels).not.toContain('common_close');
   });
 
   it('accepts only known sections from a deep link', () => {

@@ -5,13 +5,13 @@
 
 ## 2. Contexto verificable de gastos
 
-- [ ] 2.1 Implementar el resumen derivado de filtros efectivos sin cambiar la serialización ni los parámetros URL existentes; verificar las pruebas de filtros de Gastos y que la combinación de subcategoría, banco y período sigue enviando sólo los criterios actuales.
-- [ ] 2.2 Mostrar la ruta completa de clasificación en las filas y tarjetas de Gastos, con fallback localizado y prioridad visual móvil; verificar las pruebas de etiqueta y ausencia de overflow horizontal a 320 px.
-- [ ] 2.3 Diferenciar las etiquetas visibles/localizadas de opción de medio y tipo de medio de pago cuando ambos filtros estén disponibles; verificar que cada control conserva su valor y etiqueta correctos.
+- [x] 2.1 Implementar el resumen derivado de filtros efectivos sin cambiar la serialización ni los parámetros URL existentes; verificar las pruebas de filtros de Gastos y que la combinación de subcategoría, banco y período sigue enviando sólo los criterios actuales.
+- [x] 2.2 Mostrar la ruta completa de clasificación en las filas y tarjetas de Gastos, con fallback localizado y prioridad visual móvil; verificar las pruebas de etiqueta y ausencia de overflow horizontal a 320 px.
+- [x] 2.3 Diferenciar las etiquetas visibles/localizadas de opción de medio y tipo de medio de pago cuando ambos filtros estén disponibles; verificar que cada control conserva su valor y etiqueta correctos.
 
 ## 3. Divulgación y acciones accesibles
 
-- [ ] 3.1 Migrar los filtros secundarios de Ingresos al componente de divulgación compartido, preservando el identificador de onboarding, estado inicial para filtros activos y deep links; verificar las pruebas de Ingresos y la navegación por teclado.
+- [x] 3.1 Migrar los filtros secundarios de Ingresos al componente de divulgación compartido, preservando el identificador de onboarding, estado inicial para filtros activos y deep links; verificar las pruebas de Ingresos y la navegación por teclado.
 - [ ] 3.2 Corregir los icon-buttons destructivos de bancos y medios de pago para usar el nombre accesible localizado de eliminación, sin alterar confirmaciones ni llamadas API; verificar la prueba de Configuración.
 
 ## 4. Verificación integrada
