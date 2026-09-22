@@ -12,7 +12,7 @@
 ## 3. Divulgación y acciones accesibles
 
 - [x] 3.1 Migrar los filtros secundarios de Ingresos al componente de divulgación compartido, preservando el identificador de onboarding, estado inicial para filtros activos y deep links; verificar las pruebas de Ingresos y la navegación por teclado.
-- [ ] 3.2 Corregir los icon-buttons destructivos de bancos y medios de pago para usar el nombre accesible localizado de eliminación, sin alterar confirmaciones ni llamadas API; verificar la prueba de Configuración.
+- [x] 3.2 Corregir los icon-buttons destructivos de bancos y medios de pago para usar el nombre accesible localizado de eliminación, sin alterar confirmaciones ni llamadas API; verificar la prueba de Configuración.
 
 ## 4. Verificación integrada
 
