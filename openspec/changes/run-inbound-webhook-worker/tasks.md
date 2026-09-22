@@ -12,4 +12,4 @@
 ## 3. Verificación integrada
 
 - [ ] 3.1 Ejecutar lint, pruebas unitarias relevantes y build backend; verificar que todos finalicen correctamente.
-- [ ] 3.2 Validar estrictamente OpenSpec y revisar el diff final contra las especificaciones; verificar que las tareas completadas y la documentación reflejen el comportamiento entregado.
+- [x] 3.2 Validar estrictamente OpenSpec y revisar el diff final contra las especificaciones; verificar que las tareas completadas y la documentación reflejen el comportamiento entregado.
