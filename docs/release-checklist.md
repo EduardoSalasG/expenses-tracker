@@ -85,6 +85,7 @@ Use this checklist for every production promotion from `dev` to `main`.
 - Confirm Netlify + Oracle backend deploys completed.
 - Post-deploy checks:
   - `/health/live`, `/health/ready`
+  - ambos contenedores (`expenses-tracker-backend` y `expenses-tracker-inbound-worker`) usan el SHA promovido; el worker registra `Inbound event worker started.` y su contador de reinicios es `0`
   - web password login
   - magic-link request/consume
   - one expense save from messaging channel
