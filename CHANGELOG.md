@@ -6,6 +6,13 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-22
+
+### Fixed
+
+- El despliegue backend verifica el artefacto y estabilidad real del worker inbound.
+- Las integraciones PostgreSQL locales se ejecutan en una base temporal aislada.
+
 ## [0.3.2] - 2026-09-22
 
 ### Fixed
