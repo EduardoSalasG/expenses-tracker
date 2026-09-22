@@ -1,6 +1,6 @@
 {
   "name": "@expenses-tracker/backend",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,7 @@
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
     "worker:inbound-events": "node dist/infrastructure/process-inbound-events.js",
+    "worker:inbound-events:daemon": "node dist/infrastructure/process-inbound-events-daemon.js",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
@@ -49,6 +50,7 @@
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "5.7.2",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^2.1.8"
   }
 }

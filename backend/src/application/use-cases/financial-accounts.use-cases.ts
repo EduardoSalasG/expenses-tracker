@@ -6,10 +6,8 @@ import type {
   FinancialAccountInvitation,
   FinancialAccountSettlementSuggestion,
   FinancialAccountSettlement,
-  FinancialAccountMemberProfile,
   MonthlyBudget,
-  PaymentMethodOption,
-  User
+  PaymentMethodOption
 } from '../../domain/index.js';
 import type {
   BankOptionRepository,

@@ -1,15 +1,4 @@
-## Purpose
-
-Entrega eventos inbound verificados de manera durable, deduplicada y reintentable.
-
-## Requirements
-
-### Requirement: Admisión durable e idempotente
-El sistema SHALL persistir cada evento inbound verificado antes de reconocerlo al proveedor y MUST deduplicar entregas repetidas antes de producir efectos.
-
-#### Scenario: Reentrega del proveedor
-- **WHEN** llega un evento con la misma identidad de proveedor y canal
-- **THEN** el sistema responde exitosamente sin crear un segundo procesamiento
+## MODIFIED Requirements
 
 ### Requirement: Procesamiento con retry y DLQ
 El sistema SHALL procesar eventos pendientes fuera de la solicitud HTTP mediante un consumidor que permanezca activo en producción, MUST reintentar fallos transitorios con límite y MUST aislar los agotados en una cola muerta. Tras un despliegue o reinicio, el consumidor MUST volver a procesar los eventos pendientes sin intervención manual.

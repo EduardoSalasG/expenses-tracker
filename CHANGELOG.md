@@ -6,6 +6,18 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-22
+
+### Fixed
+
+- El consumidor durable de eventos inbound se ejecuta continuamente en producción y retoma los eventos pendientes tras un despliegue o reinicio.
+- El deploy backend exige que tanto la API como el consumidor permanezcan ejecutándose desde la imagen inmutable del commit desplegado; ya no acepta una imagen `latest` ni un contenedor anterior.
+- La extracción de estados de entrega de WhatsApp conserva explícitamente una lista vacía de errores cuando el proveedor la informa.
+
+### Changed
+
+- El backend incorpora una configuración ESLint nativa para TypeScript, de modo que el control de calidad se ejecuta localmente y en CI con reglas explícitas.
+
 ## [0.3.1] - 2026-09-21
 
 ### Fixed

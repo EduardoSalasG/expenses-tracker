@@ -171,17 +171,30 @@ If you need to simulate a proxied public visitor, send `X-Forwarded-For` with a 
 
 ## Durable inbound webhook worker
 
-Webhooks verificados se guardan en `inbound_webhook_events` antes de responder. Ejecutar el worker de forma periódica (cron o scheduler) para procesar la bandeja:
+Webhooks verificados se guardan en `inbound_webhook_events` antes de responder. En producción, `expenses-tracker-inbound-worker` se inicia junto con la API mediante Compose y procesa la bandeja continuamente; no requiere cron ni un scheduler externo.
+
+```bash
+docker compose ps expenses-tracker-backend expenses-tracker-inbound-worker
+docker logs --tail=200 expenses-tracker-inbound-worker
+```
+
+El worker reutiliza el mismo `.env` y la misma imagen SHA que la API. `INBOUND_EVENT_BATCH_SIZE` controla la cantidad máxima por tanda (predeterminado: `25`) e `INBOUND_EVENT_POLL_INTERVAL_MS` el intervalo cuando la bandeja está vacía (predeterminado: `1000`, mínimo efectivo: `250`). No es necesario declarar estas variables si los valores predeterminados son adecuados.
+
+La clave única por canal/evento evita duplicados. Los fallos reintentan hasta tres veces con backoff y luego quedan en `dead_letter`; revisar conteos y errores saneados sin consultar ni registrar payloads completos. Para drenar manualmente una sola tanda durante recuperación, usar:
 
 ```bash
 pnpm --filter @expenses-tracker/backend worker:inbound-events
 ```
 
-La clave única por canal/evento evita duplicados. Los fallos reintentan hasta tres veces con backoff y luego quedan en `dead_letter`; revisar conteos y errores saneados sin consultar ni registrar payloads completos.
+El workflow de despliegue debe mostrar la misma imagen SHA para `expenses-tracker-backend` y `expenses-tracker-inbound-worker`, y fallar si cualquiera no queda en ejecución. Si el worker falla después de un despliegue, inspeccionar sus últimos logs, corregir la causa y recrear sólo ese servicio con la misma variable `BACKEND_IMAGE` usada por el despliegue:
+
+```bash
+docker compose up -d --force-recreate --pull never expenses-tracker-inbound-worker
+```
 
 - Use `GET /health/live` for container liveness.
 - Use `GET /health/ready` for readiness; it verifies DB connectivity when PostgreSQL mode is enabled.
-- Report worker exits with `exitCode=1` when one or more deliveries fail. Configure scheduler/platform alerts on non-zero exit status.
+- Monitor the `expenses-tracker-inbound-worker` container state and its sanitized logs; Docker restarts it with `unless-stopped` if its process exits unexpectedly.
 - For large structural features that require historical backfill, do not rely on app startup hooks. Deliver:
   - incremental schema migration scripts
   - one explicit one-time backfill script for existing production data

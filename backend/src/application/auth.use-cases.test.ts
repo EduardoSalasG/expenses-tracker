@@ -388,11 +388,11 @@ class CapturingEmailProvider implements EmailProvider {
 }
 
 class FakeTokenService implements TokenService {
-  signAccessToken(user: User, financialAccountId?: string) {
+  signAccessToken(user: User, _financialAccountId?: string) {
     return `access:${user.id}`;
   }
 
-  signRefreshToken(user: User, financialAccountId?: string) {
+  signRefreshToken(user: User, _financialAccountId?: string) {
     return `refresh:${user.id}`;
   }
 

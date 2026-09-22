@@ -1,8 +1,4 @@
-## Purpose
-
-Hace observable el ciclo de vida inbound sin almacenar secretos ni cuerpos sensibles.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Trazabilidad segura de eventos
 El sistema SHALL registrar correlación, estado e intentos de cada evento inbound y MUST excluir secretos y cuerpos completos de webhook. El despliegue de producción MUST verificar de manera inequívoca que los procesos API y consumidor usan la imagen versionada esperada y que ambos quedan en ejecución.
