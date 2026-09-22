@@ -215,6 +215,13 @@ describe('Financial account isolation routes', () => {
 });
 
 describe('extractWhatsAppMessages', () => {
+  it('ignores malformed text messages without throwing', () => {
+    expect(extractWhatsAppMessages({
+      field: 'messages',
+      value: { messages: [{ type: 'text', from: '56982439041' }] }
+    })).toEqual([]);
+  });
+
   it('extracts messages from real Meta webhook wrapper', () => {
     const messages = extractWhatsAppMessages({
       entry: [

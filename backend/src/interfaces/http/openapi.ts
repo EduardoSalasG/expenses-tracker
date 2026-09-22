@@ -2333,34 +2333,6 @@ function authenticatedGet(summary: string) {
   };
 }
 
-function authenticatedPost(summary: string) {
-  return {
-    post: {
-      summary,
-      security: [{ bearerAuth: [] }],
-      responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
-    }
-  };
-}
-
-function authenticatedPut(summary: string) {
-  return {
-    put: {
-      summary,
-      security: [{ bearerAuth: [] }],
-      responses: withUnauthorized(standardResponses({ data: { type: 'object' } }))
-    }
-  };
-}
-
-function authenticatedCollection(summary: string) {
-  return {
-    get: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'array', items: { type: 'object' } } }) },
-    post: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'object' } }) },
-    put: { summary, security: [{ bearerAuth: [] }], responses: standardResponses({ data: { type: 'object' } }) }
-  };
-}
-
 function queryParam(name: string, type: string, description: string) {
   return { name, in: 'query', required: false, schema: { type }, description };
 }

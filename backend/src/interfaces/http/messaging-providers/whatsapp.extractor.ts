@@ -1,55 +1,81 @@
 import type { InboundTextMessage } from '../../../domain/index.js';
 import type { InboundDeliveryStatus } from '../services/inbound-messaging.service.js';
 
-export function extractWhatsAppMessages(body: any): InboundTextMessage[] {
-  if (body?.field === 'messages' && body?.value?.messages) {
-    return messagesFromValue(body.value);
-  }
+type JsonRecord = Record<string, unknown>;
 
-  const entries = body?.entry ?? [];
-  return entries.flatMap((entry: any) =>
-    (entry?.changes ?? []).flatMap((change: any) =>
-      messagesFromValue(change?.value)
-    )
-  );
+export function extractWhatsAppMessages(body: unknown): InboundTextMessage[] {
+  return extractValues(body).flatMap(messagesFromValue);
 }
 
-export function extractWhatsAppStatuses(body: any): InboundDeliveryStatus[] {
-  if (body?.field === 'messages' && body?.value?.statuses) {
-    return statusesFromValue(body.value);
-  }
-
-  const entries = body?.entry ?? [];
-  return entries.flatMap((entry: any) =>
-    (entry?.changes ?? []).flatMap((change: any) =>
-      statusesFromValue(change?.value)
-    )
-  );
+export function extractWhatsAppStatuses(body: unknown): InboundDeliveryStatus[] {
+  return extractValues(body).flatMap(statusesFromValue);
 }
 
-function messagesFromValue(value: any): InboundTextMessage[] {
-  return (value?.messages ?? [])
-    .filter((message: any) => message.type === 'text')
-    .map((message: any) => ({
-      providerMessageId: message.id,
+function extractValues(body: unknown): unknown[] {
+  const webhook = asRecord(body);
+  if (!webhook) return [];
+  if (webhook.field === 'messages' && webhook.value) return [webhook.value];
+
+  return asArray(webhook.entry).flatMap((entry) => {
+    const entryRecord = asRecord(entry);
+    return asArray(entryRecord?.changes).flatMap((change) => {
+      const changeRecord = asRecord(change);
+      return changeRecord?.value ? [changeRecord.value] : [];
+    });
+  });
+}
+
+function messagesFromValue(value: unknown): InboundTextMessage[] {
+  const payload = asRecord(value);
+  return asArray(payload?.messages).flatMap((message) => {
+    const textMessage = asRecord(message);
+    const text = asRecord(textMessage?.text);
+    const fromPhoneNumber = asString(textMessage?.from);
+    const body = asString(text?.body);
+    if (textMessage?.type !== 'text' || !fromPhoneNumber || !body) return [];
+
+    return [{
+      providerMessageId: asString(textMessage.id),
       channel: 'whatsapp',
-      fromPhoneNumber: normalizeWhatsAppPhone(message.from),
-      message: message.text.body
-    }));
+      fromPhoneNumber: normalizeWhatsAppPhone(fromPhoneNumber),
+      message: body
+    }];
+  });
 }
 
-function statusesFromValue(value: any): InboundDeliveryStatus[] {
-  return (value?.statuses ?? [])
-    .map((status: any) => ({
-      providerMessageId: status.id,
-      recipientPhoneNumber: status.recipient_id ? normalizeWhatsAppPhone(status.recipient_id) : undefined,
-      status: status.status,
-      timestamp: status.timestamp,
-      conversationId: status.conversation?.id,
-      errors: status.errors
-    }));
+function statusesFromValue(value: unknown): InboundDeliveryStatus[] {
+  const payload = asRecord(value);
+  return asArray(payload?.statuses).flatMap((status) => {
+    const delivery = asRecord(status);
+    const deliveryStatus = asString(delivery?.status);
+    if (!deliveryStatus) return [];
+
+    const recipientId = asString(delivery?.recipient_id);
+    const conversation = asRecord(delivery?.conversation);
+    const errors = asArray(delivery?.errors);
+    return [{
+      providerMessageId: asString(delivery?.id),
+      recipientPhoneNumber: recipientId ? normalizeWhatsAppPhone(recipientId) : undefined,
+      status: deliveryStatus,
+      timestamp: asString(delivery?.timestamp),
+      conversationId: asString(conversation?.id),
+      errors: errors.length > 0 ? errors : undefined
+    }];
+  });
+}
+
+function asRecord(value: unknown): JsonRecord | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
 
 function normalizeWhatsAppPhone(phoneNumber: string): string {
-  return phoneNumber?.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+  return phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 }
