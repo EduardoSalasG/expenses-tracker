@@ -44,7 +44,9 @@ function parsePositiveInteger(value: string | undefined, fallback: number) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function waitForAbort(milliseconds: number, signal: AbortSignal) {
+export function waitForAbort(milliseconds: number, signal: AbortSignal) {
+  if (signal.aborted) return Promise.resolve();
+
   return new Promise<void>((resolve) => {
     const timeout = setTimeout(finish, milliseconds);
 

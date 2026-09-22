@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseInboundWorkerSettings, runInboundEventWorker } from './inbound-event-worker.js';
+import { parseInboundWorkerSettings, runInboundEventWorker, waitForAbort } from './inbound-event-worker.js';
 
 describe('inbound event worker', () => {
   it('drains consecutive batches before waiting and closes after abort', async () => {
@@ -27,5 +27,12 @@ describe('inbound event worker', () => {
       INBOUND_EVENT_BATCH_SIZE: '0',
       INBOUND_EVENT_POLL_INTERVAL_MS: '-1'
     })).toEqual({ limit: 25, pollIntervalMs: 1000 });
+  });
+
+  it('does not wait after shutdown was already requested', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(waitForAbort(60_000, controller.signal)).resolves.toBeUndefined();
   });
 });
