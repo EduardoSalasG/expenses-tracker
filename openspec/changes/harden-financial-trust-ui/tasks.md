@@ -1,7 +1,7 @@
 ## 1. Pruebas de contrato de confianza
 
-- [ ] 1.1 Añadir pruebas unitarias primero para el resumen localizado de filtros de gastos, incluida la ruta categoría / subcategoría y los fallbacks, y verificar que fallan antes de implementar el selector derivado.
-- [ ] 1.2 Añadir pruebas de plantilla para la divulgación semántica de filtros de Ingresos y los nombres accesibles de eliminación en Configuración, y verificar que fallan contra la implementación actual.
+- [x] 1.1 Añadir pruebas unitarias primero para el resumen localizado de filtros de gastos, incluida la ruta categoría / subcategoría y los fallbacks, y verificar que fallan antes de implementar el selector derivado.
+- [x] 1.2 Añadir pruebas de plantilla para la divulgación semántica de filtros de Ingresos y los nombres accesibles de eliminación en Configuración, y verificar que fallan contra la implementación actual.
 
 ## 2. Contexto verificable de gastos
 
@@ -16,6 +16,6 @@
 
 ## 4. Verificación integrada
 
-- [ ] 4.1 Ejecutar las pruebas unitarias afectadas y `pnpm --filter @expenses-tracker/frontend build`; verificar salida exitosa sin errores TypeScript ni de plantilla.
-- [ ] 4.2 Realizar QA de escritorio, 390 px y 320 px: filtros combinados, resumen de valores, tarjeta con banco largo, teclado/foco, modo oscuro y `prefers-reduced-motion`; registrar evidencia y cualquier limitación.
-- [ ] 4.3 Actualizar los artefactos OpenSpec con el estado real de las tareas y preparar el commit en `dev`; verificar `openspec validate harden-financial-trust-ui --strict` y `git status` sin cambios ajenos.
+- [x] 4.1 Ejecutar las pruebas unitarias afectadas y `pnpm --filter @expenses-tracker/frontend build`; verificar salida exitosa sin errores TypeScript ni de plantilla.
+- [x] 4.2 Realizar QA de escritorio, 390 px y 320 px: filtros combinados, resumen de valores, tarjeta con banco largo, teclado/foco, modo oscuro y `prefers-reduced-motion`; registrar evidencia y cualquier limitación.
+- [x] 4.3 Actualizar los artefactos OpenSpec con el estado real de las tareas y preparar el commit en `dev`; verificar `openspec validate harden-financial-trust-ui --strict` y `git status` sin cambios ajenos.
