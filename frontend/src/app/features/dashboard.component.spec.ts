@@ -100,6 +100,9 @@ describe('DashboardComponent category labels', () => {
         { categoryId: 'food', subcategoryId: 'groceries', currency: 'CLP', total: 12500 },
         { categoryId: 'food', subcategoryId: 'restaurants', currency: 'CLP', total: 2500 }
       ],
+      viewMode: () => 'monthly' as const,
+      selectedMonth: () => '2026-09',
+      locale: () => 'es-CL',
       selectedCategoryId: () => 'food',
       periodTotals: () => [],
       upcomingInstallments: () => [],

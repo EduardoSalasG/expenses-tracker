@@ -117,6 +117,15 @@ jobs:
                 exit 1
               fi
 
+              # A running container can hide a restart loop. Verify the selected
+              # runtime image contains the worker entrypoint before replacing the
+              # healthy production services.
+              if ! docker compose run --rm --no-deps --entrypoint sh expenses-tracker-inbound-worker \
+                -c 'test -f dist/infrastructure/process-inbound-events-daemon.js'; then
+                echo "Selected image does not contain the inbound worker daemon."
+                exit 1
+              fi
+
               # bootstrap runs tracked migrations first, then idempotently applies
               # the system defaults required by a brand-new database.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
@@ -185,9 +194,28 @@ jobs:
                 exit 1
               fi
 
-              worker_running=$(docker inspect expenses-tracker-inbound-worker --format '{{.State.Running}}')
-              if [ "$worker_running" != "true" ]; then
-                echo "Inbound worker did not remain running after API verification."
+              worker_started=false
+              for attempt in $(seq 1 15); do
+                worker_running=$(docker inspect expenses-tracker-inbound-worker --format '{{.State.Running}}')
+                worker_restart_count=$(docker inspect expenses-tracker-inbound-worker --format '{{.RestartCount}}')
+                if [ "$worker_running" != "true" ] || [ "$worker_restart_count" != "0" ]; then
+                  echo "Inbound worker is not stable after deploy. Running: $worker_running; restarts: $worker_restart_count"
+                  docker compose ps
+                  docker logs --tail=200 expenses-tracker-inbound-worker || true
+                  exit 1
+                fi
+
+                if docker logs --tail=100 expenses-tracker-inbound-worker | grep -F 'Inbound event worker started.' > /dev/null; then
+                  worker_started=true
+                fi
+
+                if [ "$attempt" -lt 15 ]; then
+                  sleep 1
+                fi
+              done
+
+              if [ "$worker_started" != "true" ]; then
+                echo "Inbound worker did not emit its startup signal after deploy."
                 docker compose ps
                 docker logs --tail=200 expenses-tracker-inbound-worker || true
                 exit 1

@@ -103,6 +103,12 @@ pnpm db:export:data
 pnpm db:export:tenant
 ```
 
+Para ejecutar las integraciones PostgreSQL contra Docker local (puerto `6543`):
+
+```bash
+pnpm test:db:integration
+```
+
 Use cases:
 
 - `pnpm db:bootstrap`: new environment from zero

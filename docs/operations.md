@@ -45,6 +45,8 @@ The backend workflow never deploys the mutable `latest` tag. GitHub Actions publ
 Before the workflow succeeds, it verifies all of the following:
 
 - the running container image ID equals the image ID for the pushed commit SHA
+- the selected runtime image contains the inbound worker daemon before replacing production services
+- the inbound worker emits its startup signal and has zero restarts during the post-deploy validation window
 - the local `/health` endpoint responds successfully
 - the authenticated-route probe for `/me/account-context` returns anonymous `401` through both the container port and the real HTTPS Nginx virtual host
 
@@ -186,11 +188,18 @@ La clave única por canal/evento evita duplicados. Los fallos reintentan hasta t
 pnpm --filter @expenses-tracker/backend worker:inbound-events
 ```
 
-El workflow de despliegue debe mostrar la misma imagen SHA para `expenses-tracker-backend` y `expenses-tracker-inbound-worker`, y fallar si cualquiera no queda en ejecución. Si el worker falla después de un despliegue, inspeccionar sus últimos logs, corregir la causa y recrear sólo ese servicio con la misma variable `BACKEND_IMAGE` usada por el despliegue:
+El workflow de despliegue debe mostrar la misma imagen SHA para `expenses-tracker-backend` y `expenses-tracker-inbound-worker`, comprobar que el daemon existe dentro de la imagen y fallar si el worker no emite su señal de inicio o se reinicia. Para recuperar producción manualmente, usar siempre el SHA inmutable y recrear ambos servicios juntos:
 
 ```bash
-docker compose up -d --force-recreate --pull never expenses-tracker-inbound-worker
+export BACKEND_IMAGE=ghcr.io/eduardosalasg/expenses-tracker-backend:<commit-sha>
+docker pull "$BACKEND_IMAGE"
+docker compose config --images
+docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend expenses-tracker-inbound-worker
+docker compose ps expenses-tracker-backend expenses-tracker-inbound-worker
+docker logs --tail=100 expenses-tracker-inbound-worker
 ```
+
+No ejecutar `docker compose up --remove-orphans` contra sólo la API: Compose puede retirar al worker como huérfano y dejar webhooks persistidos sin consumidor. No usar `latest` para recuperar o verificar producción.
 
 - Use `GET /health/live` for container liveness.
 - Use `GET /health/ready` for readiness; it verifies DB connectivity when PostgreSQL mode is enabled.

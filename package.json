@@ -1,6 +1,6 @@
 {
   "name": "expenses-tracker",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -29,6 +29,7 @@
     "release:verify": "pnpm run version:check && pnpm run build",
     "build": "pnpm run version:check && pnpm -r build",
     "test": "pnpm -r test",
+    "test:db:integration": "node scripts/run-db-integration.mjs",
     "lint": "pnpm -r lint"
   },
   "engines": {

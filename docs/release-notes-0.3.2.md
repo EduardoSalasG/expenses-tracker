@@ -3,7 +3,8 @@
 ## Identificación
 
 - Versión SemVer: `0.3.2` (PATCH).
-- Tag anotado: pendiente de la promoción verificada de `main`.
+- Tag anotado: `v0.3.2` sobre `bc9fbdfd7cd150e8da8d727dd6a328c38edf0018`.
+- SHA inmutable de `main`: `bc9fbdfd7cd150e8da8d727dd6a328c38edf0018`.
 - Fecha: 2026-09-22.
 
 ## Cambios incluidos
@@ -22,4 +23,6 @@
 
 ## Evidencia de promoción
 
-- Pendiente: se añadirá el SHA, tag y resultados de despliegue tras comprobar GitHub Actions, Netlify y los health checks públicos.
+- GitHub Actions: `Deploy expenses-tracker backend` completó correctamente la ejecución `35691651780`, incluida la verificación de la imagen SHA para API y worker, Nginx y el contrato público de gastos.
+- Netlify: el frontend público respondió `200 OK`.
+- Health checks: `/health`, `/health/live` y `/health/ready` respondieron correctamente; este último confirmó la base de datos.
