@@ -108,7 +108,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
         <div class="min-w-0">
           <header class="settings-detail-header">
             <button mat-stroked-button type="button" class="settings-back-button" (click)="closeSettingsSection()">
-              <mat-icon>arrow_back</mat-icon>
+              <mat-icon aria-hidden="true">arrow_back</mat-icon>
               {{ t('settings_back') }}
             </button>
             @if (activeSettingsMetadata(); as section) {
@@ -245,10 +245,10 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                   <div class="flex items-center gap-1">
                     @if (!bank.isDefault) {
                       <button mat-icon-button type="button" class="!text-brand-ink" (click)="startBankEdit(bank)" [attr.aria-label]="t('common_edit')">
-                        <mat-icon>edit</mat-icon>
+                        <mat-icon aria-hidden="true">edit</mat-icon>
                       </button>
                       <button mat-icon-button type="button" class="!text-rose-300" (click)="deleteBankOption(bank)" [attr.aria-label]="t('common_delete')">
-                        <mat-icon>delete</mat-icon>
+                        <mat-icon aria-hidden="true">delete</mat-icon>
                       </button>
                     }
                   </div>
@@ -311,10 +311,10 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
                   <div class="flex items-center gap-1">
                     @if (!option.isDefault) {
                       <button mat-icon-button type="button" class="!text-brand-ink" (click)="startPaymentMethodEdit(option)" [attr.aria-label]="t('common_edit')">
-                        <mat-icon>edit</mat-icon>
+                        <mat-icon aria-hidden="true">edit</mat-icon>
                       </button>
                       <button mat-icon-button type="button" class="!text-rose-300" (click)="deletePaymentMethodOption(option)" [attr.aria-label]="t('common_delete')">
-                        <mat-icon>delete</mat-icon>
+                        <mat-icon aria-hidden="true">delete</mat-icon>
                       </button>
                     }
                   </div>
@@ -637,7 +637,7 @@ export function parseSettingsSection(value: string | null): SettingsSectionId | 
             <p class="mt-1 text-sm text-brand-muted">{{ t('settings_session_hint') }}</p>
           </div>
           <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="logout()">
-            <mat-icon>logout</mat-icon>
+            <mat-icon aria-hidden="true">logout</mat-icon>
             <span class="ml-2">{{ t('settings_logout') }}</span>
           </button>
         </div>

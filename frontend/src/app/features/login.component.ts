@@ -1,5 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,6 +9,7 @@ import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { I18nService } from '../core/i18n.service';
 import { PublicContextService } from '../core/public-context.service';
+import { focusPublicMainContent } from '../core/public-skip-focus';
 
 const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_token';
 
@@ -17,9 +19,10 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
   imports: [ReactiveFormsModule, MatButtonModule, MatCardModule, RouterLink],
   template: `
     <div class="app-surface min-h-screen">
+      <a class="skip-link" href="#public-main-content" (click)="focusMainContent($event)">{{ t('skip_to_main') }}</a>
       <header class="border-b border-brand-border/80 bg-brand-surface/90 backdrop-blur">
         <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <a routerLink="/" class="flex items-center gap-3" aria-label="Expenses Tracker home">
+          <a routerLink="/" class="flex items-center gap-3" [attr.aria-label]="t('app_home_link')">
             <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-navy text-sm font-semibold text-white shadow-sm">ET</div>
             <div>
               <div class="text-lg font-semibold tracking-tight text-brand-ink">{{ t('app_name') }}</div>
@@ -29,7 +32,7 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
           <a routerLink="/" class="text-sm font-medium text-brand-blue hover:underline">{{ t('login_back_to_landing') }}</a>
         </div>
       </header>
-      <main class="grid min-h-[calc(100vh-76px)] place-items-center px-3 py-6 sm:px-4 sm:py-10">
+      <main #mainContent id="public-main-content" tabindex="-1" class="grid min-h-[calc(100vh-76px)] place-items-center px-3 py-6 sm:px-4 sm:py-10">
         <mat-card class="page-panel w-full max-w-xl p-5 sm:p-7">
         <div class="mb-6">
           <div class="mb-4 flex h-11 w-11 items-center justify-center rounded bg-brand-navy text-sm font-semibold text-white">ET</div>
@@ -347,6 +350,8 @@ const pendingInvitationTokenKey = 'expenses_tracker_pending_account_invitation_t
   `
 })
 export class LoginComponent implements OnInit {
+  @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly fb = inject(FormBuilder);
   readonly errorMessage = signal('');
   readonly autoSigningIn = signal(false);
@@ -396,7 +401,7 @@ export class LoginComponent implements OnInit {
       this.mode.set('register');
     }
     const accountInvitationToken = this.route.snapshot.queryParamMap.get('accountInvitationToken');
-    if (accountInvitationToken) {
+    if (accountInvitationToken && this.isBrowser) {
       sessionStorage.setItem(pendingInvitationTokenKey, accountInvitationToken);
       this.magicLinkStatus.set(this.t('accounts_invite_pending_login'));
     }
@@ -437,6 +442,10 @@ export class LoginComponent implements OnInit {
         this.errorMessage.set(this.t('login_telegram_link_invalid'));
       }
     });
+  }
+
+  focusMainContent(event: MouseEvent) {
+    focusPublicMainContent(event, this.mainContent?.nativeElement ?? null);
   }
 
   submit() {
@@ -644,7 +653,7 @@ export class LoginComponent implements OnInit {
   }
 
   private completePostAuthFlow() {
-    const token = sessionStorage.getItem(pendingInvitationTokenKey);
+    const token = this.isBrowser ? sessionStorage.getItem(pendingInvitationTokenKey) : null;
     if (!token) {
       void this.router.navigateByUrl('/dashboard');
       return;
@@ -657,22 +666,28 @@ export class LoginComponent implements OnInit {
         this.api.updateAccountContext(membership.account.id).subscribe({
           next: (response) => {
             this.auth.updateSessionTokens(response.accessToken, response.refreshToken);
-            sessionStorage.removeItem(pendingInvitationTokenKey);
+            this.clearPendingInvitationToken();
             this.autoSigningIn.set(false);
             void this.router.navigateByUrl('/settings');
           },
           error: () => {
-            sessionStorage.removeItem(pendingInvitationTokenKey);
+            this.clearPendingInvitationToken();
             this.autoSigningIn.set(false);
             void this.router.navigateByUrl('/settings');
           }
         });
       },
       error: () => {
-        sessionStorage.removeItem(pendingInvitationTokenKey);
+        this.clearPendingInvitationToken();
         this.autoSigningIn.set(false);
         this.errorMessage.set(this.t('accounts_invite_accept_error'));
       }
     });
+  }
+
+  private clearPendingInvitationToken() {
+    if (this.isBrowser) {
+      sessionStorage.removeItem(pendingInvitationTokenKey);
+    }
   }
 }

@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, computed, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { I18nService } from '../core/i18n.service';
 import { PublicContextService } from '../core/public-context.service';
+import { focusPublicMainContent } from '../core/public-skip-focus';
 
 type PrivacySection = { heading: string; body: string[] };
 
@@ -11,21 +12,22 @@ type PrivacySection = { heading: string; body: string[] };
   standalone: true,
   imports: [RouterLink],
   template: `
-    <main class="min-h-screen bg-brand-bg text-brand-ink">
+    <div class="min-h-screen bg-brand-bg text-brand-ink">
+      <a class="skip-link" href="#public-main-content" (click)="focusMainContent($event)">{{ t('skip_to_main') }}</a>
       <header class="border-b border-brand-border/80 bg-brand-surface/90 backdrop-blur">
         <div class="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <a routerLink="/" class="flex items-center gap-3" aria-label="Expenses Tracker home">
+          <a routerLink="/" class="flex items-center gap-3" [attr.aria-label]="t('app_home_link')">
             <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-navy text-sm font-semibold text-white shadow-sm">ET</div>
             <div>
               <div class="text-lg font-semibold tracking-tight">{{ t('app_name') }}</div>
               <div class="text-xs text-brand-muted">{{ t('landing_tagline') }}</div>
             </div>
           </a>
-          <a routerLink="/" class="text-sm font-medium text-brand-blue hover:underline">{{ t('common_close') }}</a>
+          <a routerLink="/" class="inline-flex min-h-11 items-center text-sm font-medium text-brand-blue hover:underline">{{ t('login_back_to_landing') }}</a>
         </div>
       </header>
 
-      <section class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <main #mainContent id="public-main-content" tabindex="-1" class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <p class="text-sm font-semibold uppercase tracking-[0.18em] text-brand-blue">{{ title() }}</p>
         <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{{ title() }}</h1>
         <p class="mt-4 max-w-3xl text-base leading-7 text-brand-muted">{{ description() }}</p>
@@ -42,11 +44,12 @@ type PrivacySection = { heading: string; body: string[] };
             </article>
           }
         </div>
-      </section>
-    </main>
+      </main>
+    </div>
   `
 })
 export class PrivacyComponent implements OnInit {
+  @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
   private readonly titleService = inject(Title);
   private readonly meta = inject(Meta);
   private readonly i18n = inject(I18nService);
@@ -145,6 +148,10 @@ export class PrivacyComponent implements OnInit {
       });
     }
     this.applyMetadata();
+  }
+
+  focusMainContent(event: MouseEvent) {
+    focusPublicMainContent(event, this.mainContent?.nativeElement ?? null);
   }
 
   t(key: string) {

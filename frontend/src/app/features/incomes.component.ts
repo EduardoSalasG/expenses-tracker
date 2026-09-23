@@ -48,7 +48,7 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
         <input
           id="incomes-month"
           name="incomesMonth"
-          aria-label="Incomes month"
+          [attr.aria-label]="t('incomes_month_label')"
           type="month"
           class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
           [value]="selectedMonth()"
@@ -56,7 +56,7 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
         >
         <div class="flex items-center gap-2">
           <button id="incomes-new-button" mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
-            <mat-icon>add</mat-icon>
+            <mat-icon aria-hidden="true">add</mat-icon>
             {{ t('incomes_new') }}
           </button>
         </div>
@@ -125,11 +125,11 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
                   <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
                     <div class="flex flex-wrap justify-end gap-2">
                       <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
-                        <mat-icon>edit</mat-icon>
+                        <mat-icon aria-hidden="true">edit</mat-icon>
                         {{ t('common_edit') }}
                       </button>
                       <button mat-stroked-button type="button" class="!border-rose-500/40 !text-rose-300" (click)="deleteIncome(income)">
-                        <mat-icon>delete</mat-icon>
+                        <mat-icon aria-hidden="true">delete</mat-icon>
                         {{ t('common_delete') }}
                       </button>
                     </div>
@@ -140,7 +140,7 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
           </table>
         </div>
       } @else {
-        <app-empty-state [message]="t('incomes_empty_filters')" />
+        <app-empty-state [message]="t('incomes_empty_filters')" [actionLabel]="t('expenses_clear')" (action)="clearFilters()" />
       }
     </mat-card>
   `
@@ -378,7 +378,7 @@ export class IncomesComponent implements OnInit {
           [attr.aria-label]="t('common_close')"
           (click)="dialogRef.close(false)"
         >
-          <mat-icon>close</mat-icon>
+          <mat-icon aria-hidden="true">close</mat-icon>
         </button>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">

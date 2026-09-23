@@ -168,6 +168,16 @@ describe('SettingsComponent', () => {
     expect(labels).not.toContain('common_close');
   });
 
+  it('keeps button icons decorative when the localized button text already names the action', () => {
+    fixture.componentInstance.openSettingsSection('catalogs', false);
+    fixture.detectChanges();
+
+    const icons = [...fixture.nativeElement.querySelectorAll('button mat-icon')] as HTMLElement[];
+
+    expect(icons.length).toBeGreaterThan(0);
+    expect(icons.every((icon) => icon.getAttribute('aria-hidden') === 'true')).toBeTrue();
+  });
+
   it('accepts only known sections from a deep link', () => {
     expect(parseSettingsSection('catalogs')).toBe('catalogs');
     expect(parseSettingsSection('delete-all')).toBeNull();

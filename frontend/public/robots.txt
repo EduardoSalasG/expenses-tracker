@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /dashboard
+Disallow: /expenses
+Disallow: /incomes
+Disallow: /budgets
+Disallow: /categories
+Disallow: /settings
+Sitemap: https://expenses-tracker-easg.netlify.app/sitemap.xml

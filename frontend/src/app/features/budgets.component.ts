@@ -82,7 +82,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-5">
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_category') }}</mat-label>
-          <mat-select formControlName="categoryId" name="budgetCategory" aria-label="Budget category">
+          <mat-select formControlName="categoryId" name="budgetCategory" [attr.aria-label]="t('budgets_category_label')">
             @for (category of rootCategories(); track category.id) {
               <mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>
             }
@@ -91,7 +91,7 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_subcategory') }}</mat-label>
-          <mat-select formControlName="subcategoryId" name="budgetSubcategory" aria-label="Budget subcategory">
+          <mat-select formControlName="subcategoryId" name="budgetSubcategory" [attr.aria-label]="t('budgets_subcategory_label')">
             <mat-option [value]="''">{{ t('budgets_whole_category') }}</mat-option>
             @for (category of subcategoriesForForm(); track category.id) {
               <mat-option [value]="category.id">{{ displayCategoryName(category) }}</mat-option>

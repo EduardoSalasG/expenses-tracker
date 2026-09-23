@@ -1,10 +1,11 @@
 import { Component, OnInit, computed, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { DOCUMENT } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { I18nService } from '../core/i18n.service';
-import { PublicContextService } from '../core/public-context.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-landing',
@@ -46,7 +47,7 @@ import { PublicContextService } from '../core/public-context.service';
         </div>
       </section>
 
-      <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8"><div class="max-w-xl"><p class="text-sm font-semibold uppercase tracking-[.14em] text-brand-blue">{{ t('landing_features_title') }}</p><h2 class="mt-3 text-3xl font-semibold tracking-[-.03em]">{{ t('landing_features_subtitle') }}</h2></div><div class="mt-9 grid gap-4 md:grid-cols-3">@for (feature of features(); track feature.title) {<article class="rounded-xl border border-brand-border bg-brand-surface p-6"><mat-icon class="!h-6 !w-6 text-brand-blue">{{ feature.icon }}</mat-icon><h3 class="mt-5 text-lg font-semibold">{{ feature.title }}</h3><p class="mt-2 text-sm leading-6 text-brand-muted">{{ feature.description }}</p></article>}</div></section>
+      <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8"><div class="max-w-xl"><p class="text-sm font-semibold uppercase tracking-[.14em] text-brand-blue">{{ t('landing_features_title') }}</p><h2 class="mt-3 text-3xl font-semibold tracking-[-.03em]">{{ t('landing_features_subtitle') }}</h2></div><div class="mt-9 grid gap-4 md:grid-cols-3">@for (feature of features(); track feature.title) {<article class="rounded-xl border border-brand-border bg-brand-surface p-6"><mat-icon aria-hidden="true" class="!h-6 !w-6 text-brand-blue">{{ feature.icon }}</mat-icon><h3 class="mt-5 text-lg font-semibold">{{ feature.title }}</h3><p class="mt-2 text-sm leading-6 text-brand-muted">{{ feature.description }}</p></article>}</div></section>
 
       <section class="border-y border-brand-border/70 bg-brand-surface"><div class="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[.75fr_1.25fr] lg:items-start lg:px-8"><div><p class="text-sm font-semibold uppercase tracking-[.14em] text-brand-blue">{{ t('landing_how_title') }}</p><h2 class="mt-3 text-3xl font-semibold tracking-[-.03em]">{{ t('landing_how_subtitle') }}</h2></div><ol class="grid gap-3 sm:grid-cols-3">@for (step of steps(); track step.title; let index = $index) {<li class="rounded-xl border border-brand-border bg-brand-bg p-5"><span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-navy text-sm font-semibold text-white">{{ index + 1 }}</span><h3 class="mt-4 font-semibold">{{ step.title }}</h3><p class="mt-2 text-sm leading-6 text-brand-muted">{{ step.description }}</p></li>}</ol></div></section>
       <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8"><div class="rounded-2xl bg-brand-navy px-6 py-10 text-center text-white sm:px-10"><h2 class="text-3xl font-semibold tracking-[-.03em]">{{ t('landing_cta_title') }}</h2><p class="mx-auto mt-3 max-w-xl text-base leading-7 text-slate-200">{{ t('landing_cta_description') }}</p><a mat-flat-button color="primary" routerLink="/login" [queryParams]="{ mode: 'register' }" class="mt-7 !min-h-12 !px-6">{{ t('landing_register_short') }}</a></div></section>
@@ -57,16 +58,55 @@ import { PublicContextService } from '../core/public-context.service';
 export class LandingComponent implements OnInit {
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
+  private readonly router = inject(Router);
+  private readonly document = inject(DOCUMENT);
   readonly i18n = inject(I18nService);
-  private readonly publicContext = inject(PublicContextService);
   readonly languages = [{ code: 'es' as const, shortLabel: 'ES', labelKey: 'settings_language_es' }, { code: 'en' as const, shortLabel: 'EN', labelKey: 'settings_language_en' }];
   readonly features = computed(() => [{ icon: 'edit_note', title: this.t('landing_feature_chat_title'), description: this.t('landing_feature_chat_desc') }, { icon: 'account_balance_wallet', title: this.t('landing_feature_shared_title'), description: this.t('landing_feature_shared_desc') }, { icon: 'pie_chart', title: this.t('landing_feature_budget_title'), description: this.t('landing_feature_budget_desc') }]);
   readonly steps = computed(() => [{ title: this.t('landing_step_1_title'), description: this.t('landing_step_1_desc') }, { title: this.t('landing_step_2_title'), description: this.t('landing_step_2_desc') }, { title: this.t('landing_step_3_title'), description: this.t('landing_step_3_desc') }]);
   readonly previewMetrics = computed(() => [{ label: this.t('landing_preview_metric_1_label'), value: this.t('landing_preview_metric_1_value') }, { label: this.t('landing_preview_metric_2_label'), value: this.t('landing_preview_metric_2_value') }, { label: this.t('landing_preview_metric_3_label'), value: this.t('landing_preview_metric_3_value') }]);
   readonly previewHistory = computed(() => [{ concept: this.t('landing_preview_history_1_concept'), meta: this.t('landing_preview_history_1_meta'), amount: this.t('landing_preview_history_1_amount') }, { concept: this.t('landing_preview_history_2_concept'), meta: this.t('landing_preview_history_2_meta'), amount: this.t('landing_preview_history_2_amount') }, { concept: this.t('landing_preview_history_3_concept'), meta: this.t('landing_preview_history_3_meta'), amount: this.t('landing_preview_history_3_amount') }]);
-  ngOnInit() { if (!this.i18n.hasSavedLanguagePreference()) { this.i18n.usePublicDefault(); this.publicContext.getContext().subscribe((context) => { if (!this.i18n.hasSavedLanguagePreference()) { this.i18n.usePublicLanguage(context.language); this.applyMetadata(); } }); } this.applyMetadata(); }
+  ngOnInit() {
+    const routeLanguage = this.router.url === '/en' ? 'en' : 'es';
+    this.i18n.usePublicLanguage(routeLanguage);
+    this.applyMetadata();
+  }
   t(key: string) { return this.i18n.t(key); }
   brandLabel() { return `${this.t('app_name')} — ${this.t('landing_tagline')}`; }
-  changeLanguage(language: 'es' | 'en') { this.i18n.setLanguage(language); this.applyMetadata(); }
-  private applyMetadata() { const title = this.t('landing_meta_title'); const description = this.t('landing_meta_description'); this.title.setTitle(title); this.meta.updateTag({ name: 'description', content: description }); this.meta.updateTag({ name: 'robots', content: 'index,follow' }); this.meta.updateTag({ property: 'og:title', content: title }); this.meta.updateTag({ property: 'og:description', content: description }); this.meta.updateTag({ property: 'og:type', content: 'website' }); }
+  changeLanguage(language: 'es' | 'en') {
+    this.i18n.setLanguage(language);
+    void this.router.navigateByUrl(language === 'en' ? '/en' : '/');
+  }
+  private applyMetadata() {
+    const title = this.t('landing_meta_title');
+    const description = this.t('landing_meta_description');
+    const language = this.i18n.language();
+    const canonical = new URL(language === 'en' ? '/en' : '/', environment.publicSiteUrl).toString();
+    const spanish = new URL('/', environment.publicSiteUrl).toString();
+    const english = new URL('/en', environment.publicSiteUrl).toString();
+
+    this.title.setTitle(title);
+    this.meta.updateTag({ name: 'description', content: description });
+    this.meta.updateTag({ name: 'robots', content: 'index,follow' });
+    this.meta.updateTag({ property: 'og:title', content: title });
+    this.meta.updateTag({ property: 'og:description', content: description });
+    this.meta.updateTag({ property: 'og:type', content: 'website' });
+    this.meta.updateTag({ property: 'og:url', content: canonical });
+    this.meta.updateTag({ name: 'twitter:card', content: 'summary' });
+    this.meta.updateTag({ name: 'twitter:title', content: title });
+    this.meta.updateTag({ name: 'twitter:description', content: description });
+    this.upsertLink('canonical', canonical);
+    this.upsertLink('alternate', spanish, 'es');
+    this.upsertLink('alternate', english, 'en');
+    this.upsertLink('alternate', spanish, 'x-default');
+  }
+
+  private upsertLink(rel: string, href: string, hreflang?: string) {
+    const selector = hreflang ? `link[rel="${rel}"][hreflang="${hreflang}"]` : `link[rel="${rel}"]:not([hreflang])`;
+    const link = this.document.head.querySelector<HTMLLinkElement>(selector) ?? this.document.createElement('link');
+    link.rel = rel;
+    link.href = href;
+    if (hreflang) link.hreflang = hreflang;
+    if (!link.parentNode) this.document.head.appendChild(link);
+  }
 }

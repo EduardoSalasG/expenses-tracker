@@ -99,7 +99,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
               (click)="dismissTelegramBanner($event)"
               [attr.aria-label]="t('common_close')"
             >
-              <mat-icon class="!h-5 !w-5">close</mat-icon>
+              <mat-icon aria-hidden="true" class="!h-5 !w-5">close</mat-icon>
             </button>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
         <h1 class="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">{{ t('dashboard_title') }}</h1>
       </div>
       <div id="dashboard-period-controls" class="grid gap-3 sm:grid-cols-[auto_auto] sm:items-center lg:flex lg:flex-wrap">
-        <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" aria-label="Dashboard period">
+        <div class="grid grid-cols-2 overflow-hidden rounded border border-brand-border bg-brand-surface text-sm sm:inline-grid" role="group" [attr.aria-label]="t('dashboard_period_label')">
           <button
             mat-button
             type="button"
@@ -136,7 +136,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <input
             id="dashboard-month"
             name="dashboardMonth"
-            aria-label="Dashboard month"
+            [attr.aria-label]="t('dashboard_month_label')"
             type="month"
             class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
             [value]="selectedMonth()"
@@ -146,7 +146,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           <select
             id="dashboard-year"
             name="dashboardYear"
-            aria-label="Dashboard year"
+            [attr.aria-label]="t('dashboard_year_label')"
             class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
             [value]="selectedYear()"
             (change)="changeYear($event)"
@@ -201,7 +201,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
             <h2 class="text-lg font-semibold">{{ t('dashboard_income_vs_expenses') }}</h2>
           </div>
           <div class="h-64 sm:h-72">
-            <canvas #currencyChart aria-label="Cash flow by currency chart"></canvas>
+            <canvas #currencyChart [attr.aria-label]="t('dashboard_cash_flow_chart_label')"></canvas>
           </div>
           <app-chart-data-table [label]="t('dashboard_income_vs_expenses')" [rows]="currencyChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
@@ -209,7 +209,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
         <mat-card class="page-panel chart-panel p-5">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_expenses_by_category') }}</h2>
           <div class="h-64 sm:h-72">
-            <canvas #categoryChart aria-label="Expenses by category chart"></canvas>
+            <canvas #categoryChart [attr.aria-label]="t('dashboard_category_chart_label')"></canvas>
           </div>
           <app-chart-data-table [label]="t('dashboard_expenses_by_category')" [rows]="categoryChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
@@ -223,7 +223,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
             </p>
           </div>
           <div class="h-64 sm:h-72">
-            <canvas #subcategoryChart aria-label="Expenses by subcategory chart"></canvas>
+            <canvas #subcategoryChart [attr.aria-label]="t('dashboard_subcategory_chart_label')"></canvas>
           </div>
           <app-chart-data-table [label]="t('dashboard_expenses_by_subcategory')" [rows]="subcategoryChartRows()" [emptyLabel]="t('dashboard_no_subcategory_data')" />
         </mat-card>
@@ -235,7 +235,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
             {{ weeklyChartTitle() }}
           </h2>
           <div class="h-64 sm:h-72">
-            <canvas #weeklyChart aria-label="Weekly expenses chart"></canvas>
+            <canvas #weeklyChart [attr.aria-label]="t('dashboard_weekly_chart_label')"></canvas>
           </div>
           <app-chart-data-table [label]="weeklyChartTitle()" [rows]="periodChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
@@ -253,7 +253,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
             <canvas #memberSpendingChart [attr.aria-label]="t('dashboard_shared_member_spending')"></canvas>
           </div>
           <app-chart-data-table [label]="t('dashboard_shared_member_spending')" [rows]="memberChartRows()" [emptyLabel]="t('common_no_data')" />
-          <div class="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Member period balances">
+          <div class="mt-4 grid gap-2 sm:grid-cols-2" [attr.aria-label]="t('dashboard_member_balances_label')">
             @for (member of memberPeriodSpending(); track member.userId + member.currency) {
               <div class="flex min-w-0 items-center gap-3 rounded border px-3 py-3" [class]="memberBalanceCardClasses(member.balanceAmount)">
                 <mat-icon class="shrink-0" [attr.aria-hidden]="true">{{ memberBalanceIcon(member.balanceAmount) }}</mat-icon>
@@ -272,7 +272,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
         <mat-card class="page-panel chart-panel p-5 xl:col-span-2">
           <h2 class="mb-3 text-lg font-semibold">{{ t('dashboard_upcoming_installments') }}</h2>
           <div class="h-64 sm:h-72">
-            <canvas #installmentsChart aria-label="Upcoming installments chart"></canvas>
+            <canvas #installmentsChart [attr.aria-label]="t('dashboard_installments_chart_label')"></canvas>
           </div>
           <app-chart-data-table [label]="t('dashboard_upcoming_installments')" [rows]="installmentChartRows()" [emptyLabel]="t('common_no_data')" />
         </mat-card>
@@ -368,7 +368,7 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
               (click)="closeTelegramModal()"
               [attr.aria-label]="t('common_close')"
             >
-              <mat-icon class="!h-5 !w-5">close</mat-icon>
+              <mat-icon aria-hidden="true" class="!h-5 !w-5">close</mat-icon>
             </button>
           </div>
           <ol class="mt-5 grid gap-3 text-sm leading-6 text-brand-muted">

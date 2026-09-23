@@ -5,6 +5,9 @@ dist/
 .angular/
 .codebase-memory/
 coverage/
+test-results/
+playwright-report/
+blob-report/
 .env
 .env.*
 !.env.example

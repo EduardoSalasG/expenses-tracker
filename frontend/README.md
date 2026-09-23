@@ -53,7 +53,8 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 
 ## Routes
 
-- `/`: concise public landing page for logged-out visitors. It presents web tracking, optional Telegram capture, shared accounts, and budgets with a clear registration path. It defaults to `en` for United States visitors and `es` for the rest, based on backend IP geolocation. The navbar exposes manual `ES / EN` switching, which overrides the auto-selected public locale.
+- `/`: Spanish public landing page for logged-out visitors. It presents web tracking, optional Telegram capture, shared accounts, and budgets with a clear registration path.
+- `/en`: English public landing page. It has the same public CTAs and content structure as `/`, but a stable localized URL for sharing and search discovery.
 - `/login`: web-native login/registration. Existing users choose password login or email magic link. New users register in two steps: first lead capture (`name + email`), then full account data. When opened from a Telegram link token and the chat is already linked, the frontend signs the user in directly without OTP. If the token is not linked yet, the frontend keeps the hidden `telegramChatId` and attaches it automatically after web login/registration.
 - `/dashboard`: current-month totals, currency cash-flow chart, category expense chart, budget progress, and recent expenses.
 - `/expenses`: manual expense creation and editing from a modal, with inline category, subcategory, bank, and payment-method creation directly from the related selects; also includes filtered history, delete, auto-refresh after save, and visible active-account context.
@@ -63,21 +64,24 @@ Local Angular and the Docker frontend both use `/api`; Angular uses
 - `/settings`: a settings hub. On mobile, choose an area and use `Volver` to return to the hub; on desktop, use the contextual section selector. Areas include profile, reports, banks and payment methods, shared accounts, Telegram, and session.
 - `/terms` and `/privacy`: public legal pages linked from the landing footer.
 
-## Public Locale Detection
+## Public Landing Locale and Search Discovery
 
-The frontend consumes `GET /public/context` to resolve the initial public language for:
+The public landing has stable language routes:
 
-- `/`
-- `/login`
-- `/terms`
-- `/privacy`
+- `/` is Spanish.
+- `/en` is English.
 
-Current rule:
+Its language selector navigates between those routes, so the chosen language remains explicit in the URL. The production build prerenders both pages and publishes canonical, alternate-language, Open Graph and Twitter metadata in the initial HTML. The public site URL is centralized in `src/environments/public-site.ts`; the prebuild generator derives `public/robots.txt` and `public/sitemap.xml` from it.
 
-- `countryCode === US` -> English
-- any other country or unknown -> Spanish
+`robots.txt` disallows authenticated routes, while the sitemap lists only `/` and `/en`. Netlify serves the static English landing and discovery resources before its SPA fallback. After an authorized production deploy, check the two landing pages, `robots.txt`, and `sitemap.xml` over HTTP before closing the release.
 
-Once the visitor explicitly changes language from the landing navbar, the preference is stored locally and takes precedence over future automatic detection on that browser.
+Other public pages may still use the existing public-context locale behavior where applicable; they are not search-localized routes.
+
+### Local verification
+
+Run `pnpm --filter @expenses-tracker/frontend build --configuration production` and then `node frontend/node_modules/@playwright/test/cli.js test e2e/landing-prerender-output.spec.ts --config frontend/playwright.config.ts`. This validates the generated HTML, canonical URLs and discovery assets without production credentials.
+
+`netlify dev --offline --filter @expenses-tracker/frontend` additionally validates redirect delivery when the local Node runtime meets the Netlify Angular runtime requirement. Netlify is pinned to Node `22.22.0` in `netlify.toml`; a local Node `22.13.1` can resolve that file but cannot start its Angular runtime preview. This local-tooling limitation does not alter the production configuration and must not be treated as public deployment evidence.
 
 ## Session Behavior
 

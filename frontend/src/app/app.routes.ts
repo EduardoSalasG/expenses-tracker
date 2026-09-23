@@ -13,6 +13,7 @@ import { PrivacyComponent } from './features/privacy.component';
 import { authGuard, guestGuard } from './core/auth.guard';
 
 export const routes: Routes = [
+  { path: 'en', component: LandingComponent, canActivate: [guestGuard] },
   { path: '', pathMatch: 'full', component: LandingComponent, canActivate: [guestGuard] },
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
   { path: 'terms', component: TermsComponent },

@@ -625,7 +625,18 @@ table {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+  html { scroll-behavior: auto; }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  :where(a, button, input, select, textarea, summary, [role='button']) {
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+    transition-duration: 120ms !important;
+    transition-timing-function: ease-out !important;
+  }
 }
 
 .skip-link {
@@ -927,6 +938,7 @@ select option:focus {
 .chart-panel {
   background: var(--brand-surface-muted) !important;
   color: var(--brand-ink);
+  min-width: 0;
 }
 
 .chart-panel canvas {
