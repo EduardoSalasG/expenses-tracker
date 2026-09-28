@@ -18,6 +18,7 @@
   - Las cuentas compartidas reemplazan ingresos y balance neto por “Tu saldo del período”.
   - El saldo se deriva de la persona autenticada y del rango mensual/anual activo; comunica “Debe”, “A favor” o “Al día” con importes absolutos y por moneda.
   - Las cuentas personales conservan sus cuatro métricas actuales sin cambios.
+  - Corrección posterior de regresión: la tarjeta de cabecera también usa el saldo del período en cuentas compartidas; antes conservaba un balance neto negativo aunque las tarjetas de salud ya estaban correctas.
 
 ## Evidencia
 
@@ -36,6 +37,7 @@
 - Prueba Playwright focalizada a 320 px: cuenta compartida con saldo de deuda muestra “Debe $5.000”, no muestra ingresos ni balance neto, y mantiene el comportamiento al pasar a anual.
 - `pnpm --filter @expenses-tracker/frontend build --configuration production`: SSR de producción completado; prerender actualizado.
 - `openspec validate period-scoped-shared-account-summary --strict`: passed; detector Impeccable sin hallazgos.
+- Reproducción manual en “Casa · Compartida”, agosto de 2026: la cabecera inicialmente mostró `Balance neto -$181.360`; tras la corrección por HMR muestra `Tu saldo del período · A favor $28.000`. El caso Playwright de regresión a 320 px terminó passed (1/1).
 
 ## Pendiente
 

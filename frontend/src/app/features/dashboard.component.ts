@@ -171,7 +171,11 @@ export function expenseQueryParamsForSelectedMonth(month: string) {
           </select>
         }
         <div class="sm:col-span-2 rounded border border-brand-border bg-brand-surface px-4 py-3 text-sm text-brand-muted shadow-sm lg:col-span-1">
-          {{ t('dashboard_net_balance') }} <strong class="ml-2 text-brand-ink">{{ netBalanceLabel() }}</strong>
+          @if (isSharedAccount()) {
+            {{ t('dashboard_shared_personal_period_balance') }} <strong class="ml-2 text-brand-ink">{{ sharedPeriodBalanceLabel() }}</strong>
+          } @else {
+            {{ t('dashboard_net_balance') }} <strong class="ml-2 text-brand-ink">{{ netBalanceLabel() }}</strong>
+          }
         </div>
       </div>
     </div>
