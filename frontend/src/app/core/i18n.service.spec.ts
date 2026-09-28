@@ -44,3 +44,21 @@ describe('I18nService accessible control labels', () => {
     });
   }
 });
+
+describe('I18nService shared dashboard summary', () => {
+  afterEach(() => {
+    localStorage.removeItem('expenses_tracker_language');
+    TestBed.resetTestingModule();
+  });
+
+  it('localizes the period-scoped balance label in Spanish and English', () => {
+    TestBed.configureTestingModule({});
+    const i18n = TestBed.inject(I18nService);
+
+    i18n.setLanguage('es');
+    expect(i18n.t('dashboard_shared_personal_period_balance')).toBe('Tu saldo del período');
+
+    i18n.setLanguage('en');
+    expect(i18n.t('dashboard_shared_personal_period_balance')).toBe('Your period balance');
+  });
+});

@@ -1,6 +1,6 @@
 import type { Category } from '../core/api.service';
 import { MatDialog } from '@angular/material/dialog';
-import { DashboardComponent, buildWeekLabels, expenseQueryParamsForSelectedMonth, monthWeekStartIsoDate, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
+import { DashboardComponent, buildWeekLabels, expenseQueryParamsForSelectedMonth, monthWeekStartIsoDate, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth, sharedPeriodBalanceSummaries } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
 import { deriveDashboardPriorities } from './dashboard-priority';
 import { TelegramConnectDialogComponent } from './telegram-connect-dialog.component';
@@ -142,6 +142,21 @@ describe('DashboardComponent category labels', () => {
       to: '2026-09-30T23:59:59.000Z',
       limit: 5
     });
+  });
+});
+
+describe('sharedPeriodBalanceSummaries', () => {
+  it('uses the active period member balance and expresses debts as positive amounts', () => {
+    expect(sharedPeriodBalanceSummaries([
+      { financialAccountId: 'shared', userId: 'me', firstName: 'Yo', lastName: 'Prueba', preferredName: 'Yo', currency: 'CLP', paidAmount: 10000, owedAmount: 15000, balanceAmount: -5000 },
+      { financialAccountId: 'shared', userId: 'me', firstName: 'Yo', lastName: 'Prueba', preferredName: 'Yo', currency: 'USD', paidAmount: 20, owedAmount: 10, balanceAmount: 10 },
+      { financialAccountId: 'shared', userId: 'other', firstName: 'Otra', lastName: 'Persona', preferredName: 'Otra persona', currency: 'CLP', paidAmount: 15000, owedAmount: 10000, balanceAmount: 5000 },
+      { financialAccountId: 'shared', userId: 'me', firstName: 'Yo', lastName: 'Prueba', preferredName: 'Yo', currency: 'EUR', paidAmount: 10, owedAmount: 10, balanceAmount: 0 }
+    ], 'me')).toEqual([
+      { currency: 'CLP', amount: 5000, state: 'debt' },
+      { currency: 'EUR', amount: 0, state: 'settled' },
+      { currency: 'USD', amount: 10, state: 'credit' }
+    ]);
   });
 });
 

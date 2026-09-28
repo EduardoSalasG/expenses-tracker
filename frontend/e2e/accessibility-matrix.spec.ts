@@ -34,13 +34,24 @@ const demoAccount = {
   updatedAt: '2026-09-01T00:00:00.000Z'
 } as const;
 
+const sharedDemoAccount = {
+  ...demoAccount,
+  id: 'shared-demo-account',
+  type: 'shared',
+  name: 'Casa compartida'
+} as const;
+
 const demoBank = {
   id: 'long-demo-bank',
   name: 'Banco Internacional de Pruebas y Operaciones Financieras',
   isDefault: false
 } as const;
 
-async function prepareDemoSession(page: import('@playwright/test').Page) {
+async function prepareDemoSession(
+  page: import('@playwright/test').Page,
+  options: { account?: typeof demoAccount | typeof sharedDemoAccount; memberPeriodSpending?: unknown[] } = {}
+) {
+  const account = options.account ?? demoAccount;
   await page.addInitScript(() => {
     localStorage.setItem('expenses_tracker_access_token', 'local-demo-access-token');
     localStorage.setItem('expenses_tracker_refresh_token', 'local-demo-refresh-token');
@@ -53,11 +64,13 @@ async function prepareDemoSession(page: import('@playwright/test').Page) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const json = path.endsWith('/me/account-context')
-      ? { current: { account: demoAccount, role: 'owner' }, accounts: [{ account: demoAccount, role: 'owner' }] }
+      ? { current: { account, role: 'owner' }, accounts: [{ account, role: 'owner' }] }
       : path.endsWith('/me')
         ? demoUser
         : path.endsWith('/banks')
           ? [demoBank]
+        : path.includes('/member-spending')
+          ? (options.memberPeriodSpending ?? [])
         : path.includes('/reports/')
           ? []
           : path.endsWith('/reports')
@@ -222,6 +235,27 @@ test('el estado vacío del dashboard conserva el período al iniciar un gasto', 
   await expect(page).toHaveURL(/\/expenses\?month=2026-09$/);
   await expect(page.getByLabel('Mes de gastos')).toHaveValue('2026-09');
   await expect(page.getByLabel('Cuenta activa')).toContainText('Cuenta demo');
+});
+
+test('el resumen compartido expresa el saldo del período sin ingresos ni balance neto negativo a 320 px', async ({ page }) => {
+  await prepareDemoSession(page, {
+    account: sharedDemoAccount,
+    memberPeriodSpending: [
+      { financialAccountId: sharedDemoAccount.id, userId: demoUser.id, firstName: 'Demo', lastName: 'User', preferredName: 'Demo', currency: 'CLP', paidAmount: 10000, owedAmount: 15000, balanceAmount: -5000 }
+    ]
+  });
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('/dashboard');
+
+  const balance = page.locator('app-financial-metric').filter({ hasText: 'Tu saldo del período' });
+  await expect(balance).toContainText('Debe $5.000');
+  await expect(balance).not.toContainText('-$5.000');
+  await expect(page.getByText('Ingresos de este mes', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Balance neto', { exact: true })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole('button', { name: 'Anual' }).click();
+  await expect(balance).toContainText('Debe $5.000');
 });
 
 test('ingresos conserva filtros aplicados, permite limpiarlos y no desborda a 320 px', async ({ page }) => {

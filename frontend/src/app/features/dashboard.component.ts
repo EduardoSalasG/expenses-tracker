@@ -75,6 +75,20 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
   return 'settled';
 }
 
+export function sharedPeriodBalanceSummaries(
+  memberBalances: FinancialAccountMemberPeriodSpending[],
+  userId: string
+) {
+  return memberBalances
+    .filter((member) => member.userId === userId)
+    .sort((left, right) => left.currency.localeCompare(right.currency))
+    .map((member) => ({
+      currency: member.currency,
+      amount: Math.abs(member.balanceAmount),
+      state: memberPeriodBalanceState(member.balanceAmount)
+    }));
+}
+
 export function expenseQueryParamsForSelectedMonth(month: string) {
   return { month };
 }
@@ -178,8 +192,12 @@ export function expenseQueryParamsForSelectedMonth(month: string) {
         </div>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <app-financial-metric [label]="viewMode() === 'monthly' ? t('dashboard_this_month_expenses') : t('dashboard_this_year_expenses')" [value]="expenseTotalLabel()" [context]="(report()?.expenses?.length ?? 0) + ' ' + t('dashboard_expense_records')" tone="warning" />
-          <app-financial-metric [label]="viewMode() === 'monthly' ? t('dashboard_this_month_income') : t('dashboard_this_year_income')" [value]="incomeTotalLabel()" [context]="(report()?.incomes?.length ?? 0) + ' ' + t('dashboard_income_records')" tone="positive" />
-          <app-financial-metric [label]="t('dashboard_net_balance')" [value]="netBalanceLabel()" [context]="periodLabel()" />
+          @if (isSharedAccount()) {
+            <app-financial-metric [label]="t('dashboard_shared_personal_period_balance')" [value]="sharedPeriodBalanceLabel()" [context]="periodLabel()" />
+          } @else {
+            <app-financial-metric [label]="viewMode() === 'monthly' ? t('dashboard_this_month_income') : t('dashboard_this_year_income')" [value]="incomeTotalLabel()" [context]="(report()?.incomes?.length ?? 0) + ' ' + t('dashboard_income_records')" tone="positive" />
+            <app-financial-metric [label]="t('dashboard_net_balance')" [value]="netBalanceLabel()" [context]="periodLabel()" />
+          }
           <app-financial-metric [label]="t('dashboard_budget_progress')" [value]="overallBudget() ? overallBudget()?.progress + '%' : t('dashboard_no_budget')" [context]="overallBudget() ? overallBudget()?.spentLabel + ' ' + t('dashboard_spent_of') + ' ' + overallBudget()?.amountLabel : t('dashboard_create_budgets_hint')" [tone]="overallBudget() && overallBudget()!.progress >= 100 ? 'danger' : 'neutral'" />
         </div>
       </section>
@@ -415,6 +433,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   });
   readonly expenseTotalLabel = computed(() => this.formatTotals(this.report()?.expenseTotalsByCurrency));
   readonly incomeTotalLabel = computed(() => this.formatTotals(this.report()?.incomeTotalsByCurrency));
+  readonly sharedPeriodBalanceLabel = computed(() => {
+    const balances = sharedPeriodBalanceSummaries(this.memberPeriodSpending(), this.user()?.id ?? '');
+    if (!balances.length) return this.t('dashboard_no_movement');
+    return balances
+      .map((balance) => `${this.t(this.memberBalanceLabelFromState(balance.state))} ${this.formatMoney(balance.currency, balance.amount)}`)
+      .join(' | ');
+  });
   readonly netBalanceLabel = computed(() => {
     const report = this.report();
     if (!report) return '-';
@@ -597,7 +622,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   memberBalanceLabel(amount: number) {
-    const state = memberPeriodBalanceState(amount);
+    return this.memberBalanceLabelFromState(memberPeriodBalanceState(amount));
+  }
+
+  memberBalanceLabelFromState(state: ReturnType<typeof memberPeriodBalanceState>) {
     if (state === 'credit') return 'dashboard_shared_credit';
     if (state === 'debt') return 'dashboard_shared_debt';
     return 'dashboard_shared_settled';
