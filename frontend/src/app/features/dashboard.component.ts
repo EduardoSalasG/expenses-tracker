@@ -3,6 +3,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
+import { RouterLink } from '@angular/router';
 import { Chart, type ChartConfiguration, type TooltipItem, registerables } from 'chart.js';
 import { forkJoin, of } from 'rxjs';
 import { AccountContextService } from '../core/account-context.service';
@@ -16,6 +18,7 @@ import { ActionPriorityComponent } from '../shared/components/action-priority.co
 import { FinancialMetricComponent } from '../shared/components/financial-metric.component';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
+import { TelegramConnectDialogComponent } from './telegram-connect-dialog.component';
 import { deriveDashboardPriorities, type DashboardPriority } from './dashboard-priority';
 
 Chart.register(...registerables);
@@ -72,30 +75,27 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
   return 'settled';
 }
 
+export function expenseQueryParamsForSelectedMonth(month: string) {
+  return { month };
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, ChartDataTableComponent, ActionPriorityComponent, FinancialMetricComponent, EmptyStateComponent, FeedbackBannerComponent],
+  imports: [MatCardModule, MatProgressBarModule, MatButtonModule, MatIconModule, RouterLink, ChartDataTableComponent, ActionPriorityComponent, FinancialMetricComponent, EmptyStateComponent, FeedbackBannerComponent],
   template: `
     @if (showTelegramBanner()) {
       <section class="mb-4">
-        <div
-          class="flex w-full items-start justify-between gap-4 rounded-xl border border-brand-border bg-brand-surface px-4 py-3 text-left shadow-sm transition-colors hover:bg-brand-surface-muted"
-          role="button"
-          tabindex="0"
-          (click)="openTelegramModal()"
-          (keydown.enter)="openTelegramModal()"
-          (keydown.space)="openTelegramModal()"
-        >
-          <div class="min-w-0">
+        <div class="flex w-full items-start justify-between gap-4 rounded-xl border border-brand-border bg-brand-surface px-4 py-3 shadow-sm">
+          <button type="button" class="min-h-11 min-w-0 flex-1 text-left" (click)="openTelegramModal()">
             <div class="text-sm font-semibold text-brand-ink">{{ t('dashboard_telegram_banner_title') }}</div>
             <div class="mt-1 text-sm text-brand-muted">{{ t('dashboard_telegram_banner_desc') }}</div>
-          </div>
+          </button>
           <div class="flex items-center gap-2">
-            <span class="text-xs font-medium uppercase tracking-wide text-brand-blue">{{ t('dashboard_telegram_banner_cta') }}</span>
+            <span aria-hidden="true" class="text-xs font-medium uppercase tracking-wide text-brand-blue">{{ t('dashboard_telegram_banner_cta') }}</span>
             <button
               type="button"
-              class="flex h-8 w-8 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-bg hover:text-brand-ink"
+              class="flex min-h-11 min-w-11 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-bg hover:text-brand-ink"
               (click)="dismissTelegramBanner($event)"
               [attr.aria-label]="t('common_close')"
             >
@@ -195,6 +195,29 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
         </section>
       }
 
+      @if ((report()?.expenses?.length ?? 0) === 0 && (report()?.incomes?.length ?? 0) === 0) {
+        <section class="mt-4 rounded-xl border border-dashed border-brand-border bg-brand-surface p-5 text-center">
+          <h2 class="text-lg font-semibold text-brand-ink">{{ t('dashboard_no_movement') }}</h2>
+          <p class="mt-2 text-sm text-brand-muted">{{ t('dashboard_empty_period_hint') }}</p>
+          <a mat-flat-button color="primary" routerLink="/expenses" [queryParams]="expenseQueryParamsForSelectedMonth(selectedMonth())" class="mt-4 !min-h-11">{{ t('dashboard_empty_period_action') }}</a>
+        </section>
+      }
+
+      <section class="mt-4 rounded-xl border border-brand-border bg-brand-surface p-4">
+        <button
+          type="button"
+          class="flex min-h-11 w-full items-center justify-between gap-4 text-left"
+          [attr.aria-controls]="'dashboard-analytics'"
+          [attr.aria-expanded]="showAnalytics()"
+          (click)="toggleAnalytics()"
+        >
+          <span><span class="block font-semibold text-brand-ink">{{ t('dashboard_analytics_title') }}</span><span class="mt-1 block text-sm text-brand-muted">{{ t('dashboard_analytics_description') }}</span></span>
+          <mat-icon aria-hidden="true">{{ showAnalytics() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+      </section>
+
+      @if (showAnalytics()) {
+      <div id="dashboard-analytics">
       <section id="dashboard-charts" class="mt-4 grid gap-4 xl:grid-cols-3">
         <mat-card class="page-panel chart-panel p-5">
           <div class="mb-3 flex items-center justify-between">
@@ -352,63 +375,10 @@ export function memberPeriodBalanceState(amount: number): 'credit' | 'debt' | 's
           </div>
         </mat-card>
       </section>
+      </div>
+      }
     }
 
-    @if (telegramModalOpen()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg/70 px-4 py-6">
-        <div class="w-full max-w-md rounded-2xl border border-brand-border bg-brand-surface p-6 shadow-2xl">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <h2 class="text-xl font-semibold text-brand-ink">{{ t('dashboard_telegram_modal_title') }}</h2>
-              <p class="mt-2 text-sm leading-6 text-brand-muted">{{ t('dashboard_telegram_modal_intro') }}</p>
-            </div>
-            <button
-              type="button"
-              class="flex h-9 w-9 items-center justify-center rounded-full text-brand-muted transition-colors hover:bg-brand-bg hover:text-brand-ink"
-              (click)="closeTelegramModal()"
-              [attr.aria-label]="t('common_close')"
-            >
-              <mat-icon aria-hidden="true" class="!h-5 !w-5">close</mat-icon>
-            </button>
-          </div>
-          <ol class="mt-5 grid gap-3 text-sm leading-6 text-brand-muted">
-            <li>1. {{ t('dashboard_telegram_step_1') }}</li>
-            <li>2. {{ t('dashboard_telegram_step_2') }}</li>
-            <li>3. {{ t('dashboard_telegram_step_3') }}</li>
-          </ol>
-          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <button mat-stroked-button type="button" class="!h-11 !border-brand-border !text-brand-ink" (click)="closeTelegramModal()">
-              {{ t('common_cancel') }}
-            </button>
-            <a
-              mat-flat-button
-              color="primary"
-              class="!h-11"
-              [href]="telegramBotUrl()"
-              target="_blank"
-              rel="noopener noreferrer"
-              (click)="closeTelegramModal()"
-            >
-              {{ t('dashboard_telegram_open_bot') }}
-            </a>
-          </div>
-        </div>
-      </div>
-    }
-
-    @if (telegramDismissModalOpen()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg/70 px-4 py-6">
-        <div class="w-full max-w-sm rounded-2xl border border-brand-border bg-brand-surface p-6 shadow-2xl">
-          <h2 class="text-lg font-semibold text-brand-ink">{{ t('dashboard_telegram_dismiss_title') }}</h2>
-          <p class="mt-3 text-sm leading-6 text-brand-muted">{{ t('dashboard_telegram_dismiss_desc') }}</p>
-          <div class="mt-6 flex justify-end">
-            <button mat-flat-button color="primary" type="button" class="!h-11" (click)="closeTelegramDismissModal()">
-              {{ t('common_close') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    }
   `
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -484,8 +454,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return !localStorage.getItem(`telegram_banner_dismissed_${user.id}`);
   });
   readonly telegramBotUrl = signal('https://t.me/');
-  readonly telegramModalOpen = signal(false);
-  readonly telegramDismissModalOpen = signal(false);
+  readonly showAnalytics = signal(false);
+  readonly expenseQueryParamsForSelectedMonth = expenseQueryParamsForSelectedMonth;
 
   private currencyChart?: Chart;
   private categoryChart?: Chart;
@@ -502,7 +472,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly accountService: AccountContextService,
     private readonly i18n: I18nService,
     private readonly periodState: PeriodStateService,
-    private readonly onboarding: OnboardingService
+    private readonly onboarding: OnboardingService,
+    private readonly dialog: MatDialog
   ) {
     effect(() => {
       const currentAccountId = this.accountService.activeAccountId();
@@ -564,11 +535,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openTelegramModal() {
-    this.telegramModalOpen.set(true);
+    this.dialog.open(TelegramConnectDialogComponent, {
+      data: { botUrl: this.telegramBotUrl() },
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      width: 'min(560px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel'
+    });
   }
 
-  closeTelegramModal() {
-    this.telegramModalOpen.set(false);
+  toggleAnalytics() {
+    this.showAnalytics.update((visible) => !visible);
+    if (this.showAnalytics()) {
+      setTimeout(() => this.renderCharts());
+    }
   }
 
   dismissTelegramBanner(event: Event) {
@@ -577,11 +558,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (user) {
       localStorage.setItem(`telegram_banner_dismissed_${user.id}`, 'true');
     }
-    this.telegramDismissModalOpen.set(true);
-  }
-
-  closeTelegramDismissModal() {
-    this.telegramDismissModalOpen.set(false);
   }
 
   categoryName(categoryId: string) {

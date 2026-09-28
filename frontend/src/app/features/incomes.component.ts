@@ -23,6 +23,13 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
   return Boolean(filters.concept.trim() || filters.currency.trim());
 }
 
+export function incomeActiveFilterSummary(filters: { concept: string; currency: string }, t: (key: string) => string) {
+  return [
+    ...(filters.concept.trim() ? [{ label: t('expenses_concept'), value: filters.concept.trim() }] : []),
+    ...(filters.currency.trim() ? [{ label: t('expenses_currency'), value: filters.currency.trim().toUpperCase() }] : [])
+  ];
+}
+
 @Component({
   selector: 'app-incomes',
   standalone: true,
@@ -85,6 +92,14 @@ export function hasSecondaryIncomeFilters(filters: { concept: string; currency: 
           </div>
         </form>
       </app-disclosure-panel>
+      @if (hasSecondaryFilters()) {
+        <section data-testid="income-active-filter-summary" class="mt-3 flex flex-wrap items-center gap-2" [attr.aria-label]="t('expenses_active_filters')">
+          @for (filter of activeFilterSummary(); track filter.label) {
+            <span class="min-w-0 max-w-full rounded-md border border-brand-border bg-brand-surface-muted px-3 py-2 text-sm"><span class="text-xs font-medium text-brand-muted">{{ filter.label }}</span><span class="ml-1 font-medium text-brand-ink">{{ filter.value }}</span></span>
+          }
+          <button mat-button type="button" class="!min-h-11" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
+        </section>
+      }
     </mat-card>
 
     <mat-card id="incomes-history-panel" class="page-panel p-5">
@@ -205,6 +220,10 @@ export class IncomesComponent implements OnInit {
 
   hasSecondaryFilters() {
     return hasSecondaryIncomeFilters(this.filters.getRawValue());
+  }
+
+  activeFilterSummary() {
+    return incomeActiveFilterSummary(this.filters.getRawValue(), this.t);
   }
 
   applyFilters() {

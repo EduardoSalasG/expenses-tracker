@@ -119,6 +119,33 @@ describe('CategoriesComponent', () => {
     expect(component.visibleRootCategories()).toEqual([parent]);
   });
 
+  it('offers a localized reset action when filters leave the library without results', () => {
+    const component = fixture.componentInstance;
+    component.searchTerm.set('does-not-exist');
+    component.setLibraryFilter('custom');
+    fixture.detectChanges();
+
+    const action = [...fixture.nativeElement.querySelectorAll('app-empty-state button')]
+      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'categories_clear_filters') as HTMLButtonElement | undefined;
+
+    expect(action).toBeDefined();
+    action?.click();
+
+    expect(component.searchTerm()).toBe('');
+    expect(component.libraryFilter()).toBe('all');
+  });
+
+  it('offers a localized create action when the category library is empty', () => {
+    const component = fixture.componentInstance;
+    component.categories.set([]);
+    fixture.detectChanges();
+
+    const action = [...fixture.nativeElement.querySelectorAll('app-empty-state button')]
+      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'categories_new');
+
+    expect(action).toBeDefined();
+  });
+
   it('includes subcategory spending in the parent activity without combining currencies', () => {
     const component = fixture.componentInstance;
 

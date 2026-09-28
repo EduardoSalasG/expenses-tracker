@@ -30,7 +30,12 @@ test('el build de producción publica landings prerenderizadas y localizadas', a
   expect(english).toContain(`<link rel="canonical" href="${publicSiteUrl}/en">`);
   expect(spanish).toContain(`<link rel="alternate" href="${publicSiteUrl}/en" hreflang="en">`);
   expect(english).toContain(`<meta property="og:url" content="${publicSiteUrl}/en">`);
+  expect(spanish).toContain(`<meta property="og:image" content="${publicSiteUrl}/assets/expenses-tracker-social-card.svg">`);
+  expect(english).toContain(`<meta property="og:image" content="${publicSiteUrl}/assets/expenses-tracker-social-card.svg">`);
   expect(english).toContain('<meta name="twitter:card" content="summary">');
+  expect(spanish).toContain('type="application/ld+json"');
+  expect(spanish).toContain('"@type":"WebApplication"');
+  expect(english).toContain('"inLanguage":"en"');
   expect(spanish).not.toContain('example.com');
   expect(english).not.toContain('placeholder');
   await expect(access(resolve(browserOutput, 'dashboard/index.html'))).rejects.toThrow();
@@ -57,10 +62,16 @@ test('la landing prerenderizada conserva persuasión verificable y opciones púb
 
   expect(spanish).toContain('Telegram');
   expect(english).toContain('Telegram');
+  expect(spanish).toContain('Entiende en qué se va tu dinero.');
+  expect(english).toContain('See where your money goes.');
+  expect(spanish).toContain('Ejemplo ilustrativo');
+  expect(english).toContain('Illustrative example');
   expect(spanish).toContain('href="/privacy"');
   expect(english).toContain('href="/terms"');
   expect(spanish).not.toContain('Opiniones de uso real');
   expect(english).not.toContain('Used by real people');
+  expect(spanish).not.toContain('Empieza en minutos');
+  expect(english).not.toContain('Get started in minutes');
 });
 
 test('Netlify normaliza la variante inglesa con barra y fija un runtime compatible', async () => {

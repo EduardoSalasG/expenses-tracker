@@ -50,11 +50,14 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
   ],
   template: `
     <app-page-header [title]="t('budgets_title')" [eyebrow]="t('budgets_subtitle')">
-      <div class="w-full sm:w-auto">
+      <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <mat-form-field appearance="outline" class="w-full sm:w-44">
           <mat-label>{{ t('budgets_month') }}</mat-label>
           <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)" name="budgetsMonth">
         </mat-form-field>
+        <button mat-flat-button color="primary" type="button" class="!min-h-11" (click)="startBudgetCreation()">
+          {{ t('budgets_create') }}
+        </button>
       </div>
     </app-page-header>
 
@@ -75,7 +78,10 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
 
     <mat-card id="budgets-form-panel" class="page-panel mt-4 p-2">
       <mat-accordion>
-        <mat-expansion-panel [expanded]="!!editingBudgetId()">
+        <mat-expansion-panel
+          [expanded]="budgetFormOpen() || !!editingBudgetId()"
+          (opened)="budgetFormOpen.set(true)"
+          (closed)="budgetFormOpen.set(false)">
           <mat-expansion-panel-header>
             <mat-panel-title>{{ editingBudgetId() ? t('budgets_update') : t('budgets_create') }}</mat-panel-title>
           </mat-expansion-panel-header>
@@ -155,7 +161,10 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
           }
         </div>
       } @else {
-        <app-empty-state [message]="t('budgets_no_month')" />
+        <app-empty-state
+          [message]="t('budgets_no_month')"
+          [actionLabel]="t('budgets_create')"
+          (action)="startBudgetCreation()" />
       }
     </mat-card>
   `
@@ -178,6 +187,7 @@ export class BudgetsComponent {
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly editingBudgetId = signal<string | null>(null);
+  readonly budgetFormOpen = signal(false);
   private loadRequestId = 0;
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly selectedCategoryId = signal('');
@@ -287,6 +297,7 @@ export class BudgetsComponent {
 
   edit(budget: MonthlyBudget) {
     this.editingBudgetId.set(budget.id);
+    this.budgetFormOpen.set(true);
     this.form.patchValue({
       categoryId: budget.categoryId,
       subcategoryId: budget.subcategoryId ?? '',
@@ -297,7 +308,14 @@ export class BudgetsComponent {
 
   cancelEdit() {
     this.editingBudgetId.set(null);
+    this.budgetFormOpen.set(false);
     this.form.patchValue({ amount: 0, subcategoryId: '' });
+  }
+
+  startBudgetCreation() {
+    this.editingBudgetId.set(null);
+    this.saveMessage.set('');
+    this.budgetFormOpen.set(true);
   }
 
   async createCategoryInline() {

@@ -1,7 +1,9 @@
 import type { Category } from '../core/api.service';
-import { DashboardComponent, buildWeekLabels, monthWeekStartIsoDate, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
+import { MatDialog } from '@angular/material/dialog';
+import { DashboardComponent, buildWeekLabels, expenseQueryParamsForSelectedMonth, monthWeekStartIsoDate, memberPeriodBalanceState, recentExpenseFilters, rangeFromMonth } from './dashboard.component';
 import { I18nService } from '../core/i18n.service';
 import { deriveDashboardPriorities } from './dashboard-priority';
+import { TelegramConnectDialogComponent } from './telegram-connect-dialog.component';
 
 describe('memberPeriodBalanceState', () => {
   it('classifies positive, negative, and settled member balances', () => {
@@ -66,8 +68,7 @@ describe('deriveDashboardPriorities', () => {
 
 describe('DashboardComponent category labels', () => {
   it('translates a system category through the component translation method', () => {
-    const i18n = new I18nService();
-    i18n.setLanguage('es');
+    const i18n = { language: () => 'es', t: (key: string) => key } as unknown as I18nService;
     const category: Category = {
       id: 'food',
       tenantId: 'system',
@@ -92,8 +93,10 @@ describe('DashboardComponent category labels', () => {
   });
 
   it('derives localized textual rows from the same chart totals, including an empty state', () => {
-    const i18n = new I18nService();
-    i18n.setLanguage('es');
+    const i18n = {
+      language: () => 'es',
+      t: (key: string) => ({ dashboard_income: 'Ingresos', dashboard_expenses: 'Gastos' }[key] ?? key)
+    } as unknown as I18nService;
     const component = {
       i18n,
       categoryTotals: () => [
@@ -139,5 +142,29 @@ describe('DashboardComponent category labels', () => {
       to: '2026-09-30T23:59:59.000Z',
       limit: 5
     });
+  });
+});
+
+describe('DashboardComponent Telegram dialog', () => {
+  it('opens the connection dialog with useful initial focus and restores the activator focus', () => {
+    const dialog = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
+    const component = {
+      dialog,
+      telegramBotUrl: () => 'https://t.me/expenses_tracker_bot'
+    } as unknown as DashboardComponent;
+
+    DashboardComponent.prototype.openTelegramModal.call(component);
+
+    expect(dialog.open).toHaveBeenCalledWith(TelegramConnectDialogComponent, jasmine.objectContaining({
+      data: { botUrl: 'https://t.me/expenses_tracker_bot' },
+      autoFocus: 'first-tabbable',
+      restoreFocus: true
+    }));
+  });
+});
+
+describe('dashboard empty-period action', () => {
+  it('serializes the active month when sending a person to expenses', () => {
+    expect(expenseQueryParamsForSelectedMonth('2026-09')).toEqual({ month: '2026-09' });
   });
 });

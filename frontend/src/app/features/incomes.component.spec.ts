@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
-import { IncomesComponent, parseIncomeFilterParams, serializeIncomeFilters } from './incomes.component';
+import { IncomesComponent, incomeActiveFilterSummary, parseIncomeFilterParams, serializeIncomeFilters } from './incomes.component';
 import * as IncomesFeature from './incomes.component';
 import { ApiService } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
@@ -63,5 +63,15 @@ describe('income filter parameters', () => {
     expect(serializeIncomeFilters({ month: '2026-09', concept: 'Sueldo', currency: 'CLP' })).toEqual({
       month: '2026-09', concept: 'Sueldo', currency: 'CLP'
     });
+  });
+
+  it('makes active secondary filters visible with their localized values', () => {
+    expect(incomeActiveFilterSummary({ concept: '  Sueldo  ', currency: 'clp' }, (key) => ({
+      expenses_concept: 'Concepto',
+      expenses_currency: 'Moneda'
+    }[key] ?? key))).toEqual([
+      { label: 'Concepto', value: 'Sueldo' },
+      { label: 'Moneda', value: 'CLP' }
+    ]);
   });
 });

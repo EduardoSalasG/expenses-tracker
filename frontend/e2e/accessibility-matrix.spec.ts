@@ -177,6 +177,67 @@ test('configuración permite recorrer catálogos con teclado y anuncia sus accio
   await expect(page.getByRole('button', { name: /Bancos y medios de pago/ })).toBeVisible();
 });
 
+test('el aviso de Telegram expone acciones independientes y el diálogo devuelve el foco', async ({ page }) => {
+  await prepareDemoSession(page);
+  await page.goto('/dashboard');
+
+  const configure = page.getByRole('button', { name: /Configurar Telegram/ });
+  const dismiss = page.getByRole('button', { name: 'Cerrar' }).first();
+  await expect(configure).toBeVisible();
+  await expect(dismiss).toBeVisible();
+  await expect(configure.getByRole('button')).toHaveCount(0);
+  await expect(dismiss.getByRole('button')).toHaveCount(0);
+
+  await configure.press('Enter');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Conecta tu cuenta de Telegram');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(configure).toBeFocused();
+});
+
+test('el dashboard revela gráficos y tablas sólo cuando se solicita el análisis', async ({ page }) => {
+  await prepareDemoSession(page);
+  await page.goto('/dashboard');
+
+  const analytics = page.getByRole('button', { name: /Explora el detalle del mes/ });
+  await expect(page.locator('#dashboard-analytics')).toHaveCount(0);
+  await expect(analytics).toHaveAttribute('aria-expanded', 'false');
+  await analytics.press('Enter');
+  await expect(page.locator('#dashboard-analytics')).toBeVisible();
+  await expect(analytics).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#dashboard-analytics canvas').first()).toBeVisible();
+  const dataTable = page.locator('#dashboard-analytics app-chart-data-table details').first();
+  await expect(dataTable).toBeVisible();
+  await dataTable.locator('summary').click();
+  await expect(dataTable).toContainText('Sin datos');
+});
+
+test('el estado vacío del dashboard conserva el período al iniciar un gasto', async ({ page }) => {
+  await prepareDemoSession(page);
+  await page.goto('/dashboard');
+
+  await page.getByRole('link', { name: 'Registrar un gasto' }).click();
+
+  await expect(page).toHaveURL(/\/expenses\?month=2026-09$/);
+  await expect(page.getByLabel('Mes de gastos')).toHaveValue('2026-09');
+  await expect(page.getByLabel('Cuenta activa')).toContainText('Cuenta demo');
+});
+
+test('ingresos conserva filtros aplicados, permite limpiarlos y no desborda a 320 px', async ({ page }) => {
+  await prepareDemoSession(page);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('/incomes?month=2026-09&concept=Sueldo&currency=clp');
+
+  const summary = page.getByTestId('income-active-filter-summary');
+  await expect(summary).toContainText('Concepto');
+  await expect(summary).toContainText('Sueldo');
+  await expect(summary).toContainText('CLP');
+  await summary.getByRole('button', { name: 'Limpiar' }).click();
+  await expect(page).toHaveURL(/\/incomes\?month=2026-09$/);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test.describe('preferencia de movimiento reducido', () => {
   test.use({ reducedMotion: 'reduce' });
 

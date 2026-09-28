@@ -95,17 +95,26 @@ import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.
                       }
                     </div>
                   } @else {
-                    <app-empty-state [message]="t('categories_no_sub')" />
+                    <app-empty-state
+                      [message]="t('categories_no_sub')"
+                      [actionLabel]="t('categories_add_subcategory')"
+                      (action)="openCreateDialog(category.id)" />
                   }
                 </div>
               </mat-expansion-panel>
             }
           </mat-accordion>
         } @else {
-          <app-empty-state [message]="t('categories_no_results')" />
+          <app-empty-state
+            [message]="t('categories_no_results')"
+            [actionLabel]="t('categories_clear_filters')"
+            (action)="clearLibraryFilters()" />
         }
       } @else {
-        <app-empty-state [message]="t('categories_empty')" />
+        <app-empty-state
+          [message]="t('categories_empty')"
+          [actionLabel]="t('categories_new')"
+          (action)="openCreateDialog()" />
       }
     </mat-card>
   `
@@ -219,6 +228,11 @@ export class CategoriesComponent {
 
   setSearchTerm(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
+  }
+
+  clearLibraryFilters() {
+    this.searchTerm.set('');
+    this.libraryFilter.set('all');
   }
 
   activityLabel(rootCategoryId: string) {

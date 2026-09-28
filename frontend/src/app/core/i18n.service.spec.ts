@@ -34,7 +34,7 @@ describe('I18nService accessible control labels', () => {
 
   for (const language of ['es', 'en'] as const) {
     it(`provides localized accessible labels in ${language}`, () => {
-      TestBed.configureTestingModule();
+      TestBed.configureTestingModule({});
       const i18n = TestBed.inject(I18nService);
       i18n.setLanguage(language);
 
