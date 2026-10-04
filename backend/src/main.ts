@@ -7,15 +7,15 @@ const container = createContainer(config);
 const app = createApp(container);
 
 const server = app.listen(config.port, () => {
-  container.logger.info(`API listening on port ${config.port}`);
+  container.logger.info('api_started', { port: config.port });
 });
 
 const shutdown = async (signal: string) => {
-  container.logger.info('Shutdown signal received.', { signal });
+  container.logger.info('api_shutdown_requested', { signal });
   server.close(async () => {
     try {
       await container.close();
-      container.logger.info('API shutdown complete.');
+      container.logger.info('api_stopped');
     } finally {
       process.exit(0);
     }

@@ -41,10 +41,11 @@ export function createApp(container: AppContainer) {
   app.get('/health/ready', async (_request, response) => {
     try {
       const readiness = await container.readinessCheck();
+      container.logger.info('api_readiness_checked', { status: 'ok' });
       response.json(readiness);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown readiness error';
-      response.status(503).json({ status: 'degraded', error: message });
+    } catch {
+      container.logger.warn('api_readiness_checked', { status: 'degraded' });
+      response.status(503).json({ status: 'degraded', error: 'Readiness check failed.' });
     }
   });
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));

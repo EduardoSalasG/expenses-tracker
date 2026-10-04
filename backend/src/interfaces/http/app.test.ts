@@ -40,6 +40,16 @@ describe('HTTP observability', () => {
     expect(response.headers['x-request-id']).not.toBe('private@example.com');
     expect(JSON.stringify(logInfo.mock.calls)).not.toContain('private@example.com');
   });
+
+  it('records only the readiness result', async () => {
+    const container = createContainer(testConfig());
+    const logInfo = vi.spyOn(container.logger, 'info');
+
+    const response = await request(createApp(container)).get('/health/ready');
+
+    expect(response.status).toBe(200);
+    expect(logInfo).toHaveBeenCalledWith('api_readiness_checked', { status: 'ok' });
+  });
 });
 
 describe('Messaging routes', () => {
