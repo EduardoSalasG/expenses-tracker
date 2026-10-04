@@ -12,4 +12,15 @@ describe('createLogger', () => {
       version: '0.3.4'
     });
   });
+
+  it('omits error stacks from production output', () => {
+    const logger = createLogger({ nodeEnv: 'production', logLevel: 'info' });
+    const transformed = logger.format.transform({
+      level: 'error',
+      message: 'failed request',
+      stack: 'private stack trace'
+    }, logger.format.options);
+
+    expect(transformed).not.toHaveProperty('stack');
+  });
 });
