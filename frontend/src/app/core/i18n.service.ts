@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 
 type Language = 'es' | 'en';
 
@@ -9,13 +10,13 @@ const dictionaries: Record<Language, Record<string, string>> = {
     app_name: 'Expenses Tracker',
     landing_tagline: 'Control simple para tus gastos e ingresos',
     landing_eyebrow: 'Controla tu dinero con claridad',
-    landing_title: 'Registra gastos, ingresos y presupuestos sin complicarte.',
-    landing_description: 'Registra gastos e ingresos desde la web o Telegram. Lleva tus finanzas personales y compartidas con presupuestos, movimientos y saldos claros en un solo lugar.',
+    landing_title: 'Entiende en qué se va tu dinero.',
+    landing_description: 'Registra gastos e ingresos y revisa tu mes con claridad.',
     landing_skip_to_content: 'Saltar al contenido principal',
     landing_login: 'Iniciar sesión',
     landing_register: 'Crear cuenta',
     landing_register_short: 'Crear cuenta',
-    landing_cta_support: 'Empieza en minutos y registra tus primeros movimientos el mismo día.',
+    landing_cta_support: 'Elige cómo registrar y conserva el control de tus movimientos.',
     landing_proof_messaging: 'Registro por web y Telegram',
     landing_proof_budget: 'Presupuestos mensuales claros',
     landing_proof_reports: 'Resúmenes y reportes del mes',
@@ -47,8 +48,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     landing_preview_metric_2_value: '$1.249.562',
     landing_preview_metric_2_caption: 'Balance actualizado al instante',
     landing_preview_metric_3_label: 'Presupuesto usado',
-    landing_preview_metric_3_value: '98%',
-    landing_preview_metric_3_caption: 'Queda poco margen para el mes',
+    landing_preview_metric_3_value: '64%',
+    landing_preview_metric_3_caption: 'Margen disponible para el mes',
     landing_preview_variation_title: 'Cambios por categoría',
     landing_preview_variation_1_category: 'Comida',
     landing_preview_variation_1_detail: 'Subió frente al período anterior',
@@ -61,13 +62,13 @@ const dictionaries: Record<Language, Record<string, string>> = {
     landing_preview_variation_3_delta: '+$6.000',
     landing_preview_history_title: 'Historial reciente',
     landing_preview_history_1_concept: 'Natación',
-    landing_preview_history_1_meta: '26 may 2026 · Sports · BCI crédito',
+    landing_preview_history_1_meta: '26 may 2026 · Deporte · BCI crédito',
     landing_preview_history_1_amount: '$33.000',
     landing_preview_history_2_concept: 'Almuerzo Tavelli',
-    landing_preview_history_2_meta: '25 may 2026 · Food · Débito BCI',
+    landing_preview_history_2_meta: '25 may 2026 · Comida · Débito BCI',
     landing_preview_history_2_amount: '$25.000',
     landing_preview_history_3_concept: 'Sueldo mensual',
-    landing_preview_history_3_meta: '1 may 2026 · Income · Transferencia',
+    landing_preview_history_3_meta: '1 may 2026 · Ingreso · Transferencia',
     landing_preview_history_3_amount: '$1.200.000',
     landing_preview_telegram_label: 'Vista Telegram',
     landing_preview_telegram_title: 'Registro por chat',
@@ -89,7 +90,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     landing_feature_reports_title: 'Entiende tu mes',
     landing_feature_reports_desc: 'Consulta reportes del período y detecta rápido en qué categorías estás subiendo o bajando tu gasto.',
     landing_how_title: 'Cómo funciona',
-    landing_how_subtitle: 'El flujo es simple: creas tu cuenta, registras movimientos y revisas tu avance cuando quieras.',
+    landing_how_subtitle: 'Crea tu cuenta, registra tus movimientos y revisa tu mes.',
     landing_step_1_title: 'Conecta tu cuenta',
     landing_step_1_desc: 'Crea tu cuenta desde la web con tus datos básicos. Telegram es opcional y lo puedes conectar después.',
     landing_step_2_title: 'Registra tus movimientos',
@@ -259,6 +260,15 @@ const dictionaries: Record<Language, Record<string, string>> = {
     onboarding_done: 'Entendido',
     dashboard_title: 'Dashboard',
     dashboard_monthly: 'Mensual',
+    dashboard_period_label: 'Período del dashboard',
+    dashboard_month_label: 'Mes del dashboard',
+    dashboard_year_label: 'Año del dashboard',
+    dashboard_cash_flow_chart_label: 'Gráfico de flujo de caja por moneda',
+    dashboard_category_chart_label: 'Gráfico de gastos por categoría',
+    dashboard_subcategory_chart_label: 'Gráfico de gastos por subcategoría',
+    dashboard_weekly_chart_label: 'Gráfico de gastos semanales',
+    dashboard_member_balances_label: 'Saldos del período por integrante',
+    dashboard_installments_chart_label: 'Gráfico de próximas cuotas',
     dashboard_annual: 'Anual',
     dashboard_net_balance: 'Balance neto',
     dashboard_this_month_expenses: 'Gastos de este mes',
@@ -297,6 +307,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     dashboard_shared_paid: 'Pagado',
     dashboard_shared_assigned_share: 'Parte asignada',
     dashboard_shared_period_balance: 'Balance del período',
+    dashboard_shared_personal_period_balance: 'Tu saldo del período',
     dashboard_shared_credit: 'A favor',
     dashboard_shared_debt: 'Debe',
     dashboard_shared_settled: 'Al día',
@@ -317,6 +328,10 @@ const dictionaries: Record<Language, Record<string, string>> = {
     dashboard_telegram_open_bot: 'Abrir Telegram',
     dashboard_telegram_dismiss_title: 'Puedes configurarlo más tarde',
     dashboard_telegram_dismiss_desc: 'Recuerda que puedes conectar Telegram en cualquier momento desde Configuración.',
+    dashboard_analytics_title: 'Explora el detalle del mes',
+    dashboard_analytics_description: 'Revisa gráficos y tablas por categoría, período y cuotas cuando necesites más detalle.',
+    dashboard_empty_period_hint: 'Registra un gasto o ingreso para empezar a entender cómo se mueve tu dinero.',
+    dashboard_empty_period_action: 'Registrar un gasto',
     dashboard_current_vs_previous: 'Actual',
     dashboard_vs_previous: 'vs anterior',
     dashboard_left: 'restante',
@@ -480,6 +495,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_filters: 'Filtros',
     expenses_filters_more: 'Mas filtros',
     expenses_active_filters: 'Hay filtros adicionales aplicados.',
+    expenses_period: 'Período',
     expenses_history: 'Historial de gastos',
     expenses_records: 'registros',
     expenses_loading: 'Cargando gastos...',
@@ -496,9 +512,20 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_currency: 'Moneda',
     expenses_date: 'Fecha',
     expenses_category: 'Categoría',
+    expenses_month_label: 'Mes de gastos',
+    expenses_category_filter_label: 'Filtro de categoría de gastos',
+    expenses_subcategory_filter_label: 'Filtro de subcategoría de gastos',
+    expenses_payment_option_filter_label: 'Filtro de opción de medio de pago',
+    expenses_bank_filter_label: 'Filtro de banco de gastos',
+    expenses_payment_method_filter_label: 'Filtro de tipo de medio de pago',
+    expenses_paid_by_label: 'Persona que pagó el gasto',
+    expenses_allocation_mode_label: 'Modo de distribución del gasto',
+    expenses_installment_count_label: 'Cantidad de cuotas del gasto',
     expenses_subcategory: 'Subcategoría',
     expenses_none: 'Ninguna',
     expenses_payment_method: 'Medio de pago',
+    expenses_payment_option: 'Opción de medio de pago',
+    expenses_payment_method_kind: 'Tipo de medio de pago',
     transactions_recorded_by: 'Registrado por',
     transactions_shared_visibility: 'Ves los movimientos de todos los integrantes.',
     expenses_actions: 'Acciones',
@@ -529,6 +556,10 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_installments_help: 'Las siguientes cuotas se programarán el mismo día en los meses siguientes.',
     expenses_installment_badge: 'Cuota',
     expenses_bank: 'Banco',
+    incomes_month_label: 'Mes de ingresos',
+    budgets_category_label: 'Categoría del presupuesto',
+    budgets_subcategory_label: 'Subcategoría del presupuesto',
+    app_home_link: 'Inicio de Expenses Tracker',
     expenses_card_type: 'Tipo de tarjeta',
     expenses_debit: 'Débito',
     expenses_credit: 'Crédito',
@@ -623,6 +654,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     categories_monthly_activity: 'Actividad del mes',
     categories_no_activity: 'Sin actividad este mes.',
     categories_no_results: 'No hay categorías que coincidan con la búsqueda o el filtro.',
+    categories_clear_filters: 'Limpiar filtros',
     categories_new: 'Nueva categoría',
     categories_add_subcategory: 'Añadir subcategoría',
     categories_create_dialog_title: 'Crear categoría',
@@ -674,13 +706,13 @@ const dictionaries: Record<Language, Record<string, string>> = {
     app_name: 'Expenses Tracker',
     landing_tagline: 'A simpler way to track money',
     landing_eyebrow: 'Clear visibility for everyday money',
-    landing_title: 'Track spending, income, and budgets without the noise.',
-    landing_description: 'Track expenses and income from the web or Telegram. Keep personal and shared finances clear with budgets, movements, and balances in one place.',
+    landing_title: 'See where your money goes.',
+    landing_description: 'Track spending and income, then review your month with clarity.',
     landing_skip_to_content: 'Skip to main content',
     landing_login: 'Log in',
     landing_register: 'Create account',
     landing_register_short: 'Join now',
-    landing_cta_support: 'Get started in minutes and log your first movements the same day.',
+    landing_cta_support: 'Choose how to track and stay in control of your movements.',
     landing_proof_messaging: 'Web and Telegram capture',
     landing_proof_budget: 'Clear monthly budgets',
     landing_proof_reports: 'Monthly summaries and reports',
@@ -712,8 +744,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     landing_preview_metric_2_value: '$1,249,562',
     landing_preview_metric_2_caption: 'Balance updates right away',
     landing_preview_metric_3_label: 'Budget used',
-    landing_preview_metric_3_value: '98%',
-    landing_preview_metric_3_caption: 'Very little room left this month',
+    landing_preview_metric_3_value: '64%',
+    landing_preview_metric_3_caption: 'Room left for the month',
     landing_preview_variation_title: 'Category changes',
     landing_preview_variation_1_category: 'Food',
     landing_preview_variation_1_detail: 'Up versus the previous period',
@@ -754,7 +786,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     landing_feature_reports_title: 'Understand the month',
     landing_feature_reports_desc: 'Review period reports and spot quickly which categories are going up or down.',
     landing_how_title: 'How it works',
-    landing_how_subtitle: 'The flow is straightforward: create your account, record movements, and review progress whenever you want.',
+    landing_how_subtitle: 'Create your account, record movements, and review your month.',
     landing_step_1_title: 'Connect your account',
     landing_step_1_desc: 'Create your account on the web with your basic details. Telegram is optional and can be connected later.',
     landing_step_2_title: 'Record your movements',
@@ -925,6 +957,15 @@ const dictionaries: Record<Language, Record<string, string>> = {
     onboarding_done: 'Done',
     dashboard_title: 'Dashboard',
     dashboard_monthly: 'Monthly',
+    dashboard_period_label: 'Dashboard period',
+    dashboard_month_label: 'Dashboard month',
+    dashboard_year_label: 'Dashboard year',
+    dashboard_cash_flow_chart_label: 'Cash flow by currency chart',
+    dashboard_category_chart_label: 'Expenses by category chart',
+    dashboard_subcategory_chart_label: 'Expenses by subcategory chart',
+    dashboard_weekly_chart_label: 'Weekly expenses chart',
+    dashboard_member_balances_label: 'Member period balances',
+    dashboard_installments_chart_label: 'Upcoming installments chart',
     dashboard_annual: 'Annual',
     dashboard_net_balance: 'Net balance',
     dashboard_this_month_expenses: 'This month expenses',
@@ -963,6 +1004,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     dashboard_shared_paid: 'Paid',
     dashboard_shared_assigned_share: 'Assigned share',
     dashboard_shared_period_balance: 'Period balance',
+    dashboard_shared_personal_period_balance: 'Your period balance',
     dashboard_shared_credit: 'Credit',
     dashboard_shared_debt: 'Owes',
     dashboard_shared_settled: 'Settled',
@@ -983,6 +1025,10 @@ const dictionaries: Record<Language, Record<string, string>> = {
     dashboard_telegram_open_bot: 'Open Telegram',
     dashboard_telegram_dismiss_title: 'You can set it up later',
     dashboard_telegram_dismiss_desc: 'Remember that you can connect Telegram at any time from Settings.',
+    dashboard_analytics_title: 'Explore your monthly detail',
+    dashboard_analytics_description: 'Review charts and tables by category, period, and installments when you need more detail.',
+    dashboard_empty_period_hint: 'Record an expense or income to start understanding how your money moves.',
+    dashboard_empty_period_action: 'Record an expense',
     dashboard_current_vs_previous: 'Current',
     dashboard_vs_previous: 'vs previous',
     dashboard_left: 'left',
@@ -1146,6 +1192,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_filters: 'Filters',
     expenses_filters_more: 'More filters',
     expenses_active_filters: 'Additional filters are applied.',
+    expenses_period: 'Period',
     expenses_history: 'Expense history',
     expenses_records: 'records',
     expenses_loading: 'Loading expenses...',
@@ -1162,9 +1209,20 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_currency: 'Currency',
     expenses_date: 'Date',
     expenses_category: 'Category',
+    expenses_month_label: 'Expenses month',
+    expenses_category_filter_label: 'Expense category filter',
+    expenses_subcategory_filter_label: 'Expense subcategory filter',
+    expenses_payment_option_filter_label: 'Expense payment option filter',
+    expenses_bank_filter_label: 'Expense bank filter',
+    expenses_payment_method_filter_label: 'Expense payment method filter',
+    expenses_paid_by_label: 'Expense paid by',
+    expenses_allocation_mode_label: 'Expense allocation mode',
+    expenses_installment_count_label: 'Expense installment count',
     expenses_subcategory: 'Subcategory',
     expenses_none: 'None',
     expenses_payment_method: 'Payment method',
+    expenses_payment_option: 'Payment method option',
+    expenses_payment_method_kind: 'Payment method type',
     transactions_recorded_by: 'Recorded by',
     transactions_shared_visibility: 'You are viewing movements from every member.',
     expenses_actions: 'Actions',
@@ -1195,6 +1253,10 @@ const dictionaries: Record<Language, Record<string, string>> = {
     expenses_installments_help: 'The following installments will be scheduled on the same day of the next months.',
     expenses_installment_badge: 'Installment',
     expenses_bank: 'Bank',
+    incomes_month_label: 'Incomes month',
+    budgets_category_label: 'Budget category',
+    budgets_subcategory_label: 'Budget subcategory',
+    app_home_link: 'Expenses Tracker home',
     expenses_card_type: 'Card type',
     expenses_debit: 'Debit',
     expenses_credit: 'Credit',
@@ -1289,6 +1351,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     categories_monthly_activity: 'Monthly activity',
     categories_no_activity: 'No activity this month.',
     categories_no_results: 'No categories match the search or filter.',
+    categories_clear_filters: 'Clear filters',
     categories_new: 'New category',
     categories_add_subcategory: 'Add subcategory',
     categories_create_dialog_title: 'Create category',
@@ -1335,14 +1398,18 @@ const dictionaries: Record<Language, Record<string, string>> = {
 
 @Injectable({ providedIn: 'root' })
 export class I18nService {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly document = inject(DOCUMENT);
   readonly language = signal<Language>(this.detectInitialLanguage());
 
   hasSavedLanguagePreference() {
+    if (!this.isBrowser) return false;
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved === 'es' || saved === 'en';
   }
 
   savedLanguage() {
+    if (!this.isBrowser) return null;
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved === 'es' || saved === 'en' ? saved : null;
   }
@@ -1353,24 +1420,24 @@ export class I18nService {
 
   setLanguage(language: Language) {
     this.language.set(language);
-    localStorage.setItem(STORAGE_KEY, language);
-    document.documentElement.lang = language;
+    if (this.isBrowser) localStorage.setItem(STORAGE_KEY, language);
+    this.document.documentElement.lang = language;
   }
 
   syncDocumentLanguage() {
-    document.documentElement.lang = this.language();
+    this.document.documentElement.lang = this.language();
   }
 
   usePublicDefault() {
     const language = this.detectPublicLanguage();
     this.language.set(language);
-    document.documentElement.lang = language;
+    this.document.documentElement.lang = language;
   }
 
   usePublicLanguage(language?: string | null) {
     if (language === 'es' || language === 'en') {
       this.language.set(language);
-      document.documentElement.lang = language;
+      this.document.documentElement.lang = language;
       return;
     }
 
@@ -1384,12 +1451,14 @@ export class I18nService {
   }
 
   private detectInitialLanguage(): Language {
+    if (!this.isBrowser) return 'es';
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'es' || saved === 'en') return saved;
     return this.detectPublicLanguage();
   }
 
   private detectPublicLanguage(): Language {
+    if (!this.isBrowser) return 'es';
     const browser = navigator.language.toLowerCase();
     return browser.startsWith('es') ? 'es' : 'en';
   }

@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -61,6 +62,7 @@ export interface RequestOtpResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly tokenKey = 'expenses_tracker_access_token';
   private readonly refreshTokenKey = 'expenses_tracker_refresh_token';
   readonly user = signal<VerifyOtpResponse['user'] | null>(null);
@@ -71,11 +73,11 @@ export class AuthService {
   ) {}
 
   get accessToken() {
-    return localStorage.getItem(this.tokenKey);
+    return this.isBrowser ? localStorage.getItem(this.tokenKey) : null;
   }
 
   get refreshTokenValue() {
-    return localStorage.getItem(this.refreshTokenKey);
+    return this.isBrowser ? localStorage.getItem(this.refreshTokenKey) : null;
   }
 
   requestOtpWithTelegram(phoneNumber: string, telegramChatId?: string) {
@@ -174,17 +176,20 @@ export class AuthService {
   }
 
   logout() {
+    if (!this.isBrowser) return;
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshTokenKey);
     this.user.set(null);
   }
 
   updateSessionTokens(accessToken: string, refreshToken: string) {
+    if (!this.isBrowser) return;
     localStorage.setItem(this.tokenKey, accessToken);
     localStorage.setItem(this.refreshTokenKey, refreshToken);
   }
 
   private storeSession(response: VerifyOtpResponse) {
+    if (!this.isBrowser) return;
     localStorage.setItem(this.tokenKey, response.accessToken);
     localStorage.setItem(this.refreshTokenKey, response.refreshToken);
     this.user.set(response.user);

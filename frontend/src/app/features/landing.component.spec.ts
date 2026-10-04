@@ -89,4 +89,15 @@ describe('LandingComponent', () => {
     expect(metrics?.querySelectorAll('dt').length).toBe(3);
     expect(metrics?.querySelectorAll('dd').length).toBe(3);
   });
+
+  it('leads with the financial outcome and keeps one primary public action', () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const main = host.querySelector<HTMLElement>('main');
+    const primaryActions = Array.from(main?.querySelectorAll<HTMLAnchorElement>('a[href="/login?mode=register"]') ?? []);
+
+    expect(main?.querySelector('h1')?.textContent?.trim()).toBe('Entiende en qué se va tu dinero.');
+    expect(main?.textContent).toContain('Registra gastos e ingresos y revisa tu mes con claridad.');
+    expect(primaryActions).withContext('primary registration action').toHaveSize(1);
+    expect(main?.textContent).not.toContain('Empieza en minutos');
+  });
 });

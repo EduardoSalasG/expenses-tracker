@@ -1,3 +1,4 @@
 export const environment = {
-  apiBaseUrl: '/api'
+  apiBaseUrl: '/api',
+  publicSiteUrl: 'http://localhost:4300'
 };

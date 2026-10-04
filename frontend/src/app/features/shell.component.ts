@@ -70,7 +70,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
             [routerLinkActiveOptions]="{ exact: true }"
             class="shell-nav-link"
           >
-            <mat-icon class="shell-nav-icon">{{ link[3] }}</mat-icon>
+            <mat-icon aria-hidden="true" class="shell-nav-icon">{{ link[3] }}</mat-icon>
             <span class="min-w-0 flex-1 truncate">{{ t(link[1]) }}</span>
           </a>
         }
@@ -85,7 +85,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
             class="shell-mobile-link"
             (click)="closeMoreMenu()"
           >
-            <mat-icon class="shell-nav-icon shell-nav-icon--mobile">{{ link[3] }}</mat-icon>
+            <mat-icon aria-hidden="true" class="shell-nav-icon shell-nav-icon--mobile">{{ link[3] }}</mat-icon>
             <span class="block min-w-0 text-[0.7rem] font-medium leading-tight">{{ t(link[2]) }}</span>
           </a>
         }
@@ -100,7 +100,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
           aria-controls="shell-mobile-more-menu"
           (click)="toggleMoreMenu()"
         >
-          <mat-icon class="shell-nav-icon shell-nav-icon--mobile">more_horiz</mat-icon>
+          <mat-icon aria-hidden="true" class="shell-nav-icon shell-nav-icon--mobile">more_horiz</mat-icon>
           <span class="block min-w-0 text-[0.7rem] font-medium leading-tight">{{ t('nav_more') }}</span>
         </button>
         @if (isMoreMenuOpen) {
@@ -115,7 +115,7 @@ const CREATE_SHARED_ACCOUNT_OPTION = '__create_shared_account__';
                 role="menuitem"
                 (click)="closeMoreMenu()"
               >
-                <mat-icon class="shell-nav-icon">{{ link[3] }}</mat-icon>
+                <mat-icon aria-hidden="true" class="shell-nav-icon">{{ link[3] }}</mat-icon>
                 <span>{{ t(link[1]) }}</span>
               </a>
             }

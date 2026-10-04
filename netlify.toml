@@ -3,11 +3,35 @@
   command = "pnpm install --frozen-lockfile && pnpm --filter @expenses-tracker/frontend build --configuration production"
   publish = "frontend/dist/frontend/browser"
 
+  [build.environment]
+    NODE_VERSION = "22.22.0"
+
 [[redirects]]
   from = "/api/*"
   to = "https://api.expenses-tracker.eduardosalasg.dev/:splat"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/en/"
+  to = "/en"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/en"
+  to = "/en/index.html"
+  status = 200
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
 
 [[redirects]]
   from = "/*"

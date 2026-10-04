@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-04
+
+### Fixed
+
+- Al crear una categoría o subcategoría desde el formulario de gastos, el historial recarga el catálogo vigente antes de renderizar el egreso y conserva su etiqueta recién asignada.
+
 ## [0.3.3] - 2026-09-22
 
 ### Fixed

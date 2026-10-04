@@ -17,6 +17,18 @@ import { PeriodStateService } from '../core/period-state.service';
 import { EmptyStateComponent } from '../shared/components/empty-state.component';
 import { FeedbackBannerComponent } from '../shared/components/feedback-banner.component';
 import { PageHeaderComponent } from '../shared/components/page-header.component';
+import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.component';
+
+export function hasSecondaryIncomeFilters(filters: { concept: string; currency: string }) {
+  return Boolean(filters.concept.trim() || filters.currency.trim());
+}
+
+export function incomeActiveFilterSummary(filters: { concept: string; currency: string }, t: (key: string) => string) {
+  return [
+    ...(filters.concept.trim() ? [{ label: t('expenses_concept'), value: filters.concept.trim() }] : []),
+    ...(filters.currency.trim() ? [{ label: t('expenses_currency'), value: filters.currency.trim().toUpperCase() }] : [])
+  ];
+}
 
 @Component({
   selector: 'app-incomes',
@@ -32,7 +44,8 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
     ReactiveFormsModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    DisclosurePanelComponent
   ],
   template: `
     <app-page-header [title]="t('incomes_title')" [eyebrow]="t('incomes_subtitle')"></app-page-header>
@@ -42,24 +55,20 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
         <input
           id="incomes-month"
           name="incomesMonth"
-          aria-label="Incomes month"
+          [attr.aria-label]="t('incomes_month_label')"
           type="month"
           class="min-h-11 rounded border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-ink"
           [value]="selectedMonth()"
           (change)="changeMonth($event)"
         >
         <div class="flex items-center gap-2">
-          <button id="incomes-filter-toggle" mat-stroked-button type="button" (click)="toggleFilters()">
-            <mat-icon>tune</mat-icon>
-            {{ t('expenses_filters_more') }}
-          </button>
           <button id="incomes-new-button" mat-flat-button color="primary" type="button" (click)="openNewIncomeDialog()">
-            <mat-icon>add</mat-icon>
+            <mat-icon aria-hidden="true">add</mat-icon>
             {{ t('incomes_new') }}
           </button>
         </div>
       </div>
-      @if (filtersOpen()) {
+      <app-disclosure-panel [label]="t('expenses_filters_more')" triggerId="incomes-filter-toggle" [open]="hasSecondaryFilters()" class="mt-4 block">
         <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="mt-4 grid gap-4 lg:grid-cols-5">
           <mat-form-field appearance="outline">
             <mat-label>{{ t('expenses_from') }}</mat-label>
@@ -82,6 +91,14 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
             <button mat-button type="button" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
           </div>
         </form>
+      </app-disclosure-panel>
+      @if (hasSecondaryFilters()) {
+        <section data-testid="income-active-filter-summary" class="mt-3 flex flex-wrap items-center gap-2" [attr.aria-label]="t('expenses_active_filters')">
+          @for (filter of activeFilterSummary(); track filter.label) {
+            <span class="min-w-0 max-w-full rounded-md border border-brand-border bg-brand-surface-muted px-3 py-2 text-sm"><span class="text-xs font-medium text-brand-muted">{{ filter.label }}</span><span class="ml-1 font-medium text-brand-ink">{{ filter.value }}</span></span>
+          }
+          <button mat-button type="button" class="!min-h-11" (click)="clearFilters()">{{ t('expenses_clear') }}</button>
+        </section>
       }
     </mat-card>
 
@@ -123,11 +140,11 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
                   <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
                     <div class="flex flex-wrap justify-end gap-2">
                       <button mat-stroked-button type="button" (click)="openEditIncomeDialog(income)">
-                        <mat-icon>edit</mat-icon>
+                        <mat-icon aria-hidden="true">edit</mat-icon>
                         {{ t('common_edit') }}
                       </button>
                       <button mat-stroked-button type="button" class="!border-rose-500/40 !text-rose-300" (click)="deleteIncome(income)">
-                        <mat-icon>delete</mat-icon>
+                        <mat-icon aria-hidden="true">delete</mat-icon>
                         {{ t('common_delete') }}
                       </button>
                     </div>
@@ -138,7 +155,7 @@ import { PageHeaderComponent } from '../shared/components/page-header.component'
           </table>
         </div>
       } @else {
-        <app-empty-state [message]="t('incomes_empty_filters')" />
+        <app-empty-state [message]="t('incomes_empty_filters')" [actionLabel]="t('expenses_clear')" (action)="clearFilters()" />
       }
     </mat-card>
   `
@@ -157,7 +174,6 @@ export class IncomesComponent implements OnInit {
   readonly isSharedAccount = computed(() => this.accountService.activeAccount()?.type === 'shared');
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly filtersOpen = signal(false);
   readonly selectedMonth = signal(this.periodState.selectedMonth());
   readonly filters = inject(FormBuilder).nonNullable.group({
     from: [''],
@@ -202,8 +218,12 @@ export class IncomesComponent implements OnInit {
     this.loadIncomes();
   }
 
-  toggleFilters() {
-    this.filtersOpen.set(!this.filtersOpen());
+  hasSecondaryFilters() {
+    return hasSecondaryIncomeFilters(this.filters.getRawValue());
+  }
+
+  activeFilterSummary() {
+    return incomeActiveFilterSummary(this.filters.getRawValue(), this.t);
   }
 
   applyFilters() {
@@ -377,7 +397,7 @@ export class IncomesComponent implements OnInit {
           [attr.aria-label]="t('common_close')"
           (click)="dialogRef.close(false)"
         >
-          <mat-icon>close</mat-icon>
+          <mat-icon aria-hidden="true">close</mat-icon>
         </button>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form">

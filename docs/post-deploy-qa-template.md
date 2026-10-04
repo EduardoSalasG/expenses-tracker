@@ -20,6 +20,19 @@ Evidence:
 - live response:
 - ready response:
 
+## Public discovery checks
+
+- [ ] `GET /` returns the prerendered Spanish landing with `lang="es"`, Spanish canonical and reciprocal `hreflang` links.
+- [ ] `GET /en` returns the prerendered English landing with `lang="en"`, English canonical and reciprocal `hreflang` links.
+- [ ] `GET /robots.txt` returns text, references the production sitemap, and is not SPA fallback HTML.
+- [ ] `GET /sitemap.xml` returns XML listing only `/` and `/en` canonical URLs.
+
+Evidence:
+- Spanish landing response:
+- English landing response:
+- robots response:
+- sitemap response:
+
 ## Auth checks
 
 - [ ] Password login works
