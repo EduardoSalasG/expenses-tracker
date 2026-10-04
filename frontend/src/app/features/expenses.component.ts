@@ -587,13 +587,31 @@ export class ExpensesComponent implements OnInit {
 
       ref.afterClosed().subscribe((result: { saved: boolean; mode: 'create' | 'edit'; expense?: Expense } | undefined) => {
         if (result?.saved) {
-          if (result.expense) {
-            this.patchExpenseState(result.expense);
-          }
           this.snackBar.open(this.t(result.mode === 'edit' ? 'expenses_updated' : 'expenses_saved'), undefined, { duration: 2400 });
-          this.loadExpenses();
+          this.refreshCategoriesAndExpenses();
         }
       });
+    });
+  }
+
+  private refreshCategoriesAndExpenses() {
+    const currentAccountId = this.accountService.activeAccountId();
+    const requestId = ++this.catalogRequestId;
+    if (!currentAccountId) {
+      this.loadExpenses();
+      return;
+    }
+    this.api.categories().subscribe({
+      next: (categories) => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.categories.set(categories);
+        this.loadedCatalogAccountId.set(currentAccountId);
+        this.loadExpenses();
+      },
+      error: () => {
+        if (requestId !== this.catalogRequestId || currentAccountId !== this.accountService.activeAccountId()) return;
+        this.loadExpenses();
+      }
     });
   }
 
