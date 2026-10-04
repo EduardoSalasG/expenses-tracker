@@ -5,8 +5,8 @@
 
 ## 2. Correlación y ciclo HTTP
 
-- [ ] 2.1 Incorporar middleware de `X-Request-ID` que valide UUID, genere fallback y devuelva la cabecera; verificar solicitudes con ID válido, ausente e inválido.
-- [ ] 2.2 Registrar finalización HTTP con ruta normalizada, método, estado y duración, y correlacionar errores saneados; verificar logs de éxito, error y 404 sin query strings ni credenciales.
+- [x] 2.1 Incorporar middleware de `X-Request-ID` que valide UUID, genere fallback y devuelva la cabecera; verificar solicitudes con ID válido, ausente e inválido.
+- [x] 2.2 Registrar finalización HTTP con ruta normalizada, método, estado y duración, y correlacionar errores saneados; verificar logs de éxito, error y 404 sin query strings ni credenciales.
 - [ ] 2.3 Registrar eventos de arranque, apagado, readiness y worker con el contrato común; verificar regresiones de health y worker.
 
 ## 3. Propagación desde frontend
