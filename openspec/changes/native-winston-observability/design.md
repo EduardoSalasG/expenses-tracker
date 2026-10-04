@@ -21,7 +21,7 @@ El backend ya construye un logger Winston único, pero sólo configura timestamp
 
 ### Contrato de logger enriquecido
 
-El adaptador Winston añadirá `service`, `environment` y `version` como metadatos por defecto. `LOG_LEVEL` se valida con Zod y se entrega desde `AppConfig`, por lo que todos los puntos de entrada usan una configuración coherente. La alternativa de leer `process.env` desde cada logger se descarta porque permitiría discrepancias entre API, scripts y worker.
+El adaptador Winston añadirá `service`, `environment` y `version` como metadatos por defecto. La versión se exporta desde un módulo backend generado por el sincronizador de versiones existente, por lo que coincide con los manifiestos también dentro de la imagen compilada. `LOG_LEVEL` se valida con Zod y se entrega desde `AppConfig`, por lo que todos los puntos de entrada usan una configuración coherente. El contenedor pasa la configuración de forma explícita; los scripts y workers que hoy crean un logger directamente resuelven el mismo `AppConfig` central como fallback. La alternativa de leer `process.env` desde cada logger se descarta porque permitiría discrepancias entre API, scripts y worker.
 
 ### Correlación en dos capas
 

@@ -26,13 +26,16 @@
 - Modify: `backend/src/infrastructure/config.ts`
 - Modify: `backend/src/infrastructure/logger.ts`
 - Modify: `backend/src/infrastructure/container.ts`
+- Modify: `scripts/version-sync.mjs`
+- Modify: `backend/src/infrastructure/version-sync.test.ts`
+- Create: `backend/src/infrastructure/generated/app-version.ts`
 - Modify: `backend/src/infrastructure/config.test.ts`
 - Create: `backend/src/infrastructure/logger.test.ts`
 
 **Interfaces:**
 - Produces: `AppConfig.logLevel: 'error' | 'warn' | 'info' | 'debug'`.
-- Produces: `createLogger(options: { nodeEnv: string; logLevel: AppConfig['logLevel']; version: string }): AppLogger`.
-- Consumes: root `package.json` version through the existing generated/constant pattern selected during implementation; no runtime manifest read in the browser.
+- Produces: `createLogger(config?: Pick<AppConfig, 'nodeEnv' | 'logLevel'>): AppLogger`; el adaptador usa `loadConfig()` como fallback para scripts que no reciben contenedor.
+- Produces: `backend/src/infrastructure/generated/app-version.ts` synchronized from the root version by `scripts/version-sync.mjs`.
 
 - [ ] **Step 1: Write failing configuration tests**
 
@@ -67,7 +70,7 @@ expect(info).toMatchObject({ service: 'expenses-tracker-api', environment: 'prod
 expect(JSON.stringify(info)).not.toContain('Error: private stack');
 ```
 
-- [ ] **Step 5: Make `createLogger` accept typed options, add default metadata and a Console transport with JSON formatting; pass config/version from the container.**
+- [ ] **Step 5: Extend `version-sync.mjs` and its test to generate the backend version module, then make `createLogger` import it, accept optional typed config, resolve `loadConfig()` as fallback for scripts, add default metadata and a Console transport with JSON formatting; pass config from the container.**
 
 - [ ] **Step 6: Run `pnpm --filter @expenses-tracker/backend test -- config.test.ts logger.test.ts` and verify all tests pass.**
 

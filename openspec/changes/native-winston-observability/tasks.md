@@ -1,7 +1,7 @@
 ## 1. Logger y configuración
 
-- [ ] 1.1 Validar `LOG_LEVEL` en la configuración y enriquecer Winston con servicio, entorno y versión; verificar con pruebas de configuración y logger.
-- [ ] 1.2 Mantener el formato JSON seguro en procesos API, scripts y worker; verificar que producción no incluya stack ni secretos.
+- [x] 1.1 Validar `LOG_LEVEL` en la configuración, generar la versión backend desde el sincronizador y enriquecer Winston con servicio, entorno y versión; verificar con pruebas de configuración, sincronización y logger.
+- [ ] 1.2 Mantener el formato JSON seguro en procesos API, scripts y worker mediante el fallback de configuración central; verificar que producción no incluya stack ni secretos.
 
 ## 2. Correlación y ciclo HTTP
 
