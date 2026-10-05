@@ -15,5 +15,5 @@
 
 ## 4. Documentación y validación
 
-- [ ] 4.1 Documentar `LOG_LEVEL`, campos de eventos y búsqueda por `requestId` en la guía operativa; verificar que no haya instrucciones de telemetría externa.
-- [ ] 4.2 Ejecutar pruebas backend, frontend, build de superficies afectadas y `openspec validate native-winston-observability --strict`; registrar resultados y actualizar esta lista.
+- [x] 4.1 Documentar `LOG_LEVEL`, campos de eventos y búsqueda por `requestId` en la guía operativa; verificar que no haya instrucciones de telemetría externa.
+- [x] 4.2 Ejecutar pruebas backend, frontend, build de superficies afectadas y `openspec validate native-winston-observability --strict`; registrar resultados y actualizar esta lista.

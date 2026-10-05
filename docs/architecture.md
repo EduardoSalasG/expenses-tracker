@@ -80,6 +80,7 @@ Application use cases depend on provider-neutral messaging ports: `MessagingProv
 - Readiness probe: `GET /health/ready` (includes DB check for PostgreSQL mode)
 - Graceful shutdown: `SIGINT` and `SIGTERM` close HTTP server and database pool.
 - Scheduled report worker now logs batch duration and exits non-zero when there are failed deliveries, so schedulers can alert/retry.
+- Native observability: Winston emits structured JSON to `stdout`. Backend HTTP logs use a validated `X-Request-ID`, normalized routes, status and duration; the Angular interceptor propagates one UUID per request without sending browser telemetry. No external collector, agent, dashboard, or client-side error transport is part of the application.
 
 ## Telegram Sender Access
 
