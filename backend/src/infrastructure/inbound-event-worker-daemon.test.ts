@@ -24,8 +24,8 @@ describe('inbound event worker daemon', () => {
 
     expect(processPending).toHaveBeenCalledWith(4);
     expect(close).toHaveBeenCalledOnce();
-    expect(info).toHaveBeenCalledWith('Inbound event worker started.', { limit: 4, pollIntervalMs: 1000 });
-    expect(info).toHaveBeenCalledWith('Inbound event worker stopped.');
+    expect(info).toHaveBeenCalledWith('inbound_worker_started', { limit: 4, pollIntervalMs: 1000 });
+    expect(info).toHaveBeenCalledWith('inbound_worker_stopped');
   });
 
   it('preserves the inbound service receiver while processing', async () => {

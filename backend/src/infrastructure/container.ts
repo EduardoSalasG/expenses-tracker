@@ -68,7 +68,7 @@ import { InMemoryInboundEventStore } from './inbound-event.store.js';
 import { PostgresInboundEventStore } from './postgres-inbound-event.store.js';
 
 export function createContainer(config: AppConfig) {
-  const logger = createLogger();
+  const logger = createLogger(config);
   const clock = { now: () => new Date() };
   const rateLimits = new InMemoryRateLimitStore();
   const pool = config.useInMemoryRepositories ? undefined : createPool(config);

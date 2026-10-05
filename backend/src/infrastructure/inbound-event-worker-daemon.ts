@@ -32,7 +32,7 @@ export async function startInboundEventWorkerDaemon(options: InboundEventWorkerD
 
   runtimeProcess.once('SIGTERM', stop);
   runtimeProcess.once('SIGINT', stop);
-  options.container.logger.info('Inbound event worker started.', settings);
+  options.container.logger.info('inbound_worker_started', settings);
 
   try {
     await runInboundEventWorker({
@@ -45,6 +45,6 @@ export async function startInboundEventWorkerDaemon(options: InboundEventWorkerD
   } finally {
     runtimeProcess.removeListener('SIGTERM', stop);
     runtimeProcess.removeListener('SIGINT', stop);
-    options.container.logger.info('Inbound event worker stopped.');
+    options.container.logger.info('inbound_worker_stopped');
   }
 }

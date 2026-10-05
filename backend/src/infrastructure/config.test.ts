@@ -91,4 +91,33 @@ describe('loadConfig', () => {
     expect(loadConfig().otpDebugResponseEnabled).toBe(true);
     vi.unstubAllEnvs();
   });
+
+  it('uses the environment-specific default log level and accepts an explicit supported value', async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOG_LEVEL', '');
+    vi.stubEnv('DATABASE_URL', 'postgres://production.example/expenses');
+    vi.stubEnv('JWT_SECRET', 'production-secret');
+    vi.stubEnv('FRONTEND_ORIGIN', 'https://expenses.example');
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
+    vi.stubEnv('TELEGRAM_WEBHOOK_SECRET_TOKEN', '');
+    let { loadConfig } = await import('./config.js');
+    expect(loadConfig().logLevel).toBe('info');
+
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('LOG_LEVEL', 'debug');
+    ({ loadConfig } = await import('./config.js'));
+    expect(loadConfig().logLevel).toBe('debug');
+    vi.unstubAllEnvs();
+  });
+
+  it('rejects an unsupported LOG_LEVEL', async () => {
+    vi.resetModules();
+    vi.stubEnv('LOG_LEVEL', 'verbose');
+    const { loadConfig } = await import('./config.js');
+
+    expect(() => loadConfig()).toThrow();
+    vi.unstubAllEnvs();
+  });
 });

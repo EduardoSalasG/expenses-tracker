@@ -5,7 +5,7 @@ import type { AppContainer } from '../../../infrastructure/container.js';
 export function errorMiddleware(container: AppContainer) {
   return (error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     const requestId = (_request as Request & { id?: string }).id ?? crypto.randomUUID();
-    container.logger.error('HTTP error', { error: toSafeErrorMetadata(error), requestId });
+    container.logger.error('http_request_failed', { error: toSafeErrorMetadata(error), requestId });
     if (isOtpThrottleError(error)) {
       response.set('Retry-After', String(error.retryAfterSeconds)).status(429).json({ error: 'Too many OTP requests.' });
       return;

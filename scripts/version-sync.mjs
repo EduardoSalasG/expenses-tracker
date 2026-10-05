@@ -74,6 +74,7 @@ function run() {
   const targets = [
     { path: join(workspaceRoot, 'backend', 'package.json'), content: null },
     { path: join(workspaceRoot, 'frontend', 'package.json'), content: null },
+    { path: join(workspaceRoot, 'backend', 'src', 'infrastructure', 'generated', 'app-version.ts'), content: generatedModuleContent(version) },
     { path: join(workspaceRoot, 'frontend', 'src', 'app', 'generated', 'app-version.ts'), content: generatedModuleContent(version) }
   ].map((target) => ({
     ...target,
