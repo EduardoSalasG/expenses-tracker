@@ -50,6 +50,7 @@ export interface Expense {
   createdByUserId?: UserId;
   createdByPreferredName?: string;
   paidByUserId?: UserId;
+  paidByPreferredName?: string;
   allocationMode?: ExpenseAllocationMode;
   allocations?: ExpenseAllocation[];
   date: string;

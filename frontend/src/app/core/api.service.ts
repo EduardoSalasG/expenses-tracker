@@ -150,6 +150,7 @@ export interface Expense {
   createdByUserId?: string;
   createdByPreferredName?: string;
   paidByUserId?: string;
+  paidByPreferredName?: string;
   allocationMode?: 'payer' | 'equal' | 'custom';
   allocations?: Array<{ owedByUserId: string; amount: number }>;
   currency: string;

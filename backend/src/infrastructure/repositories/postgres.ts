@@ -1885,6 +1885,7 @@ function mapExpense(row: QueryResultRow): Expense {
     createdByUserId: row.created_by_user_id ?? undefined,
     createdByPreferredName: row.created_by_preferred_name ?? undefined,
     paidByUserId: row.paid_by_user_id ?? undefined,
+    paidByPreferredName: row.paid_by_preferred_name ?? undefined,
     allocationMode: row.allocation_mode ?? undefined,
     date: row.expense_date instanceof Date ? row.expense_date.toISOString() : row.expense_date,
     amount: Number(row.amount),
@@ -2108,6 +2109,7 @@ function expenseProjectionSelectSql(input: {
       e.created_by_user_id,
       coalesce(created_by.preferred_name, created_by.first_name) as created_by_preferred_name,
       e.paid_by_user_id,
+      coalesce(paid_by.preferred_name, paid_by.first_name) as paid_by_preferred_name,
       e.allocation_mode,
       i.due_date as expense_date,
       i.amount,
@@ -2130,6 +2132,7 @@ function expenseProjectionSelectSql(input: {
     from expenses e
     join expense_installments i on i.expense_id = e.id
     left join users created_by on created_by.id = coalesce(e.created_by_user_id, e.user_id)
+    left join users paid_by on paid_by.id = e.paid_by_user_id
     ${input.whereClause ?? ''}
     ${input.orderClause ?? ''}
     ${input.limitClause ?? ''}

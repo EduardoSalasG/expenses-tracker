@@ -285,7 +285,7 @@ export function expenseActiveFilterSummary(
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_category') }}</th>
               <th class="py-2.5 pr-3 font-medium">{{ t('expenses_payment_method') }}</th>
               @if (isSharedAccount()) {
-                <th class="py-2.5 pr-3 font-medium">{{ t('transactions_recorded_by') }}</th>
+                <th class="py-2.5 pr-3 font-medium">{{ t('expenses_paid_originally_by') }}</th>
               }
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_amount') }}</th>
               <th class="py-2.5 pr-3 text-right font-medium">{{ t('expenses_actions') }}</th>
@@ -306,7 +306,7 @@ export function expenseActiveFilterSummary(
                 <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon aria-hidden="true">sell</mat-icon>{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></td>
                 <td [attr.data-label]="t('expenses_payment_method')" [attr.title]="paymentLabel(expense)" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
                 @if (isSharedAccount()) {
-                  <td [attr.data-label]="t('transactions_recorded_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon>{{ recordedBy(expense) }}</span></td>
+                  <td [attr.data-label]="t('expenses_paid_originally_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon><span class="transaction-author-label">{{ t('expenses_paid_originally_by') }}</span><span class="transaction-author-name">{{ paidOriginallyBy(expense) }}</span></span></td>
                 }
                 <td [attr.data-label]="t('expenses_amount')" class="transaction-cell transaction-cell--amount py-3 pr-3 text-right font-semibold">{{ formatMoney(expense.currency, expense.amount) }}</td>
                 <td [attr.data-label]="t('expenses_actions')" class="transaction-cell transaction-cell--actions py-3 pr-3 text-right">
@@ -677,8 +677,8 @@ export class ExpensesComponent implements OnInit {
     return option.name;
   }
 
-  recordedBy(expense: Expense) {
-    return expense.createdByPreferredName ?? this.t('common_no_data');
+  paidOriginallyBy(expense: Expense) {
+    return expense.paidByPreferredName ?? this.t('common_no_data');
   }
 
   formatDate(value: string) {
@@ -965,8 +965,8 @@ export class ExpenseCreateDialogComponent {
       }
       if (this.isSharedAccount()) {
         this.form.controls.paidByUserId.setValue(data.currentUserId ?? this.sharedMembers()[0]?.userId ?? '');
-        this.form.controls.allocationMode.setValue('payer');
-        this.fillEqualOrPayerAllocationControls('payer');
+        this.form.controls.allocationMode.setValue('equal');
+        this.fillEqualOrPayerAllocationControls('equal');
       }
     }
     this.form.controls.categoryId.valueChanges.subscribe((categoryId) => {

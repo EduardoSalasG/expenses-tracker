@@ -7,17 +7,18 @@ import {
 } from './expenses.component';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { AccountContextService } from '../core/account-context.service';
-import { ApiService, type Category, type Expense } from '../core/api.service';
+import { ApiService, type Category, type Expense, type FinancialAccount, type FinancialAccountMemberProfile, type FinancialAccountMembership } from '../core/api.service';
 import { I18nService } from '../core/i18n.service';
 import { OnboardingService } from '../core/onboarding.service';
 import { PeriodStateService } from '../core/period-state.service';
 import { formatExpenseDate } from '../core/transaction-date';
+import { ExpenseCreateDialogComponent } from './expenses.component';
 import * as ExpensesFeature from './expenses.component';
 
 describe('expense filter disclosure', () => {
@@ -132,12 +133,14 @@ describe('ExpensesComponent category catalog refresh', () => {
   let openDialog: jasmine.Spy;
   let api: jasmine.SpyObj<ApiService>;
   let refreshedCategories: Subject<Category[]>;
+  const activeAccount = signal<FinancialAccount | null>(null);
 
   const initialCategories: Category[] = [{ id: 'food', name: 'Food', isDefault: false }];
   const createdRoot: Category = { id: 'home', name: 'Home', isDefault: false };
   const createdSubcategory: Category = { id: 'cleaning', parentId: 'home', name: 'Cleaning', isDefault: false };
 
   beforeEach(async () => {
+    activeAccount.set(null);
     refreshedCategories = new Subject<Category[]>();
     api = jasmine.createSpyObj<ApiService>('ApiService', ['categories', 'bankOptions', 'paymentMethodOptions', 'me', 'expenses']);
     api.categories.and.returnValues(of(initialCategories), refreshedCategories.asObservable());
@@ -163,9 +166,9 @@ describe('ExpensesComponent category catalog refresh', () => {
         {
           provide: AccountContextService,
           useValue: {
-            activeAccount: () => null,
+            activeAccount,
             activeAccountId: signal('account-1'),
-            activeMembership: () => null,
+            activeMembership: () => activeAccount()?.type === 'shared' ? sharedAccountMembership() : null,
             loading: signal(false),
             members: signal([]),
             refreshMembers: () => of([])
@@ -217,6 +220,97 @@ describe('ExpensesComponent category catalog refresh', () => {
 
     expect(categoryCellText(fixture)).toContain('Home / Cleaning');
   });
+
+  it('shows the original payer instead of the person who recorded a shared expense', () => {
+    const account = sharedAccountMembership();
+    activeAccount.set(account.account);
+    TestBed.flushEffects();
+    component.expenses.set([{
+      ...expenseFor('food'),
+      createdByPreferredName: 'Ana',
+      paidByUserId: 'user-2',
+      paidByPreferredName: 'Bruno'
+    } as Expense & { paidByPreferredName: string }]);
+
+    fixture.detectChanges();
+
+    const payerCell = fixture.nativeElement.querySelector('.transaction-cell--recorded') as HTMLElement;
+    expect(payerCell.textContent).toContain('expenses_paid_originally_by');
+    expect(payerCell.textContent).toContain('Bruno');
+    expect(payerCell.textContent).not.toContain('Ana');
+    expect((payerCell.querySelector('.transaction-author-name') as HTMLElement).textContent).toContain('Bruno');
+  });
+});
+
+describe('ExpenseCreateDialogComponent shared defaults', () => {
+  it('defaults a new shared expense to equal allocations', async () => {
+    const api = jasmine.createSpyObj<ApiService>('ApiService', ['createExpense', 'updateExpense', 'createCategory', 'createBankOption', 'createPaymentMethodOption']);
+    await TestBed.configureTestingModule({
+      imports: [ExpenseCreateDialogComponent, NoopAnimationsModule],
+      providers: [
+        { provide: ApiService, useValue: api },
+        { provide: I18nService, useValue: { language: () => 'es', t: (key: string) => key } },
+        { provide: MatDialog, useValue: jasmine.createSpyObj<MatDialog>('MatDialog', ['open']) },
+        { provide: MatDialogRef, useValue: jasmine.createSpyObj<MatDialogRef<ExpenseCreateDialogComponent>>('MatDialogRef', ['close']) },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            categories: [{ id: 'food', name: 'Comida', isDefault: false }],
+            bankOptions: [],
+            paymentMethodOptions: [{ id: 'cash', code: 'cash', name: 'Efectivo', kind: 'cash', isDefault: true }],
+            accountMembership: sharedAccountMembership(),
+            accountMembers: sharedMembers(),
+            currentUserId: 'user-1'
+          }
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ExpenseCreateDialogComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.form.controls.amount.setValue(100);
+
+    expect(fixture.componentInstance.form.controls.allocationMode.value).toBe('equal');
+    expect(fixture.componentInstance.allocationControl('user-1').value).toBe(50);
+    expect(fixture.componentInstance.allocationControl('user-2').value).toBe(50);
+  });
+
+  it('preserves the stored allocation mode when editing a shared expense', async () => {
+    const api = jasmine.createSpyObj<ApiService>('ApiService', ['createExpense', 'updateExpense', 'createCategory', 'createBankOption', 'createPaymentMethodOption']);
+    await TestBed.configureTestingModule({
+      imports: [ExpenseCreateDialogComponent, NoopAnimationsModule],
+      providers: [
+        { provide: ApiService, useValue: api },
+        { provide: I18nService, useValue: { language: () => 'es', t: (key: string) => key } },
+        { provide: MatDialog, useValue: jasmine.createSpyObj<MatDialog>('MatDialog', ['open']) },
+        { provide: MatDialogRef, useValue: jasmine.createSpyObj<MatDialogRef<ExpenseCreateDialogComponent>>('MatDialogRef', ['close']) },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            categories: [{ id: 'food', name: 'Comida', isDefault: false }],
+            bankOptions: [],
+            paymentMethodOptions: [{ id: 'cash', code: 'cash', name: 'Efectivo', kind: 'cash', isDefault: true }],
+            accountMembership: sharedAccountMembership(),
+            accountMembers: sharedMembers(),
+            currentUserId: 'user-1',
+            expense: {
+              ...expenseFor('food'),
+              paidByUserId: 'user-2',
+              allocationMode: 'custom',
+              allocations: [{ owedByUserId: 'user-1', amount: 30 }, { owedByUserId: 'user-2', amount: 70 }]
+            }
+          }
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ExpenseCreateDialogComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.form.controls.allocationMode.value).toBe('custom');
+    expect(fixture.componentInstance.allocationControl('user-1').value).toBe(30);
+    expect(fixture.componentInstance.allocationControl('user-2').value).toBe(70);
+  });
 });
 
 function categoryCellText(fixture: ComponentFixture<ExpensesComponent>) {
@@ -239,4 +333,27 @@ function expenseFor(categoryId: string, subcategoryId?: string): Expense {
     subcategoryId,
     paymentMethod: { kind: 'cash' }
   };
+}
+
+function sharedAccountMembership(): FinancialAccountMembership {
+  return {
+    account: {
+      id: 'shared-account',
+      tenantId: 'tenant-1',
+      type: 'shared',
+      name: 'Hogar',
+      currency: 'CLP',
+      createdByUserId: 'user-1',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      updatedAt: '2026-09-01T00:00:00.000Z'
+    },
+    role: 'owner'
+  };
+}
+
+function sharedMembers(): FinancialAccountMemberProfile[] {
+  return [
+    { memberId: 'member-1', financialAccountId: 'shared-account', userId: 'user-1', role: 'owner', status: 'active', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z', firstName: 'Ana', lastName: 'Pérez', preferredName: 'Ana', phoneNumber: '+56900000001' },
+    { memberId: 'member-2', financialAccountId: 'shared-account', userId: 'user-2', role: 'member', status: 'active', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z', firstName: 'Bruno', lastName: 'Soto', preferredName: 'Bruno', phoneNumber: '+56900000002' }
+  ];
 }
