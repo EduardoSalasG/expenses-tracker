@@ -5,11 +5,12 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth.interceptor';
+import { requestCorrelationInterceptor } from './core/request-correlation.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideAnimations(),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([requestCorrelationInterceptor, authInterceptor])),
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
     provideClientHydration(withEventReplay())
   ]

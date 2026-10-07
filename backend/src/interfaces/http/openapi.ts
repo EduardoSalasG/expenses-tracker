@@ -1078,7 +1078,9 @@ export const openApiSpec = {
                         amount: 33000,
                         currency: 'CLP',
                         createdByUserId: '7a998989-90fa-4327-b5f8-2f4f1941fc54',
-                        createdByPreferredName: 'Eduardo'
+                        createdByPreferredName: 'Eduardo',
+                        paidByUserId: 'f39deee0-2d7b-4639-8c54-44b6d9cf62b4',
+                        paidByPreferredName: 'Vane'
                       }]
                     }
                   }

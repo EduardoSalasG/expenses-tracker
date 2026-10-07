@@ -87,7 +87,7 @@ describe('errorMiddleware', () => {
       error: 'Internal server error.',
       requestId: 'req-123'
     });
-    expect(logger.error).toHaveBeenCalledWith('HTTP error', expect.objectContaining({ requestId: 'req-123' }));
+    expect(logger.error).toHaveBeenCalledWith('http_request_failed', expect.objectContaining({ requestId: 'req-123' }));
   });
 
   it('does not send tokens, webhook bodies, or secret-bearing error details to the logger', () => {

@@ -1,10 +1,56 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createApp } from './app.js';
 import { extractWhatsAppMessages, extractWhatsAppStatuses } from './messaging-providers/whatsapp.extractor.js';
 import { extractTelegramMessages } from './messaging-providers/telegram.extractor.js';
 import { createContainer } from '../../infrastructure/container.js';
 import type { AppConfig } from '../../infrastructure/config.js';
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+describe('HTTP observability', () => {
+  it('returns a supplied valid request ID and logs the completed normalized route', async () => {
+    const container = createContainer(testConfig());
+    const logInfo = vi.spyOn(container.logger, 'info');
+    const requestId = '018f3175-0d83-7c25-b1a1-4ee2e45ad65f';
+
+    const response = await request(createApp(container))
+      .get('/health')
+      .set('X-Request-ID', requestId);
+
+    expect(response.headers['x-request-id']).toBe(requestId);
+    expect(logInfo).toHaveBeenCalledWith('http_request_completed', expect.objectContaining({
+      requestId,
+      method: 'GET',
+      route: '/health',
+      statusCode: 200,
+      durationMs: expect.any(Number)
+    }));
+  });
+
+  it('replaces an invalid request ID without logging its value', async () => {
+    const container = createContainer(testConfig());
+    const logInfo = vi.spyOn(container.logger, 'info');
+
+    const response = await request(createApp(container))
+      .get('/health?account=private@example.com')
+      .set('X-Request-ID', 'private@example.com');
+
+    expect(response.headers['x-request-id']).toMatch(uuidPattern);
+    expect(response.headers['x-request-id']).not.toBe('private@example.com');
+    expect(JSON.stringify(logInfo.mock.calls)).not.toContain('private@example.com');
+  });
+
+  it('records only the readiness result', async () => {
+    const container = createContainer(testConfig());
+    const logInfo = vi.spyOn(container.logger, 'info');
+
+    const response = await request(createApp(container)).get('/health/ready');
+
+    expect(response.status).toBe(200);
+    expect(logInfo).toHaveBeenCalledWith('api_readiness_checked', { status: 'ok' });
+  });
+});
 
 describe('Messaging routes', () => {
   it('returns a stable 401 contract when a protected route has no bearer token', async () => {
@@ -367,6 +413,7 @@ describe('Telegram webhook', () => {
 function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     nodeEnv: 'test',
+    logLevel: 'debug',
     port: 0,
     databaseUrl: 'postgres://postgres:postgres@localhost:5432/expenses_tracker',
     jwtSecret: 'test-secret',

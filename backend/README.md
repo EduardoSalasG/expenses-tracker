@@ -424,7 +424,19 @@ The worker exits after one batch. Schedule these commands from cron or the deplo
 
 ## Logging
 
-Use the shared Winston logger adapter. Do not log OTP values, JWTs, Telegram bot tokens, or full authorization headers.
+Use the shared Winston logger adapter. It emits one JSON object per line to `stdout` with `service`, `environment`, `version`, `level`, and `timestamp`.
+
+`LOG_LEVEL` accepts `error`, `warn`, `info`, or `debug`. It defaults to `info` in production and `debug` in development/test. An unsupported value prevents startup.
+
+Every HTTP response includes `X-Request-ID`. The frontend generates it for browser calls, and the backend validates it or generates a replacement for other clients. Search a container stream by that ID without including user input:
+
+```bash
+docker logs expenses-tracker-backend | jq 'select(.requestId == "<uuid>")'
+```
+
+HTTP completion events are named `http_request_completed` and contain `requestId`, `method`, normalized `route`, `statusCode`, and `durationMs`. Failed HTTP handling emits `http_request_failed`; lifecycle events include `api_started`, `api_shutdown_requested`, `api_stopped`, `api_readiness_checked`, `inbound_worker_started`, and `inbound_worker_stopped`.
+
+Do not log OTP values, JWTs, refresh tokens, Telegram bot tokens, webhook secrets, full authorization headers, request bodies, query strings, emails, phone numbers, or database URLs. The app uses no external telemetry service or client-side error reporting.
 
 ## Tests
 

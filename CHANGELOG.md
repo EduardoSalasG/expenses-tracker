@@ -6,6 +6,13 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-07
+
+### Fixed
+
+- En cuentas compartidas, el historial de gastos identifica a la persona que pagó originalmente el gasto, en vez de quien lo registró.
+- Los nuevos gastos compartidos comienzan con reparto en partes iguales y preservan el reparto guardado al editarlos.
+
 ## [0.3.4] - 2026-10-04
 
 ### Fixed

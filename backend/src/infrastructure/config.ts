@@ -19,6 +19,10 @@ const developmentDatabaseUrl = 'postgres://postgres:postgres@localhost:5432/expe
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  LOG_LEVEL: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.enum(['error', 'warn', 'info', 'debug']).optional()
+  ),
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().default(developmentDatabaseUrl),
   JWT_SECRET: z.string().min(8).default(developmentJwtSecret),
@@ -78,6 +82,7 @@ export function loadConfig() {
 
   return {
     nodeEnv: env.NODE_ENV,
+    logLevel: env.LOG_LEVEL ?? (env.NODE_ENV === 'production' ? 'info' : 'debug'),
     port: env.PORT,
     databaseUrl: env.DATABASE_URL,
     jwtSecret: env.JWT_SECRET,

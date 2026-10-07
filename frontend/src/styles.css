@@ -197,6 +197,10 @@ body {
   color: var(--brand-muted);
 }
 
+.transaction-author-label {
+  display: none;
+}
+
 .transaction-tag {
   border: 1px solid var(--brand-border);
   border-radius: 999px;
@@ -1372,9 +1376,10 @@ select option:focus {
   .responsive-table.transaction-table--expense.transaction-table--shared tr {
     grid-template-areas:
       "concept amount"
-      "date recorded"
+      "date date"
       "category category"
       "payment payment"
+      "recorded recorded"
       "actions actions";
   }
 
@@ -1431,7 +1436,7 @@ select option:focus {
 
   .responsive-table .transaction-cell--recorded {
     grid-area: recorded;
-    text-align: right !important;
+    text-align: left !important;
   }
 
   .responsive-table .transaction-cell--amount {
@@ -1469,11 +1474,17 @@ select option:focus {
   }
 
   .responsive-table .transaction-author {
-    justify-content: flex-end;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .responsive-table .transaction-author-label {
+    display: inline;
   }
 
   .responsive-table .transaction-tag {
