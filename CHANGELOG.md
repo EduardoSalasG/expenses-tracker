@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-07
+
+### Fixed
+
+- Las tarjetas de gastos compartidos muestran “Pagado por” y resuelven el nombre del pagador desde los miembros de la cuenta cuando el historial aún no incluye el nombre.
+
 ## [0.3.5] - 2026-10-07
 
 ### Fixed
