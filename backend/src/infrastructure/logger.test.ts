@@ -9,7 +9,7 @@ describe('createLogger', () => {
     expect(logger.defaultMeta).toMatchObject({
       service: 'expenses-tracker-api',
       environment: 'production',
-      version: '0.3.4'
+      version: '0.3.5'
     });
   });
 
