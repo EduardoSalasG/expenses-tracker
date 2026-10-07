@@ -134,6 +134,7 @@ describe('ExpensesComponent category catalog refresh', () => {
   let api: jasmine.SpyObj<ApiService>;
   let refreshedCategories: Subject<Category[]>;
   const activeAccount = signal<FinancialAccount | null>(null);
+  const accountMembers = signal<FinancialAccountMemberProfile[]>([]);
 
   const initialCategories: Category[] = [{ id: 'food', name: 'Food', isDefault: false }];
   const createdRoot: Category = { id: 'home', name: 'Home', isDefault: false };
@@ -141,6 +142,7 @@ describe('ExpensesComponent category catalog refresh', () => {
 
   beforeEach(async () => {
     activeAccount.set(null);
+    accountMembers.set([]);
     refreshedCategories = new Subject<Category[]>();
     api = jasmine.createSpyObj<ApiService>('ApiService', ['categories', 'bankOptions', 'paymentMethodOptions', 'me', 'expenses']);
     api.categories.and.returnValues(of(initialCategories), refreshedCategories.asObservable());
@@ -170,7 +172,7 @@ describe('ExpensesComponent category catalog refresh', () => {
             activeAccountId: signal('account-1'),
             activeMembership: () => activeAccount()?.type === 'shared' ? sharedAccountMembership() : null,
             loading: signal(false),
-            members: signal([]),
+            members: accountMembers,
             refreshMembers: () => of([])
           }
         },
@@ -221,21 +223,21 @@ describe('ExpensesComponent category catalog refresh', () => {
     expect(categoryCellText(fixture)).toContain('Home / Cleaning');
   });
 
-  it('shows the original payer instead of the person who recorded a shared expense', () => {
+  it('shows the payer from shared-account members when an expense omits the payer name', () => {
     const account = sharedAccountMembership();
     activeAccount.set(account.account);
+    accountMembers.set(sharedMembers());
     TestBed.flushEffects();
     component.expenses.set([{
       ...expenseFor('food'),
       createdByPreferredName: 'Ana',
-      paidByUserId: 'user-2',
-      paidByPreferredName: 'Bruno'
-    } as Expense & { paidByPreferredName: string }]);
+      paidByUserId: 'user-2'
+    }]);
 
     fixture.detectChanges();
 
     const payerCell = fixture.nativeElement.querySelector('.transaction-cell--recorded') as HTMLElement;
-    expect(payerCell.textContent).toContain('expenses_paid_originally_by');
+    expect(payerCell.textContent).toContain('expenses_paid_by');
     expect(payerCell.textContent).toContain('Bruno');
     expect(payerCell.textContent).not.toContain('Ana');
     expect((payerCell.querySelector('.transaction-author-name') as HTMLElement).textContent).toContain('Bruno');
