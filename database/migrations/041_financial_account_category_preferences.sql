@@ -33,3 +33,45 @@ create unique index if not exists financial_account_category_preference_evidence
   );
 create index if not exists financial_account_category_preference_evidence_account_signal_idx
   on financial_account_category_preference_evidence (financial_account_id, signal);
+
+create or replace function validate_financial_account_category_preference_selection()
+returns trigger
+language plpgsql
+as $$
+begin
+  perform 1
+  from financial_accounts account
+  join categories root on root.id = new.category_id and root.parent_id is null
+  left join categories child on child.id = new.subcategory_id and child.parent_id = root.id
+  where account.id = new.financial_account_id
+    and (
+      (root.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+        and root.financial_account_id is null and root.is_default = true)
+      or (root.tenant_id = account.tenant_id
+        and root.financial_account_id = account.id and root.is_default = false)
+    )
+    and (
+      new.subcategory_id is null
+      or (child.id is not null and (
+        (child.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+          and child.financial_account_id is null and child.is_default = true)
+        or (child.tenant_id = account.tenant_id
+          and child.financial_account_id = account.id and child.is_default = false)
+      ))
+    );
+  if not found then
+    raise exception 'Category selection is not valid for this financial account.' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists financial_account_category_preferences_selection_check on financial_account_category_preferences;
+create trigger financial_account_category_preferences_selection_check
+  before insert or update on financial_account_category_preferences
+  for each row execute function validate_financial_account_category_preference_selection();
+
+drop trigger if exists financial_account_category_preference_evidence_selection_check on financial_account_category_preference_evidence;
+create trigger financial_account_category_preference_evidence_selection_check
+  before insert or update on financial_account_category_preference_evidence
+  for each row execute function validate_financial_account_category_preference_selection();

@@ -79,8 +79,6 @@ export function createContainer(config: AppConfig) {
   const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
   const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
-  const categoryPreferenceRepository = pool ? new PostgresCategoryPreferenceRepository(pool) : new InMemoryCategoryPreferenceRepository();
-  const categoryPreferences = new CategoryPreferenceService(categoryPreferenceRepository);
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
   const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
@@ -88,6 +86,10 @@ export function createContainer(config: AppConfig) {
   const financialAccounts = pool
     ? new PostgresFinancialAccountRepository(pool)
     : new InMemoryFinancialAccountRepository(users, expenses as InMemoryExpenseRepository);
+  const categoryPreferenceRepository = pool
+    ? new PostgresCategoryPreferenceRepository(pool)
+    : new InMemoryCategoryPreferenceRepository(financialAccounts, categories);
+  const categoryPreferences = new CategoryPreferenceService(categoryPreferenceRepository);
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();

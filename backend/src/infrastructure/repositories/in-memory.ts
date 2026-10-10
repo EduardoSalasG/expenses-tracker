@@ -52,6 +52,24 @@ export class InMemoryCategoryPreferenceRepository implements CategoryPreferenceR
   private readonly preferences = new Map<string, CategoryPreference>();
   private readonly evidence = new Map<string, CategoryPreferenceCandidate>();
 
+  constructor(
+    private readonly accounts: FinancialAccountRepository,
+    private readonly categories: CategoryRepository
+  ) {}
+
+  private async assertValidSelection(input: CategoryPreferenceSelection) {
+    const account = await this.accounts.findById(input.financialAccountId);
+    if (!account) throw new Error('Financial account not found for category preference.');
+    const accessible = await this.categories.listByTenant(account.tenantId, account.id);
+    const root = accessible.find((category) => category.id === input.categoryId && !category.parentId);
+    const child = input.subcategoryId
+      ? accessible.find((category) => category.id === input.subcategoryId && category.parentId === input.categoryId)
+      : undefined;
+    if (!root || (input.subcategoryId && !child)) {
+      throw new Error('Category selection is not valid for this financial account.');
+    }
+  }
+
   private signalKey(input: { financialAccountId: string; signal: string }) {
     return JSON.stringify([input.financialAccountId, input.signal]);
   }
@@ -66,6 +84,7 @@ export class InMemoryCategoryPreferenceRepository implements CategoryPreferenceR
   }
 
   async upsertExplicit(input: CategoryPreferenceSelection) {
+    await this.assertValidSelection(input);
     const key = this.signalKey(input);
     const existing = this.preferences.get(key);
     const now = new Date().toISOString();
@@ -82,6 +101,7 @@ export class InMemoryCategoryPreferenceRepository implements CategoryPreferenceR
   }
 
   async recordConsensusEvidence(input: CategoryPreferenceSelection) {
+    await this.assertValidSelection(input);
     const selectionKey = this.selectionKey(input);
     const prior = this.evidence.get(selectionKey);
     const candidate = { ...input, evidenceCount: (prior?.evidenceCount ?? 0) + 1 };
