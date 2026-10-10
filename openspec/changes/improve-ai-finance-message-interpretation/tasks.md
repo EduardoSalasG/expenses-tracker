@@ -24,5 +24,5 @@
 
 ## 5. Verificación integral
 
-- [ ] 5.1 Ejecutar la suite backend completa y el build; verificar `pnpm --filter @expenses-tracker/backend test` y `pnpm --filter @expenses-tracker/backend build` sin fallos.
-- [ ] 5.2 Ejecutar lint y las pruebas de integración de mensajería con base local; verificar `pnpm --filter @expenses-tracker/backend lint` y la prueba PostgreSQL de mensajes inbound.
+- [x] 5.1 Ejecutar la suite backend completa y el build; verificar `pnpm --filter @expenses-tracker/backend test` y `pnpm --filter @expenses-tracker/backend build` sin fallos.
+- [x] 5.2 Ejecutar lint y las pruebas de integración de mensajería con base local; verificar `pnpm --filter @expenses-tracker/backend lint` y la prueba PostgreSQL de mensajes inbound.
