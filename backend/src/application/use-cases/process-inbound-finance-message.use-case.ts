@@ -338,14 +338,23 @@ export class ProcessInboundFinanceMessageUseCase {
         return { status: 'needs_confirmation' as const, missingFields: ['duplicate_confirmation'] };
       }
 
-      const interpretedOriginal = await this.interpreter.interpret(
-        draft.originalMessage,
-        await this.buildInterpreterContext(user, categories, input.channel, input.providerUserId)
-      );
+      const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
+      const inlineAccount = extractInlineAccount(draft.originalMessage, memberships.map((membership) => membership.account));
+      const accountResolution = await this.resolveMessageFinancialAccount(user, input, inlineAccount.accountName);
+      if (!accountResolution.financialAccount) {
+        await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForMessage(user, accountResolution.requestedAccountName, accountResolution.availableAccountNames), input.channel);
+        return { status: 'account_not_found' as const };
+      }
+      const duplicateContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId, accountResolution.financialAccount, memberships);
+      const interpretedRaw = await this.interpreter.interpret(draft.originalMessage, duplicateContext);
+      const interpretedOriginal = inlineAccount.accountName && (interpretedRaw.intent === 'create_expense' || interpretedRaw.intent === 'create_income')
+        ? { ...interpretedRaw, accountName: inlineAccount.accountName }
+        : interpretedRaw;
       const saved = await this.trySaveInterpreted({
         ...input,
         message: draft.originalMessage
-      }, user, categories, interpretedOriginal, { clearDraft: true });
+      }, user, duplicateContext.categories, interpretedOriginal, { clearDraft: true });
       if (saved) return saved;
 
       await this.auditMessage(input, {

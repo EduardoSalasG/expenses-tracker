@@ -129,7 +129,6 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: '+16315551181',
       message: 'this is a text message'
     });
-
     expect(result.status).toBe('ignored_unregistered_sender');
     expect(audits.messages).toHaveLength(1);
     expect(audits.messages[0]).toMatchObject({
@@ -188,6 +187,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
 
   it('asks before saving recent duplicate text messages with different provider ids', async () => {
     const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
     const audits = new InMemoryMessagingMessageAuditRepository();
@@ -200,9 +200,11 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
+    const home = await accounts.createSharedAccount({ tenantId: user.tenantId, createdByUserId: user.id, name: 'Hogar', currency: 'CLP' });
     await categories.ensureDefaults(user.tenantId);
     const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
+      accounts,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
@@ -220,12 +222,12 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const first = await useCase.execute({
       providerMessageId: 'wamid.recent-1',
       fromPhoneNumber: '+56982439041',
-      message: 'CLP 12500 groceries cash'
+      message: 'CLP 12500 groceries cash, cuenta Hogar'
     });
     const second = await useCase.execute({
       providerMessageId: 'wamid.recent-2',
       fromPhoneNumber: '+56982439041',
-      message: 'CLP 12500 groceries cash'
+      message: 'CLP 12500 groceries cash, cuenta Hogar'
     });
     const confirmed = await useCase.execute({
       providerMessageId: 'wamid.recent-confirm',
@@ -237,6 +239,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(second.status).toBe('duplicate_needs_confirmation');
     expect(confirmed.status).toBe('saved');
     expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(2);
+    expect((await expenses.listRecent(user.tenantId, 10)).every((expense) => expense.financialAccountId === home.account.id)).toBe(true);
     expect(messaging.messages.at(-2)?.body).toContain('posible movimiento duplicado reciente');
     expect(messaging.messages.at(-1)?.body).toContain('Gasto guardado.');
   });
