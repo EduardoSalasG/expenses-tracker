@@ -188,10 +188,10 @@ export function extractInlineAccount(
 function matchingAccountPrefixLength(text: string, normalizedName: string): number | undefined {
   for (let end = 1; end <= text.length; end += 1) {
     if (normalizeForMatch(text.slice(0, end)) !== normalizedName) continue;
-    const next = text[end];
-    const afterNext = text[end + 1];
-    if (next && /[\p{L}\p{N}]/u.test(next)) continue;
-    if (next && /\p{P}/u.test(next) && afterNext && /[\p{L}\p{N}]/u.test(afterNext)) continue;
+    const remaining = text.slice(end);
+    if (/^\s*$/.test(remaining)) return end;
+    const delimiter = remaining.match(/^\s*\p{P}/u)?.[0];
+    if (!delimiter || /^[\p{L}\p{N}]/u.test(remaining.slice(delimiter.length))) continue;
     return end;
   }
   return undefined;

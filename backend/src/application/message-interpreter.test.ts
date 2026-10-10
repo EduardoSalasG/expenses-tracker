@@ -143,4 +143,12 @@ describe('inline financial account interpretation', () => {
     expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
     expect(extractInlineAccount(message, accounts)).toEqual({ message });
   });
+
+  it('does not select a shorter account when an unknown word follows its name', async () => {
+    const message = '25000 supermercado, efectivo, cuenta Hogar Viajes';
+    const result = await interpreter.interpret(message, context);
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
+    expect(extractInlineAccount(message, context.availableFinancialAccounts)).toEqual({ message });
+  });
 });

@@ -6,8 +6,8 @@
 
 ## 2. Contrato de interpretación y cuenta en línea
 
-- [ ] 2.1 Extender el contrato validado de creación de gastos e ingresos con nombre de cuenta opcional y extracción determinista de `cuenta <nombre>`/`account <name>`; verificar que el marcador no quede en el concepto con pruebas de intérprete.
-- [ ] 2.2 Actualizar prompt, ejemplos y normalización del proveedor para aceptar solo cuentas accesibles del contexto actual sin transmitir historial; verificar pruebas del proveedor y el respaldo determinista ante respuesta inválida.
+- [x] 2.1 Extender el contrato validado de creación de gastos e ingresos con nombre de cuenta opcional y extracción determinista de `cuenta <nombre>`/`account <name>`; verificar que el marcador no quede en el concepto con pruebas de intérprete.
+- [x] 2.2 Actualizar prompt, ejemplos y normalización del proveedor para aceptar solo cuentas accesibles del contexto actual sin transmitir historial; verificar pruebas del proveedor y el respaldo determinista ante respuesta inválida.
 
 ## 3. Resolución segura del movimiento conversacional
 
