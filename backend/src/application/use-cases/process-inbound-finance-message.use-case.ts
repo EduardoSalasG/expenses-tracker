@@ -25,6 +25,7 @@ import type {
   UserRepository
 } from '../ports.js';
 import type { CategoryTranslationService } from '../services/category-translation.service.js';
+import type { CategoryPreferenceService } from '../services/category-preference.service.js';
 import {
   categoryByInterpretedName,
   inferCategoryCandidateFromText,
@@ -67,6 +68,7 @@ export class ProcessInboundFinanceMessageUseCase {
   private readonly messaging: MessagingProvider;
   private readonly interpreter: MessageInterpreterPort;
   private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>;
+  private readonly categoryPreferences?: Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'>;
   private readonly clock: Clock;
   private readonly options: { frontendPublicOrigin: string };
 
@@ -85,7 +87,8 @@ export class ProcessInboundFinanceMessageUseCase {
     interpreter: MessageInterpreterPort,
     clock: Clock,
     options: { frontendPublicOrigin: string },
-    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
+    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>,
+    categoryPreferences?: Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'>
   );
   constructor(
     users: UserRepository,
@@ -101,7 +104,8 @@ export class ProcessInboundFinanceMessageUseCase {
     interpreter: MessageInterpreterPort,
     clock: Clock,
     options: { frontendPublicOrigin: string },
-    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
+    categoryTranslations?: Pick<CategoryTranslationService, 'localize'>,
+    categoryPreferences?: Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'>
   );
   constructor(
     users: UserRepository,
@@ -118,7 +122,8 @@ export class ProcessInboundFinanceMessageUseCase {
     interpreterOrClock: MessageInterpreterPort | Clock,
     clockOrOptions: Clock | { frontendPublicOrigin: string },
     maybeOptions?: { frontendPublicOrigin: string } | Pick<CategoryTranslationService, 'localize'>,
-    maybeCategoryTranslations?: Pick<CategoryTranslationService, 'localize'>
+    maybeCategoryTranslations?: Pick<CategoryTranslationService, 'localize'> | Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'>,
+    maybeCategoryPreferences?: Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'>
   ) {
     this.users = users;
     this.financialAccounts = isFinancialAccountRepository(financialAccountsOrCategories)
@@ -137,8 +142,11 @@ export class ProcessInboundFinanceMessageUseCase {
     this.clock = (isFinancialAccountRepository(financialAccountsOrCategories) ? clockOrOptions : interpreterOrClock) as Clock;
     this.options = (isFinancialAccountRepository(financialAccountsOrCategories) ? maybeOptions : clockOrOptions) as { frontendPublicOrigin: string };
     this.categoryTranslations = isFinancialAccountRepository(financialAccountsOrCategories)
-      ? maybeCategoryTranslations
+      ? maybeCategoryTranslations as Pick<CategoryTranslationService, 'localize'> | undefined
       : maybeOptions as Pick<CategoryTranslationService, 'localize'> | undefined;
+    this.categoryPreferences = isFinancialAccountRepository(financialAccountsOrCategories)
+      ? maybeCategoryPreferences
+      : maybeCategoryTranslations as Pick<CategoryPreferenceService, 'resolve' | 'recordConfirmedSelection'> | undefined;
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
 
@@ -443,6 +451,21 @@ export class ProcessInboundFinanceMessageUseCase {
     return { financialAccount: activeAccount, requestedAccountName };
   }
 
+  private async resolveMessageFinancialAccount(
+    user: User,
+    input: InboundTextMessage,
+    accountName?: string
+  ) {
+    const activeAccount = await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId);
+    if (!accountName) return { financialAccount: activeAccount };
+
+    const memberships = await this.financialAccounts.listAccessibleByUser(user.id);
+    const membership = findMembershipByAccountName(memberships, accountName);
+    return membership
+      ? { financialAccount: membership.account }
+      : { requestedAccountName: accountName, availableAccountNames: memberships.map((item) => item.account.name) };
+  }
+
   private async switchTelegramFinancialAccount(user: User, input: InboundTextMessage) {
     const accountName = extractTelegramAccountName(input.message);
     if (!input.providerUserId) return undefined;
@@ -524,7 +547,7 @@ export class ProcessInboundFinanceMessageUseCase {
         user,
         categories,
         completedDraft,
-        { clearDraft: true }
+        { clearDraft: true, categoryConfirmed: true }
       );
       if (result) return result;
 
@@ -622,7 +645,7 @@ export class ProcessInboundFinanceMessageUseCase {
       user,
       categories,
       completedDraft,
-      { clearDraft: true }
+      { clearDraft: true, categoryConfirmed: true }
     );
     if (result) return result;
 
@@ -749,7 +772,7 @@ export class ProcessInboundFinanceMessageUseCase {
       user,
       refreshedCategories,
       completedDraft,
-      { clearDraft: true }
+      { clearDraft: true, categoryConfirmed: true }
     );
     if (result) return result;
 
@@ -767,7 +790,7 @@ export class ProcessInboundFinanceMessageUseCase {
     user: User,
     categories: Category[],
     interpreted: InterpretedMessage,
-    options: { clearDraft?: boolean } = {}
+    options: { clearDraft?: boolean; categoryConfirmed?: boolean } = {}
   ) {
     if (interpreted.intent === 'create_income') {
       return this.trySaveIncome(input, user, interpreted, options);
@@ -847,13 +870,19 @@ export class ProcessInboundFinanceMessageUseCase {
     input: InboundTextMessage,
     user: User,
     interpreted: InterpretedMessage,
-    options: { clearDraft?: boolean }
+    options: { clearDraft?: boolean; categoryConfirmed?: boolean }
   ) {
     if (!isCompleteIncome(interpreted)) {
       return undefined;
     }
 
-    const financialAccountId = (await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId)).id;
+    const accountResolution = await this.resolveMessageFinancialAccount(user, input, interpreted.accountName);
+    if (!accountResolution.financialAccount) {
+      await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForMessage(user, accountResolution.requestedAccountName, accountResolution.availableAccountNames), input.channel);
+      return { status: 'account_not_found' as const };
+    }
+    const financialAccountId = accountResolution.financialAccount.id;
     const income = await this.incomes.create({
       tenantId: user.tenantId,
       financialAccountId,
@@ -955,20 +984,38 @@ export class ProcessInboundFinanceMessageUseCase {
     user: User,
     categories: Category[],
     interpreted: InterpretedMessage,
-    options: { clearDraft?: boolean }
+    options: { clearDraft?: boolean; categoryConfirmed?: boolean }
   ) {
     if (interpreted.intent !== 'create_expense' || !isCompleteExpense(interpreted)) {
       return undefined;
     }
 
-    const inferredCategory = inferCategoryCandidateFromText(categories, input.message);
-    const matchedCategory = categoryByInterpretedName(
-      categories,
-      interpreted.categoryName ?? inferredCategory.categoryName,
-      interpreted.subcategoryName ?? inferredCategory.subcategoryName
-    );
+    const accountResolution = await this.resolveMessageFinancialAccount(user, input, interpreted.accountName);
+    if (!accountResolution.financialAccount) {
+      await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForMessage(user, accountResolution.requestedAccountName, accountResolution.availableAccountNames), input.channel);
+      return { status: 'account_not_found' as const };
+    }
+    const financialAccount = accountResolution.financialAccount;
+    const scopedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
+    const preference = interpreted.categoryName
+      ? undefined
+      : await this.categoryPreferences?.resolve({ financialAccountId: financialAccount.id, concept: interpreted.concept });
+    const inferredCategory = inferCategoryCandidateFromText(scopedCategories, input.message);
+    const matchedCategory = preference
+      ? {
+        category: scopedCategories.find((category) => category.id === preference.categoryId),
+        subcategory: preference.subcategoryId
+          ? scopedCategories.find((category) => category.id === preference.subcategoryId)
+          : undefined
+      }
+      : categoryByInterpretedName(
+        scopedCategories,
+        interpreted.categoryName ?? inferredCategory.categoryName,
+        interpreted.subcategoryName ?? inferredCategory.subcategoryName
+      );
 
-    const categoryReliability = assessCategoryReliability(categories, input.message, interpreted, inferredCategory);
+    const categoryReliability = preference ? 'matched' : assessCategoryReliability(scopedCategories, input.message, interpreted, inferredCategory);
     if (!matchedCategory.category || categoryReliability === 'needs_selection') {
       await this.storeCustomDraft(input, user, {
         kind: 'category_selection',
@@ -984,13 +1031,12 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, scopedCategories), input.channel);
       return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
     const category = matchedCategory.category;
-    const normalized = normalizeCategorySelection(categories, category.id, matchedCategory.subcategory?.id);
-    const financialAccount = await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId);
+    const normalized = normalizeCategorySelection(scopedCategories, category.id, matchedCategory.subcategory?.id);
     const financialAccountId = financialAccount.id;
     const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccountId, {
       paymentMethod: interpreted.paymentMethod
@@ -1035,8 +1081,15 @@ export class ProcessInboundFinanceMessageUseCase {
       parsingStatus: 'saved',
       expenseId: expense.id
     });
+    await this.categoryPreferences?.recordConfirmedSelection({
+      financialAccountId,
+      concept: expense.concept,
+      categoryId: normalized.categoryId,
+      subcategoryId: normalized.subcategoryId,
+      explicit: options.categoryConfirmed === true || messageContainsExplicitCategory(input.message)
+    });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
-    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, categories, expense, normalized.subcategoryId), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, scopedCategories, expense, normalized.subcategoryId, financialAccount.name), input.channel);
     return { status: 'saved' as const, expense };
   }
 
@@ -1756,7 +1809,7 @@ function expenseUpdatedMessage(user: User, categories: Category[], expense: Expe
   ].join('\n');
 }
 
-function expenseSavedMessage(user: User, categories: Category[], expense: Expense, subcategoryId?: string) {
+function expenseSavedMessage(user: User, categories: Category[], expense: Expense, subcategoryId?: string, accountName?: string) {
   const purchaseAmount = expense.totalAmount ?? expense.amount;
   const installmentLine = (expense.installmentCount ?? 1) > 1
     ? user.preferredLanguage === 'en'
@@ -1769,6 +1822,7 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
       `Amount: ${formatMoney(expense.currency, purchaseAmount, 'en')}.`,
       installmentLine,
       `Concept: ${expense.concept}.`,
+      accountName ? `Account: ${accountName}.` : undefined,
       `Category: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
     ].filter(Boolean).join('\n');
   }
@@ -1777,8 +1831,21 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
     `Monto: ${formatMoney(expense.currency, purchaseAmount, 'es')}.`,
     installmentLine,
     `Concepto: ${expense.concept}.`,
+    accountName ? `Cuenta: ${accountName}.` : undefined,
     `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
   ].filter(Boolean).join('\n');
+}
+
+function messageContainsExplicitCategory(message: string) {
+  return /\b(?:categor[ií]a|category)\b/i.test(message);
+}
+
+function accountNotFoundForMessage(user: User, accountName?: string, availableAccountNames: string[] = []) {
+  const requested = accountName ?? 'esa cuenta';
+  const choices = availableAccountNames.length ? ` ${availableAccountNames.join(', ')}.` : '';
+  return user.preferredLanguage === 'en'
+    ? `I could not find an accessible account named ${requested}. Available accounts:${choices}`
+    : `No encontré una cuenta accesible llamada ${requested}. Cuentas disponibles:${choices}`;
 }
 
 function formatMessageDate(value: string, language: 'es' | 'en') {

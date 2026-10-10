@@ -146,7 +146,8 @@ export function createContainer(config: AppConfig) {
     interpreter,
     clock,
     { frontendPublicOrigin: config.frontendPublicOrigin },
-    categoryTranslations
+    categoryTranslations,
+    categoryPreferences
   );
 
   return {
