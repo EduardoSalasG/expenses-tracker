@@ -11,11 +11,11 @@
 
 ## 3. Resolución segura del movimiento conversacional
 
-- [ ] 3.1 Resolver la cuenta explícita antes de cargar catálogos y dependencias con alcance de cuenta; verificar en pruebas de WhatsApp y Telegram que el gasto se guarda en la cuenta accesible indicada sin cambiar el contexto persistente.
-- [ ] 3.2 Rechazar cuentas inexistentes, inaccesibles o ambiguas sin escritura financiera y con una respuesta correctiva; verificar que contexto y repositorios no cambian.
-- [ ] 3.3 Aplicar precedencia de categoría explícita, preferencia aprendida e inferencia validada; conservar borradores para incertidumbre y verificar que nunca se asigne Other automáticamente.
-- [ ] 3.4 Registrar correcciones explícitas de inmediato y observaciones confirmadas para consenso; verificar aprendizaje compartido dentro de cuenta compartida y aislamiento entre cuentas.
-- [ ] 3.5 Mantener cuotas y confirmaciones; verificar `3 cuotas`, `3x`, fecha explícita y la fecha del gasto como primera cuota predeterminada.
+- [x] 3.1 Resolver la cuenta explícita antes de cargar catálogos y dependencias con alcance de cuenta; verificar en pruebas de WhatsApp y Telegram que el gasto se guarda en la cuenta accesible indicada sin cambiar el contexto persistente.
+- [x] 3.2 Rechazar cuentas inexistentes, inaccesibles o ambiguas sin escritura financiera y con una respuesta correctiva; verificar que contexto y repositorios no cambian.
+- [x] 3.3 Aplicar precedencia de categoría explícita, preferencia aprendida e inferencia validada; conservar borradores para incertidumbre y verificar que nunca se asigne Other automáticamente.
+- [x] 3.4 Registrar correcciones explícitas de inmediato y observaciones confirmadas para consenso; verificar aprendizaje compartido dentro de cuenta compartida y aislamiento entre cuentas.
+- [x] 3.5 Mantener cuotas y confirmaciones; verificar `3 cuotas`, `3x`, fecha explícita y la fecha del gasto como primera cuota predeterminada.
 
 ## 4. Consolidación histórica y documentación
 
