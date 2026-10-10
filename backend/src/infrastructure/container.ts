@@ -13,6 +13,7 @@ import {
   InMemoryBudgetRepository,
   InMemoryBankOptionRepository,
   InMemoryCategoryRepository,
+  InMemoryCategoryPreferenceRepository,
   InMemoryEmailMagicLinkTokenRepository,
   InMemoryExpenseRepository,
   InMemoryFinancialAccountRepository,
@@ -30,6 +31,7 @@ import {
   PostgresBudgetRepository,
   PostgresBankOptionRepository,
   PostgresCategoryRepository,
+  PostgresCategoryPreferenceRepository,
   PostgresEmailMagicLinkTokenRepository,
   PostgresExpenseRepository,
   PostgresFinancialAccountRepository,
@@ -63,6 +65,7 @@ import {
   VerifyOtpUseCase
 } from '../application/use-cases.js';
 import { CategoryTranslationService } from '../application/services/category-translation.service.js';
+import { CategoryPreferenceService } from '../application/services/category-preference.service.js';
 import { InMemoryRateLimitStore } from './rate-limit.store.js';
 import { InMemoryInboundEventStore } from './inbound-event.store.js';
 import { PostgresInboundEventStore } from './postgres-inbound-event.store.js';
@@ -76,6 +79,8 @@ export function createContainer(config: AppConfig) {
   const users = pool ? new PostgresUserRepository(pool) : new InMemoryUserRepository();
   const otps = pool ? new PostgresOtpRepository(pool) : new InMemoryOtpRepository();
   const categories = pool ? new PostgresCategoryRepository(pool) : new InMemoryCategoryRepository();
+  const categoryPreferenceRepository = pool ? new PostgresCategoryPreferenceRepository(pool) : new InMemoryCategoryPreferenceRepository();
+  const categoryPreferences = new CategoryPreferenceService(categoryPreferenceRepository);
   const banks = pool ? new PostgresBankOptionRepository(pool) : new InMemoryBankOptionRepository();
   const paymentMethodOptions = pool ? new PostgresPaymentMethodOptionRepository(pool) : new InMemoryPaymentMethodOptionRepository();
   const registrationLeads = pool ? new PostgresRegistrationLeadRepository(pool) : new InMemoryRegistrationLeadRepository();
@@ -152,6 +157,7 @@ export function createContainer(config: AppConfig) {
     rateLimits,
     inboundEvents,
     categoryTranslations,
+    categoryPreferences,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {
       if (!pool) {

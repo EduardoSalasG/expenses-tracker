@@ -1,10 +1,140 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberPeriodSpending, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
 const PERMANENT_BUDGET_MONTH = '2000-01-01';
 const SYSTEM_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
+export class PostgresCategoryPreferenceRepository implements CategoryPreferenceRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async findForSignal(input: { financialAccountId: string; signal: string }) {
+    const result = await this.pool.query(
+      `select * from financial_account_category_preferences
+       where financial_account_id = $1 and signal = $2`,
+      [input.financialAccountId, input.signal]
+    );
+    return result.rows[0] ? mapCategoryPreference(result.rows[0]) : undefined;
+  }
+
+  async upsertExplicit(input: CategoryPreferenceSelection) {
+    const result = await this.pool.query(
+      `insert into financial_account_category_preferences
+        (financial_account_id, signal, category_id, subcategory_id, source, evidence_count)
+       values ($1, $2, $3, $4, 'explicit_correction', 1)
+       on conflict (financial_account_id, signal) do update set
+         category_id = excluded.category_id,
+         subcategory_id = excluded.subcategory_id,
+         source = excluded.source,
+         evidence_count = 1,
+         updated_at = now()
+       returning *`,
+      [input.financialAccountId, input.signal, input.categoryId, input.subcategoryId ?? null]
+    );
+    return mapCategoryPreference(result.rows[0]);
+  }
+
+  async recordConsensusEvidence(input: CategoryPreferenceSelection) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [JSON.stringify([input.financialAccountId, input.signal])]);
+      const updated = await client.query(
+        `update financial_account_category_preference_evidence
+         set evidence_count = evidence_count + 1, updated_at = now()
+         where financial_account_id = $1 and signal = $2 and category_id = $3
+           and subcategory_id is not distinct from $4::uuid
+         returning evidence_count`,
+        [input.financialAccountId, input.signal, input.categoryId, input.subcategoryId ?? null]
+      );
+      let count: number;
+      if (updated.rows[0]) {
+        count = Number(updated.rows[0].evidence_count);
+      } else {
+        await client.query(
+          `insert into financial_account_category_preference_evidence
+             (financial_account_id, signal, category_id, subcategory_id, evidence_count)
+           values ($1, $2, $3, $4, 1)`,
+          [input.financialAccountId, input.signal, input.categoryId, input.subcategoryId ?? null]
+        );
+        count = 1;
+      }
+      const candidates = await client.query(
+        `select count(*)::integer as count from financial_account_category_preference_evidence
+         where financial_account_id = $1 and signal = $2`,
+        [input.financialAccountId, input.signal]
+      );
+      let preference: CategoryPreference | undefined;
+      if (Number(candidates.rows[0].count) === 1 && count >= 3) {
+        const result = await client.query(
+          `insert into financial_account_category_preferences
+             (financial_account_id, signal, category_id, subcategory_id, source, evidence_count)
+           values ($1, $2, $3, $4, 'historical_consensus', $5)
+           on conflict (financial_account_id, signal) do update set
+             category_id = excluded.category_id,
+             subcategory_id = excluded.subcategory_id,
+             evidence_count = excluded.evidence_count,
+             updated_at = now()
+           where financial_account_category_preferences.source = 'historical_consensus'
+           returning *`,
+          [input.financialAccountId, input.signal, input.categoryId, input.subcategoryId ?? null, count]
+        );
+        preference = result.rows[0] ? mapCategoryPreference(result.rows[0]) : undefined;
+      } else {
+        await client.query(
+          `delete from financial_account_category_preferences
+           where financial_account_id = $1 and signal = $2 and source = 'historical_consensus'`,
+          [input.financialAccountId, input.signal]
+        );
+      }
+      if (!preference) {
+        const result = await client.query(
+          `select * from financial_account_category_preferences
+           where financial_account_id = $1 and signal = $2`,
+          [input.financialAccountId, input.signal]
+        );
+        preference = result.rows[0] ? mapCategoryPreference(result.rows[0]) : undefined;
+      }
+      await client.query('commit');
+      return preference;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async listConsensusCandidates() {
+    const result = await this.pool.query(
+      `select financial_account_id, signal, category_id, subcategory_id, evidence_count
+       from financial_account_category_preference_evidence
+       order by financial_account_id, signal, category_id, subcategory_id`
+    );
+    return result.rows.map((row) => ({
+      financialAccountId: row.financial_account_id as string,
+      signal: row.signal as string,
+      categoryId: row.category_id as string,
+      subcategoryId: (row.subcategory_id as string | null) ?? undefined,
+      evidenceCount: Number(row.evidence_count)
+    }));
+  }
+}
+
+function mapCategoryPreference(row: QueryResultRow): CategoryPreference {
+  return {
+    id: row.id,
+    financialAccountId: row.financial_account_id,
+    signal: row.signal,
+    categoryId: row.category_id,
+    subcategoryId: row.subcategory_id ?? undefined,
+    source: row.source,
+    evidenceCount: Number(row.evidence_count),
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+  };
+}
 
 export class PostgresUserRepository implements UserRepository {
   constructor(private readonly pool: DatabasePool) {}
