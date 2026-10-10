@@ -78,4 +78,35 @@ describe('inline financial account interpretation', () => {
 
     expect(result).toMatchObject({ intent: 'create_expense', concept: 'tarifa débito', paymentMethod: { kind: 'cash' } });
   });
+
+  it('does not turn an expense into income when the account is named Sueldo', async () => {
+    const result = await interpreter.interpret('25000 supermercado, debito, cuenta Sueldo', {
+      ...context,
+      availableFinancialAccounts: [...context.availableFinancialAccounts, { id: 'salary', name: 'Sueldo', type: 'shared' }]
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Sueldo', concept: 'supermercado' });
+  });
+
+  it('does not infer a category from the account name', async () => {
+    const result = await interpreter.interpret('25000 supermercado, debito, cuenta Hogar', {
+      ...context,
+      categories: [
+        { id: 'housing', tenantId: 'tenant-1', name: 'Housing', nameEs: 'Hogar', isDefault: true },
+        { id: 'food', tenantId: 'tenant-1', name: 'Food', isDefault: true },
+        { id: 'groceries', tenantId: 'tenant-1', parentId: 'food', name: 'Groceries', isDefault: true }
+      ]
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar', categoryName: 'Food', subcategoryName: 'Groceries' });
+  });
+
+  it('matches a dotted account name without selecting its shorter prefix', async () => {
+    const result = await interpreter.interpret('25000 supermercado, debito, cuenta Hogar.viajes', {
+      ...context,
+      availableFinancialAccounts: [...context.availableFinancialAccounts, { id: 'travel', name: 'Hogar.viajes', type: 'shared' }]
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar.viajes', concept: 'supermercado' });
+  });
 });

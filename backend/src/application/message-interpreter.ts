@@ -101,14 +101,14 @@ export interface CategoryInferenceResult {
 
 export class DeterministicMessageInterpreter {
   async interpret(message: string, context: MessageInterpreterContext): Promise<InterpretedMessage> {
-    const lower = message.trim().toLowerCase();
+    const account = extractInlineAccount(message, context.availableFinancialAccounts);
+    const lower = account.message.trim().toLowerCase();
 
     if (/\b(cambia|cambiar|corrige|corregir|actualiza|actualizar|modifica|modificar|change|update|correct|edit)\b/.test(lower)) {
-      return parseMovementUpdate(message, context);
+      return parseMovementUpdate(account.message, context);
     }
 
     if (/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/.test(lower)) {
-      const account = extractInlineAccount(message, context.availableFinancialAccounts);
       return parseIncome(account.message, context.user.preferredCurrency, account.accountName);
     }
 
@@ -134,7 +134,6 @@ export class DeterministicMessageInterpreter {
       };
     }
 
-    const account = extractInlineAccount(message, context.availableFinancialAccounts);
     const parsed = parseExpenseMessage(account.message, context.user.preferredCurrency, context.now);
     const standaloneCardMarker = parsed.paymentMethod?.kind === 'card' &&
       /(?:^|,)\s*(?:debito|débito|credito|crédito)\s*(?=,|$)/i.test(account.message);
@@ -149,7 +148,7 @@ export class DeterministicMessageInterpreter {
       accountName: account.accountName,
       installmentCount: parsed.installmentCount ?? 1,
       firstInstallmentDate: parsed.firstInstallmentDate,
-      ...inferCategoryFromText(context.categories, message),
+      ...inferCategoryFromText(context.categories, account.message),
       paymentMethod: parsed.paymentMethod,
       missingFields: parsed.missingFields,
       needsConfirmation: parsed.status !== 'ready'
@@ -161,10 +160,11 @@ export function extractInlineAccount(
   message: string,
   accounts: MessageInterpreterContext['availableFinancialAccounts']
 ): { message: string; accountName?: string } {
-  const clauses = [...message.matchAll(/\b(?:cuenta|account)\s+([^,.;\n]+)/gi)];
+  const clauses = [...message.matchAll(/\b(?:cuenta|account)\s+([^,;\n]+)/gi)];
   if (clauses.length !== 1) return { message };
 
   const clause = clauses[0];
+  if (clause.index === undefined) return { message };
   const name = normalizeForMatch(clause[1]);
   const matches = accounts.filter((account) => normalizeForMatch(account.name) === name);
   if (matches.length !== 1) return { message };
