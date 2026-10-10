@@ -11,6 +11,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
     installmentCount: z.number().int().min(1).max(60).default(1),
+    accountName: z.string().min(1).optional(),
     firstInstallmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     categoryName: z.string().min(1).optional(),
     subcategoryName: z.string().min(1).optional(),
@@ -35,6 +36,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     amount: z.number().positive().optional(),
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
+    accountName: z.string().min(1).optional(),
     missingFields: z.array(z.string()).default([]),
     needsConfirmation: z.boolean().default(false)
   }),
@@ -106,7 +108,8 @@ export class DeterministicMessageInterpreter {
     }
 
     if (/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/.test(lower)) {
-      return parseIncome(message, context.user.preferredCurrency);
+      const account = extractInlineAccount(message, context.availableFinancialAccounts);
+      return parseIncome(account.message, context.user.preferredCurrency, account.accountName);
     }
 
     if (
@@ -131,13 +134,19 @@ export class DeterministicMessageInterpreter {
       };
     }
 
-    const parsed = parseExpenseMessage(message, context.user.preferredCurrency, context.now);
+    const account = extractInlineAccount(message, context.availableFinancialAccounts);
+    const parsed = parseExpenseMessage(account.message, context.user.preferredCurrency, context.now);
+    const standaloneCardMarker = parsed.paymentMethod?.kind === 'card' &&
+      /(?:^|,)\s*(?:debito|débito|credito|crédito)\s*(?=,|$)/i.test(account.message);
     return {
       intent: 'create_expense',
       confidence: parsed.status === 'ready' ? 0.75 : 0.45,
       amount: parsed.amount,
       currency: parsed.currency,
-      concept: parsed.concept,
+      concept: standaloneCardMarker
+        ? parsed.concept?.replace(/\s+(?:debito|débito|credito|crédito)$/i, '').trim() || undefined
+        : parsed.concept,
+      accountName: account.accountName,
       installmentCount: parsed.installmentCount ?? 1,
       firstInstallmentDate: parsed.firstInstallmentDate,
       ...inferCategoryFromText(context.categories, message),
@@ -146,6 +155,24 @@ export class DeterministicMessageInterpreter {
       needsConfirmation: parsed.status !== 'ready'
     };
   }
+}
+
+export function extractInlineAccount(
+  message: string,
+  accounts: MessageInterpreterContext['availableFinancialAccounts']
+): { message: string; accountName?: string } {
+  const clauses = [...message.matchAll(/\b(?:cuenta|account)\s+([^,.;\n]+)/gi)];
+  if (clauses.length !== 1) return { message };
+
+  const clause = clauses[0];
+  const name = normalizeForMatch(clause[1]);
+  const matches = accounts.filter((account) => normalizeForMatch(account.name) === name);
+  if (matches.length !== 1) return { message };
+
+  return {
+    message: message.slice(0, clause.index) + message.slice(clause.index + clause[0].length),
+    accountName: matches[0].name
+  };
 }
 
 function inferFinancialAccountFromText(
@@ -232,7 +259,7 @@ function parseConceptAfterChangeVerb(message: string) {
   return match?.[1]?.trim();
 }
 
-function parseIncome(message: string, preferredCurrency: string): InterpretedMessage {
+function parseIncome(message: string, preferredCurrency: string, accountName?: string): InterpretedMessage {
   const parsed = parseExpenseMessage(message, preferredCurrency);
   const concept = parsed.concept
     ?.replace(/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/gi, '')
@@ -248,6 +275,7 @@ function parseIncome(message: string, preferredCurrency: string): InterpretedMes
     amount: parsed.amount,
     currency: parsed.currency,
     concept,
+    accountName,
     missingFields,
     needsConfirmation: missingFields.length > 0
   };
