@@ -3,9 +3,9 @@
 ## Identificación
 
 - Versión SemVer: `0.3.6` (PATCH).
-- Estado: preparada en `dev`; pendiente de promoción a `main`.
-- Tag anotado: pendiente sobre el SHA inmutable de `main` promovido.
-- SHA inmutable de `main`: pendiente de promoción.
+- Estado: publicada en `main`.
+- Tag anotado: `v0.3.6`.
+- SHA inmutable de `main`: `bbe63373fe067230379938627c0183756918d7a7`.
 - Fecha de promoción: 2026-10-07.
 
 ## Cambios incluidos
@@ -22,8 +22,8 @@
 
 ## Evidencia de promoción
 
-- `pnpm run version:check`: pendiente tras sincronizar la versión.
-- Build y pruebas: pendiente de la verificación de release en `dev`.
-- Revisión técnica y QA funcional: pendiente.
-- GitHub Actions: pendiente tras el push de `main`.
-- Netlify y health checks: pendientes tras la promoción.
+- `pnpm run version:check`: correcto para `0.3.6`.
+- Build: backend y frontend correctos; el build de frontend requirió ejecución fuera del sandbox local por restricciones de lectura del aislamiento.
+- Pruebas: `pnpm test` sobre el merge de `main`: backend 138 correctas, 6 integraciones PostgreSQL omitidas; frontend 78 correctas.
+- GitHub Actions: workflow de backend correcto para el SHA publicado: https://github.com/EduardoSalasG/expenses-tracker/actions/runs/37641389374
+- Netlify y health checks: sitio de producción HTTP 200; bundle público contiene `0.3.6` y “Pagado por”; `/health`, `/health/live` y `/health/ready` respondieron `ok`.

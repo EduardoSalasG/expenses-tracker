@@ -13,6 +13,7 @@ import {
   InMemoryBudgetRepository,
   InMemoryBankOptionRepository,
   InMemoryCategoryRepository,
+  InMemoryCategoryPreferenceRepository,
   InMemoryEmailMagicLinkTokenRepository,
   InMemoryExpenseRepository,
   InMemoryFinancialAccountRepository,
@@ -30,6 +31,7 @@ import {
   PostgresBudgetRepository,
   PostgresBankOptionRepository,
   PostgresCategoryRepository,
+  PostgresCategoryPreferenceRepository,
   PostgresEmailMagicLinkTokenRepository,
   PostgresExpenseRepository,
   PostgresFinancialAccountRepository,
@@ -63,6 +65,7 @@ import {
   VerifyOtpUseCase
 } from '../application/use-cases.js';
 import { CategoryTranslationService } from '../application/services/category-translation.service.js';
+import { CategoryPreferenceService } from '../application/services/category-preference.service.js';
 import { InMemoryRateLimitStore } from './rate-limit.store.js';
 import { InMemoryInboundEventStore } from './inbound-event.store.js';
 import { PostgresInboundEventStore } from './postgres-inbound-event.store.js';
@@ -83,6 +86,10 @@ export function createContainer(config: AppConfig) {
   const financialAccounts = pool
     ? new PostgresFinancialAccountRepository(pool)
     : new InMemoryFinancialAccountRepository(users, expenses as InMemoryExpenseRepository);
+  const categoryPreferenceRepository = pool
+    ? new PostgresCategoryPreferenceRepository(pool)
+    : new InMemoryCategoryPreferenceRepository(financialAccounts, categories);
+  const categoryPreferences = new CategoryPreferenceService(categoryPreferenceRepository);
   const incomes = pool ? new PostgresIncomeRepository(pool) : new InMemoryIncomeRepository();
   const budgets = pool ? new PostgresBudgetRepository(pool) : new InMemoryBudgetRepository();
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();
@@ -139,7 +146,8 @@ export function createContainer(config: AppConfig) {
     interpreter,
     clock,
     { frontendPublicOrigin: config.frontendPublicOrigin },
-    categoryTranslations
+    categoryTranslations,
+    categoryPreferences
   );
 
   return {
@@ -152,6 +160,7 @@ export function createContainer(config: AppConfig) {
     rateLimits,
     inboundEvents,
     categoryTranslations,
+    categoryPreferences,
     close: () => pool?.end() ?? Promise.resolve(),
     readinessCheck: async () => {
       if (!pool) {

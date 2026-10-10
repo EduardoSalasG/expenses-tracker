@@ -3,6 +3,7 @@ import { ProcessInboundFinanceMessageUseCase } from './use-cases.js';
 import {
   InMemoryBankOptionRepository,
   InMemoryCategoryRepository,
+  InMemoryCategoryPreferenceRepository,
   InMemoryBudgetRepository,
   InMemoryExpenseRepository,
   InMemoryFinancialAccountRepository,
@@ -15,8 +16,96 @@ import {
 import { DeterministicMessageInterpreter, type InterpretedMessage, type MessageInterpreterContext } from './message-interpreter.js';
 import type { MessageInterpreterPort, MessagingProvider } from './ports.js';
 import type { Category } from '../domain/index.js';
+import { CategoryPreferenceService } from './services/category-preference.service.js';
 
 describe('ProcessInboundFinanceMessageUseCase', () => {
+  it.each(['telegram', 'whatsapp'] as const)('saves an inline-account expense for %s without changing messaging context', async (channel) => {
+    const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({ phoneNumber: '+56982439041', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+    const personal = await accounts.ensurePersonalAccount(user.id);
+    const home = await accounts.createSharedAccount({ tenantId: user.tenantId, createdByUserId: user.id, name: 'Hogar', currency: 'CLP' });
+    await categories.ensureDefaults(user.tenantId);
+    const providerUserId = `${channel}-inline-account`;
+    if (channel === 'telegram') await users.linkTelegramChatByPhone(user.phoneNumber, providerUserId);
+    await accounts.upsertMessagingContext({ channel, providerUserId, userId: user.id, financialAccountId: personal.id });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new FixedAccountExpenseInterpreter('Hogar'), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({ providerMessageId: `${channel}-inline-account-message`, channel, fromPhoneNumber: channel === 'telegram' ? `tg:${providerUserId}` : user.phoneNumber, providerUserId, replyTo: providerUserId, message: '25.000 supermercado, débito, cuenta Hogar' });
+
+    expect(result).toMatchObject({ status: 'saved', expense: { financialAccountId: home.account.id } });
+    await expect(accounts.findMessagingContext(channel, providerUserId)).resolves.toMatchObject({ financialAccountId: personal.id });
+  });
+
+  it('does not save when the named account is inaccessible', async () => {
+    const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({ phoneNumber: '+56982439041', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new FixedAccountExpenseInterpreter('Secreta'), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({ providerMessageId: 'missing-account', fromPhoneNumber: user.phoneNumber, message: '25.000 supermercado, cuenta Secreta' })).resolves.toMatchObject({ status: 'account_not_found' });
+    await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(0);
+  });
+
+  it('rejects multiple inline account markers before writing a deterministic expense', async () => {
+    const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({ phoneNumber: '+56982439042', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new DeterministicMessageInterpreter(), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({ providerMessageId: 'multiple-inline-account', fromPhoneNumber: user.phoneNumber, message: '25.000 supermercado, efectivo, cuenta Personal, cuenta Secreta' })).resolves.toMatchObject({ status: 'account_not_found' });
+    await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(0);
+  });
+
+  it('learns explicit categories immediately and consensus categories only after three account-local selections', async () => {
+    const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({ phoneNumber: '+56982439041', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+    const personal = await accounts.ensurePersonalAccount(user.id);
+    const home = await accounts.createSharedAccount({ tenantId: user.tenantId, createdByUserId: user.id, name: 'Hogar', currency: 'CLP' });
+    await categories.ensureDefaults(user.tenantId);
+    const preferences = new CategoryPreferenceService(new InMemoryCategoryPreferenceRepository(accounts, categories));
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new CategoryLearningInterpreter(), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }, undefined, preferences
+    );
+
+    await useCase.execute({ providerMessageId: 'explicit-home', fromPhoneNumber: user.phoneNumber, message: '25.000 Cafe Aurora, subcategoría Groceries, cuenta Hogar' });
+    const explicit = await new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new NoCategoryConceptInterpreter('Hogar', 'Cafe Aurora'), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }, undefined, preferences
+    ).execute({ providerMessageId: 'learned-home', fromPhoneNumber: user.phoneNumber, message: '25.000 Cafe Aurora, cuenta Hogar' });
+    expect(explicit).toMatchObject({ status: 'saved', expense: { financialAccountId: home.account.id } });
+
+    for (const id of ['consensus-1', 'consensus-2', 'consensus-3']) {
+      await useCase.execute({ providerMessageId: id, fromPhoneNumber: user.phoneNumber, message: `25.000 registro ${id}, cuenta Hogar` });
+    }
+    await expect(preferences.resolve({ financialAccountId: home.account.id, concept: 'Tostadas Central' })).resolves.toBeDefined();
+    await expect(preferences.resolve({ financialAccountId: personal.id, concept: 'Tostadas Central' })).resolves.toBeUndefined();
+    const learnedUseCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new FixedAccountExpenseInterpreter('Hogar', null), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }, undefined, preferences
+    );
+    const learnedHome = await learnedUseCase.execute({ providerMessageId: 'consensus-home', fromPhoneNumber: user.phoneNumber, message: '25.000 tostadas, cuenta Hogar' });
+    const isolatedPersonal = await new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new FixedAccountExpenseInterpreter('', null), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }, undefined, preferences
+    ).execute({ providerMessageId: 'consensus-personal', fromPhoneNumber: user.phoneNumber, message: '25.000 tostadas' });
+    expect(learnedHome).toMatchObject({ status: 'saved', expense: { financialAccountId: home.account.id } });
+    expect(isolatedPersonal.status).toBe('needs_confirmation');
+  });
   it('audits and ignores unregistered senders', async () => {
     const audits = new InMemoryMessagingMessageAuditRepository();
     const useCase = new ProcessInboundFinanceMessageUseCase(
@@ -40,7 +129,6 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: '+16315551181',
       message: 'this is a text message'
     });
-
     expect(result.status).toBe('ignored_unregistered_sender');
     expect(audits.messages).toHaveLength(1);
     expect(audits.messages[0]).toMatchObject({
@@ -99,6 +187,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
 
   it('asks before saving recent duplicate text messages with different provider ids', async () => {
     const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
     const categories = new InMemoryCategoryRepository();
     const expenses = new InMemoryExpenseRepository();
     const audits = new InMemoryMessagingMessageAuditRepository();
@@ -111,9 +200,11 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       countryOfResidence: 'Chile',
       preferredCurrency: 'CLP'
     });
+    const home = await accounts.createSharedAccount({ tenantId: user.tenantId, createdByUserId: user.id, name: 'Hogar', currency: 'CLP' });
     await categories.ensureDefaults(user.tenantId);
     const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
+      accounts,
       categories,
       expenses,
       new InMemoryIncomeRepository(),
@@ -131,12 +222,12 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     const first = await useCase.execute({
       providerMessageId: 'wamid.recent-1',
       fromPhoneNumber: '+56982439041',
-      message: 'CLP 12500 groceries cash'
+      message: 'CLP 12500 groceries cash, cuenta Hogar'
     });
     const second = await useCase.execute({
       providerMessageId: 'wamid.recent-2',
       fromPhoneNumber: '+56982439041',
-      message: 'CLP 12500 groceries cash'
+      message: 'CLP 12500 groceries cash, cuenta Hogar'
     });
     const confirmed = await useCase.execute({
       providerMessageId: 'wamid.recent-confirm',
@@ -148,6 +239,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(second.status).toBe('duplicate_needs_confirmation');
     expect(confirmed.status).toBe('saved');
     expect(await expenses.listRecent(user.tenantId, 10)).toHaveLength(2);
+    expect((await expenses.listRecent(user.tenantId, 10)).every((expense) => expense.financialAccountId === home.account.id)).toBe(true);
     expect(messaging.messages.at(-2)?.body).toContain('posible movimiento duplicado reciente');
     expect(messaging.messages.at(-1)?.body).toContain('Gasto guardado.');
   });
@@ -243,6 +335,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
         'Test, Gasto guardado.',
         'Monto: $20.000.',
         'Concepto: groceries.',
+        'Cuenta: Personal.',
         'Categoría: Food > Groceries.'
       ].join('\n')
     }]);
@@ -1662,6 +1755,58 @@ class FixedIncomeInterpreter implements MessageInterpreterPort {
       concept: 'sueldo',
       missingFields: [],
       needsConfirmation: false
+    };
+  }
+}
+
+class FixedAccountExpenseInterpreter implements MessageInterpreterPort {
+  constructor(private readonly accountName: string, private readonly categoryName: string | null = 'Food') {}
+
+  async interpret(): Promise<InterpretedMessage> {
+    return {
+      intent: 'create_expense',
+      confidence: 0.9,
+      amount: 25000,
+      currency: 'CLP',
+      concept: this.categoryName === null ? 'Tostadas Central' : 'Supermercado',
+      accountName: this.accountName,
+      ...(this.categoryName ? { categoryName: this.categoryName } : {}),
+      ...(this.categoryName ? { subcategoryName: 'Groceries' } : {}),
+      paymentMethod: { kind: 'cash' },
+      missingFields: [],
+      needsConfirmation: false,
+      installmentCount: 1
+    };
+  }
+}
+
+class CategoryLearningInterpreter implements MessageInterpreterPort {
+  async interpret(message: string): Promise<InterpretedMessage> {
+    const isCafe = message.includes('Cafe Aurora');
+    return {
+      intent: 'create_expense',
+      confidence: 0.9,
+      amount: 25000,
+      currency: 'CLP',
+      concept: isCafe ? 'Cafe Aurora' : 'Tostadas Central',
+      accountName: message.includes('cuenta Hogar') ? 'Hogar' : undefined,
+      categoryName: 'Food',
+      subcategoryName: 'Groceries',
+      paymentMethod: { kind: 'cash' },
+      missingFields: [],
+      needsConfirmation: false,
+      installmentCount: 1
+    };
+  }
+}
+
+class NoCategoryConceptInterpreter implements MessageInterpreterPort {
+  constructor(private readonly accountName: string, private readonly concept: string) {}
+
+  async interpret(): Promise<InterpretedMessage> {
+    return {
+      intent: 'create_expense', confidence: 0.9, amount: 25000, currency: 'CLP', concept: this.concept,
+      accountName: this.accountName, paymentMethod: { kind: 'cash' }, missingFields: [], needsConfirmation: false, installmentCount: 1
     };
   }
 }

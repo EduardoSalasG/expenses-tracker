@@ -6,6 +6,19 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-10
+
+### Added
+
+- La captura conversacional de WhatsApp y Telegram acepta `cuenta <nombre>` o `account <name>` para registrar un movimiento en una cuenta accesible sólo para ese mensaje, sin cambiar el contexto persistente del chat.
+- Preferencias de categoría por cuenta financiera: una corrección explícita se aplica de inmediato y tres confirmaciones coherentes generan aprendizaje compartido por los miembros de una cuenta compartida.
+- Comando administrativo `db:backfill:category-preferences` para consolidar, de forma idempotente, preferencias históricas no conflictivas.
+
+### Changed
+
+- La interpretación resuelve la cuenta autorizada antes de cargar catálogos, conserva esa selección durante confirmaciones de duplicados y solicita aclaración ante cuentas inexistentes o ambiguas.
+- La categorización conserva la elección explícita, usa preferencias aprendidas antes de la inferencia y nunca asigna automáticamente `Other` cuando existe incertidumbre.
+
 ## [0.3.6] - 2026-10-07
 
 ### Fixed

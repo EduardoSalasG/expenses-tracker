@@ -1,13 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DeterministicMessageInterpreter } from './message-interpreter.js';
 import type { MessagingProvider } from './ports/index.js';
 import { ProcessInboundFinanceMessageUseCase } from './use-cases/index.js';
 import { loadConfig } from '../infrastructure/config.js';
 import { createPool } from '../infrastructure/database.js';
+import { backfillCategoryPreferences } from '../infrastructure/db-backfill-category-preferences.js';
 import {
   PostgresBankOptionRepository,
   PostgresBudgetRepository,
+  PostgresCategoryPreferenceRepository,
   PostgresCategoryRepository,
   PostgresExpenseRepository,
   PostgresFinancialAccountRepository,
@@ -17,11 +22,70 @@ import {
   PostgresPaymentMethodOptionRepository,
   PostgresUserRepository
 } from '../infrastructure/repositories/postgres.js';
+import { CategoryPreferenceService } from './services/category-preference.service.js';
 
 const runIntegration = process.env.RUN_DB_INTEGRATION_TESTS === 'true';
 const describeIntegration = runIntegration ? describe : describe.skip;
 
 describeIntegration('ProcessInboundFinanceMessageUseCase PostgreSQL integration', () => {
+  it('backfills one unambiguous normalized historical preference idempotently without replacing an explicit correction', async () => {
+    const { close, pool, users, financialAccounts, categories, expenses } = await createIntegrationContext();
+    try {
+      await applyCategoryPreferencesMigration(pool);
+      const user = await users.upsertByPhoneNumber({
+        phoneNumber: randomPhone(),
+        firstName: 'Backfill',
+        lastName: 'Preference',
+        preferredName: 'Backfill',
+        email: undefined,
+        countryOfResidence: 'Chile',
+        preferredCurrency: 'CLP',
+        preferredLanguage: 'es'
+      });
+      const account = await financialAccounts.ensurePersonalAccount(user.id);
+      await categories.ensureDefaults(user.tenantId);
+      const category = (await categories.listByTenant(user.tenantId, account.id)).find((item) => !item.parentId);
+      if (!category) throw new Error('Missing category for category-preference backfill integration test.');
+
+      for (const concept of ['CAFÉ   CENTRAL', 'cafe central', 'Café-Central']) {
+        await expenses.create({
+          tenantId: user.tenantId,
+          financialAccountId: account.id,
+          userId: user.id,
+          date: '2026-10-10T12:00:00.000Z',
+          amount: 5000,
+          currency: 'CLP',
+          concept,
+          categoryId: category.id,
+          paymentMethod: { kind: 'cash' }
+        });
+      }
+
+      const preferences = new PostgresCategoryPreferenceRepository(pool);
+      const service = new CategoryPreferenceService(preferences);
+      const first = await backfillCategoryPreferences({ pool, preferences: service });
+      const learned = await service.resolve({ financialAccountId: account.id, concept: 'cafe central' });
+      const second = await backfillCategoryPreferences({ pool, preferences: service });
+
+      await service.recordConfirmedSelection({
+        financialAccountId: account.id,
+        concept: 'cafe central',
+        categoryId: category.id,
+        explicit: true
+      });
+      const third = await backfillCategoryPreferences({ pool, preferences: service });
+      const explicit = await service.resolve({ financialAccountId: account.id, concept: 'cafe central' });
+
+      expect(first).toMatchObject({ preferencesCreated: 1, ignoredAmbiguousGroups: 0 });
+      expect(learned).toMatchObject({ source: 'historical_consensus', evidenceCount: 3, categoryId: category.id });
+      expect(second).toMatchObject({ preferencesCreated: 0, evidenceRecorded: 0 });
+      expect(third).toMatchObject({ preferencesCreated: 0, evidenceRecorded: 0 });
+      expect(explicit).toMatchObject({ source: 'explicit_correction', categoryId: category.id });
+    } finally {
+      await close();
+    }
+  });
+
   it('saves a Telegram-style expense into the local PostgreSQL database', async () => {
     const { close, useCase, users, categories, expenses } = await createIntegrationContext();
     try {
@@ -131,13 +195,25 @@ async function createIntegrationContext() {
   );
 
   return {
+    pool,
     useCase,
     users,
+    financialAccounts,
     categories,
     expenses,
     pendingDrafts,
     close: () => pool.end()
   };
+}
+
+async function applyCategoryPreferencesMigration(pool: ReturnType<typeof createPool>) {
+  const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const migration = await readFile(
+    path.resolve(currentDirectory, '../../../database/migrations/041_financial_account_category_preferences.sql'),
+    'utf8'
+  );
+  await pool.query(migration);
+  await pool.query(migration);
 }
 
 class NoopMessagingProvider implements MessagingProvider {

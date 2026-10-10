@@ -6,7 +6,9 @@ sequenceDiagram
   participant Fallback as Deterministic interpreter
   participant UseCase
   Telegram->>API: Text message
-  API->>Port: interpret(message, user, category tree, accessible accounts, now)
+  API->>UseCase: Extract cuenta <nombre> / account <name> for this message only
+  UseCase->>UseCase: Resolve one accessible account or request clarification without changing chat context
+  API->>Port: interpret(message, user, selected account category tree, accessible accounts, now)
   alt provider configured with API key
     Port->>LLM: Chat completions JSON request
     LLM-->>Port: Structured intent JSON
@@ -16,6 +18,8 @@ sequenceDiagram
     Fallback-->>Port: Structured intent JSON
   end
   Port-->>UseCase: create_expense, create_income, update_movement, ask_report/accountName, ask_budget_status/accountName, or unknown
+  UseCase->>UseCase: Use explicit category, account-scoped learned preference, then validated inference
+  Note over UseCase,Port: No raw-message or transaction history is sent to the provider
   UseCase->>UseCase: Match category/subcategory names or infer from text
   UseCase->>UseCase: For update_movement, match referenced recent movement before applying changes
   UseCase->>UseCase: Validate tenant scope and required fields before action

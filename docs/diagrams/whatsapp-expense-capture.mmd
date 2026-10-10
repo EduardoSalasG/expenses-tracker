@@ -38,8 +38,16 @@ sequenceDiagram
         API->>DB: Upsert duplicate confirmation draft
         API->>Telegram: Ask user to guardar or descartar
       else not duplicate
-        API->>Interpreter: Interpret intent and structured fields
-        Interpreter-->>API: Amount, concept, intent, category hint, payment method; currency comes from user settings
+        API->>API: Extract cuenta <nombre> / account <name> for this message only
+        alt named account is missing, inaccessible, or ambiguous
+          API->>DB: Mark audit as failed
+          API->>Telegram: Ask for one accessible account; do not save a movement
+        else no marker or named account is uniquely accessible
+          API->>DB: Resolve named account before account-scoped catalogs and rules
+          Note over API,DB: Do not update saved chat account context
+          API->>Interpreter: Interpret intent and structured fields
+          Interpreter-->>API: Amount, concept, intent, category hint, payment method, optional account name; currency comes from user settings
+        end
       end
     end
     alt missing data
@@ -58,6 +66,10 @@ sequenceDiagram
         API->>Telegram: Ask whether to create it and whether it is root or child category
         API->>DB: Create tenant-scoped category or subcategory when confirmed
       end
+    else category preference is learned for the resolved account
+      API->>DB: Read account-scoped preference (shared by active members only)
+      Note over API,DB: Explicit corrections apply immediately; consensus requires 3 confirmations and stores no raw-message history
+      API->>DB: Insert movement with the learned category
     else update referenced movement
       API->>DB: Read recent expenses/incomes scoped to active account
       API->>API: Match by referenced amount, concept, category, and movement type
@@ -66,6 +78,7 @@ sequenceDiagram
       API->>Telegram: Confirm updated movement
     else create expense
       API->>DB: Insert expense scoped by active account using preferred currency
+      Note over API,DB: `3 cuotas` or `3x` uses the expense date as first charge unless a date is explicit
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm saved expense
     else create income
