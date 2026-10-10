@@ -268,7 +268,10 @@ export class ProcessInboundFinanceMessageUseCase {
       if (settlementHandled) return settlementHandled;
     }
 
-    const interpreted = await this.interpreter.interpret(input.message, interpreterContext);
+    const interpretedRaw = await this.interpreter.interpret(input.message, interpreterContext);
+    const interpreted = inlineAccount.accountName && (interpretedRaw.intent === 'create_expense' || interpretedRaw.intent === 'create_income')
+      ? { ...interpretedRaw, accountName: inlineAccount.accountName }
+      : interpretedRaw;
 
     if (interpreted.intent === 'update_movement') {
       return this.updateMovement(input, user, categories, interpreted);
@@ -1044,9 +1047,10 @@ export class ProcessInboundFinanceMessageUseCase {
     const financialAccount = accountResolution.financialAccount;
     const scopedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const explicitSelection = options.categoryConfirmed === true || messageContainsExplicitCategory(input.message);
+    const concept = explicitSelection ? conceptWithoutExplicitCategoryClause(interpreted.concept) : interpreted.concept;
     const preference = explicitSelection
       ? undefined
-      : await this.categoryPreferences?.resolve({ financialAccountId: financialAccount.id, concept: interpreted.concept });
+      : await this.categoryPreferences?.resolve({ financialAccountId: financialAccount.id, concept });
     const inferredCategory = inferCategoryCandidateFromText(scopedCategories, input.message);
     const matchedCategory = preference
       ? {
@@ -1108,7 +1112,7 @@ export class ProcessInboundFinanceMessageUseCase {
       amount: interpreted.amount,
       totalAmount: interpreted.amount,
       currency: user.preferredCurrency,
-      concept: interpreted.concept,
+      concept,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
       installmentCount: interpreted.installmentCount ?? 1,
@@ -1889,6 +1893,10 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
 
 function messageContainsExplicitCategory(message: string) {
   return /\b(?:categor[ií]a|category|subcategor[ií]a|subcategory)\b/i.test(message);
+}
+
+function conceptWithoutExplicitCategoryClause(concept: string) {
+  return concept.replace(/\s*,?\s*(?:categor[ií]a|category|subcategor[ií]a|subcategory)\b.*$/i, '').trim() || concept;
 }
 
 function isOtherCategory(category: Category) {

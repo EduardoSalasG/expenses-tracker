@@ -160,7 +160,7 @@ export function extractInlineAccount(
   message: string,
   accounts: MessageInterpreterContext['availableFinancialAccounts']
 ): { message: string; accountName?: string } {
-  const markers = [...message.matchAll(/\b(?:cuenta|account)\s+(?!de\b)/gi)];
+  const markers = [...message.matchAll(/\b(?:cuenta|account)\s+/gi)];
   if (markers.length > 1) return { message, accountName: '__multiple_accounts__' };
   if (markers.length === 0) return { message };
 
@@ -176,6 +176,7 @@ export function extractInlineAccount(
     if (length !== undefined) matches.push({ name: account.name, length, normalizedLength: normalizedName.length });
   }
   if (!matches.length) {
+    if (/^de\s+/i.test(remaining)) return { message };
     const accountName = remaining.trim();
     return accountName
       ? { message: message.slice(0, marker.index).trim().replace(/[,:;]\s*$/, ''), accountName }

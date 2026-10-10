@@ -156,4 +156,10 @@ describe('inline financial account interpretation', () => {
     expect(extractInlineAccount('25000 supermercado, cuenta Hogar, cuenta Secreta', context.availableFinancialAccounts))
       .toMatchObject({ accountName: '__multiple_accounts__' });
   });
+
+  it('matches an accessible account whose name begins with De', () => {
+    expect(extractInlineAccount('25000 supermercado, cuenta De Ahorro', [
+      ...context.availableFinancialAccounts, { id: 'savings', name: 'De Ahorro', type: 'shared' }
+    ])).toMatchObject({ accountName: 'De Ahorro' });
+  });
 });
