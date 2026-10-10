@@ -160,19 +160,41 @@ export function extractInlineAccount(
   message: string,
   accounts: MessageInterpreterContext['availableFinancialAccounts']
 ): { message: string; accountName?: string } {
-  const clauses = [...message.matchAll(/\b(?:cuenta|account)\s+([^,;\n]+)/gi)];
-  if (clauses.length !== 1) return { message };
+  const markers = [...message.matchAll(/\b(?:cuenta|account)\s+/gi)];
+  if (markers.length !== 1) return { message };
 
-  const clause = clauses[0];
-  if (clause.index === undefined) return { message };
-  const name = normalizeForMatch(clause[1]);
-  const matches = accounts.filter((account) => normalizeForMatch(account.name) === name);
-  if (matches.length !== 1) return { message };
+  const marker = markers[0];
+  if (marker.index === undefined) return { message };
+  const nameStart = marker.index + marker[0].length;
+  const remaining = message.slice(nameStart).split('\n', 1)[0];
+  const matches: Array<{ name: string; length: number; normalizedLength: number }> = [];
+  for (const account of accounts) {
+    const normalizedName = normalizeForMatch(account.name);
+    if (!normalizedName) continue;
+    const length = matchingAccountPrefixLength(remaining, normalizedName);
+    if (length !== undefined) matches.push({ name: account.name, length, normalizedLength: normalizedName.length });
+  }
+  if (!matches.length) return { message };
+  const longest = Math.max(...matches.map((match) => match.normalizedLength));
+  const best = matches.filter((match) => match.normalizedLength === longest);
+  if (best.length !== 1) return { message };
 
   return {
-    message: message.slice(0, clause.index) + message.slice(clause.index + clause[0].length),
-    accountName: matches[0].name
+    message: message.slice(0, marker.index) + message.slice(nameStart + best[0].length),
+    accountName: best[0].name
   };
+}
+
+function matchingAccountPrefixLength(text: string, normalizedName: string): number | undefined {
+  for (let end = 1; end <= text.length; end += 1) {
+    if (normalizeForMatch(text.slice(0, end)) !== normalizedName) continue;
+    const next = text[end];
+    const afterNext = text[end + 1];
+    if (next && /[\p{L}\p{N}]/u.test(next)) continue;
+    if (next && /\p{P}/u.test(next) && afterNext && /[\p{L}\p{N}]/u.test(afterNext)) continue;
+    return end;
+  }
+  return undefined;
 }
 
 function inferFinancialAccountFromText(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoryByInterpretedName, DeterministicMessageInterpreter, inferCategoryCandidateFromText, interpretedMessageSchema, type MessageInterpreterContext } from './message-interpreter.js';
+import { categoryByInterpretedName, DeterministicMessageInterpreter, extractInlineAccount, inferCategoryCandidateFromText, interpretedMessageSchema, type MessageInterpreterContext } from './message-interpreter.js';
 
 describe('localized category aliases', () => {
   const categories = [
@@ -108,5 +108,39 @@ describe('inline financial account interpretation', () => {
     });
 
     expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar.viajes', concept: 'supermercado' });
+  });
+
+  it('matches an account name containing a comma before its shorter prefix', async () => {
+    const result = await interpreter.interpret('25000 supermercado, efectivo, cuenta Hogar,viajes', {
+      ...context,
+      availableFinancialAccounts: [...context.availableFinancialAccounts, { id: 'travel', name: 'Hogar,viajes', type: 'shared' }]
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar,viajes', concept: 'supermercado' });
+  });
+
+  it('matches an account name containing a semicolon before its shorter prefix', async () => {
+    const result = await interpreter.interpret('25000 supermercado, efectivo, cuenta Hogar;viajes', {
+      ...context,
+      availableFinancialAccounts: [...context.availableFinancialAccounts, { id: 'travel', name: 'Hogar;viajes', type: 'shared' }]
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar;viajes', concept: 'supermercado' });
+  });
+
+  it('omits a punctuation account name when two accessible names normalize identically', async () => {
+    const message = '25000 supermercado, efectivo, cuenta Hogar,viajes';
+    const accounts: MessageInterpreterContext['availableFinancialAccounts'] = [
+      ...context.availableFinancialAccounts,
+      { id: 'travel-comma', name: 'Hogar,viajes', type: 'shared' },
+      { id: 'travel-semicolon', name: 'Hogar;viajes', type: 'shared' }
+    ];
+    const result = await interpreter.interpret(message, {
+      ...context,
+      availableFinancialAccounts: accounts
+    });
+
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
+    expect(extractInlineAccount(message, accounts)).toEqual({ message });
   });
 });
