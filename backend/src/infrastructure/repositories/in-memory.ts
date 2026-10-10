@@ -3,6 +3,10 @@ import type {
   BankOptionRepository,
   BudgetRepository,
   CategoryRepository,
+  CategoryPreference,
+  CategoryPreferenceCandidate,
+  CategoryPreferenceRepository,
+  CategoryPreferenceSelection,
   EmailMagicLinkTokenRepository,
   ExpenseRepository,
   FinancialAccountMembershipRecord,
@@ -43,6 +47,91 @@ import type {
 } from '../../domain/index.js';
 
 const SYSTEM_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
+export class InMemoryCategoryPreferenceRepository implements CategoryPreferenceRepository {
+  private readonly preferences = new Map<string, CategoryPreference>();
+  private readonly evidence = new Map<string, CategoryPreferenceCandidate>();
+
+  constructor(
+    private readonly accounts: FinancialAccountRepository,
+    private readonly categories: CategoryRepository
+  ) {}
+
+  private async assertValidSelection(input: CategoryPreferenceSelection) {
+    const account = await this.accounts.findById(input.financialAccountId);
+    if (!account) throw new Error('Financial account not found for category preference.');
+    const accessible = await this.categories.listByTenant(account.tenantId, account.id);
+    const root = accessible.find((category) => category.id === input.categoryId && !category.parentId);
+    const child = input.subcategoryId
+      ? accessible.find((category) => category.id === input.subcategoryId && category.parentId === input.categoryId)
+      : undefined;
+    if (!root || (input.subcategoryId && !child)) {
+      throw new Error('Category selection is not valid for this financial account.');
+    }
+  }
+
+  private signalKey(input: { financialAccountId: string; signal: string }) {
+    return JSON.stringify([input.financialAccountId, input.signal]);
+  }
+
+  private selectionKey(input: CategoryPreferenceSelection) {
+    return JSON.stringify([input.financialAccountId, input.signal, input.categoryId, input.subcategoryId ?? null]);
+  }
+
+  async findForSignal(input: { financialAccountId: string; signal: string }) {
+    const preference = this.preferences.get(this.signalKey(input));
+    return preference ? { ...preference } : undefined;
+  }
+
+  async upsertExplicit(input: CategoryPreferenceSelection) {
+    await this.assertValidSelection(input);
+    const key = this.signalKey(input);
+    const existing = this.preferences.get(key);
+    const now = new Date().toISOString();
+    const preference: CategoryPreference = {
+      ...input,
+      id: existing?.id ?? randomUUID(),
+      source: 'explicit_correction',
+      evidenceCount: 1,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now
+    };
+    this.preferences.set(key, preference);
+    return { ...preference };
+  }
+
+  async recordConsensusEvidence(input: CategoryPreferenceSelection) {
+    await this.assertValidSelection(input);
+    const selectionKey = this.selectionKey(input);
+    const prior = this.evidence.get(selectionKey);
+    const candidate = { ...input, evidenceCount: (prior?.evidenceCount ?? 0) + 1 };
+    this.evidence.set(selectionKey, candidate);
+
+    const signalKey = this.signalKey(input);
+    const existing = this.preferences.get(signalKey);
+    if (existing?.source === 'explicit_correction') return { ...existing };
+    const candidates = [...this.evidence.values()].filter((item) => this.signalKey(item) === signalKey);
+    if (candidates.length !== 1 || candidate.evidenceCount < 3) {
+      this.preferences.delete(signalKey);
+      return undefined;
+    }
+    const now = new Date().toISOString();
+    const preference: CategoryPreference = {
+      ...input,
+      id: existing?.id ?? randomUUID(),
+      source: 'historical_consensus',
+      evidenceCount: candidate.evidenceCount,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now
+    };
+    this.preferences.set(signalKey, preference);
+    return { ...preference };
+  }
+
+  async listConsensusCandidates() {
+    return [...this.evidence.values()].map((candidate) => ({ ...candidate }));
+  }
+}
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();

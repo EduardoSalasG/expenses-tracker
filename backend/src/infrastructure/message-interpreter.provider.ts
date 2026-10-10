@@ -2,6 +2,7 @@ import type { Logger } from 'winston';
 import type { MessageInterpreterPort } from '../application/ports.js';
 import {
   DeterministicMessageInterpreter,
+  extractInlineAccount,
   interpretedMessageSchema,
   type InterpretedMessage,
   type MessageInterpreterContext
@@ -42,7 +43,19 @@ export class ChatCompletionsMessageInterpreter implements MessageInterpreterPort
         return this.fallback.interpret(message, context);
       }
 
-      return interpretedMessageSchema.parse(normalizeInterpretedPayload(JSON.parse(extractJson(content))));
+      const interpreted = interpretedMessageSchema.parse(normalizeInterpretedPayload(JSON.parse(extractJson(content))));
+      if ('accountName' in interpreted && interpreted.accountName) {
+        const matches = context.availableFinancialAccounts.filter((account) =>
+          normalizeAccountName(account.name) === normalizeAccountName(interpreted.accountName!)
+        );
+        if (matches.length !== 1) return this.fallback.interpret(message, context);
+        if (
+          (interpreted.intent === 'create_expense' || interpreted.intent === 'create_income') &&
+          extractInlineAccount(message, context.availableFinancialAccounts).accountName !== matches[0].name
+        ) return this.fallback.interpret(message, context);
+        return { ...interpreted, accountName: matches[0].name };
+      }
+      return interpreted;
     } catch (error) {
       this.logger.warn('Message interpreter fallback used.', { error });
       return this.fallback.interpret(message, context);
@@ -111,7 +124,8 @@ function buildChatCompletionPayload(config: AppConfig, message: string, context:
             ],
             notes: [
               'Preserve the concept exactly as the user wrote it whenever possible.',
-              'Do not invent banks, categories, or subcategories outside the supplied options.',
+              'Do not invent banks, categories, subcategories, or financial accounts outside the supplied options.',
+              'For create_expense and create_income, include accountName only when the current inputMessage names one supplied financial account explicitly.',
               'If a field is uncertain, omit it, add it to missingFields when relevant, and set needsConfirmation true.'
             ]
           }
@@ -135,7 +149,7 @@ function systemPrompt() {
     'Use payment methods only from the supplied paymentMethodOptions. Normalize informal phrases like tdc to credit card, tdd to debit card, transferencia to transfer, efectivo to cash.',
     'Use banks only from the supplied bank list. Match abbreviations and aliases conservatively, for example BCI to Banco de Credito e Inversiones.',
     'If the bank is not clearly stated or no supplied bank matches, omit bank.',
-    'For ask_report and ask_budget_status only, set accountName only when the user explicitly refers to one of the supplied financialAccounts. Use the exact supplied name. Otherwise omit accountName.',
+    'For create_expense, create_income, ask_report, and ask_budget_status, set accountName only when the current message explicitly refers to exactly one supplied financialAccount. Use its exact supplied name. Do not invent financial accounts. Otherwise omit accountName and request confirmation when the account is uncertain.',
     'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
     'When an expense in installments explicitly states the first charge date, return firstInstallmentDate as YYYY-MM-DD. Resolve relative or named dates against now. Do not invent a date when none is stated.',
     'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
@@ -148,6 +162,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
   const bankPayload = bankOptions(context.banks);
   const paymentPayload = paymentMethodOptions(context.paymentMethodOptions);
   const financialAccountPayload = financialAccountOptions(context.availableFinancialAccounts);
+  const exampleAccountName = financialAccountPayload[1]?.name ?? financialAccountPayload[0]?.name;
 
   return [
     {
@@ -225,7 +240,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
       role: 'user',
       content: JSON.stringify({
         task: 'interpret_finance_message',
-        inputMessage: '25.000 polera paris, tdc bci, 3 cuotas',
+        inputMessage: `25.000 polera paris, tdc bci, 3 cuotas${exampleAccountName ? `, cuenta ${exampleAccountName}` : ''}`,
         user: {
           countryOfResidence: context.user.countryOfResidence,
           preferredCurrency: context.user.preferredCurrency,
@@ -246,6 +261,7 @@ function fewShotMessages(context: MessageInterpreterContext) {
         amount: 25000,
         concept: 'polera paris',
         installmentCount: 3,
+        ...(exampleAccountName ? { accountName: exampleAccountName } : {}),
         categoryName: 'Clothing',
         subcategoryName: 'Clothes',
         paymentMethod: {
@@ -317,24 +333,26 @@ function fewShotMessages(context: MessageInterpreterContext) {
         needsConfirmation: false
       })
     },
-    {
-      role: 'user',
-      content: JSON.stringify({
-        task: 'interpret_finance_message',
-        inputMessage: '¿Cuánto he gastado este mes en la cuenta de Casa común?',
-        financialAccounts: financialAccountPayload,
-        now: context.now.toISOString()
-      })
-    },
-    {
-      role: 'assistant',
-      content: JSON.stringify({
-        intent: 'ask_report',
-        confidence: 0.95,
-        period: 'monthly',
-        accountName: 'Casa común'
-      })
-    }
+    ...(exampleAccountName ? [
+      {
+        role: 'user',
+        content: JSON.stringify({
+          task: 'interpret_finance_message',
+          inputMessage: `¿Cuánto he gastado este mes en la cuenta ${exampleAccountName}?`,
+          financialAccounts: financialAccountPayload,
+          now: context.now.toISOString()
+        })
+      },
+      {
+        role: 'assistant',
+        content: JSON.stringify({
+          intent: 'ask_report',
+          confidence: 0.95,
+          period: 'monthly',
+          accountName: exampleAccountName
+        })
+      }
+    ] : [])
   ];
 }
 
@@ -368,6 +386,10 @@ function paymentMethodOptions(options: MessageInterpreterContext['paymentMethodO
 
 function financialAccountOptions(accounts: MessageInterpreterContext['availableFinancialAccounts']) {
   return accounts.map((account) => ({ name: account.name, type: account.type }));
+}
+
+function normalizeAccountName(value: string) {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function extractJson(content: string) {

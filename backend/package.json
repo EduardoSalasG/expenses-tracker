@@ -17,6 +17,7 @@
     "db:import:data": "tsx src/infrastructure/db-import-data.ts",
     "db:register-test-user": "tsx src/infrastructure/register-test-user.ts",
     "db:backfill:financial-accounts": "tsx src/infrastructure/db-backfill-financial-accounts.ts",
+    "db:backfill:category-preferences": "tsx src/infrastructure/db-backfill-category-preferences.ts",
     "db:backfill:category-translations": "tsx src/infrastructure/db-backfill-category-translations.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",

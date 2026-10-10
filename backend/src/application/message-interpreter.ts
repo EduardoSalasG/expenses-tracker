@@ -11,6 +11,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
     installmentCount: z.number().int().min(1).max(60).default(1),
+    accountName: z.string().min(1).optional(),
     firstInstallmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     categoryName: z.string().min(1).optional(),
     subcategoryName: z.string().min(1).optional(),
@@ -35,6 +36,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     amount: z.number().positive().optional(),
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
+    accountName: z.string().min(1).optional(),
     missingFields: z.array(z.string()).default([]),
     needsConfirmation: z.boolean().default(false)
   }),
@@ -99,14 +101,15 @@ export interface CategoryInferenceResult {
 
 export class DeterministicMessageInterpreter {
   async interpret(message: string, context: MessageInterpreterContext): Promise<InterpretedMessage> {
-    const lower = message.trim().toLowerCase();
+    const account = extractInlineAccount(message, context.availableFinancialAccounts);
+    const lower = account.message.trim().toLowerCase();
 
     if (/\b(cambia|cambiar|corrige|corregir|actualiza|actualizar|modifica|modificar|change|update|correct|edit)\b/.test(lower)) {
-      return parseMovementUpdate(message, context);
+      return parseMovementUpdate(account.message, context);
     }
 
     if (/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/.test(lower)) {
-      return parseIncome(message, context.user.preferredCurrency);
+      return parseIncome(account.message, context.user.preferredCurrency, account.accountName);
     }
 
     if (
@@ -131,21 +134,79 @@ export class DeterministicMessageInterpreter {
       };
     }
 
-    const parsed = parseExpenseMessage(message, context.user.preferredCurrency, context.now);
+    const parsed = parseExpenseMessage(account.message, context.user.preferredCurrency, context.now);
+    const standaloneCardMarker = parsed.paymentMethod?.kind === 'card' &&
+      /(?:^|,)\s*(?:debito|débito|credito|crédito)\s*(?=,|$)/i.test(account.message);
     return {
       intent: 'create_expense',
       confidence: parsed.status === 'ready' ? 0.75 : 0.45,
       amount: parsed.amount,
       currency: parsed.currency,
-      concept: parsed.concept,
+      concept: standaloneCardMarker
+        ? parsed.concept?.replace(/\s+(?:debito|débito|credito|crédito)$/i, '').trim() || undefined
+        : parsed.concept,
+      accountName: account.accountName,
       installmentCount: parsed.installmentCount ?? 1,
       firstInstallmentDate: parsed.firstInstallmentDate,
-      ...inferCategoryFromText(context.categories, message),
+      ...inferCategoryFromText(context.categories, account.message),
       paymentMethod: parsed.paymentMethod,
       missingFields: parsed.missingFields,
       needsConfirmation: parsed.status !== 'ready'
     };
   }
+}
+
+export function extractInlineAccount(
+  message: string,
+  accounts: MessageInterpreterContext['availableFinancialAccounts']
+): { message: string; accountName?: string } {
+  const markers = [...message.matchAll(/\b(?:cuenta|account)\s+/gi)];
+  if (markers.length > 1) return { message, accountName: '__multiple_accounts__' };
+  if (markers.length === 0) return { message };
+
+  const marker = markers[0];
+  if (marker.index === undefined) return { message };
+  const nameStart = marker.index + marker[0].length;
+  const remaining = message.slice(nameStart).split('\n', 1)[0];
+  const matches: Array<{ name: string; length: number; normalizedLength: number }> = [];
+  for (const account of accounts) {
+    const normalizedName = normalizeForMatch(account.name);
+    if (!normalizedName) continue;
+    const length = matchingAccountPrefixLength(remaining, normalizedName);
+    if (length !== undefined) matches.push({ name: account.name, length, normalizedLength: normalizedName.length });
+  }
+  if (!matches.length) {
+    if (/^de\s+/i.test(remaining)) return { message };
+    const accountName = remaining.trim();
+    return accountName
+      ? { message: message.slice(0, marker.index).trim().replace(/[,:;]\s*$/, ''), accountName }
+      : { message };
+  }
+  const longest = Math.max(...matches.map((match) => match.normalizedLength));
+  const best = matches.filter((match) => match.normalizedLength === longest);
+  if (best.length !== 1) {
+    const accountName = remaining.trim();
+    return accountName
+      ? { message: message.slice(0, marker.index).trim().replace(/[,:;]\s*$/, ''), accountName }
+      : { message };
+  }
+
+  return {
+    message: message.slice(0, marker.index) + message.slice(nameStart + best[0].length),
+    accountName: best[0].name
+  };
+}
+
+function matchingAccountPrefixLength(text: string, normalizedName: string): number | undefined {
+  for (let end = 1; end <= text.length; end += 1) {
+    if (normalizeForMatch(text.slice(0, end)) !== normalizedName) continue;
+    const remaining = text.slice(end);
+    if (/^\s*$/.test(remaining)) return end;
+    const delimiter = remaining.match(/^\s*\p{P}/u)?.[0];
+    if (!delimiter || /^[\p{L}\p{N}]/u.test(remaining.slice(delimiter.length))) continue;
+    return end;
+  }
+  return undefined;
 }
 
 function inferFinancialAccountFromText(
@@ -232,7 +293,7 @@ function parseConceptAfterChangeVerb(message: string) {
   return match?.[1]?.trim();
 }
 
-function parseIncome(message: string, preferredCurrency: string): InterpretedMessage {
+function parseIncome(message: string, preferredCurrency: string, accountName?: string): InterpretedMessage {
   const parsed = parseExpenseMessage(message, preferredCurrency);
   const concept = parsed.concept
     ?.replace(/\b(income|salary|sueldo|salario|pago|paid|me pagaron|recibi|recibí)\b/gi, '')
@@ -248,6 +309,7 @@ function parseIncome(message: string, preferredCurrency: string): InterpretedMes
     amount: parsed.amount,
     currency: parsed.currency,
     concept,
+    accountName,
     missingFields,
     needsConfirmation: missingFields.length > 0
   };
