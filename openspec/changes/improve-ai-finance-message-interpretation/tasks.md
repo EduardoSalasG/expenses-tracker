@@ -19,8 +19,8 @@
 
 ## 4. Consolidación histórica y documentación
 
-- [ ] 4.1 Implementar un comando idempotente de consolidación histórica por cuenta que cree solo preferencias no conflictivas con tres movimientos; verificar integración PostgreSQL y una segunda ejecución sin duplicados ni reemplazo de correcciones explícitas.
-- [ ] 4.2 Documentar sintaxis de cuenta en línea, aprendizaje, privacidad, aclaraciones y cuotas en el README y diagramas de mensajería; verificar enlaces/renderizado Mermaid y `git diff --check`.
+- [x] 4.1 Implementar un comando idempotente de consolidación histórica por cuenta que cree solo preferencias no conflictivas con tres movimientos; verificar integración PostgreSQL y una segunda ejecución sin duplicados ni reemplazo de correcciones explícitas.
+- [x] 4.2 Documentar sintaxis de cuenta en línea, aprendizaje, privacidad, aclaraciones y cuotas en el README y diagramas de mensajería; verificar enlaces/renderizado Mermaid y `git diff --check`.
 
 ## 5. Verificación integral
 

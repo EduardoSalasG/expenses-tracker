@@ -38,15 +38,15 @@ sequenceDiagram
         API->>DB: Upsert duplicate confirmation draft
         API->>Telegram: Ask user to guardar or descartar
       else not duplicate
-        API->>Interpreter: Interpret intent and structured fields
-        Interpreter-->>API: Amount, concept, intent, category hint, payment method, optional account name; currency comes from user settings
         API->>API: Extract cuenta <nombre> / account <name> for this message only
-        alt named account is uniquely accessible
+        alt named account is missing, inaccessible, or ambiguous
+          API->>DB: Mark audit as failed
+          API->>Telegram: Ask for one accessible account; do not save a movement
+        else no marker or named account is uniquely accessible
           API->>DB: Resolve named account before account-scoped catalogs and rules
           Note over API,DB: Do not update saved chat account context
-        else named account is missing, inaccessible, or ambiguous
-          API->>DB: Mark audit as needs_confirmation
-          API->>Telegram: Ask for one accessible account; do not save a movement
+          API->>Interpreter: Interpret intent and structured fields
+          Interpreter-->>API: Amount, concept, intent, category hint, payment method, optional account name; currency comes from user settings
         end
       end
     end
