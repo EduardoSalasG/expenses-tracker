@@ -83,6 +83,14 @@ Shared accounts are available as the current Splitwise-style MVP:
 - suggested settlements
 - recorded settlements and settlement history
 
+## Captura financiera por mensajería
+
+WhatsApp y Telegram aceptan una cuenta sólo para el movimiento actual mediante `cuenta <nombre>` o `account <name>`; por ejemplo, `18.000 supermercado cuenta Hogar`. El nombre debe resolver de forma única a una cuenta accesible para quien envía el mensaje. Una cuenta inexistente, inaccesible o ambigua no crea un movimiento: el sistema pide una aclaración y conserva sin cambios el contexto persistente del chat.
+
+Las preferencias de categoría se guardan por cuenta financiera, de modo que una preferencia de una cuenta compartida está disponible para sus miembros, pero no se filtra a otras cuentas. Sólo se conserva la señal normalizada del concepto y la selección de categoría/subcategoría: nunca se transmite historial ni mensajes históricos al proveedor de IA. Una corrección explícita se aplica de inmediato; si no la hay, se necesitan tres confirmaciones coherentes antes de aprender una preferencia. Cuando la cuenta o la categoría es incierta, se mantiene un borrador y se solicita aclaración en vez de asignar `Other` automáticamente.
+
+Las cuotas se pueden expresar como `3 cuotas` o `3x`. Si el mensaje no incluye la fecha de la primera cuota, se usa la fecha del gasto como primer cargo.
+
 Next likely expansion after this MVP:
 
 - percentage-based split presets and smarter recurring rules
