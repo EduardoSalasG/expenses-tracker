@@ -1,8 +1,8 @@
 ## 1. Preferencias persistentes por cuenta
 
-- [ ] 1.1 Crear la migración idempotente de preferencias de categoría por cuenta, con origen, evidencia, referencias de categoría/subcategoría e índice único por cuenta/señal; verificar con bootstrap local que la migración se aplica una sola vez.
-- [ ] 1.2 Añadir el puerto, servicio y repositorios PostgreSQL/en memoria para resolver preferencias explícitas y consenso de tres movimientos; verificar pruebas unitarias de normalización, prioridad explícita, umbral de tres y aislamiento entre cuentas.
-- [ ] 1.3 Componer el repositorio y servicio en el contenedor; verificar `pnpm --filter @expenses-tracker/backend build`.
+- [x] 1.1 Crear la migración idempotente de preferencias de categoría por cuenta, con origen, evidencia, referencias de categoría/subcategoría e índice único por cuenta/señal; verificar con bootstrap local que la migración se aplica una sola vez.
+- [x] 1.2 Añadir el puerto, servicio y repositorios PostgreSQL/en memoria para resolver preferencias explícitas y consenso de tres movimientos; verificar pruebas unitarias de normalización, prioridad explícita, umbral de tres y aislamiento entre cuentas.
+- [x] 1.3 Componer el repositorio y servicio en el contenedor; verificar `pnpm --filter @expenses-tracker/backend build`.
 
 ## 2. Contrato de interpretación y cuenta en línea
 
