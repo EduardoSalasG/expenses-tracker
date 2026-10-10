@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   Category,
   Expense,
+  FinancialAccount,
   FinancialAccountMemberProfile,
   FinancialAccountSettlement,
   Income,
@@ -28,6 +29,7 @@ import type { CategoryTranslationService } from '../services/category-translatio
 import type { CategoryPreferenceService } from '../services/category-preference.service.js';
 import {
   categoryByInterpretedName,
+  extractInlineAccount,
   inferCategoryCandidateFromText,
   interpretedMessageSchema,
   isCompleteExpense,
@@ -202,13 +204,25 @@ export class ProcessInboundFinanceMessageUseCase {
       if (switched) return switched;
     }
 
-    const interpreterContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId);
+    const accessibleAccounts = await this.financialAccounts.listAccessibleByUser(user.id);
+    const inlineAccount = extractInlineAccount(input.message, accessibleAccounts.map((membership) => membership.account));
+    const accountResolution = await this.resolveMessageFinancialAccount(user, input, inlineAccount.accountName);
+    if (!accountResolution.financialAccount) {
+      await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForMessage(user, accountResolution.requestedAccountName, accountResolution.availableAccountNames), input.channel);
+      return { status: 'account_not_found' as const };
+    }
+    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
+    if (pendingDraft && hasDraftFinancialAccount(pendingDraft.draft)) {
+      const membership = await this.financialAccounts.findAccessibleById(user.id, pendingDraft.draft.financialAccountId);
+      if (!membership) return { status: 'account_not_found' as const };
+      const draftContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId, membership.account, accessibleAccounts);
+      return this.processPendingDraft(input, user, draftContext.categories, pendingDraft.originalMessage, pendingDraft.draft);
+    }
+    const interpreterContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId, accountResolution.financialAccount, accessibleAccounts);
     const categories = interpreterContext.categories;
     const financialAccount = interpreterContext.financialAccount;
-    const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
-    if (pendingDraft) {
-      return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
-    }
+    if (pendingDraft) return this.processPendingDraft(input, user, categories, pendingDraft.originalMessage, pendingDraft.draft);
 
     const isRecentDuplicate = await this.messageAudits.existsRecentDuplicate({
       channel: input.channel,
@@ -257,7 +271,8 @@ export class ProcessInboundFinanceMessageUseCase {
       await this.storeCustomDraft(input, user, {
         kind: 'category_selection',
         originalMessage: input.message,
-        expenseDraft: interpreted
+        expenseDraft: interpreted,
+        financialAccountId: financialAccount.id
       });
       await this.auditMessage(input, {
         tenantId: user.tenantId,
@@ -330,19 +345,19 @@ export class ProcessInboundFinanceMessageUseCase {
     }
 
     if (isCategorySelectionDraft(draft)) {
-      return this.processCategorySelectionDraft(input, user, categories, draft);
+      return this.processCategorySelectionDraft(input, user, await this.categoriesForDraft(user, categories, draft), draft);
     }
 
     if (isCategoryDisambiguationDraft(draft)) {
-      return this.processCategoryDisambiguationDraft(input, user, categories, draft);
+      return this.processCategoryDisambiguationDraft(input, user, await this.categoriesForDraft(user, categories, draft), draft);
     }
 
     if (isCategoryCreationConfirmDraft(draft)) {
-      return this.processCategoryCreationConfirmDraft(input, user, categories, draft);
+      return this.processCategoryCreationConfirmDraft(input, user, await this.categoriesForDraft(user, categories, draft), draft);
     }
 
     if (isCategoryCreationDetailsDraft(draft)) {
-      return this.processCategoryCreationDetailsDraft(input, user, categories, draft);
+      return this.processCategoryCreationDetailsDraft(input, user, await this.categoriesForDraft(user, categories, draft), draft);
     }
 
     if (isCancelMessage(input.message)) {
@@ -394,18 +409,26 @@ export class ProcessInboundFinanceMessageUseCase {
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
+  private async categoriesForDraft(user: User, fallback: Category[], draft: { financialAccountId?: string }) {
+    if (!draft.financialAccountId) return fallback;
+    const membership = await this.financialAccounts.findAccessibleById(user.id, draft.financialAccountId);
+    return membership ? this.categories.listByTenant(user.tenantId, membership.account.id) : fallback;
+  }
+
   private async buildInterpreterContext(
     user: User,
     categoriesOverride?: Category[],
     channel: 'whatsapp' | 'telegram' = 'whatsapp',
-    providerUserId?: string
+    providerUserId?: string,
+    financialAccountOverride?: FinancialAccount,
+    membershipsOverride?: FinancialAccountMembershipRecord[]
   ) {
-    const financialAccount = await this.resolveFinancialAccountContext(user, channel, providerUserId);
+    const financialAccount = financialAccountOverride ?? await this.resolveFinancialAccountContext(user, channel, providerUserId);
     const [categories, banks, paymentMethodOptions, memberships] = await Promise.all([
       categoriesOverride ?? this.categories.listByTenant(user.tenantId, financialAccount.id),
       this.banks.listByTenant(user.tenantId, financialAccount.id),
       this.paymentMethods.listByTenant(user.tenantId, financialAccount.id),
-      this.financialAccounts.listAccessibleByUser(user.id)
+      membershipsOverride ?? this.financialAccounts.listAccessibleByUser(user.id)
     ]);
 
     return {
@@ -565,6 +588,7 @@ export class ProcessInboundFinanceMessageUseCase {
         kind: 'category_disambiguation',
         originalMessage: draft.originalMessage,
         expenseDraft: draft.expenseDraft,
+        financialAccountId: draft.financialAccountId,
         options: resolution.options.map((option) => ({
           categoryId: option.category.id,
           subcategoryId: option.subcategory?.id
@@ -584,7 +608,8 @@ export class ProcessInboundFinanceMessageUseCase {
       kind: 'category_creation_confirm',
       originalMessage: draft.originalMessage,
       expenseDraft: draft.expenseDraft,
-      requestedName
+      requestedName,
+      financialAccountId: draft.financialAccountId
     });
     await this.auditMessage(input, {
       tenantId: user.tenantId,
@@ -668,7 +693,8 @@ export class ProcessInboundFinanceMessageUseCase {
       await this.storeCustomDraft(input, user, {
         kind: 'category_selection',
         originalMessage: draft.originalMessage,
-        expenseDraft: draft.expenseDraft
+        expenseDraft: draft.expenseDraft,
+        financialAccountId: draft.financialAccountId
       });
       await this.auditMessage(input, {
         tenantId: user.tenantId,
@@ -693,7 +719,8 @@ export class ProcessInboundFinanceMessageUseCase {
       kind: 'category_creation_details',
       originalMessage: draft.originalMessage,
       expenseDraft: draft.expenseDraft,
-      requestedName: draft.requestedName
+      requestedName: draft.requestedName,
+      financialAccountId: draft.financialAccountId
     });
     await this.auditMessage(input, {
       tenantId: user.tenantId,
@@ -732,11 +759,10 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
-    const financialAccount = await this.resolveFinancialAccountContext(
-      user,
-      input.channel ?? 'whatsapp',
-      input.providerUserId
-    );
+    const financialAccount = draft.financialAccountId
+      ? (await this.financialAccounts.findAccessibleById(user.id, draft.financialAccountId))?.account
+      : await this.resolveFinancialAccountContext(user, input.channel ?? 'whatsapp', input.providerUserId);
+    if (!financialAccount) return { status: 'account_not_found' as const };
     const parent = createRequest.parentId
       ? categories.find((item) => item.id === createRequest.parentId)
       : undefined;
@@ -958,6 +984,15 @@ export class ProcessInboundFinanceMessageUseCase {
         parsingStatus: 'saved',
         expenseId: updated.id
       });
+      if (matchedCategory.category) {
+        await this.categoryPreferences?.recordConfirmedSelection({
+          financialAccountId,
+          concept: updated.concept,
+          categoryId: matchedCategory.category.id,
+          subcategoryId: matchedCategory.subcategory?.id,
+          explicit: true
+        });
+      }
       await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseUpdatedMessage(user, categories, updated), input.channel);
       return { status: 'expense_updated' as const, expense: updated };
     }
@@ -998,7 +1033,8 @@ export class ProcessInboundFinanceMessageUseCase {
     }
     const financialAccount = accountResolution.financialAccount;
     const scopedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
-    const preference = interpreted.categoryName
+    const explicitSelection = options.categoryConfirmed === true || messageContainsExplicitCategory(input.message);
+    const preference = explicitSelection
       ? undefined
       : await this.categoryPreferences?.resolve({ financialAccountId: financialAccount.id, concept: interpreted.concept });
     const inferredCategory = inferCategoryCandidateFromText(scopedCategories, input.message);
@@ -1016,7 +1052,7 @@ export class ProcessInboundFinanceMessageUseCase {
       );
 
     const categoryReliability = preference ? 'matched' : assessCategoryReliability(scopedCategories, input.message, interpreted, inferredCategory);
-    if (!matchedCategory.category || categoryReliability === 'needs_selection') {
+    if (!matchedCategory.category || categoryReliability === 'needs_selection' || (isOtherCategory(matchedCategory.category) && !explicitSelection)) {
       await this.storeCustomDraft(input, user, {
         kind: 'category_selection',
         originalMessage: input.message,
@@ -1024,7 +1060,8 @@ export class ProcessInboundFinanceMessageUseCase {
           ...interpreted,
           missingFields: ['category'],
           needsConfirmation: true
-        }
+        },
+        financialAccountId: financialAccount.id
       });
       await this.auditMessage(input, {
         tenantId: user.tenantId,
@@ -1086,7 +1123,7 @@ export class ProcessInboundFinanceMessageUseCase {
       concept: expense.concept,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
-      explicit: options.categoryConfirmed === true || messageContainsExplicitCategory(input.message)
+      explicit: explicitSelection
     });
     if (options.clearDraft) await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
     await this.reply(user, input.replyTo ?? input.fromPhoneNumber, expenseSavedMessage(user, scopedCategories, expense, normalized.subcategoryId, financialAccount.name), input.channel);
@@ -1217,6 +1254,7 @@ interface CategorySelectionDraft {
   kind: 'category_selection';
   originalMessage: string;
   expenseDraft: ExpenseDraft;
+  financialAccountId?: string;
 }
 
 interface CategoryDisambiguationDraft {
@@ -1224,6 +1262,7 @@ interface CategoryDisambiguationDraft {
   originalMessage: string;
   expenseDraft: ExpenseDraft;
   options: Array<{ categoryId: string; subcategoryId?: string }>;
+  financialAccountId?: string;
 }
 
 interface CategoryCreationConfirmDraft {
@@ -1231,6 +1270,7 @@ interface CategoryCreationConfirmDraft {
   originalMessage: string;
   expenseDraft: ExpenseDraft;
   requestedName: string;
+  financialAccountId?: string;
 }
 
 interface CategoryCreationDetailsDraft {
@@ -1238,6 +1278,7 @@ interface CategoryCreationDetailsDraft {
   originalMessage: string;
   expenseDraft: ExpenseDraft;
   requestedName: string;
+  financialAccountId?: string;
 }
 
 function shouldStartCategorySelection(interpreted: InterpretedMessage): interpreted is ExpenseDraft {
@@ -1840,6 +1881,10 @@ function messageContainsExplicitCategory(message: string) {
   return /\b(?:categor[ií]a|category)\b/i.test(message);
 }
 
+function isOtherCategory(category: Category) {
+  return normalizeLookup(category.name) === 'other' || normalizeLookup(category.nameEs ?? '') === 'otros';
+}
+
 function accountNotFoundForMessage(user: User, accountName?: string, availableAccountNames: string[] = []) {
   const requested = accountName ?? 'esa cuenta';
   const choices = availableAccountNames.length ? ` ${availableAccountNames.join(', ')}.` : '';
@@ -1904,6 +1949,10 @@ function normalize(value: string) {
 
 function isCategorySelectionDraft(draft: unknown): draft is CategorySelectionDraft {
   return Boolean(draft && typeof draft === 'object' && 'kind' in draft && draft.kind === 'category_selection');
+}
+
+function hasDraftFinancialAccount(draft: unknown): draft is { financialAccountId: string } {
+  return Boolean(draft && typeof draft === 'object' && 'financialAccountId' in draft && typeof draft.financialAccountId === 'string');
 }
 
 function isCategoryDisambiguationDraft(draft: unknown): draft is CategoryDisambiguationDraft {

@@ -56,6 +56,21 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(0);
   });
 
+  it('rejects an unresolved inline account marker before writing a deterministic expense', async () => {
+    const users = new InMemoryUserRepository();
+    const accounts = new InMemoryFinancialAccountRepository(users);
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({ phoneNumber: '+56982439042', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, accounts, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(), new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new DeterministicMessageInterpreter(), { now: () => new Date('2026-10-10T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({ providerMessageId: 'unknown-inline-account', fromPhoneNumber: user.phoneNumber, message: '25.000 supermercado, efectivo, cuenta Secreta' })).resolves.toMatchObject({ status: 'account_not_found' });
+    await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(0);
+  });
+
   it('learns explicit categories immediately and consensus categories only after three account-local selections', async () => {
     const users = new InMemoryUserRepository();
     const accounts = new InMemoryFinancialAccountRepository(users);

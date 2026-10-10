@@ -62,9 +62,9 @@ describe('inline financial account interpretation', () => {
       availableFinancialAccounts: [...context.availableFinancialAccounts, { id: 'duplicate', name: 'Hógar', type: 'shared' }]
     });
 
-    expect(inaccessible).toMatchObject({ intent: 'create_expense', accountName: undefined });
-    expect(ambiguous).toMatchObject({ intent: 'create_expense', accountName: undefined });
-    expect(inaccessible.intent === 'create_expense' && inaccessible.concept).toContain('cuenta Viajes');
+    expect(inaccessible).toMatchObject({ intent: 'create_expense', accountName: 'Viajes' });
+    expect(ambiguous).toMatchObject({ intent: 'create_expense', accountName: 'hogar' });
+    expect(inaccessible.intent === 'create_expense' && inaccessible.concept).toBe('supermercado');
   });
 
   it('validates optional account names on creation intents', () => {
@@ -140,15 +140,15 @@ describe('inline financial account interpretation', () => {
       availableFinancialAccounts: accounts
     });
 
-    expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
-    expect(extractInlineAccount(message, accounts)).toEqual({ message });
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar,viajes' });
+    expect(extractInlineAccount(message, accounts)).toMatchObject({ accountName: 'Hogar,viajes' });
   });
 
   it('does not select a shorter account when an unknown word follows its name', async () => {
     const message = '25000 supermercado, efectivo, cuenta Hogar Viajes';
     const result = await interpreter.interpret(message, context);
 
-    expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
-    expect(extractInlineAccount(message, context.availableFinancialAccounts)).toEqual({ message });
+    expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar Viajes' });
+    expect(extractInlineAccount(message, context.availableFinancialAccounts)).toMatchObject({ accountName: 'Hogar Viajes' });
   });
 });
