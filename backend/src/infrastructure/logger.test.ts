@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { APP_VERSION } from './generated/app-version.js';
 import { createLogger } from './logger.js';
 
 describe('createLogger', () => {
@@ -9,7 +10,7 @@ describe('createLogger', () => {
     expect(logger.defaultMeta).toMatchObject({
       service: 'expenses-tracker-api',
       environment: 'production',
-      version: '0.3.6'
+      version: APP_VERSION
     });
   });
 
