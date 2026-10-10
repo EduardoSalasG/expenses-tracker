@@ -161,7 +161,8 @@ export function extractInlineAccount(
   accounts: MessageInterpreterContext['availableFinancialAccounts']
 ): { message: string; accountName?: string } {
   const markers = [...message.matchAll(/\b(?:cuenta|account)\s+(?!de\b)/gi)];
-  if (markers.length !== 1) return { message };
+  if (markers.length > 1) return { message, accountName: '__multiple_accounts__' };
+  if (markers.length === 0) return { message };
 
   const marker = markers[0];
   if (marker.index === undefined) return { message };

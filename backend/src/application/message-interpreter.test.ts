@@ -151,4 +151,9 @@ describe('inline financial account interpretation', () => {
     expect(result).toMatchObject({ intent: 'create_expense', accountName: 'Hogar Viajes' });
     expect(extractInlineAccount(message, context.availableFinancialAccounts)).toMatchObject({ accountName: 'Hogar Viajes' });
   });
+
+  it('preserves multiple inline account markers as an unresolved account intent', () => {
+    expect(extractInlineAccount('25000 supermercado, cuenta Hogar, cuenta Secreta', context.availableFinancialAccounts))
+      .toMatchObject({ accountName: '__multiple_accounts__' });
+  });
 });

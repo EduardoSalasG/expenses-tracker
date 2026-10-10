@@ -215,7 +215,17 @@ export class ProcessInboundFinanceMessageUseCase {
     const pendingDraft = await this.pendingDrafts.findActive(user.tenantId, user.id, this.clock.now(), input.channel);
     if (pendingDraft && hasDraftFinancialAccount(pendingDraft.draft)) {
       const membership = await this.financialAccounts.findAccessibleById(user.id, pendingDraft.draft.financialAccountId);
-      if (!membership) return { status: 'account_not_found' as const };
+      if (!membership) {
+        if (isCancelMessage(input.message)) {
+          await this.pendingDrafts.clear(user.tenantId, user.id, input.channel);
+          await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+          await this.reply(user, input.replyTo ?? input.fromPhoneNumber, pendingDiscardedMessage(user), input.channel);
+          return { status: 'draft_cancelled' as const };
+        }
+        await this.auditMessage(input, { tenantId: user.tenantId, userId: user.id, parsingStatus: 'failed' });
+        await this.reply(user, input.replyTo ?? input.fromPhoneNumber, accountNotFoundForMessage(user), input.channel);
+        return { status: 'account_not_found' as const };
+      }
       const draftContext = await this.buildInterpreterContext(user, undefined, input.channel, input.providerUserId, membership.account, accessibleAccounts);
       return this.processPendingDraft(input, user, draftContext.categories, pendingDraft.originalMessage, pendingDraft.draft);
     }
@@ -1878,7 +1888,7 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
 }
 
 function messageContainsExplicitCategory(message: string) {
-  return /\b(?:categor[ií]a|category)\b/i.test(message);
+  return /\b(?:categor[ií]a|category|subcategor[ií]a|subcategory)\b/i.test(message);
 }
 
 function isOtherCategory(category: Category) {
