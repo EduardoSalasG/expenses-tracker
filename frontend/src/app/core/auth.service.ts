@@ -1,7 +1,7 @@
 import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs';
+import { Observable, catchError, mapTo, of, shareReplay, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { I18nService } from './i18n.service';
 
@@ -66,6 +66,8 @@ export class AuthService {
   private readonly tokenKey = 'expenses_tracker_access_token';
   private readonly refreshTokenKey = 'expenses_tracker_refresh_token';
   readonly user = signal<VerifyOtpResponse['user'] | null>(null);
+  readonly bootstrapReady = signal(!this.isBrowser);
+  private bootstrapRequest?: Observable<void>;
 
   constructor(
     private readonly http: HttpClient,
@@ -173,6 +175,27 @@ export class AuthService {
         this.storeSession(response);
       })
     );
+  }
+
+  bootstrapSession(): Observable<void> {
+    if (this.bootstrapReady()) return of(void 0);
+    if (this.bootstrapRequest) return this.bootstrapRequest;
+
+    const restoreSession = this.refreshTokenValue
+      ? this.refreshSession().pipe(
+          mapTo(void 0),
+          catchError(() => {
+            this.logout();
+            return of(void 0);
+          })
+        )
+      : of(void 0);
+
+    this.bootstrapRequest = restoreSession.pipe(
+      tap(() => this.bootstrapReady.set(true)),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.bootstrapRequest;
   }
 
   logout() {

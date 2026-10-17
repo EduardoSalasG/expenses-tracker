@@ -1,4 +1,4 @@
-import { Component, Inject, computed, effect, inject, signal } from '@angular/core';
+import { Component, Inject, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -8,7 +8,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { forkJoin } from 'rxjs';
 import { ApiService, type Category, type MonthlyBudget, type Report } from '../core/api.service';
 import { AccountContextService } from '../core/account-context.service';
@@ -43,22 +42,15 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
     MatInputModule,
     MatProgressBarModule,
     MatSelectModule,
-    MatExpansionModule,
     EmptyStateComponent,
     FeedbackBannerComponent,
     PageHeaderComponent
   ],
   template: `
     <app-page-header [title]="t('budgets_title')" [eyebrow]="t('budgets_subtitle')">
-      <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-        <mat-form-field appearance="outline" class="w-full sm:w-44">
-          <mat-label>{{ t('budgets_month') }}</mat-label>
-          <input matInput type="month" [value]="selectedMonth()" (change)="changeMonth($event)" name="budgetsMonth">
-        </mat-form-field>
-        <button mat-flat-button color="primary" type="button" class="!min-h-11" (click)="startBudgetCreation()">
-          {{ t('budgets_create') }}
-        </button>
-      </div>
+      <button id="budgets-create-button" mat-flat-button color="primary" type="button" class="!min-h-11" (click)="startBudgetCreation()">
+        {{ t('budgets_create') }}
+      </button>
     </app-page-header>
 
     <section id="budgets-summary" class="grid gap-4 lg:grid-cols-3">
@@ -76,16 +68,10 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
       </mat-card>
     </section>
 
-    <mat-card id="budgets-form-panel" class="page-panel mt-4 p-2">
-      <mat-accordion>
-        <mat-expansion-panel
-          [expanded]="budgetFormOpen() || !!editingBudgetId()"
-          (opened)="budgetFormOpen.set(true)"
-          (closed)="budgetFormOpen.set(false)">
-          <mat-expansion-panel-header>
-            <mat-panel-title>{{ editingBudgetId() ? t('budgets_update') : t('budgets_create') }}</mat-panel-title>
-          </mat-expansion-panel-header>
-      <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4 p-3 lg:grid-cols-5">
+    <ng-template #budgetFormDialog>
+      <div id="budgets-form-panel" class="brand-dialog-shell !max-h-[calc(100vh-2rem)] !p-5">
+      <div class="brand-dialog-header"><h2 class="m-0 text-xl font-semibold text-brand-ink">{{ editingBudgetId() ? t('budgets_update') : t('budgets_create') }}</h2></div>
+      <form [formGroup]="form" (ngSubmit)="save()" class="brand-dialog-form grid gap-4 sm:grid-cols-2">
         <mat-form-field appearance="outline">
           <mat-label>{{ t('expenses_category') }}</mat-label>
           <mat-select formControlName="categoryId" name="budgetCategory" [attr.aria-label]="t('budgets_category_label')">
@@ -123,13 +109,12 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
             <button mat-button type="button" (click)="cancelEdit()">{{ t('common_cancel') }}</button>
           }
         </div>
-        <div class="lg:col-span-5">
+        <div class="sm:col-span-2">
           <app-feedback-banner [message]="saveMessage()" tone="success" />
         </div>
       </form>
-        </mat-expansion-panel>
-      </mat-accordion>
-    </mat-card>
+      </div>
+    </ng-template>
 
     <mat-card id="budgets-progress-panel" class="page-panel mt-4 p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -170,6 +155,8 @@ const CREATE_SUBCATEGORY_OPTION = '__create_subcategory__';
   `
 })
 export class BudgetsComponent {
+  @ViewChild('budgetFormDialog') private budgetFormDialog?: TemplateRef<unknown>;
+  private budgetDialogRef?: MatDialogRef<unknown>;
   private readonly fb = inject(FormBuilder);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
@@ -178,7 +165,6 @@ export class BudgetsComponent {
   readonly t = (key: string) => this.i18n.t(key);
   readonly createCategoryOption = CREATE_CATEGORY_OPTION;
   readonly createSubcategoryOption = CREATE_SUBCATEGORY_OPTION;
-  readonly selectedMonth = signal(currentMonth());
   readonly categories = signal<Category[]>([]);
   readonly budgets = signal<MonthlyBudget[]>([]);
   readonly report = signal<Report | null>(null);
@@ -187,7 +173,6 @@ export class BudgetsComponent {
   readonly saving = signal(false);
   readonly saveMessage = signal('');
   readonly editingBudgetId = signal<string | null>(null);
-  readonly budgetFormOpen = signal(false);
   private loadRequestId = 0;
   readonly rootCategories = computed(() => this.categories().filter((category) => !category.parentId));
   readonly selectedCategoryId = signal('');
@@ -228,14 +213,6 @@ export class BudgetsComponent {
     });
   }
 
-  changeMonth(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    if (!value) return;
-    this.selectedMonth.set(value);
-    this.cancelEdit();
-    this.loadMonth();
-  }
-
   loadMonth() {
     this.loading.set(true);
     this.error.set('');
@@ -245,7 +222,7 @@ export class BudgetsComponent {
       this.loading.set(false);
       return;
     }
-    const { from, to } = monthRange(this.selectedMonth());
+    const { from, to } = monthRange(currentMonth());
     forkJoin({
       categories: this.api.categories(),
       budgets: this.api.monthlyBudgets(),
@@ -297,25 +274,48 @@ export class BudgetsComponent {
 
   edit(budget: MonthlyBudget) {
     this.editingBudgetId.set(budget.id);
-    this.budgetFormOpen.set(true);
     this.form.patchValue({
       categoryId: budget.categoryId,
       subcategoryId: budget.subcategoryId ?? '',
       amount: Number(budget.amount),
       currency: budget.currency
     });
+    this.openBudgetDialog();
   }
 
   cancelEdit() {
-    this.editingBudgetId.set(null);
-    this.budgetFormOpen.set(false);
-    this.form.patchValue({ amount: 0, subcategoryId: '' });
+    this.budgetDialogRef?.close();
+    this.resetBudgetForm();
   }
 
   startBudgetCreation() {
-    this.editingBudgetId.set(null);
+    this.resetBudgetForm();
     this.saveMessage.set('');
-    this.budgetFormOpen.set(true);
+    this.openBudgetDialog();
+  }
+
+  private openBudgetDialog() {
+    if (!this.budgetFormDialog) return;
+    this.budgetDialogRef = this.dialog.open(this.budgetFormDialog, {
+      width: 'min(720px, calc(100vw - 1.5rem))',
+      maxWidth: 'calc(100vw - 1.5rem)',
+      panelClass: 'brand-dialog-panel',
+      autoFocus: false
+    });
+    this.budgetDialogRef.afterClosed().subscribe(() => {
+      this.budgetDialogRef = undefined;
+      this.resetBudgetForm();
+    });
+  }
+
+  private resetBudgetForm() {
+    this.editingBudgetId.set(null);
+    this.form.reset({
+      categoryId: this.rootCategories()[0]?.id ?? '',
+      subcategoryId: '',
+      amount: 0,
+      currency: 'CLP'
+    });
   }
 
   async createCategoryInline() {

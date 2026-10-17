@@ -11,6 +11,7 @@ import { BudgetsComponent } from './budgets.component';
 
 describe('BudgetsComponent empty-state action', () => {
   let fixture: ComponentFixture<BudgetsComponent>;
+  let openDialog: jasmine.Spy;
 
   beforeEach(async () => {
     const api = jasmine.createSpyObj<ApiService>('ApiService', ['categories', 'monthlyBudgets', 'report']);
@@ -31,7 +32,6 @@ describe('BudgetsComponent empty-state action', () => {
       imports: [BudgetsComponent, NoopAnimationsModule],
       providers: [
         { provide: ApiService, useValue: api },
-        { provide: MatDialog, useValue: jasmine.createSpyObj<MatDialog>('MatDialog', ['open']) },
         { provide: AccountContextService, useValue: { activeAccountId: signal('account-1'), loading: signal(false) } },
         { provide: I18nService, useValue: { language: signal<'es' | 'en'>('es'), t: (key: string) => key } },
         { provide: OnboardingService, useValue: { startOnce: () => Promise.resolve() } }
@@ -42,17 +42,18 @@ describe('BudgetsComponent empty-state action', () => {
     fixture.detectChanges();
     TestBed.flushEffects();
     fixture.detectChanges();
+    openDialog = spyOn(fixture.debugElement.injector.get(MatDialog), 'open').and.returnValue({
+      afterClosed: () => of(undefined)
+    } as never);
   });
 
-  it('opens the budget form from the localized empty-state action', () => {
-    const action = [...fixture.nativeElement.querySelectorAll('app-empty-state button')]
-      .find((button: HTMLButtonElement) => button.textContent?.trim() === 'budgets_create') as HTMLButtonElement | undefined;
+  it('opens the budget dialog from the primary create action without exposing a month selector', () => {
+    expect(fixture.nativeElement.querySelector('input[name="budgetsMonth"]')).toBeNull();
 
-    expect(action).toBeDefined();
+    const action = fixture.nativeElement.querySelector('#budgets-create-button') as HTMLButtonElement | null;
+    expect(action).withContext('budget creation needs one discoverable primary action').not.toBeNull();
     action?.click();
-    fixture.detectChanges();
 
-    expect(fixture.componentInstance.budgetFormOpen()).toBeTrue();
-    expect(fixture.nativeElement.querySelector('#budgets-form-panel mat-expansion-panel')?.classList).toContain('mat-expanded');
+    expect(openDialog).toHaveBeenCalled();
   });
 });

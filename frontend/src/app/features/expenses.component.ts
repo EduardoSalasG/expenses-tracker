@@ -303,8 +303,8 @@ export function expenseActiveFilterSummary(
                     </div>
                   }
                 </td>
-                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon aria-hidden="true">sell</mat-icon>{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></td>
-                <td [attr.data-label]="t('expenses_payment_method')" [attr.title]="paymentLabel(expense)" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon aria-hidden="true">account_balance_wallet</mat-icon>{{ paymentLabel(expense) }}</span></td>
+                <td [attr.data-label]="t('expenses_category')" class="transaction-cell transaction-cell--category py-3 pr-3 text-sm"><span class="transaction-tag transaction-tag--category"><mat-icon class="transaction-tag__icon" aria-hidden="true">sell</mat-icon><span class="transaction-tag__label">{{ categoryName(expense.subcategoryId ?? expense.categoryId) }}</span></span></td>
+                <td [attr.data-label]="t('expenses_payment_method')" [attr.title]="paymentLabel(expense)" class="transaction-cell transaction-cell--payment py-3 pr-3 text-sm text-brand-muted"><span class="transaction-tag transaction-tag--payment"><mat-icon class="transaction-tag__icon" aria-hidden="true">account_balance_wallet</mat-icon><span class="transaction-tag__label">{{ paymentLabel(expense) }}</span></span></td>
                 @if (isSharedAccount()) {
                   <td [attr.data-label]="t('expenses_paid_by')" class="transaction-cell transaction-cell--recorded py-3 pr-3 text-sm text-brand-muted"><span class="transaction-author"><mat-icon aria-hidden="true">person</mat-icon><span class="transaction-author-label">{{ t('expenses_paid_by') }}</span><span class="transaction-author-name">{{ paidBy(expense) }}</span></span></td>
                 }
