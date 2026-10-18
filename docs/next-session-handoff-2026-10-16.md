@@ -2,7 +2,7 @@
 
 ## Presupuesto comunicado
 
-- Ventana de cinco horas: 99 % disponible al comenzar este slice; 70 % comunicado antes de retomar los ajustes de Gastos y Presupuestos; 63 % al continuar la verificación final.
+- Ventana de cinco horas: 99 % disponible al comenzar este slice; 70 % comunicado antes de retomar los ajustes de Gastos y Presupuestos; 63 % al continuar la verificación final; 99 % al iniciar el cierre y promoción el 2026-10-18.
 
 ## Trabajo completado
 
@@ -26,13 +26,14 @@
 
 - La primera ejecución de Karma dentro del sandbox no pudo iniciar Chrome Headless debido a GPU/cache temporal, antes de ejecutar Jasmine. Repetir las pruebas fuera del sandbox funciona.
 - Para los tests de bootstrap no se pudo registrar el ciclo rojo porque el launcher falló antes de cargar Jasmine; la corrida elevada posterior confirmó el resultado verde.
-- No hay autorización para release, promoción a `main`, tag ni deploy.
+- El índice Codebase Memory no estuvo disponible el 2026-10-18 (transporte cerrado); se recurrió a fuentes y pruebas directas.
+- El transport del runner corta las ejecuciones E2E largas antes de devolver el resumen de Playwright; se realizó en su lugar una inspección local directa con Playwright y datos demo. Confirmó tags y diálogo a 320, 390 y 1440 px (`QA_UI_OK`).
+- El detector Impeccable registró advertencias preexistentes de Inter y un acento de Settings, sin hallazgos específicos en los componentes modificados.
 
 ## Próximo slice
 
-1. Completar la revisión manual autenticada de tags y modal a 320 px, móvil representativo y escritorio; esta sesión no pudo usar una sesión de prueba sin iniciar sesión con datos del usuario.
-2. Confirmar visualmente que una instalación de iOS pasa del cargador a la ruta correcta con y sin sesión, y decidir si se desea ajustar la duración mínima de dos segundos.
-3. Revisar el diff y crear un commit en `dev` cuando se acepte la limitación de revisión autenticada o se complete esa QA.
+1. Preparar y promover la release PATCH `0.4.1`: commit de versión en `dev`, merge a `main`, tag anotado, push y supervisión de CI/Netlify/health.
+2. Detener el servidor local de frontend tras completar la promoción.
 
 ## Estado Git
 

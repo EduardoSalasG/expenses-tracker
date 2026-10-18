@@ -6,7 +6,7 @@
 ## 2. Presentación de gastos
 
 - [x] 2.1 Ajustar los estilos y la estructura mínima de `transaction-tag` para alinear icono y texto, y verificar las pruebas unitarias de Gastos.
-- [ ] 2.2 Revisar la tabla de Gastos a 320 px, ancho móvil representativo y escritorio, comprobando que los tags no desbordan ni se superponen.
+- [x] 2.2 Revisar la tabla de Gastos a 320 px, ancho móvil representativo y escritorio, comprobando que los tags no desbordan ni se superponen.
 
 ## 3. Flujo de Presupuestos
 
@@ -16,5 +16,5 @@
 ## 4. Verificación y documentación
 
 - [x] 4.1 Ejecutar las pruebas focalizadas de Gastos y Presupuestos y el build de producción del frontend, verificando salidas exitosas.
-- [ ] 4.2 Ejecutar el detector Impeccable sobre los archivos de UI modificados y realizar una revisión visual única de escritorio y móvil; registrar cualquier limitación.
+- [x] 4.2 Ejecutar el detector Impeccable sobre los archivos de UI modificados y realizar una revisión visual única de escritorio y móvil; registrar cualquier limitación.
 - [x] 4.3 Validar el cambio OpenSpec en modo estricto y actualizar el handoff de sesión con presupuesto, evidencia y trabajo restante.

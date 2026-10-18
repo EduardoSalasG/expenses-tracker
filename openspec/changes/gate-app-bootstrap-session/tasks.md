@@ -1,7 +1,7 @@
 ## 1. Pruebas de arranque
 
-- [ ] 1.1 Añadir pruebas que cubran resolución de sesión válida, inválida y ausente, verificando que fallan antes de introducir el bootstrap.
-- [ ] 1.2 Añadir pruebas del componente raíz que exijan pantalla de carga antes del router y ausencia de contenido enrutado durante el bootstrap; verificar que fallan inicialmente.
+- [x] 1.1 Añadir pruebas que cubran resolución de sesión válida, inválida y ausente, verificando que fallan antes de introducir el bootstrap.
+- [x] 1.2 Añadir pruebas del componente raíz que exijan pantalla de carga antes del router y ausencia de contenido enrutado durante el bootstrap; verificar que fallan inicialmente.
 
 ## 2. Resolución de sesión
 
