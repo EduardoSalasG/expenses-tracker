@@ -37,5 +37,6 @@
 
 ## Estado Git
 
-- Rama: `dev`.
-- El cambio se registra en `dev`; no hay autorización para promoverlo, etiquetarlo ni desplegarlo.
+- Rama: `dev`, sincronizada con `main` tras la promoción de `v0.4.1` (`ea8341ff8c9a06d69ae5fd7db517f8a68f24ee3f`).
+- `main`, `dev` y el tag anotado `v0.4.1` fueron publicados. GitHub Actions pasó y Netlify expone el bundle `0.4.1`.
+- No declarar el release completamente saludable: `/health/ready` devuelve 503 por cuota excedida del proveedor, aunque `/health` y `/health/live` responden OK.
