@@ -242,6 +242,16 @@ describe('ExpensesComponent category catalog refresh', () => {
     expect(payerCell.textContent).not.toContain('Ana');
     expect((payerCell.querySelector('.transaction-author-name') as HTMLElement).textContent).toContain('Bruno');
   });
+
+  it('keeps category and payment tags composed of a non-shrinking icon and truncatable label', () => {
+    component.expenses.set([expenseFor('food')]);
+    fixture.detectChanges();
+
+    for (const tag of fixture.nativeElement.querySelectorAll('.transaction-tag')) {
+      expect(tag.querySelector('.transaction-tag__icon')).withContext('the tag icon must retain its visual space').not.toBeNull();
+      expect(tag.querySelector('.transaction-tag__label')).withContext('long metadata must truncate independently from its icon').not.toBeNull();
+    }
+  });
 });
 
 describe('ExpenseCreateDialogComponent shared defaults', () => {

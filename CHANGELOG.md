@@ -6,6 +6,14 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-18
+
+### Fixed
+
+- La aplicación instalada espera la resolución de la sesión antes de exponer rutas y muestra una pantalla de carga accesible, evitando el destello de la landing al restaurar una sesión.
+- Las etiquetas de categoría y medio de pago en Gastos conservan el icono alineado y truncan texto largo sin desbordar.
+- Presupuestos elimina el selector de mes y el acordeón: la creación y edición se realizan desde un diálogo responsive, siempre para el mes actual.
+
 ## [0.4.0] - 2026-10-10
 
 ### Added

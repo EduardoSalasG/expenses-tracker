@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 import { I18nService } from './i18n.service';
+import { Observable } from 'rxjs';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -57,5 +58,64 @@ describe('AuthService', () => {
     expect(service.accessToken).toBeNull();
     expect(service.refreshTokenValue).toBeNull();
     expect(service.user()).toBeNull();
+  });
+
+  it('restores a persisted session before navigation can render', () => {
+    localStorage.setItem('expenses_tracker_refresh_token', 'refresh-token');
+    const bootstrap = service as unknown as {
+      bootstrapSession?: () => Observable<void>;
+      bootstrapReady?: () => boolean;
+    };
+
+    expect(bootstrap.bootstrapSession).withContext('session bootstrap must exist before the router is exposed').toEqual(jasmine.any(Function));
+    bootstrap.bootstrapSession?.().subscribe();
+
+    const request = http.expectOne(`${environment.apiBaseUrl}/auth/refresh`);
+    request.flush({
+      accessToken: 'renewed-access-token',
+      refreshToken: 'renewed-refresh-token',
+      user: {
+        firstName: 'Test',
+        lastName: 'User',
+        preferredName: 'Test',
+        phoneNumber: '+56982439041',
+        preferredCurrency: 'CLP'
+      }
+    });
+
+    expect(service.accessToken).toBe('renewed-access-token');
+    expect(bootstrap.bootstrapReady?.()).toBeTrue();
+  });
+
+  it('clears an invalid persisted session before navigation can render', () => {
+    localStorage.setItem('expenses_tracker_access_token', 'expired-access-token');
+    localStorage.setItem('expenses_tracker_refresh_token', 'expired-refresh-token');
+    const bootstrap = service as unknown as {
+      bootstrapSession?: () => Observable<void>;
+      bootstrapReady?: () => boolean;
+    };
+
+    expect(bootstrap.bootstrapSession).withContext('session bootstrap must exist before the router is exposed').toEqual(jasmine.any(Function));
+    bootstrap.bootstrapSession?.().subscribe();
+
+    const request = http.expectOne(`${environment.apiBaseUrl}/auth/refresh`);
+    request.flush({ message: 'expired' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(service.accessToken).toBeNull();
+    expect(service.refreshTokenValue).toBeNull();
+    expect(bootstrap.bootstrapReady?.()).toBeTrue();
+  });
+
+  it('finishes bootstrap without a network request when there is no persisted session', () => {
+    const bootstrap = service as unknown as {
+      bootstrapSession?: () => Observable<void>;
+      bootstrapReady?: () => boolean;
+    };
+
+    expect(bootstrap.bootstrapSession).withContext('public navigation must wait for bootstrap completion').toEqual(jasmine.any(Function));
+    bootstrap.bootstrapSession?.().subscribe();
+
+    http.expectNone(`${environment.apiBaseUrl}/auth/refresh`);
+    expect(bootstrap.bootstrapReady?.()).toBeTrue();
   });
 });
