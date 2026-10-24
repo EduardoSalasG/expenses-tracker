@@ -334,6 +334,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       body: [
         'Test, Gasto guardado.',
         'Monto: $20.000.',
+        'Fecha: 6 de mayo de 2026.',
+        'Medio de pago: efectivo.',
         'Concepto: groceries.',
         'Cuenta: Personal.',
         'Categoría: Food > Groceries.'
@@ -1691,6 +1693,14 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     await users.linkTelegramChatByPhone(user.phoneNumber, '999');
     await categories.ensureDefaults(user.tenantId);
+    const deterministic = new DeterministicMessageInterpreter();
+    let interpretedForSave: InterpretedMessage | undefined;
+    const interpreter = {
+      async interpret(...args: Parameters<DeterministicMessageInterpreter['interpret']>): Promise<InterpretedMessage> {
+        interpretedForSave = await deterministic.interpret(...args);
+        return interpretedForSave;
+      }
+    };
     const useCase = new ProcessInboundFinanceMessageUseCase(
       users,
       categories,
@@ -1702,7 +1712,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       new InMemoryMessagingMessageAuditRepository(),
       new InMemoryMessagingPendingDraftRepository(),
       new NoopMessagingProvider(),
-      new DeterministicMessageInterpreter(),
+      interpreter,
       { now: () => new Date('2026-05-06T00:00:00.000Z') },
       { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
     );
@@ -1713,7 +1723,7 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
       fromPhoneNumber: 'tg:999',
       providerUserId: '999',
       replyTo: '999',
-      message: '25.000 supermercado, tc bci'
+      message: '25.000 supermercado, tc bci, 2026-05-02'
     });
 
     expect(result.status).toBe('saved');
@@ -1727,6 +1737,8 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     });
     expect(expense.bankOptionId).toBe(bankOptions.find((item) => item.name === 'Banco de Crédito e Inversiones')?.id);
     expect(expense.paymentMethodOptionId).toBe(paymentOptions.find((item) => item.name === 'Tarjeta de crédito')?.id);
+    expect(interpretedForSave).toMatchObject({ intent: 'create_expense', date: '2026-05-02' });
+    expect(expense.date).toBe('2026-05-02T00:00:00.000Z');
   });
 });
 

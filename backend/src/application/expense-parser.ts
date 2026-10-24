@@ -5,6 +5,7 @@ export interface ParsedExpenseMessage {
   amount?: number;
   currency?: string;
   concept?: string;
+  date?: string;
   installmentCount?: number;
   firstInstallmentDate?: string;
   paymentMethod?: PaymentMethod;
@@ -18,8 +19,10 @@ export function parseExpenseMessage(message: string, preferredCurrency: string, 
   const currency = preferredCurrency;
   const installmentCount = parseInstallmentCount(trimmed);
   const firstInstallmentDate = parseFirstInstallmentDate(trimmed, now);
+  const expenseDate = parseExpenseDate(trimmed, now);
+  const messageWithoutExpenseDate = removeExpenseDate(trimmed);
 
-  const lower = trimmed.toLowerCase();
+  const lower = messageWithoutExpenseDate.toLowerCase();
   const paymentMethod = parsePaymentMethod(lower);
   const concept = amountMatch
     ? cleanConcept(trimmed.replace(amountMatch[0], ''))
@@ -28,7 +31,9 @@ export function parseExpenseMessage(message: string, preferredCurrency: string, 
   const missingFields = [
     amount === undefined ? 'amount' : undefined,
     concept.length === 0 ? 'concept' : undefined,
-    paymentMethod === undefined ? 'paymentMethod' : undefined
+    paymentMethod === undefined ? 'paymentMethod' : undefined,
+    paymentMethod?.kind !== 'cash' && !paymentMethod?.bank ? 'bank' : undefined,
+    expenseDate.invalid ? 'date' : undefined
   ].filter((field): field is string => Boolean(field));
 
   return {
@@ -36,6 +41,7 @@ export function parseExpenseMessage(message: string, preferredCurrency: string, 
     amount,
     currency,
     concept: concept.length > 0 ? concept : undefined,
+    date: expenseDate.value ?? utcDate(now),
     installmentCount,
     firstInstallmentDate,
     paymentMethod,
@@ -98,9 +104,42 @@ function cleanConcept(value: string) {
     .replace(/\b(en|a)\s+\d+\s*(cuotas|cuota|installments?)\b/gi, '')
     .replace(/\b(?:primera\s+(?:cuota|fecha(?:\s+de\s+cobro)?)|first\s+(?:installment|charge(?:\s+date)?))\s*(?:es|el|on|:)?\s*\d{4}-\d{2}-\d{2}\b/gi, '')
     .replace(/\b(?:primera\s+(?:cuota|fecha(?:\s+de\s+cobro)?)|first\s+(?:installment|charge(?:\s+date)?))\s*(?:es|el|on|:)?\s*\d{1,2}\s+(?:de\s+)?[a-záéíóú]+(?:\s+(?:de\s+)?\d{4})?\b/gi, '')
+    .replace(/\bayer\b/gi, '')
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
+    .replace(/\b\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+de\s+\d{4})?\b/gi, '')
+    .replace(/\bcon\s+(?:tdc|tc|tdd|td|card|tarjeta|credito|crédito|debito|débito)\b/gi, '')
+    .replace(/\bcon\s*$/i, '')
     .replace(/\s*,\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+function parseExpenseDate(message: string, now: Date): { value?: string; invalid: boolean } {
+  if (/\bayer\b/i.test(message)) {
+    const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+    return { value: yesterday.toISOString().slice(0, 10), invalid: false };
+  }
+
+  const isoMatch = message.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (isoMatch?.[1]) return { value: isValidIsoDate(isoMatch[1]) ? isoMatch[1] : undefined, invalid: !isValidIsoDate(isoMatch[1]) };
+
+  const namedDateMatch = message.match(/\b(\d{1,2})\s+de\s+([a-záéíóú]+)(?:\s+de\s+(\d{4}))?\b/i);
+  if (!namedDateMatch) return { invalid: false };
+  const day = Number(namedDateMatch[1]);
+  const month = monthNumber(namedDateMatch[2]);
+  const year = namedDateMatch[3] ? Number(namedDateMatch[3]) : now.getUTCFullYear();
+  if (!month || day < 1 || day > 31) return { invalid: true };
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? { value: date.toISOString().slice(0, 10), invalid: false }
+    : { invalid: true };
+}
+
+function removeExpenseDate(message: string) {
+  return message
+    .replace(/\bayer\b/gi, '')
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
+    .replace(/\b\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+de\s+\d{4})?\b/gi, '');
 }
 
 function parseFirstInstallmentDate(message: string, now: Date) {
@@ -153,6 +192,10 @@ function isValidIsoDate(value: string) {
 
 function startOfUtcDay(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function utcDate(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 function parseInstallmentCount(message: string) {

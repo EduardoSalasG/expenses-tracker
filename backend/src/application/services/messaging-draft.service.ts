@@ -81,6 +81,7 @@ export function clarificationMessage(missingFields: string[], language: Language
       amount: 'amount',
       concept: 'concept',
       paymentMethod: 'payment method',
+      bank: 'bank',
       category: 'category or subcategory',
       intent: 'whether it is an expense, income, report, or budget query'
     };
@@ -92,6 +93,7 @@ export function clarificationMessage(missingFields: string[], language: Language
     amount: 'monto',
     concept: 'concepto',
     paymentMethod: 'medio de pago',
+    bank: 'banco',
     category: 'categoría o subcategoría',
     intent: 'si es gasto, ingreso, reporte o presupuesto'
   };

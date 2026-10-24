@@ -10,6 +10,7 @@ export const interpretedMessageSchema = z.discriminatedUnion('intent', [
     amount: z.number().positive().optional(),
     currency: z.string().length(3).optional(),
     concept: z.string().min(1).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     installmentCount: z.number().int().min(1).max(60).default(1),
     accountName: z.string().min(1).optional(),
     firstInstallmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -145,6 +146,7 @@ export class DeterministicMessageInterpreter {
       concept: standaloneCardMarker
         ? parsed.concept?.replace(/\s+(?:debito|débito|credito|crédito)$/i, '').trim() || undefined
         : parsed.concept,
+      date: parsed.date,
       accountName: account.accountName,
       installmentCount: parsed.installmentCount ?? 1,
       firstInstallmentDate: parsed.firstInstallmentDate,

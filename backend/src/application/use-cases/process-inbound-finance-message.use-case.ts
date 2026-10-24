@@ -1054,6 +1054,18 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'account_not_found' as const };
     }
     const financialAccount = accountResolution.financialAccount;
+    const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccount.id, {
+      paymentMethod: interpreted.paymentMethod
+    });
+    if (interpreted.paymentMethod.kind !== 'cash' && !scopedPaymentSelection.bankOptionId) {
+      await this.auditMessage(input, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        parsingStatus: 'needs_confirmation'
+      });
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(['bank'], user.preferredLanguage), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields: ['bank'] };
+    }
     const scopedCategories = await this.categories.listByTenant(user.tenantId, financialAccount.id);
     const explicitSelection = options.categoryConfirmed === true || messageContainsExplicitCategory(input.message);
     const concept = explicitSelection ? conceptWithoutExplicitCategoryClause(interpreted.concept) : interpreted.concept;
@@ -1098,9 +1110,6 @@ export class ProcessInboundFinanceMessageUseCase {
     const category = matchedCategory.category;
     const normalized = normalizeCategorySelection(scopedCategories, category.id, matchedCategory.subcategory?.id);
     const financialAccountId = financialAccount.id;
-    const scopedPaymentSelection = await this.paymentSelections.resolve(user.tenantId, financialAccountId, {
-      paymentMethod: interpreted.paymentMethod
-    });
     const sharedExpensePayload = financialAccount.type === 'shared'
       ? await this.resolveSharedExpensePayload(user, financialAccountId, input.message, interpreted.amount)
       : {
@@ -1108,6 +1117,9 @@ export class ProcessInboundFinanceMessageUseCase {
         allocationMode: 'payer' as const,
         allocations: [{ owedByUserId: user.id, amount: interpreted.amount }]
       };
+    const expenseDate = interpreted.date
+      ? `${interpreted.date}T00:00:00.000Z`
+      : this.clock.now().toISOString();
 
     const expense = await this.expenses.create({
       tenantId: user.tenantId,
@@ -1117,7 +1129,7 @@ export class ProcessInboundFinanceMessageUseCase {
       paidByUserId: sharedExpensePayload.paidByUserId,
       allocationMode: sharedExpensePayload.allocationMode,
       allocations: sharedExpensePayload.allocations,
-      date: this.clock.now().toISOString(),
+      date: expenseDate,
       amount: interpreted.amount,
       totalAmount: interpreted.amount,
       currency: user.preferredCurrency,
@@ -1127,8 +1139,8 @@ export class ProcessInboundFinanceMessageUseCase {
       installmentCount: interpreted.installmentCount ?? 1,
       firstInstallmentDate: interpreted.firstInstallmentDate
         ? `${interpreted.firstInstallmentDate}T00:00:00.000Z`
-        : this.clock.now().toISOString(),
-      purchaseDate: this.clock.now().toISOString(),
+        : expenseDate,
+      purchaseDate: expenseDate,
       paymentMethod: scopedPaymentSelection.paymentMethod,
       paymentMethodOptionId: scopedPaymentSelection.paymentMethodOptionId,
       bankOptionId: scopedPaymentSelection.bankOptionId,
@@ -1699,11 +1711,16 @@ function splitAmountEqually(amount: number, userIds: string[]) {
   });
 }
 
-function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId?: string) {
+function preciseCategoryLabel(categories: Category[], categoryId: string, subcategoryId: string | undefined, language: User['preferredLanguage']) {
   const category = categories.find((item) => item.id === categoryId);
   const subcategory = subcategoryId ? categories.find((item) => item.id === subcategoryId) : undefined;
-  if (subcategory) return `${category?.name ?? 'Uncategorized'} > ${subcategory.name}`;
-  return category?.name ?? 'Uncategorized';
+  if (subcategory) return `${localizedCategoryLabel(category, language)} > ${localizedCategoryLabel(subcategory, language)}`;
+  return localizedCategoryLabel(category, language);
+}
+
+function localizedCategoryLabel(category: Category | undefined, language: User['preferredLanguage']) {
+  if (!category) return language === 'en' ? 'Uncategorized' : 'Sin categoría';
+  return (language === 'en' ? category.nameEn : category.nameEs) ?? category.name;
 }
 
 function settlementSavedMessage(
@@ -1765,7 +1782,10 @@ function updateTargetNotFoundMessage(user: User) {
 }
 
 function categoryClarificationMessage(user: User, categories: Category[]) {
-  const roots = categories.filter((category) => !category.parentId).map((category) => category.name).sort((a, b) => a.localeCompare(b));
+  const roots = categories
+    .filter((category) => !category.parentId)
+    .map((category) => localizedCategoryLabel(category, user.preferredLanguage))
+    .sort((a, b) => a.localeCompare(b));
   if (user.preferredLanguage === 'en') {
     return [
       'I could not identify the category for this movement with enough confidence.',
@@ -1779,7 +1799,7 @@ function categoryClarificationMessage(user: User, categories: Category[]) {
 }
 
 function ambiguousCategoryMessage(user: User, options: Array<{ category: Category; subcategory?: Category }>) {
-  const lines = options.map((option, index) => `${index + 1}. ${option.category.name}${option.subcategory ? ` > ${option.subcategory.name}` : ''}`);
+  const lines = options.map((option, index) => `${index + 1}. ${localizedCategoryLabel(option.category, user.preferredLanguage)}${option.subcategory ? ` > ${localizedCategoryLabel(option.subcategory, user.preferredLanguage)}` : ''}`);
   if (user.preferredLanguage === 'en') {
     return [
       'I found more than one matching category. Reply with the number or the full path:',
@@ -1862,14 +1882,14 @@ function expenseUpdatedMessage(user: User, categories: Category[], expense: Expe
       'Expense updated.',
       `Amount: ${formatMoney(expense.currency, expense.amount, 'en')}.`,
       `Concept: ${expense.concept}.`,
-      `Category: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId)}.`
+      `Category: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId, user.preferredLanguage)}.`
     ].join('\n');
   }
   return [
     'Gasto actualizado.',
     `Monto: ${formatMoney(expense.currency, expense.amount, 'es')}.`,
     `Concepto: ${expense.concept}.`,
-    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId)}.`
+    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, expense.subcategoryId, user.preferredLanguage)}.`
   ].join('\n');
 }
 
@@ -1884,20 +1904,36 @@ function expenseSavedMessage(user: User, categories: Category[], expense: Expens
     return [
       'Expense saved.',
       `Amount: ${formatMoney(expense.currency, purchaseAmount, 'en')}.`,
+      `Date: ${formatMessageDate(expense.date, 'en')}.`,
+      `Payment method: ${paymentMethodLabel(expense, 'en')}.`,
       installmentLine,
       `Concept: ${expense.concept}.`,
       accountName ? `Account: ${accountName}.` : undefined,
-      `Category: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
+      `Category: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId, user.preferredLanguage)}.`
     ].filter(Boolean).join('\n');
   }
   return [
     'Gasto guardado.',
     `Monto: ${formatMoney(expense.currency, purchaseAmount, 'es')}.`,
+    `Fecha: ${formatMessageDate(expense.date, 'es')}.`,
+    `Medio de pago: ${paymentMethodLabel(expense, 'es')}.`,
     installmentLine,
     `Concepto: ${expense.concept}.`,
     accountName ? `Cuenta: ${accountName}.` : undefined,
-    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId)}.`
+    `Categoría: ${preciseCategoryLabel(categories, expense.categoryId, subcategoryId, user.preferredLanguage)}.`
   ].filter(Boolean).join('\n');
+}
+
+function paymentMethodLabel(expense: Expense, language: 'es' | 'en') {
+  if (expense.paymentMethod.kind === 'cash') return language === 'en' ? 'cash' : 'efectivo';
+  const cardType = expense.paymentMethod.kind === 'card'
+    ? (expense.paymentMethod.cardType === 'credit'
+      ? (language === 'en' ? 'credit card' : 'tarjeta de crédito')
+      : expense.paymentMethod.cardType === 'debit'
+        ? (language === 'en' ? 'debit card' : 'tarjeta de débito')
+        : (language === 'en' ? 'card' : 'tarjeta'))
+    : language === 'en' ? 'transfer' : 'transferencia';
+  return expense.paymentMethod.bank ? `${cardType} ${expense.paymentMethod.bank}` : cardType;
 }
 
 function messageContainsExplicitCategory(message: string) {
@@ -1942,7 +1978,7 @@ function findReferencedMovement(
       score: movementScore({
         amount: movement.amount,
         concept: movement.concept,
-        categoryName: preciseCategoryLabel(categories, movement.categoryId, movement.subcategoryId)
+        categoryName: preciseCategoryLabel(categories, movement.categoryId, movement.subcategoryId, 'en')
       }, interpreted)
     })),
     ...incomes.map((movement) => ({
