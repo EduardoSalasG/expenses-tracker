@@ -46,7 +46,7 @@ sequenceDiagram
           API->>DB: Resolve named account before account-scoped catalogs and rules
           Note over API,DB: Do not update saved chat account context
           API->>Interpreter: Interpret intent and structured fields
-          Interpreter-->>API: Amount, concept, intent, category hint, payment method, optional account name; currency comes from user settings
+          Interpreter-->>API: Amount, concept, expense date, localized category hint, payment method and bank, optional account name; currency comes from user settings
         end
       end
     end
@@ -77,8 +77,9 @@ sequenceDiagram
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm updated movement
     else create expense
+      API->>DB: Resolve card/transfer bank against the active account catalog; request clarification if absent or unmatched
       API->>DB: Insert expense scoped by active account using preferred currency
-      Note over API,DB: `3 cuotas` or `3x` uses the expense date as first charge unless a date is explicit
+      Note over API,DB: Date accepts `ayer`, ISO `YYYY-MM-DD`, or `D de mes [de AAAA]`; it defaults to today. `3 cuotas` or `3x` uses that expense date as first charge unless a first-charge date is explicit
       API->>DB: Mark audit as saved
       API->>Telegram: Confirm saved expense
     else create income

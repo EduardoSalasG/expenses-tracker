@@ -107,7 +107,7 @@ function buildChatCompletionPayload(config: AppConfig, message: string, context:
             preferredCurrency: context.user.preferredCurrency,
             preferredLanguage: context.user.preferredLanguage
           },
-          categories: categoryOptions(context.categories),
+          categories: categoryOptions(context.categories, context.user.preferredLanguage),
           banks: bankOptions(context.banks),
           paymentMethodOptions: paymentMethodOptions(context.paymentMethodOptions),
           financialAccounts: financialAccountOptions(context.availableFinancialAccounts),
@@ -144,13 +144,14 @@ function systemPrompt() {
     'Preserve the original concept wording. Do not shorten, rewrite, translate, or normalize the concept unless the user explicitly asked to update it.',
     'The user currency is tenant-level configuration. Do not infer a different currency from arbitrary words like "sueldo", "mayo", or merchant names.',
     'Only set currency when the message includes an explicit ISO code or unmistakable symbol.',
-    'Use categoryName and subcategoryName only from the supplied category list. Each name is canonical; aliases are valid user-input variants but must never be returned.',
+    'Use categoryName and subcategoryName only from the supplied category list. Each canonicalName is the required output reference; name is the localized display label and aliases are valid user-input variants but must never be returned.',
     'When a supplied category has subcategories, choose the most specific valid match available.',
     'Use payment methods only from the supplied paymentMethodOptions. Normalize informal phrases like tdc to credit card, tdd to debit card, transferencia to transfer, efectivo to cash.',
     'Use banks only from the supplied bank list. Match abbreviations and aliases conservatively, for example BCI to Banco de Credito e Inversiones.',
     'If the bank is not clearly stated or no supplied bank matches, omit bank.',
     'For create_expense, create_income, ask_report, and ask_budget_status, set accountName only when the current message explicitly refers to exactly one supplied financialAccount. Use its exact supplied name. Do not invent financial accounts. Otherwise omit accountName and request confirmation when the account is uncertain.',
     'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
+    'For create_expense, return date as YYYY-MM-DD only when the input states ayer, an ISO date, or a named day and month. Otherwise omit date so the backend uses the calendar date from now. Do not include the expense date in concept.',
     'When an expense in installments explicitly states the first charge date, return firstInstallmentDate as YYYY-MM-DD. Resolve relative or named dates against now. Do not invent a date when none is stated.',
     'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
     'If information is missing or ambiguous for a create or update intent, set needsConfirmation true and populate missingFields with concise field identifiers.'
@@ -158,7 +159,7 @@ function systemPrompt() {
 }
 
 function fewShotMessages(context: MessageInterpreterContext) {
-  const categoryPayload = categoryOptions(context.categories);
+  const categoryPayload = categoryOptions(context.categories, context.user.preferredLanguage);
   const bankPayload = bankOptions(context.banks);
   const paymentPayload = paymentMethodOptions(context.paymentMethodOptions);
   const financialAccountPayload = financialAccountOptions(context.availableFinancialAccounts);
@@ -356,16 +357,25 @@ function fewShotMessages(context: MessageInterpreterContext) {
   ];
 }
 
-function categoryOptions(categories: MessageInterpreterContext['categories']) {
+function categoryOptions(categories: MessageInterpreterContext['categories'], language: 'es' | 'en' = 'es') {
   return categories
     .filter((category) => !category.parentId)
     .map((category) => ({
-      name: category.name,
+      name: localizedCategoryName(category, language),
+      canonicalName: category.name,
       aliases: categoryAliases(category),
       subcategories: categories
         .filter((subcategory) => subcategory.parentId === category.id)
-        .map((subcategory) => ({ name: subcategory.name, aliases: categoryAliases(subcategory) }))
+        .map((subcategory) => ({
+          name: localizedCategoryName(subcategory, language),
+          canonicalName: subcategory.name,
+          aliases: categoryAliases(subcategory)
+        }))
     }));
+}
+
+function localizedCategoryName(category: MessageInterpreterContext['categories'][number], language: 'es' | 'en') {
+  return (language === 'en' ? category.nameEn : category.nameEs) ?? category.name;
 }
 
 function categoryAliases(category: MessageInterpreterContext['categories'][number]) {
@@ -405,6 +415,8 @@ function normalizeInterpretedPayload(payload: unknown) {
   if (typeof normalized.paymentMethod === 'string') {
     normalized.paymentMethod = paymentMethodFromText(normalized.paymentMethod);
   }
+
+  if (typeof normalized.date === 'string') normalized.dateExplicit = true;
 
   return normalized;
 }

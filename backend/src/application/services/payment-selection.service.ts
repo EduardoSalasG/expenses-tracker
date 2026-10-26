@@ -89,10 +89,11 @@ export class PaymentSelectionService {
     const compactInput = compactLookup(bankName);
     const options = await this.banks.listByTenant(tenantId, financialAccountId);
 
-    return options.find((option) => {
+    const matches = options.filter((option) => {
       const aliases = bankAliases(option.name);
       return aliases.has(normalizedInput) || aliases.has(compactInput);
     });
+    return matches.length === 1 ? matches[0] : undefined;
   }
 }
 

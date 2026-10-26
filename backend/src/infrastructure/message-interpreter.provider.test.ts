@@ -42,6 +42,7 @@ describe('ChatCompletionsMessageInterpreter', () => {
     expect(userInput.financialAccounts).toEqual([{ name: 'Personal', type: 'personal' }, { name: 'Hogar', type: 'shared' }]);
     expect(instructions).toMatch(/create_expense.*accountName|accountName.*create_expense/i);
     expect(instructions).toMatch(/do not invent (?:financial )?accounts/i);
+    expect(instructions).toMatch(/expense date.*YYYY-MM-DD/i);
     expect(JSON.stringify(payload)).not.toMatch(/historicalMessages|historicalTransactions|transactionHistory/);
     expect(payload.messages.filter((entry: { role: string }) => entry.role === 'assistant')
       .some((entry: { content: string }) => JSON.parse(entry.content).accountName === 'Hogar')).toBe(true);
@@ -69,5 +70,22 @@ describe('ChatCompletionsMessageInterpreter', () => {
       .interpret('25000 supermercado, debito', context);
 
     expect(result).toMatchObject({ intent: 'create_expense', accountName: undefined });
+  });
+
+  it('sends localized category labels while preserving canonical references', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ intent: 'create_expense' }) } }]
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new ChatCompletionsMessageInterpreter(config, logger).interpret('12.000 almuerzo efectivo', {
+      ...context,
+      user: { ...context.user, preferredLanguage: 'es' },
+      categories: [{ id: 'food', tenantId: 'tenant-1', name: 'Food', nameEs: 'Comida', nameEn: 'Food', isDefault: true }]
+    });
+    const payload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    const userInput = JSON.parse(payload.messages.at(-1).content);
+
+    expect(userInput.categories[0]).toMatchObject({ name: 'Comida', canonicalName: 'Food' });
   });
 });

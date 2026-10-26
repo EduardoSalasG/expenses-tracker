@@ -89,7 +89,7 @@ WhatsApp y Telegram aceptan una cuenta sólo para el movimiento actual mediante 
 
 Las preferencias de categoría se guardan por cuenta financiera, de modo que una preferencia de una cuenta compartida está disponible para sus miembros, pero no se filtra a otras cuentas. Sólo se conserva la señal normalizada del concepto y la selección de categoría/subcategoría: nunca se transmite historial ni mensajes históricos al proveedor de IA. Una corrección explícita se aplica de inmediato; si no la hay, se necesitan tres confirmaciones coherentes antes de aprender una preferencia. Cuando la categoría es incierta, se mantiene un borrador y se solicita aclaración en vez de asignar `Other` automáticamente.
 
-Las cuotas se pueden expresar como `3 cuotas` o `3x`. Si el mensaje no incluye la fecha de la primera cuota, se usa la fecha del gasto como primer cargo.
+Las cuotas se pueden expresar como `3 cuotas` o `3x`. Si el mensaje no incluye la fecha de la primera cuota, se usa la fecha del gasto como primer cargo. La fecha de compra puede ser `ayer`, `YYYY-MM-DD` o `D de mes [de AAAA]`; por ejemplo: `500000 refrigerador, tdc bci, 3 cuotas, 2026-05-02, primera cuota el 5 de septiembre`. Para tarjeta o transferencia se debe indicar un banco accesible (se puede responder sólo `bci` cuando el chat lo solicite), y las categorías se muestran en el idioma preferido del usuario.
 
 Next likely expansion after this MVP:
 

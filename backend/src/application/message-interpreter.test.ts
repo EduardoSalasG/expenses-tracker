@@ -39,6 +39,18 @@ const context: MessageInterpreterContext = {
 describe('inline financial account interpretation', () => {
   const interpreter = new DeterministicMessageInterpreter();
 
+  it('propagates the parsed expense date', async () => {
+    const result = await interpreter.interpret('12.500 supermercado con débito BancoEstado ayer', context);
+
+    expect(result).toMatchObject({ intent: 'create_expense', date: '2026-10-08' });
+  });
+
+  it('propagates an ISO expense date', async () => {
+    const result = await interpreter.interpret('25.000 supermercado, tc bci, 2026-05-02', context);
+
+    expect(result).toMatchObject({ intent: 'create_expense', date: '2026-05-02' });
+  });
+
   it('routes an expense to its unique accessible account without retaining the clause in the concept', async () => {
     const result = await interpreter.interpret('25000 supermercado, debito, 3 cuotas, cuenta Hogar', context);
 
@@ -71,6 +83,13 @@ describe('inline financial account interpretation', () => {
     expect(interpretedMessageSchema.parse({ intent: 'create_expense', accountName: 'Hogar' })).toHaveProperty('accountName', 'Hogar');
     expect(interpretedMessageSchema.parse({ intent: 'create_income', accountName: 'Hogar' })).toHaveProperty('accountName', 'Hogar');
     expect(interpretedMessageSchema.safeParse({ intent: 'create_expense', accountName: '' }).success).toBe(false);
+  });
+
+  it('rejects an impossible calendar date from an AI response', () => {
+    expect(interpretedMessageSchema.safeParse({
+      intent: 'create_expense',
+      date: '2026-02-31'
+    }).success).toBe(false);
   });
 
   it('preserves a concept containing debit wording when cash is the payment method', async () => {
