@@ -3,8 +3,10 @@
 ## Identificación
 
 - Versión SemVer: `0.5.0` (MINOR).
-- Estado: preparada en `dev`; pendiente de promoción a `main`, tag anotado y supervisión de despliegue.
-- Fecha de preparación: 2026-10-26.
+- Estado: publicada y verificada en producción.
+- Fecha de publicación: 2026-10-26.
+- Commit de release en `main`: `ecdc3e1dd4ad3585dd67a94df2a212dea8cf5743`.
+- Tag anotado: `v0.5.0`, resuelto al mismo commit inmutable.
 
 ## Cambios incluidos
 
@@ -20,10 +22,13 @@
 - Riesgo y mitigación: mensajes con un alias bancario ambiguo solicitan aclaración en vez de asociar arbitrariamente un banco.
 - Rollback: el último tag de referencia es `v0.4.1`; ejecutar primero `pnpm run release:rollback:preview -- --tag v0.4.1`.
 
-## Evidencia previa a promoción
+## Evidencia de release
 
 - Revisión técnica: sin bloqueos tras la segunda pasada.
 - Pruebas backend: 181 correctas y 7 integraciones PostgreSQL omitidas por no disponer de configuración de DB.
 - Pruebas frontend: 83/83 correctas en ejecución elevada de Karma/Chrome.
 - `pnpm run release:verify`: correcto; compila backend y frontend, y prerenderiza `/` y `/en`. Persisten sólo las advertencias conocidas de Angular `NG02801` para SSR sin `withFetch()`.
 - `pnpm run version:check`, validación OpenSpec estricta y `git diff --check`: correctos.
+- GitHub Actions: [Deploy expenses-tracker backend #40345303166](https://github.com/EduardoSalasG/expenses-tracker/actions/runs/40345303166) finalizó con éxito para el SHA de release.
+- Netlify: deploy productivo `ready`, publicado a las `2026-10-26T15:02:39.427Z` y asociado a `ecdc3e1dd4ad3585dd67a94df2a212dea8cf5743`.
+- Salud pública: `https://expenses-tracker-easg.netlify.app/` devolvió HTTP 200; `https://api.expenses-tracker.eduardosalasg.dev/health` devolvió `{"status":"ok"}`; y `/health/ready` confirmó base de datos `ok`.
