@@ -387,6 +387,55 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(pending?.missingFields).toContain('category');
   });
 
+  it('delivers the initial category clarification to the inbound reply recipient', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439042',
+      firstName: 'Test',
+      lastName: 'User',
+      preferredName: 'Test',
+      countryOfResidence: 'Chile',
+      preferredCurrency: 'CLP'
+    });
+    await users.linkTelegramChatByPhone(user.phoneNumber, 'category-reply-recipient');
+    await categories.ensureDefaults(user.tenantId);
+    const messaging = new CapturingMessagingProvider();
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users,
+      categories,
+      expenses,
+      new InMemoryIncomeRepository(),
+      new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(),
+      drafts,
+      messaging,
+      new IncompleteCategoryExpenseInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    const result = await useCase.execute({
+      providerMessageId: 'tg-category-reply-recipient',
+      channel: 'telegram',
+      fromPhoneNumber: 'tg:category-reply-recipient',
+      providerUserId: 'category-reply-recipient',
+      replyTo: 'category-reply-recipient',
+      message: '20.000 clases de bachata bsoul mayo, transferencia desde bci'
+    });
+
+    expect(result.status).toBe('needs_confirmation');
+    expect(result.missingFields).toContain('category');
+    expect(messaging.messages).toHaveLength(1);
+    expect(messaging.messages[0]?.toPhoneNumber).toBe('category-reply-recipient');
+    const pending = await drafts.findActive(user.tenantId, user.id, new Date('2026-05-06T00:00:00.000Z'), 'telegram');
+    expect(pending?.missingFields).toContain('category');
+  });
+
   it('asks the user to disambiguate duplicate subcategories before saving', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();
@@ -1870,6 +1919,22 @@ class NoCategoryConceptInterpreter implements MessageInterpreterPort {
     return {
       intent: 'create_expense', confidence: 0.9, amount: 25000, currency: 'CLP', concept: this.concept,
       accountName: this.accountName, paymentMethod: { kind: 'cash' }, missingFields: [], needsConfirmation: false, installmentCount: 1
+    };
+  }
+}
+
+class IncompleteCategoryExpenseInterpreter implements MessageInterpreterPort {
+  async interpret(): Promise<InterpretedMessage> {
+    return {
+      intent: 'create_expense',
+      confidence: 0.9,
+      amount: 20000,
+      currency: 'CLP',
+      concept: 'Clases de bachata',
+      paymentMethod: { kind: 'cash' },
+      missingFields: ['category'],
+      needsConfirmation: true,
+      installmentCount: 1
     };
   }
 }
