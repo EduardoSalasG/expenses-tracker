@@ -6,6 +6,13 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-26
+
+### Fixed
+
+- Las preguntas para aclarar una categoría se envían inmediatamente al destinatario real del mensaje entrante, también desde Telegram.
+- Una fecha de gasto enviada explícitamente durante una aclaración reemplaza la fecha predeterminada; una fecha que ya era explícita se conserva.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added

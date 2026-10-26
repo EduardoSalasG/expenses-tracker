@@ -34,7 +34,7 @@ export function mergePendingDraft(
       categoryName: replyExpense?.categoryName ?? pending.categoryName,
       subcategoryName: replyExpense?.subcategoryName ?? pending.subcategoryName,
       paymentMethod,
-      date: pending.missingFields.includes('date') && replyExpense?.dateExplicit ? replyExpense.date : pending.date,
+      date: !pending.dateExplicit && replyExpense?.dateExplicit ? replyExpense.date : pending.date,
       dateExplicit: pending.dateExplicit || Boolean(replyExpense?.dateExplicit)
     };
     return {

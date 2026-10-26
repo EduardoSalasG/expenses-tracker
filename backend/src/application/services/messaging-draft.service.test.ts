@@ -19,6 +19,54 @@ describe('mergePendingDraft', () => {
     });
   });
 
+  it('replaces an implicit pending date with a later explicit date reply', () => {
+    const pending: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.45, amount: 2500, currency: 'CLP', concept: 'pan',
+      date: '2026-10-26', dateExplicit: false, categoryName: 'Food', paymentMethod: { kind: 'cash' }, installmentCount: 1,
+      missingFields: ['bank'], needsConfirmation: true
+    };
+    const reply: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.75, date: '2026-10-24', dateExplicit: true, installmentCount: 1,
+      missingFields: [], needsConfirmation: false
+    };
+
+    expect(mergePendingDraft(pending, reply, 'el 24 de octubre')).toMatchObject({
+      date: '2026-10-24', dateExplicit: true
+    });
+  });
+
+  it('keeps an explicit pending date when a later reply also includes a date', () => {
+    const pending: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.75, amount: 2500, currency: 'CLP', concept: 'pan',
+      date: '2026-10-24', dateExplicit: true, categoryName: 'Food', paymentMethod: { kind: 'cash' }, installmentCount: 1,
+      missingFields: ['bank'], needsConfirmation: true
+    };
+    const reply: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.75, date: '2026-10-25', dateExplicit: true, installmentCount: 1,
+      missingFields: [], needsConfirmation: false
+    };
+
+    expect(mergePendingDraft(pending, reply, 'el 25 de octubre')).toMatchObject({
+      date: '2026-10-24', dateExplicit: true
+    });
+  });
+
+  it('keeps an explicit pending date even when the persisted draft marks date as missing', () => {
+    const pending: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.75, amount: 2500, currency: 'CLP', concept: 'pan',
+      date: '2026-10-24', dateExplicit: true, categoryName: 'Food', paymentMethod: { kind: 'cash' }, installmentCount: 1,
+      missingFields: ['date'], needsConfirmation: true
+    };
+    const reply: InterpretedMessage = {
+      intent: 'create_expense', confidence: 0.75, date: '2026-10-25', dateExplicit: true, installmentCount: 1,
+      missingFields: [], needsConfirmation: false
+    };
+
+    expect(mergePendingDraft(pending, reply, 'el 25 de octubre')).toMatchObject({
+      date: '2026-10-24', dateExplicit: true
+    });
+  });
+
   it('keeps an invalid pending date unresolved when the reply omits a date', () => {
     const pending: InterpretedMessage = {
       intent: 'create_expense', confidence: 0.45, amount: 2500, currency: 'CLP', concept: 'pan',

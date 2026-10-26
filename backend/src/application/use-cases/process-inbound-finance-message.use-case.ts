@@ -292,7 +292,7 @@ export class ProcessInboundFinanceMessageUseCase {
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
       return { status: 'needs_confirmation' as const, missingFields: ['category'] };
     }
 
@@ -305,7 +305,7 @@ export class ProcessInboundFinanceMessageUseCase {
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
     return { status: 'needs_confirmation' as const, missingFields };
   }
 
