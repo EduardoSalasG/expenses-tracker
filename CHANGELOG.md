@@ -6,6 +6,20 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-26
+
+### Added
+
+- La captura conversacional de gastos interpreta fechas de compra en español, fechas ISO y `ayer`, conserva por separado la fecha de primera cuota y localiza etiquetas de categorías según el idioma preferido.
+
+### Changed
+
+- Tarjetas y transferencias resuelven el banco de forma única dentro del catálogo accesible; las aclaraciones de fecha, banco y categoría permanecen como borrador hasta completar todos los campos.
+
+### Fixed
+
+- Se rechazan fechas de calendario imposibles y una fecha de primera cuota ya no puede sustituir la fecha de compra.
+
 ## [0.4.1] - 2026-10-18
 
 ### Fixed

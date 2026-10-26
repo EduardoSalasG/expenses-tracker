@@ -64,7 +64,19 @@ describe('parseExpenseMessage', () => {
     );
 
     expect(parsed.firstInstallmentDate).toBe('2026-09-05');
+    expect(parsed.date).toBe('2026-05-06');
     expect(parsed.concept).toBe('refrigerador');
+  });
+
+  it('keeps an explicit purchase date separate from the first installment date', () => {
+    const parsed = parseExpenseMessage(
+      '500000 refrigerador, tdc bci, 3 cuotas, 2026-05-02, primera cuota el 5 de septiembre de 2026',
+      'CLP',
+      new Date('2026-05-06T00:00:00.000Z')
+    );
+
+    expect(parsed.date).toBe('2026-05-02');
+    expect(parsed.firstInstallmentDate).toBe('2026-09-05');
   });
 
   it('extracts an expense date and removes it from the concept', () => {

@@ -21,6 +21,11 @@ export function mergePendingDraft(
   if (isAffirmativeMessage(replyText)) return pending;
   if (pending.intent === 'create_expense') {
     const replyExpense = reply.intent === 'create_expense' ? reply : undefined;
+    const requiresBank = pending.missingFields.includes('bank');
+    const paymentMethod = replyExpense?.paymentMethod
+      ?? (requiresBank && pending.paymentMethod && replyExpense?.concept
+        ? { ...pending.paymentMethod, bank: replyExpense.concept.trim() }
+        : pending.paymentMethod);
     const merged = {
       ...pending,
       amount: pending.amount ?? replyExpense?.amount,
@@ -28,7 +33,9 @@ export function mergePendingDraft(
       concept: pending.concept ?? replyExpense?.concept,
       categoryName: replyExpense?.categoryName ?? pending.categoryName,
       subcategoryName: replyExpense?.subcategoryName ?? pending.subcategoryName,
-      paymentMethod: pending.paymentMethod ?? replyExpense?.paymentMethod
+      paymentMethod,
+      date: pending.missingFields.includes('date') && replyExpense?.dateExplicit ? replyExpense.date : pending.date,
+      dateExplicit: pending.dateExplicit || Boolean(replyExpense?.dateExplicit)
     };
     return {
       ...merged,
@@ -61,6 +68,8 @@ export function missingFieldsFor(interpreted: InterpretedMessage) {
       interpreted.amount === undefined ? 'amount' : undefined,
       interpreted.concept ? undefined : 'concept',
       interpreted.paymentMethod ? undefined : 'paymentMethod',
+      interpreted.paymentMethod?.kind !== 'cash' && !interpreted.paymentMethod?.bank ? 'bank' : undefined,
+      interpreted.missingFields.includes('date') && !interpreted.dateExplicit ? 'date' : undefined,
       interpreted.categoryName ? undefined : 'category'
     ].filter((field): field is string => Boolean(field));
   }
@@ -82,6 +91,7 @@ export function clarificationMessage(missingFields: string[], language: Language
       concept: 'concept',
       paymentMethod: 'payment method',
       bank: 'bank',
+      date: 'date',
       category: 'category or subcategory',
       intent: 'whether it is an expense, income, report, or budget query'
     };
@@ -94,6 +104,7 @@ export function clarificationMessage(missingFields: string[], language: Language
     concept: 'concepto',
     paymentMethod: 'medio de pago',
     bank: 'banco',
+    date: 'fecha',
     category: 'categoría o subcategoría',
     intent: 'si es gasto, ingreso, reporte o presupuesto'
   };

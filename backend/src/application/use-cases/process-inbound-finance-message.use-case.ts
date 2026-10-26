@@ -584,7 +584,11 @@ export class ProcessInboundFinanceMessageUseCase {
           categoryName: resolution.category.name,
           subcategoryName: resolution.subcategory?.name
         }),
-        needsConfirmation: false
+        needsConfirmation: missingFieldsFor({
+          ...draft.expenseDraft,
+          categoryName: resolution.category.name,
+          subcategoryName: resolution.subcategory?.name
+        }).length > 0
       } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
 
       const result = await this.trySaveInterpreted(
@@ -596,13 +600,15 @@ export class ProcessInboundFinanceMessageUseCase {
       );
       if (result) return result;
 
+      await this.storePendingDraft(input, user, completedDraft);
+      const missingFields = missingFieldsFor(completedDraft);
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,
         parsingStatus: 'needs_confirmation'
       });
-      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
-      return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+      await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
+      return { status: 'needs_confirmation' as const, missingFields };
     }
 
     if (resolution.kind === 'ambiguous') {
@@ -684,7 +690,11 @@ export class ProcessInboundFinanceMessageUseCase {
         categoryName: selected.category.name,
         subcategoryName: selected.subcategory?.name
       }),
-      needsConfirmation: false
+      needsConfirmation: missingFieldsFor({
+        ...draft.expenseDraft,
+        categoryName: selected.category.name,
+        subcategoryName: selected.subcategory?.name
+      }).length > 0
     } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
 
     const result = await this.trySaveInterpreted(
@@ -696,13 +706,15 @@ export class ProcessInboundFinanceMessageUseCase {
     );
     if (result) return result;
 
+    await this.storePendingDraft(input, user, completedDraft);
+    const missingFields = missingFieldsFor(completedDraft);
     await this.auditMessage(input, {
       tenantId: user.tenantId,
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, categories), input.channel);
-    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields };
   }
 
   private async processCategoryCreationConfirmDraft(
@@ -812,7 +824,11 @@ export class ProcessInboundFinanceMessageUseCase {
         categoryName: category?.name,
         subcategoryName: subcategory?.name
       }),
-      needsConfirmation: false
+      needsConfirmation: missingFieldsFor({
+        ...draft.expenseDraft,
+        categoryName: category?.name,
+        subcategoryName: subcategory?.name
+      }).length > 0
     } satisfies Extract<InterpretedMessage, { intent: 'create_expense' }>;
 
     const result = await this.trySaveInterpreted(
@@ -824,13 +840,15 @@ export class ProcessInboundFinanceMessageUseCase {
     );
     if (result) return result;
 
+    await this.storePendingDraft(input, user, completedDraft);
+    const missingFields = missingFieldsFor(completedDraft);
     await this.auditMessage(input, {
       tenantId: user.tenantId,
       userId: user.id,
       parsingStatus: 'needs_confirmation'
     });
-    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, categoryClarificationMessage(user, refreshedCategories), input.channel);
-    return { status: 'needs_confirmation' as const, missingFields: ['category'] };
+    await this.reply(user, input.replyTo ?? input.fromPhoneNumber, clarificationMessage(missingFields, user.preferredLanguage), input.channel);
+    return { status: 'needs_confirmation' as const, missingFields };
   }
 
   private async trySaveInterpreted(
@@ -1058,6 +1076,11 @@ export class ProcessInboundFinanceMessageUseCase {
       paymentMethod: interpreted.paymentMethod
     });
     if (interpreted.paymentMethod.kind !== 'cash' && !scopedPaymentSelection.bankOptionId) {
+      await this.storePendingDraft(input, user, {
+        ...interpreted,
+        missingFields: ['bank'],
+        needsConfirmation: true
+      });
       await this.auditMessage(input, {
         tenantId: user.tenantId,
         userId: user.id,

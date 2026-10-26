@@ -151,7 +151,7 @@ function systemPrompt() {
     'If the bank is not clearly stated or no supplied bank matches, omit bank.',
     'For create_expense, create_income, ask_report, and ask_budget_status, set accountName only when the current message explicitly refers to exactly one supplied financialAccount. Use its exact supplied name. Do not invent financial accounts. Otherwise omit accountName and request confirmation when the account is uncertain.',
     'Recognize installments or cuotas. If the user says "3 cuotas", set installmentCount to 3. If not stated, default installmentCount to 1 for expenses.',
-    'For create_expense, return date as YYYY-MM-DD when the input states ayer, an ISO date, or a named day and month. Otherwise use the calendar date from now. Do not include the expense date in concept.',
+    'For create_expense, return date as YYYY-MM-DD only when the input states ayer, an ISO date, or a named day and month. Otherwise omit date so the backend uses the calendar date from now. Do not include the expense date in concept.',
     'When an expense in installments explicitly states the first charge date, return firstInstallmentDate as YYYY-MM-DD. Resolve relative or named dates against now. Do not invent a date when none is stated.',
     'For update_movement, extract both the requested changes and the referenced original movement fields when present.',
     'If information is missing or ambiguous for a create or update intent, set needsConfirmation true and populate missingFields with concise field identifiers.'
@@ -415,6 +415,8 @@ function normalizeInterpretedPayload(payload: unknown) {
   if (typeof normalized.paymentMethod === 'string') {
     normalized.paymentMethod = paymentMethodFromText(normalized.paymentMethod);
   }
+
+  if (typeof normalized.date === 'string') normalized.dateExplicit = true;
 
   return normalized;
 }

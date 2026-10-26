@@ -1740,6 +1740,57 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(interpretedForSave).toMatchObject({ intent: 'create_expense', date: '2026-05-02' });
     expect(expense.date).toBe('2026-05-02T00:00:00.000Z');
   });
+
+  it('stores an unresolved bank as a draft and completes it from a bank-only reply', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const banks = new InMemoryBankOptionRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439042', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), banks,
+      new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({
+      providerMessageId: 'bank-draft-1', fromPhoneNumber: user.phoneNumber, message: '25.000 supermercado, tc banco inventado'
+    })).resolves.toMatchObject({ status: 'needs_confirmation', missingFields: ['bank'] });
+    await expect(useCase.execute({
+      providerMessageId: 'bank-draft-2', fromPhoneNumber: user.phoneNumber, message: 'bci'
+    })).resolves.toMatchObject({ status: 'saved' });
+
+    await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(1);
+  });
+
+  it('does not save an invalid-date expense when category selection completes first', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439043', firstName: 'Test', lastName: 'User', preferredName: 'Vane', countryOfResidence: 'Chile', preferredCurrency: 'CLP'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), new InMemoryBankOptionRepository(),
+      new InMemoryPaymentMethodOptionRepository(), new InMemoryMessagingMessageAuditRepository(),
+      new InMemoryMessagingPendingDraftRepository(), new NoopMessagingProvider(), new DeterministicMessageInterpreter(),
+      { now: () => new Date('2026-05-06T00:00:00.000Z') }, { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({
+      providerMessageId: 'invalid-date-category-1', fromPhoneNumber: user.phoneNumber, message: '2.500 pan efectivo el 31 de febrero'
+    })).resolves.toMatchObject({ status: 'needs_confirmation', missingFields: ['category'] });
+    await expect(useCase.execute({
+      providerMessageId: 'invalid-date-category-2', fromPhoneNumber: user.phoneNumber, message: 'Food'
+    })).resolves.toMatchObject({ status: 'needs_confirmation', missingFields: ['date'] });
+
+    await expect(expenses.listRecent(user.tenantId, 10)).resolves.toHaveLength(0);
+  });
 });
 
 class NoopMessagingProvider implements MessagingProvider {

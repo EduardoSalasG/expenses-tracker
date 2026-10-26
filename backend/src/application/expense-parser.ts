@@ -6,6 +6,7 @@ export interface ParsedExpenseMessage {
   currency?: string;
   concept?: string;
   date?: string;
+  dateExplicit: boolean;
   installmentCount?: number;
   firstInstallmentDate?: string;
   paymentMethod?: PaymentMethod;
@@ -19,7 +20,7 @@ export function parseExpenseMessage(message: string, preferredCurrency: string, 
   const currency = preferredCurrency;
   const installmentCount = parseInstallmentCount(trimmed);
   const firstInstallmentDate = parseFirstInstallmentDate(trimmed, now);
-  const expenseDate = parseExpenseDate(trimmed, now);
+  const expenseDate = parseExpenseDate(removeFirstInstallmentDate(trimmed), now);
   const messageWithoutExpenseDate = removeExpenseDate(trimmed);
 
   const lower = messageWithoutExpenseDate.toLowerCase();
@@ -42,6 +43,7 @@ export function parseExpenseMessage(message: string, preferredCurrency: string, 
     currency,
     concept: concept.length > 0 ? concept : undefined,
     date: expenseDate.value ?? utcDate(now),
+    dateExplicit: expenseDate.value !== undefined,
     installmentCount,
     firstInstallmentDate,
     paymentMethod,
@@ -133,6 +135,12 @@ function parseExpenseDate(message: string, now: Date): { value?: string; invalid
   return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
     ? { value: date.toISOString().slice(0, 10), invalid: false }
     : { invalid: true };
+}
+
+function removeFirstInstallmentDate(message: string) {
+  return message
+    .replace(/\b(?:primera\s+(?:cuota|fecha(?:\s+de\s+cobro)?)|first\s+(?:installment|charge(?:\s+date)?))\s*(?:es|el|on|:)?\s*\d{4}-\d{2}-\d{2}\b/gi, '')
+    .replace(/\b(?:primera\s+(?:cuota|fecha(?:\s+de\s+cobro)?)|first\s+(?:installment|charge(?:\s+date)?))\s*(?:es|el|on|:)?\s*\d{1,2}\s+(?:de\s+)?[a-záéíóú]+(?:\s+(?:de\s+)?\d{4})?\b/gi, '');
 }
 
 function removeExpenseDate(message: string) {

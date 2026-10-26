@@ -85,6 +85,13 @@ describe('inline financial account interpretation', () => {
     expect(interpretedMessageSchema.safeParse({ intent: 'create_expense', accountName: '' }).success).toBe(false);
   });
 
+  it('rejects an impossible calendar date from an AI response', () => {
+    expect(interpretedMessageSchema.safeParse({
+      intent: 'create_expense',
+      date: '2026-02-31'
+    }).success).toBe(false);
+  });
+
   it('preserves a concept containing debit wording when cash is the payment method', async () => {
     const result = await interpreter.interpret('25000 tarifa débito, efectivo', context);
 
