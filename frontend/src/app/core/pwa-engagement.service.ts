@@ -54,6 +54,15 @@ export class PwaEngagementService {
     await firstValueFrom(this.api.registerPushSubscription({ endpoint: json.endpoint, keys: { p256dh, auth } }));
     return permission;
   }
+
+  async deactivateNotifications(): Promise<void> {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+    await firstValueFrom(this.api.unregisterPushSubscription(subscription.endpoint));
+    await subscription.unsubscribe();
+  }
 }
 
 function toUint8Array(base64Url: string): Uint8Array {

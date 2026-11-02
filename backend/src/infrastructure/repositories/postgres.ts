@@ -1911,6 +1911,10 @@ export class PostgresPushSubscriptionRepository implements PushSubscriptionRepos
   async deactivate(id: string) {
     await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where id = $1`, [id]);
   }
+
+  async deactivateByUserAndEndpoint(userId: string, endpoint: string) {
+    await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where user_id = $1 and endpoint = $2`, [userId, endpoint]);
+  }
 }
 
 export class PostgresPushDeliveryRepository implements PushDeliveryRepository {

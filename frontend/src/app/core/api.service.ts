@@ -441,6 +441,10 @@ export class ApiService {
     return this.http.post<void>(`${environment.apiBaseUrl}/push/subscriptions`, payload);
   }
 
+  unregisterPushSubscription(endpoint: string) {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/push/subscriptions`, { body: { endpoint } });
+  }
+
   accountContext() {
     return this.http.get<FinancialAccountContext>(`${environment.apiBaseUrl}/me/account-context`);
   }

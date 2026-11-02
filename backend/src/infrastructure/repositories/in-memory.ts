@@ -1653,6 +1653,11 @@ export class InMemoryPushSubscriptionRepository implements PushSubscriptionRepos
     const subscription = this.subscriptions.find((item) => item.id === id);
     if (subscription) subscription.status = 'inactive';
   }
+
+  async deactivateByUserAndEndpoint(userId: string, endpoint: string) {
+    const subscription = this.subscriptions.find((item) => item.userId === userId && item.endpoint === endpoint);
+    if (subscription) subscription.status = 'inactive';
+  }
 }
 
 export class InMemoryPushDeliveryRepository implements PushDeliveryRepository {

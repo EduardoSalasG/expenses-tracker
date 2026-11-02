@@ -6,7 +6,7 @@ import { PwaEngagementService } from './pwa-engagement.service';
 describe('PwaEngagementService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [{ provide: ApiService, useValue: { pushPublicKey: () => of({ publicKey: '' }), registerPushSubscription: () => of(undefined) } }]
+      providers: [{ provide: ApiService, useValue: { pushPublicKey: () => of({ publicKey: '' }), registerPushSubscription: () => of(undefined), unregisterPushSubscription: () => of(undefined) } }]
     });
   });
 

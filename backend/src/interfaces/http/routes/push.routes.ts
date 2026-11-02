@@ -25,4 +25,11 @@ export function registerPushRoutes(app: Express, container: AppContainer) {
     await container.useCases.registerPushSubscription.execute({ userId: authRequest.auth.userId, ...body });
     response.status(204).end();
   }));
+
+  app.delete('/push/subscriptions', requireAuth(container), asyncHandler(async (request: Request, response: Response) => {
+    const body = parseBody(z.object({ endpoint: z.string().url().max(4096) }), request.body);
+    const authRequest = request as AuthenticatedRequest;
+    await container.pushSubscriptions.deactivateByUserAndEndpoint(authRequest.auth.userId, body.endpoint);
+    response.status(204).end();
+  }));
 }
