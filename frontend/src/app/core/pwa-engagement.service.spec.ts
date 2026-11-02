@@ -25,4 +25,20 @@ describe('PwaEngagementService', () => {
     await service.activateNotifications();
     expect(requestPermission).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the user in control when notification permission was denied', async () => {
+    const requestPermission = jasmine.createSpy();
+    Object.defineProperty(window, 'Notification', { configurable: true, value: { permission: 'denied', requestPermission } });
+    const service = TestBed.inject(PwaEngagementService);
+
+    await expectAsync(service.activateNotifications()).toBeResolvedTo('denied');
+    expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('reports browsers without notification support without failing the app', async () => {
+    delete (window as unknown as { Notification?: unknown }).Notification;
+    const service = TestBed.inject(PwaEngagementService);
+
+    await expectAsync(service.activateNotifications()).toBeResolvedTo('unsupported');
+  });
 });

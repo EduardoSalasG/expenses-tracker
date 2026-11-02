@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { AuthService } from './core/auth.service';
 import { I18nService } from './core/i18n.service';
+import { PwaEngagementService } from './core/pwa-engagement.service';
 
 describe('AppComponent', () => {
   it('creates the root component', async () => {
@@ -12,7 +13,8 @@ describe('AppComponent', () => {
       providers: [
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
-        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } }
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
 
@@ -26,7 +28,8 @@ describe('AppComponent', () => {
       providers: [
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
-        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } }
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
 

@@ -1,0 +1,14 @@
+flowchart TD
+  A[Usuario autenticado] --> B{PWA instalable?}
+  B -->|Sí| C[Consentimiento explícito de notificaciones]
+  B -->|No| D[Banner de instalación no bloqueante]
+  C --> E[POST /push/subscriptions]
+  E --> F[(push_subscriptions)]
+  G[Gasto compartido persistido] --> H[Outbox durable de Push]
+  H --> I[Worker Push con lease]
+  I --> J[Web Push a cada dispositivo activo]
+  J --> K[Navegación autenticada al gasto]
+  L[Scheduler día 1] --> M[Job mensual por cuenta]
+  M --> N[PDF: KPI, categorías, gastos e insights]
+  N --> O[Correo individual por miembro activo]
+  O --> P[(report_dispatches idempotente)]
