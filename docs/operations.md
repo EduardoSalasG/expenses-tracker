@@ -105,6 +105,8 @@ Monthly account reports are scheduled in version control by `.github/workflows/s
 docker compose run --rm --no-deps expenses-tracker-monthly-account-reports node dist/infrastructure/send-monthly-account-email-reports.js 2026-10
 ```
 
+`expenses-tracker-push-worker` runs continuously in production and polls the durable Push outbox every second (configurable with `PUSH_DELIVERY_POLL_INTERVAL_MS`). It must receive the VAPID keys from the production `.env`; the deployment recreates and verifies this service with the API and inbound worker.
+
 Example cron shape:
 
 ```cron

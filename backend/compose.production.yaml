@@ -21,3 +21,11 @@ services:
     env_file:
       - .env
     command: ["node", "dist/infrastructure/send-monthly-account-email-reports.js"]
+
+  expenses-tracker-push-worker:
+    image: ${BACKEND_IMAGE:-ghcr.io/eduardosalasg/expenses-tracker-backend:latest}
+    container_name: expenses-tracker-push-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["node", "dist/infrastructure/process-push-deliveries-daemon.js"]

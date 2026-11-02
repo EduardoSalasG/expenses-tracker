@@ -131,7 +131,7 @@ jobs:
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
               docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
-              docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend expenses-tracker-inbound-worker
+              docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend expenses-tracker-inbound-worker expenses-tracker-push-worker
 
               # Best effort: an LLM outage must never fail an otherwise healthy deploy.
               if ! docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
@@ -140,7 +140,7 @@ jobs:
 
               expected_image_id=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
               echo "Expected image ID: $expected_image_id"
-              for service in expenses-tracker-backend expenses-tracker-inbound-worker; do
+              for service in expenses-tracker-backend expenses-tracker-inbound-worker expenses-tracker-push-worker; do
                 running_image_id=$(docker inspect "$service" --format '{{.Image}}')
                 running_config_image=$(docker inspect "$service" --format '{{.Config.Image}}')
                 running_state=$(docker inspect "$service" --format '{{.State.Running}}')
