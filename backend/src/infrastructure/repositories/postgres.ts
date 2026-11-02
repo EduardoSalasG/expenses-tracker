@@ -305,6 +305,11 @@ export class PostgresRegistrationLeadRepository implements RegistrationLeadRepos
 export class PostgresFinancialAccountRepository implements FinancialAccountRepository {
   constructor(private readonly pool: DatabasePool) {}
 
+  async listAll() {
+    const result = await this.pool.query(`select * from financial_accounts order by created_at asc`);
+    return result.rows.map(mapFinancialAccount);
+  }
+
   async ensurePersonalAccount(userId: string) {
     const ensured = await this.pool.query<{ financial_account_id: string }>(
       `select ensure_personal_financial_account($1) as financial_account_id`,
@@ -1886,6 +1891,7 @@ export class PostgresPushSubscriptionRepository implements PushSubscriptionRepos
       [input.userId, input.endpoint, input.p256dh, input.auth]
     );
   }
+
 
   async listActiveByUserIds(userIds: string[]) {
     if (!userIds.length) return [];

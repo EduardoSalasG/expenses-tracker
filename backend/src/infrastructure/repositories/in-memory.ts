@@ -280,6 +280,8 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
     private readonly expenseReader?: Pick<InMemoryExpenseRepository, 'listAllByFinancialAccount'>
   ) {}
 
+  async listAll() { return [...this.accounts.values()]; }
+
   async ensurePersonalAccount(userId: string) {
     const existing = [...this.accounts.values()].find((account) => account.createdByUserId === userId && account.type === 'personal');
     if (existing) {

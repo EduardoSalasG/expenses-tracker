@@ -21,6 +21,7 @@
     "db:backfill:category-translations": "tsx src/infrastructure/db-backfill-category-translations.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
+    "reports:send-monthly-accounts": "tsx src/infrastructure/send-monthly-account-email-reports.ts",
     "worker:inbound-events": "node dist/infrastructure/process-inbound-events.js",
     "worker:inbound-events:daemon": "node dist/infrastructure/process-inbound-events-daemon.js",
     "worker:push-deliveries": "node dist/infrastructure/process-push-deliveries.js",

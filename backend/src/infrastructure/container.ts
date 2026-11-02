@@ -64,6 +64,7 @@ import {
   RequestOtpUseCase,
   SaveRegistrationLeadUseCase,
   SendDueReportsUseCase,
+  SendMonthlyAccountEmailReportsUseCase,
   RegisterPushSubscriptionUseCase,
   QueueSharedExpensePushUseCase,
   UpdateProfileUseCase,
@@ -210,6 +211,7 @@ export function createContainer(config: AppConfig) {
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),
       registerPushSubscription: new RegisterPushSubscriptionUseCase(pushSubscriptions),
       sendDueReports: new SendDueReportsUseCase(users, finance, messaging, reportDispatches, clock)
+      ,sendMonthlyAccountEmailReports: new SendMonthlyAccountEmailReportsUseCase(financialAccounts, finance, reportDispatches, email)
     }
   };
 }

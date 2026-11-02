@@ -2216,6 +2216,7 @@ function isFinancialAccountRepository(value: FinancialAccountRepository | Catego
 
 function createFallbackFinancialAccountRepository(): FinancialAccountRepository {
   return {
+    async listAll() { return []; },
     async ensurePersonalAccount(userId: string) {
       return {
         id: `fallback-account-${userId}`,
