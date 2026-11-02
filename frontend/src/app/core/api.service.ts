@@ -238,6 +238,11 @@ export interface Report {
   }>;
 }
 
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
 export interface ExpenseFilters {
   from?: string;
   to?: string;
@@ -426,6 +431,18 @@ export class ApiService {
 
   updateReportPreferences(preferences: ReportFrequency[]) {
     return this.http.put(`${environment.apiBaseUrl}/report-preferences`, { preferences });
+  }
+
+  pushPublicKey() {
+    return this.http.get<{ publicKey: string }>(`${environment.apiBaseUrl}/push/public-key`);
+  }
+
+  registerPushSubscription(payload: PushSubscriptionPayload) {
+    return this.http.post<void>(`${environment.apiBaseUrl}/push/subscriptions`, payload);
+  }
+
+  unregisterPushSubscription(endpoint: string) {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/push/subscriptions`, { body: { endpoint } });
   }
 
   accountContext() {

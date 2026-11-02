@@ -53,6 +53,32 @@ describe('HTTP observability', () => {
 });
 
 describe('Messaging routes', () => {
+  it('requires authentication to register a Push subscription', async () => {
+    const app = createApp(createContainer(testConfig()));
+
+    const response = await request(app)
+      .post('/push/subscriptions')
+      .send({ endpoint: 'https://push.example/subscription', keys: { p256dh: 'public-key', auth: 'auth-key' } });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ code: 'AUTH_REQUIRED' });
+  });
+
+  it('exposes configured VAPID enrollment and validates authenticated Push subscriptions', async () => {
+    const container = createContainer(testConfig({ vapidPublicKey: 'public-vapid-key' }));
+    const user = await container.users.upsertByPhoneNumber({
+      phoneNumber: '+56970000002', firstName: 'Push', lastName: 'Owner', preferredName: 'Push',
+      countryOfResidence: 'Chile', preferredCurrency: 'CLP', preferredLanguage: 'es'
+    });
+    const app = createApp(container);
+    const authorization = `Bearer ${container.tokens.signAccessToken(user)}`;
+
+    await expect(request(app).get('/push/public-key')).resolves.toMatchObject({ status: 200, body: { publicKey: 'public-vapid-key' } });
+    await expect(request(app).post('/push/subscriptions').set('authorization', authorization).send({ endpoint: 'not-a-url', keys: { p256dh: '', auth: '' } })).resolves.toMatchObject({ status: 400, body: { code: 'VALIDATION_ERROR' } });
+    await expect(request(app).post('/push/subscriptions').set('authorization', authorization).send({ endpoint: 'https://push.example/subscription', keys: { p256dh: 'public-key', auth: 'auth-key' } })).resolves.toMatchObject({ status: 204 });
+    await expect(request(app).delete('/push/subscriptions').set('authorization', authorization).send({ endpoint: 'https://push.example/subscription' })).resolves.toMatchObject({ status: 204 });
+  });
+
   it('returns a stable 401 contract when a protected route has no bearer token', async () => {
     const app = createApp(createContainer(testConfig()));
 
@@ -442,6 +468,9 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     resendApiKey: '',
     resendApiBaseUrl: 'https://api.resend.com',
     resendFromEmail: '',
+    vapidSubject: 'mailto:test@example.com',
+    vapidPublicKey: '',
+    vapidPrivateKey: '',
     telegramBotUsername: '',
     useInMemoryRepositories: true,
     legacyBudgetsEndpointsEnabled: true,

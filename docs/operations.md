@@ -80,7 +80,7 @@ git push origin main
 
 The report worker is a one-shot job. It sends one batch for one frequency and exits. This avoids duplicate sends from a long-running loop.
 
-Dispatches are idempotent by `(channel, frequency, period_from, period_to, user_id)` through `report_dispatches`. Re-running the same one-shot job for the same period skips already-sent users, and failed sends are recorded as `failed` for later retries.
+Legacy Telegram dispatches are idempotent by `(channel, frequency, period_from, period_to, user_id)` through `report_dispatches`. Monthly account emails additionally include `financial_account_id`, so each active member receives at most one PDF per account and calendar month. Re-running a job skips successful deliveries; failed sends are recorded for a later retry and make the job exit non-zero.
 
 Local one-shot commands:
 
@@ -98,6 +98,14 @@ docker compose run --rm -e REPORT_FREQUENCY=monthly report-worker
 ```
 
 Production scheduling should trigger the one-shot command from cron, a platform scheduler, or CI/orchestration jobs.
+
+Monthly account reports are scheduled in version control by `.github/workflows/send-monthly-account-reports.yml`: it runs at `08:15 UTC` on the first day of each month and asks the deployed image to process the newly closed month. It can also be run manually with an optional `YYYY-MM` input to retry a specific period safely:
+
+```bash
+docker compose run --rm --no-deps expenses-tracker-monthly-account-reports node dist/infrastructure/send-monthly-account-email-reports.js 2026-10
+```
+
+`expenses-tracker-push-worker` runs continuously in production and polls the durable Push outbox every second (configurable with `PUSH_DELIVERY_POLL_INTERVAL_MS`). It must receive the VAPID keys from the production `.env`; the deployment recreates and verifies this service with the API and inbound worker.
 
 Example cron shape:
 
@@ -121,6 +129,8 @@ Keep `backend/.env` outside Git. Production deployments need:
 - `MESSAGE_INTERPRETER_BASE_URL`
 - `MESSAGE_INTERPRETER_MODEL`
 - `FRONTEND_ORIGIN`
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for monthly PDF email reports
+- `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` for Web Push
 
 Before a production deploy, verify that `JWT_SECRET` is not the development default, `DATABASE_URL` is not the local default, `FRONTEND_ORIGIN` contains only explicit HTTPS origins (never `*`), and `TELEGRAM_WEBHOOK_SECRET_TOKEN` is a unique value of at least 16 characters whenever `TELEGRAM_BOT_TOKEN` is configured. The backend rejects an invalid production configuration before it accepts traffic; it also omits the Telegram webhook route when no webhook secret is configured.
 

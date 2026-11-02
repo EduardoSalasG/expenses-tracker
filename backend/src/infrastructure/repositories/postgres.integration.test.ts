@@ -7,6 +7,8 @@ import {
   PostgresExpenseRepository,
   PostgresIncomeRepository,
   PostgresMessagingMessageAuditRepository,
+  PostgresPushDeliveryRepository,
+  PostgresPushSubscriptionRepository,
   PostgresReportDispatchRepository,
   PostgresUserRepository
 } from './postgres.js';
@@ -198,6 +200,34 @@ describeIntegration('Postgres repositories integration', () => {
       expect(firstReserve).toBe(true);
       expect(secondReserve).toBe(false);
       expect(thirdReserveAfterFailure).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it('atomically claims a Push delivery for only one concurrent worker', async () => {
+    const { pool, close } = createIntegrationContext();
+    try {
+      const users = new PostgresUserRepository(pool);
+      const categories = new PostgresCategoryRepository(pool);
+      const expenses = new PostgresExpenseRepository(pool);
+      const subscriptions = new PostgresPushSubscriptionRepository(pool);
+      const deliveries = new PostgresPushDeliveryRepository(pool);
+      const user = await users.upsertByPhoneNumber({ phoneNumber: randomPhone(), firstName: 'Push', lastName: 'Worker', preferredName: 'Push', email: undefined, countryOfResidence: 'Chile', preferredCurrency: 'CLP' });
+      await categories.ensureDefaults(user.tenantId);
+      const category = (await categories.listByTenant(user.tenantId)).find((item) => !item.parentId);
+      if (!category) throw new Error('Missing default category for Push integration test.');
+      const expense = await expenses.create({ tenantId: user.tenantId, userId: user.id, date: '2026-11-02T00:00:00.000Z', amount: 5000, currency: 'CLP', concept: 'Shared groceries', categoryId: category.id, paymentMethod: { kind: 'cash' } });
+      await subscriptions.upsert({ userId: user.id, endpoint: `https://push.example/${randomUUID()}`, p256dh: 'key', auth: 'auth' });
+      const subscription = (await subscriptions.listActiveByUserIds([user.id]))[0];
+      await deliveries.enqueue({ expenseId: expense.id, subscriptionId: subscription.id, payload: { title: 'Gasto creado', body: 'Casa', url: '/expenses' } });
+
+      const [first, second] = await Promise.all([deliveries.takePending(1), deliveries.takePending(1)]);
+
+      expect(first.length + second.length).toBe(1);
+      const claimed = first[0] ?? second[0];
+      await deliveries.markFailed(claimed.id, 'simulated retry');
+      await expect(deliveries.takePending(1)).resolves.toHaveLength(1);
     } finally {
       await close();
     }
