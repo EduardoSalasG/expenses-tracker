@@ -38,15 +38,15 @@ export class PwaEngagementService {
 
   async activateNotifications(): Promise<NotificationPermission | 'unsupported'> {
     if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
-    if (Notification.permission === 'granted') return 'granted';
     if (Notification.permission === 'denied') return 'denied';
-    const permission = await Notification.requestPermission();
+    const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission;
     if (permission !== 'granted' || !('serviceWorker' in navigator) || !('PushManager' in window)) return permission;
 
     const { publicKey } = await firstValueFrom(this.api.pushPublicKey());
     const registration = await navigator.serviceWorker.getRegistration();
     if (!registration) return permission;
-    const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toUint8Array(publicKey) });
+    const subscription = await registration.pushManager.getSubscription()
+      ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toUint8Array(publicKey) });
     const json = subscription.toJSON();
     const p256dh = json.keys?.['p256dh'];
     const auth = json.keys?.['auth'];

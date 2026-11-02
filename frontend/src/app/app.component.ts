@@ -29,6 +29,9 @@ import { PwaEngagementService } from './core/pwa-engagement.service';
         <aside class="pwa-banner" role="region" [attr.aria-label]="t('pwa_notifications_title')">
           <strong>{{ t('pwa_notifications_title') }}</strong>
           <span>{{ t('pwa_notifications_description') }}</span>
+          @if (notificationActivationFailed()) {
+            <span class="pwa-banner__error" role="status">{{ t('pwa_notifications_error') }}</span>
+          }
           <button type="button" (click)="activateNotifications()">{{ t('pwa_notifications_action') }}</button>
           <button type="button" (click)="dismissNotifications()">{{ t('pwa_later_action') }}</button>
         </aside>
@@ -75,6 +78,7 @@ export class AppComponent implements OnInit {
   readonly bootstrapVisible = signal(true);
   readonly showInstallBanner = signal(false);
   readonly showNotificationBanner = signal(false);
+  readonly notificationActivationFailed = signal(false);
   readonly t = (key: string) => this.i18n.t(key);
 
   constructor(private readonly i18n: I18nService) {
@@ -107,13 +111,22 @@ export class AppComponent implements OnInit {
   dismissNotifications() { localStorage.setItem('pwa-notifications-dismissed', 'true'); this.showNotificationBanner.set(false); }
 
   async activateNotifications() {
-    await this.pwa.activateNotifications();
-    this.showNotificationBanner.set(false);
+    this.notificationActivationFailed.set(false);
+    try {
+      await this.pwa.activateNotifications();
+      this.showNotificationBanner.set(false);
+    } catch {
+      this.notificationActivationFailed.set(true);
+    }
   }
 
   private updatePwaBanners() {
     if (!this.isBrowser) return;
     this.showInstallBanner.set(this.pwa.installAvailable() && localStorage.getItem('pwa-install-dismissed') !== 'true');
-    this.showNotificationBanner.set(this.pwa.isStandalone() && localStorage.getItem('pwa-notifications-dismissed') !== 'true' && Notification.permission === 'default');
+    const canManageNotifications = Boolean(this.auth.user()) && this.pwa.isStandalone();
+    if (canManageNotifications && Notification.permission === 'granted') {
+      void this.pwa.activateNotifications().catch(() => this.notificationActivationFailed.set(true));
+    }
+    this.showNotificationBanner.set(canManageNotifications && localStorage.getItem('pwa-notifications-dismissed') !== 'true' && Notification.permission === 'default');
   }
 }

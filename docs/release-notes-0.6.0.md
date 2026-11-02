@@ -15,6 +15,9 @@
 - Added: informes PDF mensuales por cuenta enviados individualmente a miembros activos con email, con KPI por moneda, categorías, gastos principales e insights deterministas.
 - Added: scheduler mensual versionado e idempotencia por cuenta, destinatario, canal y período.
 - Changed: documentación operativa para Resend/VAPID y diagrama de ambos flujos.
+- Fixed: el enrolamiento Push se ofrece sólo con sesión autenticada y sincroniza una suscripción previamente concedida al iniciar sesión.
+- Fixed: el nombre de cuenta se escapa al renderizar el HTML del correo mensual.
+- Changed: el despliegue valida variables VAPID/Resend y la estabilidad del worker Push antes de declararse sano.
 
 ## Datos y compatibilidad
 
@@ -25,7 +28,7 @@
 
 ## Evidencia de promoción
 
-- Pruebas y builds locales: `pnpm test` aprobó 198 pruebas backend (8 integración PostgreSQL omitidas fuera del runner) y 87 frontend; `pnpm test:db:integration` aprobó 206 pruebas backend con PostgreSQL; `pnpm run release:verify` aprobó compilación y prerender de `/` y `/en`; la matriz E2E local de Chromium terminó con código 0.
+- Pruebas y builds locales: `pnpm test` aprobó 199 pruebas backend (8 integración PostgreSQL omitidas fuera del runner); las pruebas frontend afectadas aprobaron 9 casos; `pnpm test:db:integration` aprobó 207 pruebas backend con PostgreSQL; `pnpm run release:verify` aprobó compilación y prerender de `/` y `/en`; la matriz E2E local de Chromium terminó con código 0.
 - Lint: `pnpm lint` aprueba en backend y frontend. El frontend usa una configuración ESLint versionada para sus fuentes TypeScript.
 - Revisión técnica y QA funcional: pendientes de revisión final y QA real de instalación/Push en dispositivos compatibles con secretos productivos.
 - GitHub Actions, Netlify y health checks: pendientes tras promoción a `main`.

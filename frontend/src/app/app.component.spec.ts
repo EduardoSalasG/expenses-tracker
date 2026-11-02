@@ -13,7 +13,7 @@ describe('AppComponent', () => {
       providers: [
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
-        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
         { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
@@ -28,7 +28,7 @@ describe('AppComponent', () => {
       providers: [
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
-        { provide: AuthService, useValue: { bootstrapReady: signal(false), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
         { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
@@ -38,5 +38,42 @@ describe('AppComponent', () => {
 
     expect(fixture.nativeElement.querySelector('[data-testid="app-bootstrap-loader"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('router-outlet')).toBeNull();
+  });
+
+  it('does not offer notification enrollment before the session identifies a user', async () => {
+    Object.defineProperty(window, 'Notification', { configurable: true, value: { permission: 'default' } });
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([]),
+        { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
+      ]
+    }).compileComponents();
+
+    const component = TestBed.createComponent(AppComponent).componentInstance;
+    (component as unknown as { updatePwaBanners(): void }).updatePwaBanners();
+
+    expect(component.showNotificationBanner()).toBeFalse();
+  });
+
+  it('synchronizes an already-granted Push subscription after authentication', async () => {
+    const activateNotifications = jasmine.createSpy().and.resolveTo('granted');
+    Object.defineProperty(window, 'Notification', { configurable: true, value: { permission: 'granted' } });
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([]),
+        { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal({ id: 'user-1' }), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications } }
+      ]
+    }).compileComponents();
+
+    const component = TestBed.createComponent(AppComponent).componentInstance;
+    (component as unknown as { updatePwaBanners(): void }).updatePwaBanners();
+
+    expect(activateNotifications).toHaveBeenCalledTimes(1);
   });
 });

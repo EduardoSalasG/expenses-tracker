@@ -94,4 +94,24 @@ describe('SendMonthlyAccountEmailReportsUseCase', () => {
     await expect(useCase.execute('2026-10')).resolves.toEqual({ month: '2026-10', sent: 1, skipped: 2, failed: 0 });
     expect(send.mock.calls.map(([message]) => message.to)).toEqual(['ana@example.test', 'beto@example.test', 'beto@example.test']);
   });
+
+  it('escapes the account name in the email HTML', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const accountName = '<Casa & hogar>';
+    const useCase = new SendMonthlyAccountEmailReportsUseCase(
+      {
+        listAll: async () => [{ id: 'account-safe-html', tenantId: 'tenant-1', type: 'personal', name: accountName, currency: 'CLP', createdByUserId: 'user-ana', createdAt: '', updatedAt: '' }],
+        listMembers: async () => [{ memberId: 'member-1', financialAccountId: 'account-safe-html', userId: 'user-ana', role: 'owner', status: 'active', firstName: 'Ana', lastName: '', preferredName: 'Ana', email: 'ana@example.test', phoneNumber: '', createdAt: '', updatedAt: '' }]
+      } as Pick<FinancialAccountRepository, 'listAll' | 'listMembers'>,
+      { report: vi.fn().mockResolvedValue({ expenseTotalsByCurrency: {}, incomeTotalsByCurrency: {}, expenseVariationByCategory: [], expenses: [] }) } as unknown as FinanceUseCases,
+      new InMemoryReportDispatchRepository(),
+      { send } as unknown as EmailProvider,
+      { render: vi.fn().mockResolvedValue(Buffer.from('%PDF-test')) } as never
+    );
+
+    await useCase.execute('2026-10');
+
+    expect(send.mock.calls[0][0].html).toContain('&lt;Casa &amp; hogar&gt;');
+    expect(send.mock.calls[0][0].html).not.toContain('<Casa & hogar>');
+  });
 });

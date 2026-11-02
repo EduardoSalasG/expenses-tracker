@@ -32,7 +32,7 @@ export class SendMonthlyAccountEmailReportsUseCase {
         }
         const input = { tenantId: account.tenantId, userId: member.userId, financialAccountId: account.id, channel: 'email' as const, frequency: 'monthly' as const, periodFrom: period.from, periodTo: period.to };
         if (!await this.dispatches.reserve(input)) { skipped += 1; continue; }
-        try { await this.email.send({ to: member.email!, subject: `Informe mensual · ${account.name}`, html: `<p>Adjuntamos tu informe mensual de <strong>${account.name}</strong>.</p>`, text: `Informe mensual ${account.name}.`, attachments: [{ filename: `informe-${month}.pdf`, content: pdf, contentType: 'application/pdf' }] }); await this.dispatches.markSent(input); sent += 1; }
+        try { await this.email.send({ to: member.email!, subject: `Informe mensual · ${account.name}`, html: `<p>Adjuntamos tu informe mensual de <strong>${escapeHtml(account.name)}</strong>.</p>`, text: `Informe mensual ${account.name}.`, attachments: [{ filename: `informe-${month}.pdf`, content: pdf, contentType: 'application/pdf' }] }); await this.dispatches.markSent(input); sent += 1; }
         catch (error) {
           failed += 1;
           await this.dispatches.markFailed({ ...input, errorMessage: error instanceof Error ? error.message : 'Email delivery failed.' });
@@ -41,4 +41,8 @@ export class SendMonthlyAccountEmailReportsUseCase {
     }
     return { month, sent, skipped, failed };
   }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
 }

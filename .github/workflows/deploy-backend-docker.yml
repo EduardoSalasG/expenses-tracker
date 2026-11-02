@@ -91,6 +91,18 @@ jobs:
 
               cd "${{ env.CONTAINER_DIR }}"
 
+              required_runtime_vars="VAPID_SUBJECT VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY RESEND_API_KEY RESEND_FROM_EMAIL"
+              missing_runtime_vars=""
+              for name in $required_runtime_vars; do
+                if ! awk -F= -v key="$name" '$1 == key && length($2) > 0 { found = 1 } END { exit found ? 0 : 1 }' .env; then
+                  missing_runtime_vars="$missing_runtime_vars $name"
+                fi
+              done
+              if [ -n "$missing_runtime_vars" ]; then
+                echo "Production .env is missing required variables:$missing_runtime_vars"
+                exit 1
+              fi
+
               exec 9>/tmp/expenses-tracker-backend-deploy.lock
               flock -w 900 9 || {
                 echo "Could not acquire backend deploy lock."
@@ -218,6 +230,33 @@ jobs:
                 echo "Inbound worker did not emit its startup signal after deploy."
                 docker compose ps
                 docker logs --tail=200 expenses-tracker-inbound-worker || true
+                exit 1
+              fi
+
+              push_worker_started=false
+              for attempt in $(seq 1 15); do
+                push_worker_running=$(docker inspect expenses-tracker-push-worker --format '{{.State.Running}}')
+                push_worker_restart_count=$(docker inspect expenses-tracker-push-worker --format '{{.RestartCount}}')
+                if [ "$push_worker_running" != "true" ] || [ "$push_worker_restart_count" != "0" ]; then
+                  echo "Push worker is not stable after deploy. Running: $push_worker_running; restarts: $push_worker_restart_count"
+                  docker compose ps
+                  docker logs --tail=200 expenses-tracker-push-worker || true
+                  exit 1
+                fi
+
+                if docker logs --tail=100 expenses-tracker-push-worker | grep -F 'push_delivery_worker_started' > /dev/null; then
+                  push_worker_started=true
+                fi
+
+                if [ "$attempt" -lt 15 ]; then
+                  sleep 1
+                fi
+              done
+
+              if [ "$push_worker_started" != "true" ]; then
+                echo "Push worker did not emit its startup signal after deploy."
+                docker compose ps
+                docker logs --tail=200 expenses-tracker-push-worker || true
                 exit 1
               fi
 
