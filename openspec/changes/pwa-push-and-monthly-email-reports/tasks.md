@@ -1,12 +1,12 @@
 ## 1. Base PWA y consentimiento
 
-- [ ] 1.1 Configurar manifiesto, assets, service worker y caché de producción; verificar build Angular genera manifiesto y ngsw.json.
+- [x] 1.1 Configurar manifiesto, assets, service worker y caché de producción; verificar build Angular genera manifiesto y ngsw.json.
 - [ ] 1.2 Implementar servicio y banners de instalación/permiso con i18n, teclado, 44 px y movimiento reducido; verificar pruebas frontend para instalado, denegado y no soportado.
 - [ ] 1.3 Añadir configuración VAPID y endpoints autenticados para registrar/revocar dispositivos; verificar pruebas HTTP de autorización y validación Zod.
 
 ## 2. Entrega Push de gastos compartidos
 
-- [ ] 2.1 Crear migraciones y repositorios para suscripciones y outbox de entregas; verificar índices únicos y pruebas PostgreSQL.
+- [x] 2.1 Crear migraciones y repositorios para suscripciones y outbox de entregas; verificar índices únicos y pruebas PostgreSQL.
 - [ ] 2.2 Publicar evento tras persistir gasto compartido y ejecutar worker idempotente; verificar que POST /expenses responde aunque falle Push.
 - [ ] 2.3 Configurar worker y observabilidad de producción; verificar Compose y logs sanitizados de éxito, reintento y endpoint inválido.
 
