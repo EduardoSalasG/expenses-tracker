@@ -6,11 +6,17 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-02
+
+### Fixed
+
+- Los comandos one-shot del despliegue Docker deshabilitan stdin explícitamente con `--interactive=false`; `-T` por sí solo no impedía consumir el heredoc SSH y omitir la recreación de los servicios.
+
 ## [0.6.1] - 2026-11-02
 
 ### Fixed
 
-- El despliegue Docker ejecuta los comandos one-shot sin stdin interactivo, evitando que un `docker compose run` consuma el heredoc remoto y omita migraciones o la recreación de servicios.
+- El despliegue Docker introdujo modo sin TTY en los comandos one-shot; la protección completa de stdin se corrige en `0.6.2`.
 - El release gate verifica que la API pública exponga `GET /push/public-key`, además de health, autenticación y el contrato de gastos.
 
 ## [0.6.0] - 2026-11-02
