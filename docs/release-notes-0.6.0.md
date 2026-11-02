@@ -26,6 +26,6 @@
 ## Evidencia de promoción
 
 - Pruebas y builds locales: `pnpm test` aprobó 198 pruebas backend (8 integración PostgreSQL omitidas fuera del runner) y 87 frontend; `pnpm test:db:integration` aprobó 206 pruebas backend con PostgreSQL; `pnpm run release:verify` aprobó compilación y prerender de `/` y `/en`; la matriz E2E local de Chromium terminó con código 0.
-- Lint: backend aprobado. El comando de lint del frontend está declarado pero el proyecto Angular no tiene target `lint`; es una limitación preexistente de configuración, no se añadió un sustituto en esta entrega.
+- Lint: `pnpm lint` aprueba en backend y frontend. El frontend usa una configuración ESLint versionada para sus fuentes TypeScript.
 - Revisión técnica y QA funcional: pendientes de revisión final y QA real de instalación/Push en dispositivos compatibles con secretos productivos.
 - GitHub Actions, Netlify y health checks: pendientes tras promoción a `main`.

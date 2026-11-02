@@ -20,12 +20,12 @@
 - `pnpm test:db:integration`: 206 backend correctas con PostgreSQL y migraciones desde una base temporal limpia.
 - `pnpm run release:verify`: correcto; versión sincronizada, backend y frontend compilados, rutas `/` y `/en` prerenderizadas.
 - `pnpm --filter @expenses-tracker/frontend test:e2e`: código 0 localmente; la matriz existente cubre 320 px, móvil y escritorio.
-- `pnpm --filter @expenses-tracker/backend lint`: correcto.
+- `pnpm lint`: correcto en backend y frontend.
 - `openspec validate pwa-push-and-monthly-email-reports --strict` y `git diff --check`: correctos antes del commit.
 
 ## Pendiente y bloqueo real
 
 - OpenSpec está 11/12: queda `4.2`, QA manual real de instalación, permiso, entrega y navegación Push en navegadores/dispositivos compatibles.
 - Requiere configurar en el entorno objetivo `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY` y `RESEND_FROM_EMAIL`; después validar worker Push, scheduler mensual, correo y navegación desde la notificación.
-- `pnpm lint` global no puede cerrar porque el frontend declara `ng lint` sin target `lint` en `frontend/angular.json`; es una deuda de configuración preexistente. El lint backend sí aprobó.
+- La deuda de lint frontend fue resuelta con una configuración ESLint versionada; no queda bloqueo de lint.
 - Falta revisión técnica final y decisión explícita para integrar feature -> dev; después aplicar el release gate dev -> main, tag anotado `v0.6.0` y verificación de GitHub Actions/Netlify/health.
