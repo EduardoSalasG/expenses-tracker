@@ -3,7 +3,7 @@
 create temporary table scoped_default_category_map (
   source_id uuid primary key,
   target_id uuid not null
-) on commit drop;
+) on commit preserve rows;
 
 insert into scoped_default_category_map (source_id, target_id)
 select duplicate.id, target.id

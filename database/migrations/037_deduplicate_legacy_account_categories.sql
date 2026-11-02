@@ -6,7 +6,7 @@ select ensure_system_default_categories();
 create temporary table account_legacy_category_map (
   source_id uuid primary key,
   target_id uuid not null
-) on commit drop;
+) on commit preserve rows;
 
 insert into account_legacy_category_map (source_id, target_id)
 select distinct on (legacy.id)
@@ -45,7 +45,7 @@ on conflict (source_id) do nothing;
 -- Normalize budget references as a set before updating them. This avoids a
 -- unique-key conflict when an old copied category and its system equivalent
 -- already have a permanent budget in the same financial account.
-create temporary table normalized_budget_rows on commit drop as
+create temporary table normalized_budget_rows on commit preserve rows as
 select
   budget.id,
   coalesce(category_map.target_id, budget.category_id) as category_id,

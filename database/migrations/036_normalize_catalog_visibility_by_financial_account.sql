@@ -5,7 +5,7 @@ select ensure_system_default_categories();
 create temporary table legacy_default_category_map (
   source_id uuid primary key,
   target_id uuid not null
-) on commit drop;
+) on commit preserve rows;
 
 insert into legacy_default_category_map (source_id, target_id)
 select legacy.id, system_default.id
