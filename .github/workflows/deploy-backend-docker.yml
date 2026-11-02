@@ -217,7 +217,7 @@ jobs:
                   exit 1
                 fi
 
-                if docker logs --tail=100 expenses-tracker-inbound-worker | grep -F 'Inbound event worker started.' > /dev/null; then
+                if docker logs --tail=100 expenses-tracker-inbound-worker | grep -F '"message":"inbound_worker_started"' > /dev/null; then
                   worker_started=true
                 fi
 

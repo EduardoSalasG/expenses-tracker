@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-02
+
+### Fixed
+
+- El gate del worker inbound reconoce el evento estructurado `inbound_worker_started`, evitando falsos negativos después de un despliegue correcto.
+
 ## [0.6.2] - 2026-11-02
 
 ### Fixed
