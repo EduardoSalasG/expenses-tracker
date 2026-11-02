@@ -25,9 +25,18 @@ alter table messaging_pending_drafts
 alter table messaging_pending_drafts
   drop constraint if exists messaging_pending_drafts_tenant_id_user_id_key;
 
-alter table messaging_pending_drafts
-  add constraint messaging_pending_drafts_tenant_id_user_id_channel_key
-  unique (tenant_id, user_id, channel);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'messaging_pending_drafts'::regclass
+      and conname = 'messaging_pending_drafts_tenant_id_user_id_channel_key'
+  ) then
+    alter table messaging_pending_drafts
+      add constraint messaging_pending_drafts_tenant_id_user_id_channel_key
+      unique (tenant_id, user_id, channel);
+  end if;
+end $$;
 
 create index if not exists messaging_pending_drafts_active_idx
   on messaging_pending_drafts (tenant_id, user_id, expires_at desc);

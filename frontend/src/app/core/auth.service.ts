@@ -18,7 +18,7 @@ interface VerifyOtpResponse {
   };
 }
 
-interface AuthSessionResponse extends VerifyOtpResponse {}
+type AuthSessionResponse = VerifyOtpResponse;
 
 interface TelegramLinkSessionResponse extends VerifyOtpResponse {
   telegramChatId: string;

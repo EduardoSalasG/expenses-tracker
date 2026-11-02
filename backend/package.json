@@ -1,6 +1,6 @@
 {
   "name": "@expenses-tracker/backend",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,8 +21,11 @@
     "db:backfill:category-translations": "tsx src/infrastructure/db-backfill-category-translations.ts",
     "qa:message": "tsx src/infrastructure/local-message-qa.ts",
     "reports:send-due": "tsx src/infrastructure/send-due-reports.ts",
+    "reports:send-monthly-accounts": "tsx src/infrastructure/send-monthly-account-email-reports.ts",
     "worker:inbound-events": "node dist/infrastructure/process-inbound-events.js",
     "worker:inbound-events:daemon": "node dist/infrastructure/process-inbound-events-daemon.js",
+    "worker:push-deliveries": "node dist/infrastructure/process-push-deliveries.js",
+    "worker:push-deliveries:daemon": "node dist/infrastructure/process-push-deliveries-daemon.js",
     "interpreter:smoke": "tsx src/infrastructure/message-interpreter-smoke.ts",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
@@ -34,8 +37,10 @@
     "geoip-lite": "^1.4.10",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "pdfkit": "^0.20.2",
     "pg": "^8.13.1",
     "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7",
     "winston": "^3.17.0",
     "zod": "^3.24.1"
   },
@@ -44,9 +49,11 @@
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
+    "@types/pdfkit": "^0.17.7",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "@types/swagger-ui-express": "^4.1.7",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9.17.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",

@@ -18,6 +18,8 @@ import type {
   PaymentMethodOptionRepository,
   RegistrationLeadRepository,
   ReportDispatchRepository,
+  PushSubscriptionRepository,
+  PushDeliveryRepository,
   TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
@@ -277,6 +279,8 @@ export class InMemoryFinancialAccountRepository implements FinancialAccountRepos
     private readonly users?: UserRepository,
     private readonly expenseReader?: Pick<InMemoryExpenseRepository, 'listAllByFinancialAccount'>
   ) {}
+
+  async listAll() { return [...this.accounts.values()]; }
 
   async ensurePersonalAccount(userId: string) {
     const existing = [...this.accounts.values()].find((account) => account.createdByUserId === userId && account.type === 'personal');
@@ -1538,7 +1542,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
   private readonly dispatches: Array<{
     tenantId: string;
     userId: string;
-    channel: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1549,7 +1554,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
   async reserve(input: {
     tenantId: string;
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1561,6 +1567,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       (item.status === 'pending' || item.status === 'sent')
     );
     if (exists) return false;
@@ -1568,6 +1575,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
     this.dispatches.push({
       tenantId: input.tenantId,
       userId: input.userId,
+      financialAccountId: input.financialAccountId,
       channel,
       frequency: input.frequency,
       periodFrom: input.periodFrom,
@@ -1579,7 +1587,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
 
   async markSent(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1591,6 +1600,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       item.status === 'pending'
     );
     if (!dispatch) return;
@@ -1600,7 +1610,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
 
   async markFailed(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1613,12 +1624,59 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       item.status === 'pending'
     );
     if (!dispatch) return;
     dispatch.status = 'failed';
     dispatch.errorMessage = input.errorMessage;
   }
+}
+
+export class InMemoryPushSubscriptionRepository implements PushSubscriptionRepository {
+  private readonly subscriptions: Array<{ id: string; userId: string; endpoint: string; p256dh: string; auth: string; status: 'active' | 'inactive' }> = [];
+
+  async upsert(input: { userId: string; endpoint: string; p256dh: string; auth: string }) {
+    const existing = this.subscriptions.find((item) => item.endpoint === input.endpoint);
+    if (existing) {
+      Object.assign(existing, input, { status: 'active' as const });
+      return;
+    }
+    this.subscriptions.push({ id: randomUUID(), ...input, status: 'active' });
+  }
+
+  async listActiveByUserIds(userIds: string[]) {
+    return this.subscriptions.filter((item) => item.status === 'active' && (!userIds.length || userIds.includes(item.userId)));
+  }
+
+  async deactivate(id: string) {
+    const subscription = this.subscriptions.find((item) => item.id === id);
+    if (subscription) subscription.status = 'inactive';
+  }
+
+  async deactivateByUserAndEndpoint(userId: string, endpoint: string) {
+    const subscription = this.subscriptions.find((item) => item.userId === userId && item.endpoint === endpoint);
+    if (subscription) subscription.status = 'inactive';
+  }
+}
+
+export class InMemoryPushDeliveryRepository implements PushDeliveryRepository {
+  private readonly deliveries: Array<{ id: string; expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string }; status: 'pending' | 'processing' | 'sent' | 'failed' }> = [];
+  constructor(private readonly subscriptions: InMemoryPushSubscriptionRepository) {}
+  async enqueue(input: { expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string } }) {
+    if (!this.deliveries.some((delivery) => delivery.expenseId === input.expenseId && delivery.subscriptionId === input.subscriptionId)) this.deliveries.push({ id: randomUUID(), ...input, status: 'pending' });
+  }
+  async takePending(limit: number) {
+    const pending = this.deliveries.filter((delivery) => delivery.status === 'pending' || delivery.status === 'failed').slice(0, limit);
+    pending.forEach((delivery) => { delivery.status = 'processing'; });
+    const subscriptions = await this.subscriptions.listActiveByUserIds([]);
+    return pending.flatMap((delivery) => {
+      const subscription = subscriptions.find((item) => item.id === delivery.subscriptionId);
+      return subscription ? [{ ...delivery, endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth }] : [];
+    });
+  }
+  async markSent(id: string) { const delivery = this.deliveries.find((item) => item.id === id && item.status === 'processing'); if (delivery) delivery.status = 'sent'; }
+  async markFailed(id: string, _errorMessage: string) { const delivery = this.deliveries.find((item) => item.id === id && item.status === 'processing'); if (delivery) delivery.status = 'failed'; }
 }
 
 export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRepository {

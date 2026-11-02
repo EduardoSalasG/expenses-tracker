@@ -4,4 +4,5 @@ COPY initdb/00-run-sql-directories.sh /docker-entrypoint-initdb.d/00-run-sql-dir
 COPY migrations /docker-entrypoint-initdb.d/migrations
 COPY bootstrap /docker-entrypoint-initdb.d/bootstrap
 
-RUN chmod +x /docker-entrypoint-initdb.d/00-run-sql-directories.sh
+RUN sed -i 's/\r$//' /docker-entrypoint-initdb.d/00-run-sql-directories.sh \
+  && chmod +x /docker-entrypoint-initdb.d/00-run-sql-directories.sh

@@ -41,6 +41,9 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().default(''),
   RESEND_API_BASE_URL: z.string().url().default('https://api.resend.com'),
   RESEND_FROM_EMAIL: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:admin@expenses-tracker.local'),
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
   MESSAGE_INTERPRETER_PROVIDER: z.enum(['deterministic', 'openai-compatible', 'openrouter', 'github-models']).default('deterministic'),
   MESSAGE_INTERPRETER_API_KEY: z.string().default(''),
   MESSAGE_INTERPRETER_BASE_URL: z.string().default(''),
@@ -70,6 +73,10 @@ const envSchema = z.object({
 
   if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET_TOKEN.trim().length < 16) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['TELEGRAM_WEBHOOK_SECRET_TOKEN'], message: 'Telegram requires a webhook secret of at least 16 characters in production.' });
+  }
+
+  if ((env.VAPID_PUBLIC_KEY && !env.VAPID_PRIVATE_KEY) || (!env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['VAPID_PUBLIC_KEY'], message: 'VAPID public and private keys must be configured together.' });
   }
 });
 
@@ -101,6 +108,9 @@ export function loadConfig() {
     resendApiKey: env.RESEND_API_KEY,
     resendApiBaseUrl: env.RESEND_API_BASE_URL,
     resendFromEmail: env.RESEND_FROM_EMAIL,
+    vapidSubject: env.VAPID_SUBJECT,
+    vapidPublicKey: env.VAPID_PUBLIC_KEY,
+    vapidPrivateKey: env.VAPID_PRIVATE_KEY,
     messageInterpreterProvider: env.MESSAGE_INTERPRETER_PROVIDER,
     messageInterpreterApiKey: env.MESSAGE_INTERPRETER_API_KEY,
     messageInterpreterBaseUrl: resolveMessageInterpreterBaseUrl(

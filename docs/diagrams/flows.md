@@ -20,6 +20,7 @@ This index summarizes the current system diagrams. Each diagram has its own Merm
 - [Shared Accounts](shared-accounts.mmd): Active financial-account model, memberships, invitations, splits, settlements, and account-scoped financial ownership.
 - [Backend Architecture](backend-architecture.mmd): Clean/hexagonal backend dependency direction and module responsibilities.
 - [Operational Hardening](operational-hardening.mmd): Liveness/readiness probes, DB readiness check, and report-worker non-zero exit behavior on failed deliveries.
+- [PWA Push and Account Reports](pwa-push-and-account-reports.mmd): PWA enrollment, durable shared-expense Push delivery, and idempotent monthly PDF email reports per financial account.
 
 ## Resume
 

@@ -8,7 +8,7 @@ export class ResendEmailProvider implements EmailProvider {
     private readonly logger: AppLogger
   ) {}
 
-  async send(options: { to: string; subject: string; html: string; text?: string }) {
+  async send(options: { to: string; subject: string; html: string; text?: string; attachments?: Array<{ filename: string; content: Buffer; contentType: string }> }) {
     if (!this.config.resendApiKey) {
       throw new Error('Resend API key is not configured.');
     }
@@ -28,7 +28,12 @@ export class ResendEmailProvider implements EmailProvider {
         to: [options.to],
         subject: options.subject,
         html: options.html,
-        text: options.text
+        text: options.text,
+        attachments: options.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          content: attachment.content.toString('base64'),
+          content_type: attachment.contentType
+        }))
       })
     });
 

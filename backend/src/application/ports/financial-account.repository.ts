@@ -20,6 +20,7 @@ export interface FinancialAccountMembershipRecord {
 }
 
 export interface FinancialAccountRepository {
+  listAll(): Promise<FinancialAccount[]>;
   ensurePersonalAccount(userId: UserId): Promise<FinancialAccount>;
   findAccessibleById(userId: UserId, financialAccountId: FinancialAccountId): Promise<FinancialAccountMembershipRecord | undefined>;
   listAccessibleByUser(userId: UserId): Promise<FinancialAccountMembershipRecord[]>;

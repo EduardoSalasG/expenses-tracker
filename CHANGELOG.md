@@ -6,6 +6,19 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-02
+
+### Added
+
+- La aplicación se puede instalar como PWA y ofrece consentimiento explícito para notificaciones después de iniciar sesión.
+- Los gastos de cuentas compartidas generan entregas Web Push durables e idempotentes a los dispositivos activos de cada participante.
+- Los informes mensuales por cuenta se envían por correo como PDF con KPI por moneda, comparación por categoría, gastos principales e insights explicables.
+- Un scheduler versionado procesa el mes cerrado y permite reintentos seguros por cuenta y destinatario.
+
+### Changed
+
+- Operaciones documenta la configuración VAPID y Resend, y los diagramas describen los flujos Push y de informes por cuenta.
+
 ## [0.5.1] - 2026-10-26
 
 ### Fixed

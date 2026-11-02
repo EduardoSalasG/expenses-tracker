@@ -1,5 +1,5 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, PushDeliveryRepository, PushSubscriptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberPeriodSpending, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -304,6 +304,11 @@ export class PostgresRegistrationLeadRepository implements RegistrationLeadRepos
 
 export class PostgresFinancialAccountRepository implements FinancialAccountRepository {
   constructor(private readonly pool: DatabasePool) {}
+
+  async listAll() {
+    const result = await this.pool.query(`select * from financial_accounts order by created_at asc`);
+    return result.rows.map(mapFinancialAccount);
+  }
 
   async ensurePersonalAccount(userId: string) {
     const ensured = await this.pool.query<{ financial_account_id: string }>(
@@ -1788,23 +1793,23 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
   async reserve(input: {
     tenantId: string;
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
   }) {
     const result = await this.pool.query(
       `insert into report_dispatches (
-        tenant_id, user_id, channel, frequency, period_from, period_to, status
+        tenant_id, user_id, financial_account_id, channel, frequency, period_from, period_to, status
       )
-      values ($1, $2, $3, $4, $5, $6, 'pending')
-      on conflict (channel, frequency, period_from, period_to, user_id)
-      where status in ('pending', 'sent')
-      do nothing
+      values ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      on conflict do nothing
       returning id`,
       [
         input.tenantId,
         input.userId,
+        input.financialAccountId ?? null,
         input.channel ?? 'whatsapp',
         input.frequency,
         input.periodFrom,
@@ -1817,7 +1822,8 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
 
   async markSent(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1833,20 +1839,23 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
          and period_from = $3
          and period_to = $4
          and user_id = $5
+         and financial_account_id is not distinct from $6
          and status = 'pending'`,
       [
         input.channel ?? 'whatsapp',
         input.frequency,
         input.periodFrom,
         input.periodTo,
-        input.userId
+        input.userId,
+        input.financialAccountId ?? null
       ]
     );
   }
 
   async markFailed(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1855,13 +1864,14 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
     await this.pool.query(
       `update report_dispatches
        set status = 'failed',
-           error_message = $6,
+           error_message = $7,
            updated_at = now()
        where channel = $1
          and frequency = $2
          and period_from = $3
          and period_to = $4
          and user_id = $5
+         and financial_account_id is not distinct from $6
          and status = 'pending'`,
       [
         input.channel ?? 'whatsapp',
@@ -1869,10 +1879,70 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
         input.periodFrom,
         input.periodTo,
         input.userId,
+        input.financialAccountId ?? null,
         input.errorMessage
       ]
     );
   }
+}
+
+export class PostgresPushSubscriptionRepository implements PushSubscriptionRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async upsert(input: { userId: string; endpoint: string; p256dh: string; auth: string }) {
+    await this.pool.query(
+      `insert into push_subscriptions (user_id, endpoint, p256dh, auth, status)
+       values ($1, $2, $3, $4, 'active')
+       on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, status = 'active', updated_at = now()`,
+      [input.userId, input.endpoint, input.p256dh, input.auth]
+    );
+  }
+
+
+  async listActiveByUserIds(userIds: string[]) {
+    if (!userIds.length) return [];
+    const result = await this.pool.query(
+      `select id, user_id, endpoint, p256dh, auth, status from push_subscriptions where status = 'active' and user_id = any($1::uuid[])`,
+      [userIds]
+    );
+    return result.rows.map((row) => ({ id: row.id, userId: row.user_id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, status: row.status as 'active' }));
+  }
+
+  async deactivate(id: string) {
+    await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where id = $1`, [id]);
+  }
+
+  async deactivateByUserAndEndpoint(userId: string, endpoint: string) {
+    await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where user_id = $1 and endpoint = $2`, [userId, endpoint]);
+  }
+}
+
+export class PostgresPushDeliveryRepository implements PushDeliveryRepository {
+  constructor(private readonly pool: DatabasePool) {}
+  async enqueue(input: { expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string } }) {
+    await this.pool.query(`insert into push_deliveries (expense_id, subscription_id, payload) values ($1, $2, $3::jsonb) on conflict (expense_id, subscription_id) do nothing`, [input.expenseId, input.subscriptionId, JSON.stringify(input.payload)]);
+  }
+  async takePending(limit: number) {
+    const result = await this.pool.query(
+      `with candidates as (
+         select d.id
+         from push_deliveries d join push_subscriptions s on s.id = d.subscription_id
+         where (d.status in ('pending', 'failed') or (d.status = 'processing' and d.locked_at < now() - interval '5 minutes'))
+           and s.status = 'active'
+         order by d.created_at asc
+         for update of d skip locked
+         limit $1
+       )
+       update push_deliveries d
+       set status = 'processing', locked_at = now(), updated_at = now()
+       from candidates c, push_subscriptions s
+       where d.id = c.id and s.id = d.subscription_id
+       returning d.id, d.subscription_id, d.payload, s.endpoint, s.p256dh, s.auth`, [limit]
+    );
+    return result.rows.map((row) => ({ id: row.id, subscriptionId: row.subscription_id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, payload: row.payload }));
+  }
+  async markSent(id: string) { await this.pool.query(`update push_deliveries set status = 'sent', sent_at = now(), locked_at = null, error_message = null, attempts = attempts + 1, updated_at = now() where id = $1 and status = 'processing'`, [id]); }
+  async markFailed(id: string, errorMessage: string) { await this.pool.query(`update push_deliveries set status = 'failed', locked_at = null, error_message = $2, attempts = attempts + 1, updated_at = now() where id = $1 and status = 'processing'`, [id, errorMessage.slice(0, 500)]); }
 }
 
 export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRepository {

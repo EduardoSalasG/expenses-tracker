@@ -17,6 +17,8 @@ export type { MessagingProvider } from './messaging.provider.js';
 export type { OtpRepository } from './otp.repository.js';
 export type { PasswordHasher } from './password-hasher.port.js';
 export type { PaymentMethodOptionRepository } from './payment-method-option.repository.js';
+export type { PushSubscriptionRecord, PushSubscriptionRepository } from './push-subscription.repository.js';
+export type { PushDeliveryRepository } from './push-delivery.repository.js';
 export type { RegistrationLeadRepository } from './registration-lead.repository.js';
 export type { RateLimitStore } from './rate-limit.store.js';
 export type { ReportDispatchRepository } from './report-dispatch.repository.js';

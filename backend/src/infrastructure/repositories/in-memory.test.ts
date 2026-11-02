@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryCategoryRepository, InMemoryExpenseRepository } from './in-memory.js';
+import { InMemoryCategoryRepository, InMemoryExpenseRepository, InMemoryPushDeliveryRepository, InMemoryPushSubscriptionRepository } from './in-memory.js';
 import {
   InMemoryBankOptionRepository,
   InMemoryIncomeRepository,
@@ -339,5 +339,24 @@ describe('InMemoryCategoryRepository translations', () => {
       nameEs: 'Danza',
       translationSource: 'manual'
     });
+  });
+});
+
+describe('InMemoryPushDeliveryRepository', () => {
+  it('claims a pending delivery once until it is marked for retry', async () => {
+    const subscriptions = new InMemoryPushSubscriptionRepository();
+    await subscriptions.upsert({ userId: 'user-1', endpoint: 'https://push.example/subscription', p256dh: 'key', auth: 'auth' });
+    const subscription = (await subscriptions.listActiveByUserIds(['user-1']))[0];
+    const deliveries = new InMemoryPushDeliveryRepository(subscriptions);
+    await deliveries.enqueue({ expenseId: 'expense-1', subscriptionId: subscription.id, payload: { title: 'Gasto creado', body: 'Casa', url: '/expenses' } });
+
+    const firstClaim = await deliveries.takePending(10);
+    const secondClaim = await deliveries.takePending(10);
+    await deliveries.markFailed(firstClaim[0].id, 'retry');
+    const retryClaim = await deliveries.takePending(10);
+
+    expect(firstClaim).toHaveLength(1);
+    expect(secondClaim).toEqual([]);
+    expect(retryClaim).toHaveLength(1);
   });
 });

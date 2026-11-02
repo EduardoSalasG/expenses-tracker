@@ -2245,6 +2245,29 @@ export const openApiSpec = {
         })
       }
     },
+    '/push/public-key': {
+      get: {
+        summary: 'Get the VAPID public key for Web Push enrollment',
+        responses: {
+          '200': { description: 'VAPID key available', content: { 'application/json': { schema: { type: 'object', required: ['publicKey'], properties: { publicKey: { type: 'string' } } } } } },
+          '503': { description: 'Push notifications are not configured' }
+        }
+      }
+    },
+    '/push/subscriptions': {
+      post: {
+        summary: 'Register or refresh the authenticated device Push subscription',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({ endpoint: { type: 'string', format: 'uri' }, keys: { type: 'object', required: ['p256dh', 'auth'], properties: { p256dh: { type: 'string' }, auth: { type: 'string' } } } }, ['endpoint', 'keys']),
+        responses: withUnauthorized({ '204': { description: 'Subscription stored' }, '400': { description: 'Validation error' } })
+      },
+      delete: {
+        summary: 'Revoke the authenticated device Push subscription',
+        security: [{ bearerAuth: [] }],
+        requestBody: jsonBody({ endpoint: { type: 'string', format: 'uri' } }, ['endpoint']),
+        responses: withUnauthorized({ '204': { description: 'Subscription revoked' }, '400': { description: 'Validation error' } })
+      }
+    },
     '/webhooks/telegram': {
       post: {
         summary: 'Receive Telegram webhook event',

@@ -1,0 +1,45 @@
+name: Send monthly account reports
+
+on:
+  schedule:
+    - cron: '15 8 1 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Mes a procesar (YYYY-MM); vacío = mes recién cerrado'
+        required: false
+        type: string
+
+concurrency:
+  group: monthly-account-reports
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CONTAINER_DIR: /opt/apps/expenses-tracker/backend
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/oracle_reports_key
+          chmod 600 ~/.ssh/oracle_reports_key
+          ssh-keyscan -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Send the previous monthly account reports
+        env:
+          REPORT_MONTH: ${{ inputs.month }}
+        run: |
+          if [ -n "$REPORT_MONTH" ] && ! [[ "$REPORT_MONTH" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]]; then
+            echo 'month must use YYYY-MM.' >&2
+            exit 1
+          fi
+          ssh -i ~/.ssh/oracle_reports_key \
+            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} \
+            "cd '${{ env.CONTAINER_DIR }}' && export BACKEND_IMAGE=\$(docker inspect expenses-tracker-backend --format '{{.Config.Image}}') && docker compose run --rm --no-deps expenses-tracker-monthly-account-reports${REPORT_MONTH:+ node dist/infrastructure/send-monthly-account-email-reports.js $REPORT_MONTH}"
