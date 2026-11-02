@@ -4,4 +4,5 @@ export { FinancialAccountsUseCases } from './financial-accounts.use-cases.js';
 export { ProcessInboundFinanceMessageUseCase } from './process-inbound-finance-message.use-case.js';
 export { SendDueReportsUseCase } from './send-due-reports.use-case.js';
 export { RegisterPushSubscriptionUseCase } from './register-push-subscription.use-case.js';
+export { QueueSharedExpensePushUseCase } from './queue-shared-expense-push.use-case.js';
 export { UpdateProfileUseCase, UpdateReportPreferencesUseCase } from './profile.use-cases.js';

@@ -25,6 +25,7 @@ import {
   InMemoryRegistrationLeadRepository,
   InMemoryReportDispatchRepository,
   InMemoryPushSubscriptionRepository,
+  InMemoryPushDeliveryRepository,
   InMemoryTelegramLinkTokenRepository,
   InMemoryUserRepository
 } from './repositories/in-memory.js';
@@ -44,6 +45,7 @@ import {
   PostgresRegistrationLeadRepository,
   PostgresReportDispatchRepository,
   PostgresPushSubscriptionRepository,
+  PostgresPushDeliveryRepository,
   PostgresTelegramLinkTokenRepository,
   PostgresUserRepository
 } from './repositories/postgres.js';
@@ -63,6 +65,7 @@ import {
   SaveRegistrationLeadUseCase,
   SendDueReportsUseCase,
   RegisterPushSubscriptionUseCase,
+  QueueSharedExpensePushUseCase,
   UpdateProfileUseCase,
   UpdateReportPreferencesUseCase,
   VerifyOtpUseCase
@@ -99,6 +102,7 @@ export function createContainer(config: AppConfig) {
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
   const pushSubscriptions = pool ? new PostgresPushSubscriptionRepository(pool) : new InMemoryPushSubscriptionRepository();
+  const pushDeliveries = pool ? new PostgresPushDeliveryRepository(pool) : new InMemoryPushDeliveryRepository(pushSubscriptions as InMemoryPushSubscriptionRepository);
   const telegramLinkTokens = pool ? new PostgresTelegramLinkTokenRepository(pool) : new InMemoryTelegramLinkTokenRepository();
   const emailMagicLinks = pool ? new PostgresEmailMagicLinkTokenRepository(pool) : new InMemoryEmailMagicLinkTokenRepository();
   const tokens = new JwtTokenService(config);
@@ -120,7 +124,8 @@ export function createContainer(config: AppConfig) {
     banks,
     paymentMethodOptions,
     financialAccounts,
-    categoryTranslations
+    categoryTranslations,
+    new QueueSharedExpensePushUseCase(financialAccounts, pushSubscriptions, pushDeliveries)
   );
   const financialAccountsUseCases = new FinancialAccountsUseCases(
     financialAccounts,
@@ -163,6 +168,8 @@ export function createContainer(config: AppConfig) {
     messaging,
     rateLimits,
     inboundEvents,
+    pushDeliveries,
+    pushSubscriptions,
     categoryTranslations,
     categoryPreferences,
     close: () => pool?.end() ?? Promise.resolve(),

@@ -19,6 +19,7 @@ import type {
   RegistrationLeadRepository,
   ReportDispatchRepository,
   PushSubscriptionRepository,
+  PushDeliveryRepository,
   TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
@@ -1635,13 +1636,31 @@ export class InMemoryPushSubscriptionRepository implements PushSubscriptionRepos
   }
 
   async listActiveByUserIds(userIds: string[]) {
-    return this.subscriptions.filter((item) => item.status === 'active' && userIds.includes(item.userId));
+    return this.subscriptions.filter((item) => item.status === 'active' && (!userIds.length || userIds.includes(item.userId)));
   }
 
   async deactivate(id: string) {
     const subscription = this.subscriptions.find((item) => item.id === id);
     if (subscription) subscription.status = 'inactive';
   }
+}
+
+export class InMemoryPushDeliveryRepository implements PushDeliveryRepository {
+  private readonly deliveries: Array<{ id: string; expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string }; status: 'pending' | 'sent' | 'failed' }> = [];
+  constructor(private readonly subscriptions: InMemoryPushSubscriptionRepository) {}
+  async enqueue(input: { expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string } }) {
+    if (!this.deliveries.some((delivery) => delivery.expenseId === input.expenseId && delivery.subscriptionId === input.subscriptionId)) this.deliveries.push({ id: randomUUID(), ...input, status: 'pending' });
+  }
+  async takePending(limit: number) {
+    const pending = this.deliveries.filter((delivery) => delivery.status !== 'sent').slice(0, limit);
+    const subscriptions = await this.subscriptions.listActiveByUserIds([]);
+    return pending.flatMap((delivery) => {
+      const subscription = subscriptions.find((item) => item.id === delivery.subscriptionId);
+      return subscription ? [{ ...delivery, endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth }] : [];
+    });
+  }
+  async markSent(id: string) { const delivery = this.deliveries.find((item) => item.id === id); if (delivery) delivery.status = 'sent'; }
+  async markFailed(id: string, _errorMessage: string) { const delivery = this.deliveries.find((item) => item.id === id); if (delivery) delivery.status = 'failed'; }
 }
 
 export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRepository {

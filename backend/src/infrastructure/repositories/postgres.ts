@@ -1,5 +1,5 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, PushSubscriptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, PushDeliveryRepository, PushSubscriptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberPeriodSpending, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -1899,6 +1899,24 @@ export class PostgresPushSubscriptionRepository implements PushSubscriptionRepos
   async deactivate(id: string) {
     await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where id = $1`, [id]);
   }
+}
+
+export class PostgresPushDeliveryRepository implements PushDeliveryRepository {
+  constructor(private readonly pool: DatabasePool) {}
+  async enqueue(input: { expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string } }) {
+    await this.pool.query(`insert into push_deliveries (expense_id, subscription_id, payload) values ($1, $2, $3::jsonb) on conflict (expense_id, subscription_id) do nothing`, [input.expenseId, input.subscriptionId, JSON.stringify(input.payload)]);
+  }
+  async takePending(limit: number) {
+    const result = await this.pool.query(
+      `select d.id, d.subscription_id, d.payload, s.endpoint, s.p256dh, s.auth
+       from push_deliveries d join push_subscriptions s on s.id = d.subscription_id
+       where d.status in ('pending', 'failed') and s.status = 'active'
+       order by d.created_at asc limit $1`, [limit]
+    );
+    return result.rows.map((row) => ({ id: row.id, subscriptionId: row.subscription_id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, payload: row.payload }));
+  }
+  async markSent(id: string) { await this.pool.query(`update push_deliveries set status = 'sent', sent_at = now(), error_message = null, attempts = attempts + 1, updated_at = now() where id = $1`, [id]); }
+  async markFailed(id: string, errorMessage: string) { await this.pool.query(`update push_deliveries set status = 'failed', error_message = $2, attempts = attempts + 1, updated_at = now() where id = $1`, [id, errorMessage.slice(0, 500)]); }
 }
 
 export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRepository {

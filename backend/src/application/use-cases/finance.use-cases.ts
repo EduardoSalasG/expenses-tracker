@@ -36,7 +36,8 @@ export class FinanceUseCases {
       delete: async () => false
     },
     private readonly financialAccounts?: FinancialAccountRepository,
-    private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>
+    private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>,
+    private readonly sharedExpensePushQueue?: { execute(expense: { id: string; financialAccountId?: string; concept: string; amount: number; currency: string }): Promise<void> }
   ) {
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
@@ -54,7 +55,7 @@ export class FinanceUseCases {
     const normalized = normalizeCategorySelection(categories, input.categoryId, input.subcategoryId);
     const paymentSelection = await this.resolvePaymentSelection(input.tenantId, input.financialAccountId, input);
     const allocationResolution = await this.resolveSharedExpenseAllocationsOnCreate(input);
-    return this.expenses.create({
+    const expense = await this.expenses.create({
       ...input,
       categoryId: normalized.categoryId,
       subcategoryId: normalized.subcategoryId,
@@ -65,6 +66,8 @@ export class FinanceUseCases {
       allocationMode: allocationResolution.allocationMode,
       allocations: allocationResolution.allocations
     });
+    try { await this.sharedExpensePushQueue?.execute(expense); } catch { /* Push delivery must never reject a persisted expense. */ }
+    return expense;
   }
 
   async updateExpense(input: {
