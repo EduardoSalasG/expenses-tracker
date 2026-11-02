@@ -184,6 +184,8 @@ pnpm reports:docker:monthly
 
 The report worker is one-shot by design. Use cron or a platform scheduler to invoke the daily, weekly, monthly, or yearly command at the desired time.
 
+Monthly financial-account email reports run separately from Telegram preferences. The versioned GitHub Actions scheduler runs on the first day of each month and sends the prior month's PDF to every active account member with an email. Re-running the same account/month is safe: the dispatch is idempotent per account, recipient, channel, and period.
+
 See:
 
 - [Backend README](backend/README.md)

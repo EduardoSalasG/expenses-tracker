@@ -29,14 +29,14 @@ describe('SendMonthlyAccountEmailReportsUseCase', () => {
       { send } as unknown as EmailProvider
     );
 
-    await expect(useCase.execute('2026-10')).resolves.toEqual({ month: '2026-10', sent: 2, skipped: 0 });
+    await expect(useCase.execute('2026-10')).resolves.toEqual({ month: '2026-10', sent: 2, skipped: 0, failed: 0 });
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls.map(([message]) => message.to)).toEqual(['ana@example.test', 'beto@example.test']);
     for (const [message] of send.mock.calls) {
       expect(message.attachments?.[0].content.subarray(0, 5).toString()).toBe('%PDF-');
     }
 
-    await expect(useCase.execute('2026-10')).resolves.toEqual({ month: '2026-10', sent: 0, skipped: 2 });
+    await expect(useCase.execute('2026-10')).resolves.toEqual({ month: '2026-10', sent: 0, skipped: 2, failed: 0 });
     expect(send).toHaveBeenCalledTimes(2);
   });
 });
