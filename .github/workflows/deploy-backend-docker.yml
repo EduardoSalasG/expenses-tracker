@@ -132,7 +132,7 @@ jobs:
               # A running container can hide a restart loop. Verify the selected
               # runtime image contains the worker entrypoint before replacing the
               # healthy production services.
-              if ! docker compose run --rm --no-deps --entrypoint sh expenses-tracker-inbound-worker \
+              if ! docker compose run --rm --no-deps -T --entrypoint sh expenses-tracker-inbound-worker \
                 -c 'test -f dist/infrastructure/process-inbound-events-daemon.js'; then
                 echo "Selected image does not contain the inbound worker daemon."
                 exit 1
@@ -140,13 +140,13 @@ jobs:
 
               # bootstrap runs tracked migrations first, then idempotently applies
               # the system defaults required by a brand-new database.
-              docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
+              docker compose run --rm --no-deps -T expenses-tracker-backend node dist/infrastructure/db-runner.js bootstrap
               # Idempotent: assigns a personal financial account to legacy user-owned rows.
-              docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
+              docker compose run --rm --no-deps -T expenses-tracker-backend node dist/infrastructure/db-backfill-financial-accounts.js
               docker compose up -d --force-recreate --remove-orphans --pull never expenses-tracker-backend expenses-tracker-inbound-worker expenses-tracker-push-worker
 
               # Best effort: an LLM outage must never fail an otherwise healthy deploy.
-              if ! docker compose run --rm --no-deps expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
+              if ! docker compose run --rm --no-deps -T expenses-tracker-backend node dist/infrastructure/db-backfill-category-translations.js; then
                 echo "Warning: category translation backfill failed; incomplete labels will retry on the next deploy."
               fi
 
@@ -321,5 +321,14 @@ jobs:
             END { exit found ? 0 : 1 }
           '; then
             echo "Public API did not expose the deployed GET /expenses filter contract."
+            exit 1
+          fi
+
+      - name: Verify public Push enrollment contract
+        run: |
+          public_push=$(curl --retry 5 --retry-delay 2 --fail --silent --show-error \
+            "https://${{ env.PUBLIC_API_HOST }}/push/public-key?release=${{ github.sha }}")
+          if ! printf '%s' "$public_push" | grep -F '"publicKey"' > /dev/null; then
+            echo "Public API did not expose the configured Push enrollment key."
             exit 1
           fi
