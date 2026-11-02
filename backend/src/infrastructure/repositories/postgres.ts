@@ -1924,15 +1924,25 @@ export class PostgresPushDeliveryRepository implements PushDeliveryRepository {
   }
   async takePending(limit: number) {
     const result = await this.pool.query(
-      `select d.id, d.subscription_id, d.payload, s.endpoint, s.p256dh, s.auth
-       from push_deliveries d join push_subscriptions s on s.id = d.subscription_id
-       where d.status in ('pending', 'failed') and s.status = 'active'
-       order by d.created_at asc limit $1`, [limit]
+      `with candidates as (
+         select d.id
+         from push_deliveries d join push_subscriptions s on s.id = d.subscription_id
+         where (d.status in ('pending', 'failed') or (d.status = 'processing' and d.locked_at < now() - interval '5 minutes'))
+           and s.status = 'active'
+         order by d.created_at asc
+         for update of d skip locked
+         limit $1
+       )
+       update push_deliveries d
+       set status = 'processing', locked_at = now(), updated_at = now()
+       from candidates c, push_subscriptions s
+       where d.id = c.id and s.id = d.subscription_id
+       returning d.id, d.subscription_id, d.payload, s.endpoint, s.p256dh, s.auth`, [limit]
     );
     return result.rows.map((row) => ({ id: row.id, subscriptionId: row.subscription_id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, payload: row.payload }));
   }
-  async markSent(id: string) { await this.pool.query(`update push_deliveries set status = 'sent', sent_at = now(), error_message = null, attempts = attempts + 1, updated_at = now() where id = $1`, [id]); }
-  async markFailed(id: string, errorMessage: string) { await this.pool.query(`update push_deliveries set status = 'failed', error_message = $2, attempts = attempts + 1, updated_at = now() where id = $1`, [id, errorMessage.slice(0, 500)]); }
+  async markSent(id: string) { await this.pool.query(`update push_deliveries set status = 'sent', sent_at = now(), locked_at = null, error_message = null, attempts = attempts + 1, updated_at = now() where id = $1 and status = 'processing'`, [id]); }
+  async markFailed(id: string, errorMessage: string) { await this.pool.query(`update push_deliveries set status = 'failed', locked_at = null, error_message = $2, attempts = attempts + 1, updated_at = now() where id = $1 and status = 'processing'`, [id, errorMessage.slice(0, 500)]); }
 }
 
 export class PostgresTelegramLinkTokenRepository implements TelegramLinkTokenRepository {

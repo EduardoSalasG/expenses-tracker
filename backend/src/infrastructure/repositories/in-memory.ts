@@ -1661,21 +1661,22 @@ export class InMemoryPushSubscriptionRepository implements PushSubscriptionRepos
 }
 
 export class InMemoryPushDeliveryRepository implements PushDeliveryRepository {
-  private readonly deliveries: Array<{ id: string; expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string }; status: 'pending' | 'sent' | 'failed' }> = [];
+  private readonly deliveries: Array<{ id: string; expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string }; status: 'pending' | 'processing' | 'sent' | 'failed' }> = [];
   constructor(private readonly subscriptions: InMemoryPushSubscriptionRepository) {}
   async enqueue(input: { expenseId: string; subscriptionId: string; payload: { title: string; body: string; url: string } }) {
     if (!this.deliveries.some((delivery) => delivery.expenseId === input.expenseId && delivery.subscriptionId === input.subscriptionId)) this.deliveries.push({ id: randomUUID(), ...input, status: 'pending' });
   }
   async takePending(limit: number) {
-    const pending = this.deliveries.filter((delivery) => delivery.status !== 'sent').slice(0, limit);
+    const pending = this.deliveries.filter((delivery) => delivery.status === 'pending' || delivery.status === 'failed').slice(0, limit);
+    pending.forEach((delivery) => { delivery.status = 'processing'; });
     const subscriptions = await this.subscriptions.listActiveByUserIds([]);
     return pending.flatMap((delivery) => {
       const subscription = subscriptions.find((item) => item.id === delivery.subscriptionId);
       return subscription ? [{ ...delivery, endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth }] : [];
     });
   }
-  async markSent(id: string) { const delivery = this.deliveries.find((item) => item.id === id); if (delivery) delivery.status = 'sent'; }
-  async markFailed(id: string, _errorMessage: string) { const delivery = this.deliveries.find((item) => item.id === id); if (delivery) delivery.status = 'failed'; }
+  async markSent(id: string) { const delivery = this.deliveries.find((item) => item.id === id && item.status === 'processing'); if (delivery) delivery.status = 'sent'; }
+  async markFailed(id: string, _errorMessage: string) { const delivery = this.deliveries.find((item) => item.id === id && item.status === 'processing'); if (delivery) delivery.status = 'failed'; }
 }
 
 export class InMemoryTelegramLinkTokenRepository implements TelegramLinkTokenRepository {
