@@ -12,6 +12,7 @@ describe('backend deployment workflow', () => {
     expect(remoteRuns).toHaveLength(4);
     expect(remoteRuns.every((command) => command.includes('-T'))).toBe(true);
     expect(remoteRuns.every((command) => command.includes('--interactive=false'))).toBe(true);
+    expect(workflow).toContain("grep -F '\"message\":\"inbound_worker_started\"'");
     expect(workflow).toContain('https://${{ env.PUBLIC_API_HOST }}/push/public-key?release=${{ github.sha }}');
     expect(workflow).toContain('Public API did not expose the configured Push enrollment key.');
   });
