@@ -53,6 +53,17 @@ describe('HTTP observability', () => {
 });
 
 describe('Messaging routes', () => {
+  it('requires authentication to register a Push subscription', async () => {
+    const app = createApp(createContainer(testConfig()));
+
+    const response = await request(app)
+      .post('/push/subscriptions')
+      .send({ endpoint: 'https://push.example/subscription', keys: { p256dh: 'public-key', auth: 'auth-key' } });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ code: 'AUTH_REQUIRED' });
+  });
+
   it('returns a stable 401 contract when a protected route has no bearer token', async () => {
     const app = createApp(createContainer(testConfig()));
 
@@ -442,6 +453,9 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     resendApiKey: '',
     resendApiBaseUrl: 'https://api.resend.com',
     resendFromEmail: '',
+    vapidSubject: 'mailto:test@example.com',
+    vapidPublicKey: '',
+    vapidPrivateKey: '',
     telegramBotUsername: '',
     useInMemoryRepositories: true,
     legacyBudgetsEndpointsEnabled: true,

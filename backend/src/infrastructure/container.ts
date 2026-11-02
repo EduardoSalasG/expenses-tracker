@@ -24,6 +24,7 @@ import {
   InMemoryPaymentMethodOptionRepository,
   InMemoryRegistrationLeadRepository,
   InMemoryReportDispatchRepository,
+  InMemoryPushSubscriptionRepository,
   InMemoryTelegramLinkTokenRepository,
   InMemoryUserRepository
 } from './repositories/in-memory.js';
@@ -42,6 +43,7 @@ import {
   PostgresPaymentMethodOptionRepository,
   PostgresRegistrationLeadRepository,
   PostgresReportDispatchRepository,
+  PostgresPushSubscriptionRepository,
   PostgresTelegramLinkTokenRepository,
   PostgresUserRepository
 } from './repositories/postgres.js';
@@ -60,6 +62,7 @@ import {
   RequestOtpUseCase,
   SaveRegistrationLeadUseCase,
   SendDueReportsUseCase,
+  RegisterPushSubscriptionUseCase,
   UpdateProfileUseCase,
   UpdateReportPreferencesUseCase,
   VerifyOtpUseCase
@@ -95,6 +98,7 @@ export function createContainer(config: AppConfig) {
   const messageAudits = pool ? new PostgresMessagingMessageAuditRepository(pool) : new InMemoryMessagingMessageAuditRepository();
   const pendingDrafts = pool ? new PostgresMessagingPendingDraftRepository(pool) : new InMemoryMessagingPendingDraftRepository();
   const reportDispatches = pool ? new PostgresReportDispatchRepository(pool) : new InMemoryReportDispatchRepository();
+  const pushSubscriptions = pool ? new PostgresPushSubscriptionRepository(pool) : new InMemoryPushSubscriptionRepository();
   const telegramLinkTokens = pool ? new PostgresTelegramLinkTokenRepository(pool) : new InMemoryTelegramLinkTokenRepository();
   const emailMagicLinks = pool ? new PostgresEmailMagicLinkTokenRepository(pool) : new InMemoryEmailMagicLinkTokenRepository();
   const tokens = new JwtTokenService(config);
@@ -197,6 +201,7 @@ export function createContainer(config: AppConfig) {
       financialAccounts: financialAccountsUseCases,
       updateProfile: new UpdateProfileUseCase(users),
       updateReportPreferences: new UpdateReportPreferencesUseCase(users),
+      registerPushSubscription: new RegisterPushSubscriptionUseCase(pushSubscriptions),
       sendDueReports: new SendDueReportsUseCase(users, finance, messaging, reportDispatches, clock)
     }
   };

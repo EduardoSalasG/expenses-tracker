@@ -4,6 +4,7 @@ import { registerAuthRoutes } from './auth.routes.js';
 import { registerFinanceRoutes } from './finance.routes.js';
 import { registerProfileRoutes } from './profile.routes.js';
 import { registerPublicRoutes } from './public.routes.js';
+import { registerPushRoutes } from './push.routes.js';
 import { registerTelegramWebhookRoutes } from './telegram-webhook.routes.js';
 
 export function registerRoutes(app: Express, container: AppContainer) {
@@ -14,4 +15,5 @@ export function registerRoutes(app: Express, container: AppContainer) {
   }
   registerProfileRoutes(app, container);
   registerFinanceRoutes(app, container);
+  registerPushRoutes(app, container);
 }

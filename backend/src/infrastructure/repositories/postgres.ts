@@ -1,5 +1,5 @@
 import type { PoolClient, QueryResultRow } from 'pg';
-import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
+import type { BankOptionRepository, BudgetRepository, CategoryPreference, CategoryPreferenceRepository, CategoryPreferenceSelection, CategoryRepository, EmailMagicLinkTokenRepository, ExpenseRepository, FinancialAccountMembershipRecord, FinancialAccountRepository, IncomeRepository, MessagingMessageAuditRepository, MessagingPendingDraftRepository, OtpRepository, PaymentMethodOptionRepository, PushSubscriptionRepository, RegistrationLeadRepository, ReportDispatchRepository, TelegramLinkTokenRepository, UserRepository } from '../../application/ports.js';
 import type { BankOption, Category, ConversationPendingDraft, Expense, ExpenseAllocation, FinancialAccount, FinancialAccountInvitation, FinancialAccountMember, FinancialAccountMemberBalance, FinancialAccountMemberPeriodSpending, FinancialAccountMemberProfile, FinancialAccountSettlementSuggestion, FinancialAccountSettlement, Income, MessagingChannelContext, MonthlyBudget, PaymentMethodOption, RegistrationLead, ReportFrequency, User } from '../../domain/index.js';
 import type { DatabasePool } from '../database.js';
 
@@ -1872,6 +1872,32 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
         input.errorMessage
       ]
     );
+  }
+}
+
+export class PostgresPushSubscriptionRepository implements PushSubscriptionRepository {
+  constructor(private readonly pool: DatabasePool) {}
+
+  async upsert(input: { userId: string; endpoint: string; p256dh: string; auth: string }) {
+    await this.pool.query(
+      `insert into push_subscriptions (user_id, endpoint, p256dh, auth, status)
+       values ($1, $2, $3, $4, 'active')
+       on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, status = 'active', updated_at = now()`,
+      [input.userId, input.endpoint, input.p256dh, input.auth]
+    );
+  }
+
+  async listActiveByUserIds(userIds: string[]) {
+    if (!userIds.length) return [];
+    const result = await this.pool.query(
+      `select id, user_id, endpoint, p256dh, auth, status from push_subscriptions where status = 'active' and user_id = any($1::uuid[])`,
+      [userIds]
+    );
+    return result.rows.map((row) => ({ id: row.id, userId: row.user_id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, status: row.status as 'active' }));
+  }
+
+  async deactivate(id: string) {
+    await this.pool.query(`update push_subscriptions set status = 'inactive', updated_at = now() where id = $1`, [id]);
   }
 }
 

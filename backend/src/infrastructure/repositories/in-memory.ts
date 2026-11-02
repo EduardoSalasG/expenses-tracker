@@ -18,6 +18,7 @@ import type {
   PaymentMethodOptionRepository,
   RegistrationLeadRepository,
   ReportDispatchRepository,
+  PushSubscriptionRepository,
   TelegramLinkTokenRepository,
   UserRepository,
   CategoryTotalByPeriod,
@@ -1618,6 +1619,28 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
     if (!dispatch) return;
     dispatch.status = 'failed';
     dispatch.errorMessage = input.errorMessage;
+  }
+}
+
+export class InMemoryPushSubscriptionRepository implements PushSubscriptionRepository {
+  private readonly subscriptions: Array<{ id: string; userId: string; endpoint: string; p256dh: string; auth: string; status: 'active' | 'inactive' }> = [];
+
+  async upsert(input: { userId: string; endpoint: string; p256dh: string; auth: string }) {
+    const existing = this.subscriptions.find((item) => item.endpoint === input.endpoint);
+    if (existing) {
+      Object.assign(existing, input, { status: 'active' as const });
+      return;
+    }
+    this.subscriptions.push({ id: randomUUID(), ...input, status: 'active' });
+  }
+
+  async listActiveByUserIds(userIds: string[]) {
+    return this.subscriptions.filter((item) => item.status === 'active' && userIds.includes(item.userId));
+  }
+
+  async deactivate(id: string) {
+    const subscription = this.subscriptions.find((item) => item.id === id);
+    if (subscription) subscription.status = 'inactive';
   }
 }
 
