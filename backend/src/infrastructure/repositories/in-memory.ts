@@ -1542,7 +1542,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
   private readonly dispatches: Array<{
     tenantId: string;
     userId: string;
-    channel: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1553,7 +1554,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
   async reserve(input: {
     tenantId: string;
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1565,6 +1567,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       (item.status === 'pending' || item.status === 'sent')
     );
     if (exists) return false;
@@ -1572,6 +1575,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
     this.dispatches.push({
       tenantId: input.tenantId,
       userId: input.userId,
+      financialAccountId: input.financialAccountId,
       channel,
       frequency: input.frequency,
       periodFrom: input.periodFrom,
@@ -1583,7 +1587,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
 
   async markSent(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1595,6 +1600,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       item.status === 'pending'
     );
     if (!dispatch) return;
@@ -1604,7 +1610,8 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
 
   async markFailed(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1617,6 +1624,7 @@ export class InMemoryReportDispatchRepository implements ReportDispatchRepositor
       item.periodFrom === input.periodFrom &&
       item.periodTo === input.periodTo &&
       item.userId === input.userId &&
+      item.financialAccountId === input.financialAccountId &&
       item.status === 'pending'
     );
     if (!dispatch) return;

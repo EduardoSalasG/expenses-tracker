@@ -1793,23 +1793,23 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
   async reserve(input: {
     tenantId: string;
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
   }) {
     const result = await this.pool.query(
       `insert into report_dispatches (
-        tenant_id, user_id, channel, frequency, period_from, period_to, status
+        tenant_id, user_id, financial_account_id, channel, frequency, period_from, period_to, status
       )
-      values ($1, $2, $3, $4, $5, $6, 'pending')
-      on conflict (channel, frequency, period_from, period_to, user_id)
-      where status in ('pending', 'sent')
-      do nothing
+      values ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      on conflict do nothing
       returning id`,
       [
         input.tenantId,
         input.userId,
+        input.financialAccountId ?? null,
         input.channel ?? 'whatsapp',
         input.frequency,
         input.periodFrom,
@@ -1822,7 +1822,8 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
 
   async markSent(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1838,20 +1839,23 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
          and period_from = $3
          and period_to = $4
          and user_id = $5
+         and financial_account_id is not distinct from $6
          and status = 'pending'`,
       [
         input.channel ?? 'whatsapp',
         input.frequency,
         input.periodFrom,
         input.periodTo,
-        input.userId
+        input.userId,
+        input.financialAccountId ?? null
       ]
     );
   }
 
   async markFailed(input: {
     userId: string;
-    channel?: 'whatsapp' | 'telegram';
+    financialAccountId?: string;
+    channel?: 'whatsapp' | 'telegram' | 'email';
     frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
     periodFrom: string;
     periodTo: string;
@@ -1860,13 +1864,14 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
     await this.pool.query(
       `update report_dispatches
        set status = 'failed',
-           error_message = $6,
+           error_message = $7,
            updated_at = now()
        where channel = $1
          and frequency = $2
          and period_from = $3
          and period_to = $4
          and user_id = $5
+         and financial_account_id is not distinct from $6
          and status = 'pending'`,
       [
         input.channel ?? 'whatsapp',
@@ -1874,6 +1879,7 @@ export class PostgresReportDispatchRepository implements ReportDispatchRepositor
         input.periodFrom,
         input.periodTo,
         input.userId,
+        input.financialAccountId ?? null,
         input.errorMessage
       ]
     );
