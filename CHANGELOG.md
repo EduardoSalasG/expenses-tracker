@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-11-03
+
+### Changed
+
+- El navegador identifica Expenses Tracker con un favicon vectorial: una `E` azul marino sobre el azul claro de la identidad visual.
+
 ## [0.6.4] - 2026-11-03
 
 ### Fixed
