@@ -20,8 +20,10 @@ import { PwaEngagementService } from './core/pwa-engagement.service';
       @if (showInstallBanner()) {
         <aside class="pwa-banner" role="region" [attr.aria-label]="t('pwa_install_title')">
           <strong>{{ t('pwa_install_title') }}</strong>
-          <span>{{ t('pwa_install_description') }}</span>
-          <button type="button" (click)="installApp()">{{ t('pwa_install_action') }}</button>
+          <span>{{ pwa.manualInstallAvailable() ? t('pwa_install_ios_description') : t('pwa_install_description') }}</span>
+          @if (pwa.installAvailable()) {
+            <button type="button" (click)="installApp()">{{ t('pwa_install_action') }}</button>
+          }
           <button type="button" (click)="dismissInstall()">{{ t('pwa_later_action') }}</button>
         </aside>
       }
@@ -73,7 +75,7 @@ import { PwaEngagementService } from './core/pwa-engagement.service';
 })
 export class AppComponent implements OnInit {
   private readonly auth = inject(AuthService);
-  private readonly pwa = inject(PwaEngagementService);
+  readonly pwa = inject(PwaEngagementService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   readonly bootstrapVisible = signal(true);
   readonly showInstallBanner = signal(false);
@@ -122,7 +124,7 @@ export class AppComponent implements OnInit {
 
   private updatePwaBanners() {
     if (!this.isBrowser) return;
-    this.showInstallBanner.set(this.pwa.installAvailable() && localStorage.getItem('pwa-install-dismissed') !== 'true');
+    this.showInstallBanner.set((this.pwa.installAvailable() || this.pwa.manualInstallAvailable()) && localStorage.getItem('pwa-install-dismissed') !== 'true');
     const canManageNotifications = Boolean(this.auth.user()) && this.pwa.isStandalone();
     if (canManageNotifications && Notification.permission === 'granted') {
       void this.pwa.activateNotifications().catch(() => this.notificationActivationFailed.set(true));

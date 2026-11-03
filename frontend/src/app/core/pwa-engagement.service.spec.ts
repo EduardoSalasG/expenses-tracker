@@ -16,6 +16,21 @@ describe('PwaEngagementService', () => {
     expect(service.installAvailable()).toBeTrue();
   });
 
+  it('recognizes an iOS app opened from the home screen', () => {
+    Object.defineProperty(navigator, 'standalone', { configurable: true, value: true });
+    const service = TestBed.inject(PwaEngagementService);
+
+    expect(service.isStandalone()).toBeTrue();
+  });
+
+  it('offers manual installation guidance on iOS when no native prompt exists', () => {
+    Object.defineProperty(navigator, 'standalone', { configurable: true, value: false });
+    spyOnProperty(navigator, 'userAgent', 'get').and.returnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)');
+    const service = TestBed.inject(PwaEngagementService);
+
+    expect(service.manualInstallAvailable()).toBeTrue();
+  });
+
   it('does not request notification permission until the user activates it', async () => {
     const requestPermission = jasmine.createSpy().and.resolveTo('granted');
     Object.defineProperty(window, 'Notification', { configurable: true, value: { permission: 'default', requestPermission } });

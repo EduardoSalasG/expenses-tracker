@@ -1,13 +1,13 @@
 {
   "name": "@expenses-tracker/frontend",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "ng serve --host 0.0.0.0 --port 4300 --disable-host-check",
     "prebuild": "node ../scripts/version-sync.mjs --check && node ../scripts/generate-public-discovery.mjs",
     "build": "ng build",
-    "test": "ng test --watch=false",
+    "test": "ng test --watch=false --karma-config karma.conf.cjs --browsers=ChromeHeadlessStable --progress=false",
     "test:e2e": "playwright test",
     "lint": "eslint \"src/**/*.ts\"",
     "serve:ssr:frontend": "node dist/frontend/server/server.mjs"

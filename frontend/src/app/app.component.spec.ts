@@ -14,7 +14,7 @@ describe('AppComponent', () => {
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
         { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
-        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), manualInstallAvailable: () => false, isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
 
@@ -29,7 +29,7 @@ describe('AppComponent', () => {
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
         { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
-        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), manualInstallAvailable: () => false, isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
 
@@ -48,7 +48,7 @@ describe('AppComponent', () => {
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
         { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal(null), bootstrapSession: () => ({ subscribe: () => {} }) } },
-        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), manualInstallAvailable: () => false, isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
       ]
     }).compileComponents();
 
@@ -56,6 +56,23 @@ describe('AppComponent', () => {
     (component as unknown as { updatePwaBanners(): void }).updatePwaBanners();
 
     expect(component.showNotificationBanner()).toBeFalse();
+  });
+
+  it('offers manual iOS installation guidance after authentication', async () => {
+    await TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([]),
+        { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
+        { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal({ id: 'user-1' }), bootstrapSession: () => ({ subscribe: () => {} }) } },
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), manualInstallAvailable: () => true, isStandalone: () => false, install: () => Promise.resolve(false), activateNotifications: () => Promise.resolve('unsupported') } }
+      ]
+    }).compileComponents();
+
+    const component = TestBed.createComponent(AppComponent).componentInstance;
+    (component as unknown as { updatePwaBanners(): void }).updatePwaBanners();
+
+    expect(component.showInstallBanner()).toBeTrue();
   });
 
   it('synchronizes an already-granted Push subscription after authentication', async () => {
@@ -67,7 +84,7 @@ describe('AppComponent', () => {
         provideRouter([]),
         { provide: I18nService, useValue: { syncDocumentLanguage: () => {}, t: (key: string) => key } },
         { provide: AuthService, useValue: { bootstrapReady: signal(false), user: signal({ id: 'user-1' }), bootstrapSession: () => ({ subscribe: () => {} }) } },
-        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications } }
+        { provide: PwaEngagementService, useValue: { installAvailable: signal(false), manualInstallAvailable: () => false, isStandalone: () => true, install: () => Promise.resolve(false), activateNotifications } }
       ]
     }).compileComponents();
 

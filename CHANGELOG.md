@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-11-03
+
+### Fixed
+
+- En iPhone y iPad, el onboarding PWA muestra instrucciones para agregar la app a la pantalla de inicio y reconoce el modo standalone nativo para ofrecer la activación de notificaciones tras iniciar sesión.
+
 ## [0.6.3] - 2026-11-02
 
 ### Fixed

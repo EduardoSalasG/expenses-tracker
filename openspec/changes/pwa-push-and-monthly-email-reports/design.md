@@ -11,6 +11,7 @@ Ver proposal.md y los deltas de especificación. El frontend no registra service
 ## Decisions
 
 - Usar suscripción Web Push por dispositivo y claves VAPID en servidor; evita depender de una plataforma móvil propietaria. Alternativa: Firebase, descartada por introducir cuenta/proveedor externo.
+- En iOS, detectar instalación mediante `navigator.standalone` además de `display-mode: standalone` y sustituir el prompt inexistente por instrucciones explícitas de Compartir → Agregar a pantalla de inicio. El permiso Push permanece ligado a una pulsación de la persona usuaria.
 - Persistir una outbox de entregas y usar workers; desacopla la transacción financiera de redes externas. Alternativa: envío síncrono, descartada por latencia y pérdida de confiabilidad.
 - Procesar reportes por cuenta y entregar correos individualmente; satisface personal/compartida y no revela destinatarios. Alternativa: selección por preferencia de usuario actual, descartada por omitir participantes.
 - Generar PDF temporal y adjuntarlo por correo; evita retención pública de datos financieros. Alternativa: URL compartida, descartada por privacidad.
