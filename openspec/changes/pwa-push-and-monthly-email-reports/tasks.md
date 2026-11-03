@@ -19,5 +19,5 @@
 ## 4. Operación y calidad
 
 - [x] 4.1 Versionar scheduler mensual y documentación operativa; verificar configuración de despliegue y ejecución one-shot idempotente.
-- [ ] 4.2 Ejecutar pruebas backend/frontend, builds, e2e PWA y revisión móvil 320 px/móvil/escritorio; verificar accesibilidad y navegación desde notificación.
+- [ ] 4.2 Ejecutar pruebas backend/frontend, builds, e2e PWA y revisión móvil 320 px/móvil/escritorio; verificar accesibilidad, instalación manual/detección standalone en iOS y navegación desde notificación.
 - [x] 4.3 Actualizar Swagger, README, diagramas, changelog y versión de release; verificar release:verify y git diff --check.

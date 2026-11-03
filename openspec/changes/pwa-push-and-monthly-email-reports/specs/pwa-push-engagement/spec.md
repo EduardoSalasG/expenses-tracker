@@ -11,6 +11,14 @@ La aplicación SHALL ofrecer instalación y permiso de notificaciones como accio
 - **WHEN** una persona instalada pulsa activar notificaciones
 - **THEN** el sistema solicita permiso y registra la suscripción sólo si se concede
 
+#### Scenario: Instalación manual en iOS
+- **WHEN** una persona autenticada usa la aplicación desde iPhone o iPad fuera del modo standalone
+- **THEN** el sistema SHALL mostrar instrucciones accesibles para usar Compartir y agregar la aplicación a la pantalla de inicio, sin depender de `beforeinstallprompt`
+
+#### Scenario: PWA instalada en iOS
+- **WHEN** la aplicación se abre desde la pantalla de inicio de iOS y el permiso está pendiente
+- **THEN** el sistema SHALL reconocer el modo standalone nativo y ofrecer la activación de notificaciones mediante una acción explícita
+
 ### Requirement: Aviso de gasto compartido
 El sistema SHALL notificar a cada dispositivo suscrito de miembros activos, incluido el creador, al crear un gasto en una cuenta compartida.
 
