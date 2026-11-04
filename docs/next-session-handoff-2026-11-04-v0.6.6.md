@@ -16,9 +16,8 @@
 
 - `pnpm run version:check`, suite backend (201 pruebas correctas; 8 integraciones omitidas), suite frontend (93 pruebas correctas), lint y builds completos fueron correctos sobre `main` fusionada.
 - Netlify respondió HTTP 200; API `/health/live`, `/health/ready` y Swagger `/api/docs` respondieron HTTP 200.
-- GitHub Actions: el run [41862272297](https://github.com/EduardoSalasG/expenses-tracker/actions/runs/41862272297) para el SHA promovido permanecía en cola al cerrar esta sesión; debe confirmarse su resultado antes de declarar la release completamente cerrada.
+- GitHub Actions: el run [41862272297](https://github.com/EduardoSalasG/expenses-tracker/actions/runs/41862272297) para el SHA promovido finalizó correctamente.
 
 ## Próximo slice y brechas conocidas
 
-- Monitorizar el run `41862272297` hasta que finalice y actualizar las notas de release con el resultado final si corresponde.
 - Archivar el cambio OpenSpec `exclude-expense-creator-push` cuando se considere concluida su trazabilidad.
