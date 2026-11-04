@@ -6,6 +6,12 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-11-04
+
+### Fixed
+
+- Los gastos registrados en cuentas compartidas ya no envían una notificación push redundante a la persona que los registró; los demás miembros activos con suscripciones vigentes siguen recibiéndola.
+
 ## [0.6.5] - 2026-11-03
 
 ### Changed

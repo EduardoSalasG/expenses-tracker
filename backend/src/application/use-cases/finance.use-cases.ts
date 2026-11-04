@@ -37,7 +37,7 @@ export class FinanceUseCases {
     },
     private readonly financialAccounts?: FinancialAccountRepository,
     private readonly categoryTranslations?: Pick<CategoryTranslationService, 'localize'>,
-    private readonly sharedExpensePushQueue?: { execute(expense: { id: string; financialAccountId?: string; concept: string; amount: number; currency: string }): Promise<void> }
+    private readonly sharedExpensePushQueue?: { execute(expense: { id: string; financialAccountId?: string; createdByUserId: string; concept: string; amount: number; currency: string }): Promise<void> }
   ) {
     this.paymentSelections = new PaymentSelectionService(this.banks, this.paymentMethods);
   }
@@ -66,7 +66,7 @@ export class FinanceUseCases {
       allocationMode: allocationResolution.allocationMode,
       allocations: allocationResolution.allocations
     });
-    try { await this.sharedExpensePushQueue?.execute(expense); } catch { /* Push delivery must never reject a persisted expense. */ }
+    try { await this.sharedExpensePushQueue?.execute({ ...expense, createdByUserId: input.userId }); } catch { /* Push delivery must never reject a persisted expense. */ }
     return expense;
   }
 
