@@ -2,6 +2,26 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueueSharedExpensePushUseCase } from './queue-shared-expense-push.use-case.js';
 
 describe('QueueSharedExpensePushUseCase', () => {
+  it('excludes every subscription belonging to the user who registered the shared expense', async () => {
+    const deliveries = { enqueue: vi.fn().mockResolvedValue(undefined) };
+    const useCase = new QueueSharedExpensePushUseCase(
+      { findById: vi.fn().mockResolvedValue({ id: 'account-1', type: 'shared', name: 'Casa' }), listMembers: vi.fn().mockResolvedValue([
+        { userId: 'user-1', status: 'active' }, { userId: 'user-2', status: 'active' }
+      ]) },
+      { listActiveByUserIds: vi.fn().mockImplementation(async (userIds: string[]) => [
+        { id: 'subscription-1a', userId: 'user-1' },
+        { id: 'subscription-1b', userId: 'user-1' },
+        { id: 'subscription-2', userId: 'user-2' }
+      ].filter((subscription) => userIds.includes(subscription.userId))) },
+      deliveries
+    );
+
+    await useCase.execute({ id: 'expense-1', financialAccountId: 'account-1', createdByUserId: 'user-1', concept: 'Frutas y verduras', amount: 5000, currency: 'CLP' });
+
+    expect(deliveries.enqueue).toHaveBeenCalledTimes(1);
+    expect(deliveries.enqueue).toHaveBeenCalledWith(expect.objectContaining({ subscriptionId: 'subscription-2' }));
+  });
+
   it('enqueues one idempotent delivery for every active subscribed member of a shared account', async () => {
     const deliveries = { enqueue: vi.fn().mockResolvedValue(undefined) };
     const useCase = new QueueSharedExpensePushUseCase(
@@ -12,7 +32,7 @@ describe('QueueSharedExpensePushUseCase', () => {
       deliveries
     );
 
-    await useCase.execute({ id: 'expense-1', financialAccountId: 'account-1', concept: 'Frutas y verduras', amount: 5000, currency: 'CLP' });
+    await useCase.execute({ id: 'expense-1', financialAccountId: 'account-1', createdByUserId: 'user-0', concept: 'Frutas y verduras', amount: 5000, currency: 'CLP' });
 
     expect(deliveries.enqueue).toHaveBeenCalledTimes(2);
     expect(deliveries.enqueue).toHaveBeenCalledWith(expect.objectContaining({
@@ -28,7 +48,7 @@ describe('QueueSharedExpensePushUseCase', () => {
       deliveries
     );
 
-    await useCase.execute({ id: 'expense-1', financialAccountId: 'account-1', concept: 'Pan', amount: 1000, currency: 'CLP' });
+    await useCase.execute({ id: 'expense-1', financialAccountId: 'account-1', createdByUserId: 'user-1', concept: 'Pan', amount: 1000, currency: 'CLP' });
 
     expect(deliveries.enqueue).not.toHaveBeenCalled();
   });

@@ -7,14 +7,16 @@ export class QueueSharedExpensePushUseCase {
     private readonly deliveries: Pick<PushDeliveryRepository, 'enqueue'>
   ) {}
 
-  async execute(expense: { id: string; financialAccountId?: string; concept: string; amount: number; currency: string }) {
+  async execute(expense: { id: string; financialAccountId?: string; createdByUserId: string; concept: string; amount: number; currency: string }) {
     if (!expense.financialAccountId) return;
     const account = await this.accounts.findById(expense.financialAccountId);
     if (!account || account.type !== 'shared') return;
 
     const members = await this.accounts.listMembers(account.id);
     const subscriptions = await this.subscriptions.listActiveByUserIds(
-      members.filter((member) => member.status === 'active').map((member) => member.userId)
+      members
+        .filter((member) => member.status === 'active' && member.userId !== expense.createdByUserId)
+        .map((member) => member.userId)
     );
     const payload = {
       title: `Gasto creado - cuenta ${account.name}`,
