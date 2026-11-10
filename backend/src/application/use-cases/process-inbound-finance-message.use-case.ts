@@ -573,7 +573,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'draft_cancelled' as const };
     }
 
-    const resolution = resolveCategoryInput(categories, input.message);
+    const resolution = resolveCategoryInput(categories, input.message, user.preferredLanguage ?? 'es');
     if (resolution.kind === 'matched') {
       const completedDraft = {
         ...draft.expenseDraft,
@@ -665,7 +665,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'draft_cancelled' as const };
     }
 
-    const selected = selectAmbiguousCategoryOption(categories, draft.options, input.message);
+    const selected = selectAmbiguousCategoryOption(categories, draft.options, input.message, user.preferredLanguage ?? 'es');
     if (!selected) {
       await this.auditMessage(input, {
         tenantId: user.tenantId,
@@ -782,7 +782,7 @@ export class ProcessInboundFinanceMessageUseCase {
       return { status: 'draft_cancelled' as const };
     }
 
-    const createRequest = parseCategoryCreationDetails(categories, input.message, draft.requestedName);
+    const createRequest = parseCategoryCreationDetails(categories, input.message, draft.requestedName, user.preferredLanguage ?? 'es');
     if (!createRequest) {
       await this.auditMessage(input, {
         tenantId: user.tenantId,
@@ -1376,18 +1376,18 @@ function assessCategoryReliability(
   return 'needs_selection' as const;
 }
 
-function resolveCategoryInput(categories: Category[], input: string) {
+function resolveCategoryInput(categories: Category[], input: string, language: 'es' | 'en') {
   const normalizedInput = cleanupCategoryReply(input);
-  const byPath = matchCategoryPath(categories, normalizedInput);
+  const byPath = matchCategoryPath(categories, normalizedInput, language);
   if (byPath) return { kind: 'matched' as const, category: byPath.category, subcategory: byPath.subcategory };
 
   const roots = categories.filter((category) => !category.parentId);
-  const root = roots.find((category) => categoryAliases(category.name).has(normalizedInput));
+  const root = roots.find((category) => categoryAliases(category, language).has(normalizedInput));
   if (root) return { kind: 'matched' as const, category: root };
 
   const subcategories = categories.filter((category) => category.parentId);
   const exactSubcategories = subcategories
-    .filter((subcategory) => categoryAliases(subcategory.name).has(normalizedInput))
+    .filter((subcategory) => categoryAliases(subcategory, language).has(normalizedInput))
     .map((subcategory) => ({
       subcategory,
       category: categories.find((category) => category.id === subcategory.parentId)!
@@ -1428,7 +1428,7 @@ function hydrateCategoryOptions(categories: Category[], options: Array<{ categor
 function selectAmbiguousCategoryOption(
   categories: Category[],
   options: Array<{ categoryId: string; subcategoryId?: string }>,
-  input: string
+  input: string, language: 'es' | 'en'
 ) {
   const trimmed = input.trim();
   const numeric = Number(trimmed);
@@ -1440,7 +1440,7 @@ function selectAmbiguousCategoryOption(
     return { category, subcategory };
   }
 
-  const byPath = matchCategoryPath(categories, cleanupCategoryReply(input));
+  const byPath = matchCategoryPath(categories, cleanupCategoryReply(input), language);
   if (byPath) {
     const found = options.find((option) => option.categoryId === byPath.category.id && option.subcategoryId === byPath.subcategory?.id);
     if (found) return byPath;
@@ -1449,7 +1449,7 @@ function selectAmbiguousCategoryOption(
   return undefined;
 }
 
-function parseCategoryCreationDetails(categories: Category[], input: string, requestedName: string) {
+function parseCategoryCreationDetails(categories: Category[], input: string, requestedName: string, language: 'es' | 'en') {
   const normalized = normalizeLookup(input);
   if (/\b(root|main|principal|categoria principal|categoría principal|category)\b/.test(normalized) && !/\bsub\b/.test(normalized)) {
     return { parentId: undefined as string | undefined };
@@ -1457,7 +1457,7 @@ function parseCategoryCreationDetails(categories: Category[], input: string, req
 
   const roots = categories.filter((category) => !category.parentId);
   const parent = roots.find((category) => {
-    for (const alias of categoryAliases(category.name)) {
+    for (const alias of categoryAliases(category, language)) {
       if (normalized.includes(alias)) return true;
     }
     return false;
@@ -1475,7 +1475,7 @@ function parseCategoryCreationDetails(categories: Category[], input: string, req
   return undefined;
 }
 
-function matchCategoryPath(categories: Category[], normalizedInput: string) {
+function matchCategoryPath(categories: Category[], normalizedInput: string, language: 'es' | 'en') {
   const compact = normalizedInput
     .replace(/\s*>\s*/g, '>')
     .replace(/\s*\/\s*/g, '/')
@@ -1487,8 +1487,8 @@ function matchCategoryPath(categories: Category[], normalizedInput: string) {
     if (compact.includes(separator)) {
       const [left, right] = compact.split(separator).map((part) => part.trim()).filter(Boolean);
       if (!left || !right) continue;
-      const category = categories.find((item) => !item.parentId && categoryAliases(item.name).has(left));
-      const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item.name).has(right));
+      const category = categories.find((item) => !item.parentId && categoryAliases(item, language).has(left));
+      const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item, language).has(right));
       if (category && subcategory) return { category, subcategory };
     }
   }
@@ -1497,8 +1497,8 @@ function matchCategoryPath(categories: Category[], normalizedInput: string) {
   if (!explicit) return undefined;
   const subName = explicit[1]?.trim();
   const categoryName = explicit[2]?.trim();
-  const category = categories.find((item) => !item.parentId && categoryAliases(item.name).has(categoryName));
-  const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item.name).has(subName));
+  const category = categories.find((item) => !item.parentId && categoryAliases(item, language).has(categoryName));
+  const subcategory = categories.find((item) => item.parentId === category?.id && categoryAliases(item, language).has(subName));
   if (category && subcategory) return { category, subcategory };
   return undefined;
 }
@@ -1530,11 +1530,13 @@ function normalizeLookup(value: string) {
     .trim();
 }
 
-function categoryAliases(name: string) {
-  const normalized = normalizeLookup(name);
+function categoryAliases(category: Category, language: 'es' | 'en') {
+  const normalized = normalizeLookup(localizedCategoryLabel(category, language));
   const aliases = new Set([normalized]);
+  if (language === 'en') return aliases;
+  const canonical = normalizeLookup(category.name);
 
-  switch (normalized) {
+  switch (canonical) {
     case 'food':
       aliases.add('comida');
       aliases.add('alimentacion');

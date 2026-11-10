@@ -333,6 +333,9 @@ export class ApiService {
   createCategory(payload: unknown) {
     return this.http.post<Category>(`${environment.apiBaseUrl}/categories`, payload);
   }
+  updateCategoryTranslations(categoryId: string, payload: { nameEs: string; nameEn: string }) {
+    return this.http.put<Category>(`${environment.apiBaseUrl}/categories/${categoryId}/translations`, payload);
+  }
 
   bankOptions() {
     return this.http.get<BankOption[]>(`${environment.apiBaseUrl}/banks`);

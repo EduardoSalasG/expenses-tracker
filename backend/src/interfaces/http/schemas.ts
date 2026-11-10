@@ -203,8 +203,11 @@ export const incomeQuerySchema = z.object({
 
 export const createCategorySchema = z.object({
   name: z.string().min(1),
-  parentId: z.string().uuid().optional()
+  parentId: z.string().uuid().optional(),
+  preferredLanguage: z.enum(['es', 'en']).optional()
 });
+
+export const updateCategoryTranslationsSchema = z.object({ nameEs: z.string().trim().min(1).max(160), nameEn: z.string().trim().min(1).max(160) });
 
 export const monthlyBudgetSchema = z.object({
   categoryId: z.string().uuid(),

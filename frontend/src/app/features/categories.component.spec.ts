@@ -44,9 +44,10 @@ describe('CategoriesComponent', () => {
   };
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj<ApiService>('ApiService', ['categories', 'createCategory', 'periodExpenseCategoryTotals']);
+    api = jasmine.createSpyObj<ApiService>('ApiService', ['categories', 'createCategory', 'updateCategoryTranslations', 'periodExpenseCategoryTotals']);
     api.categories.and.returnValues(of([parent, delivery, leisure]), of([parent, delivery, leisure, createdSubcategory]));
     api.createCategory.and.returnValue(throwError(() => new Error('response lost')));
+    api.updateCategoryTranslations.and.returnValue(of({ ...leisure, nameEs: 'Ocio', nameEn: 'Leisure', translationSource: 'manual' }));
     api.periodExpenseCategoryTotals.and.returnValue(of([
       { categoryId: parent.id, currency: 'CLP', total: 12000 },
       { categoryId: parent.id, subcategoryId: delivery.id, currency: 'USD', total: 20 }
@@ -150,5 +151,11 @@ describe('CategoriesComponent', () => {
     const component = fixture.componentInstance;
 
     expect(component.activityLabel(parent.id)).toBe('$12.000 | US$20.00');
+  });
+
+  it('renders an edit action for custom categories but not system categories', () => {
+    fixture.detectChanges();
+    const actions = fixture.nativeElement.querySelectorAll('button[aria-label^="categories_edit_names"]');
+    expect(actions).toHaveSize(1);
   });
 });

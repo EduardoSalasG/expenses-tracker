@@ -19,6 +19,7 @@ export function registerFinanceRoutes(app: Express, container: AppContainer) {
   app.get('/incomes', auth, asyncHandler(controller.listIncomes));
   app.get('/categories', auth, asyncHandler(controller.listCategories));
   app.post('/categories', auth, asyncHandler(controller.createCategory));
+  app.put('/categories/:categoryId/translations', auth, asyncHandler(controller.updateCategoryTranslations));
   app.get('/banks', auth, asyncHandler(controller.listBankOptions));
   app.post('/banks', auth, asyncHandler(controller.createBankOption));
   app.put('/banks/:bankOptionId', auth, asyncHandler(controller.updateBankOption));

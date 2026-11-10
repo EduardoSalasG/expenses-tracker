@@ -1514,6 +1514,15 @@ export const openApiSpec = {
         })
       }
     },
+    '/categories/{categoryId}/translations': {
+      put: {
+        summary: 'Update localized names for a custom category',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'categoryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: jsonBody({ nameEs: { type: 'string' }, nameEn: { type: 'string' } }, ['nameEs', 'nameEn']),
+        responses: withUnauthorized({ '200': { description: 'Updated category' }, '400': { description: 'Default categories cannot be modified' }, '404': { description: 'Category not found' } })
+      }
+    },
     '/banks': {
       get: {
         summary: 'List available banks (system defaults + tenant custom)',

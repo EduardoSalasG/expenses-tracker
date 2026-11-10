@@ -9,6 +9,7 @@ export interface CategoryRepository {
     nameEn: string;
     translationSource: CategoryTranslationSource;
   }): Promise<Category | undefined>;
+  updateManualTranslations(input: { categoryId: string; nameEs: string; nameEn: string }): Promise<Category | undefined>;
   listMissingTranslations(limit: number): Promise<Category[]>;
   ensureDefaults(tenantId: TenantId): Promise<void>;
 }
