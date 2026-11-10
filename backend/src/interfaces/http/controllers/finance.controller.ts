@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from '../middleware.js';
 import {
   bankOptionSchema,
   createCategorySchema,
+  updateCategoryTranslationsSchema,
   createExpenseSchema,
   createIncomeSchema,
   expenseQuerySchema,
@@ -180,6 +181,14 @@ export class FinanceController {
       financialAccountId: authRequest.auth.financialAccountId,
       isDefault: false
     }));
+  };
+
+  updateCategoryTranslations = async (request: Request, response: Response) => {
+    const authRequest = request as AuthenticatedRequest;
+    const body = parseBody(updateCategoryTranslationsSchema, request.body);
+    const categoryId = Array.isArray(request.params.categoryId) ? request.params.categoryId[0] : request.params.categoryId;
+    try { response.json(await this.container.useCases.finance.updateCategoryTranslations({ ...body, categoryId, tenantId: authRequest.auth.tenantId, financialAccountId: authRequest.auth.financialAccountId })); }
+    catch (error) { if (error instanceof Error && ['Category not found.', 'Default categories cannot be modified.'].includes(error.message)) { response.status(error.message === 'Category not found.' ? 404 : 400).json({ error: error.message }); return; } throw error; }
   };
 
   listBankOptions = async (request: Request, response: Response) => {

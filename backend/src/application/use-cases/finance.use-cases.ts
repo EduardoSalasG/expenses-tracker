@@ -190,14 +190,26 @@ export class FinanceUseCases {
     return this.categories.listByTenant(tenantId, financialAccountId);
   }
 
-  async createCategory(input: Omit<Category, 'id'>) {
-    const created = await this.categories.create(input);
+  async createCategory(input: Omit<Category, 'id'> & { preferredLanguage?: 'es' | 'en' }) {
+    const { preferredLanguage, ...categoryInput } = input;
+    const created = await this.categories.create({
+      ...categoryInput,
+      ...(preferredLanguage === 'es' ? { nameEs: categoryInput.nameEs ?? categoryInput.name } : {}),
+      ...(preferredLanguage === 'en' ? { nameEn: categoryInput.nameEn ?? categoryInput.name } : {})
+    });
     if (!this.categoryTranslations) return created;
 
-    const parent = input.parentId
-      ? (await this.categories.listByTenant(input.tenantId, input.financialAccountId)).find((category) => category.id === input.parentId)
+    const parent = categoryInput.parentId
+      ? (await this.categories.listByTenant(categoryInput.tenantId, categoryInput.financialAccountId)).find((category) => category.id === categoryInput.parentId)
       : undefined;
     return this.categoryTranslations.localize(created, parent?.name);
+  }
+
+  async updateCategoryTranslations(input: { tenantId: string; financialAccountId?: string; categoryId: string; nameEs: string; nameEn: string }) {
+    const category = (await this.categories.listByTenant(input.tenantId, input.financialAccountId)).find((item) => item.id === input.categoryId);
+    if (!category) throw new Error('Category not found.');
+    if (category.isDefault) throw new Error('Default categories cannot be modified.');
+    return await this.categories.updateManualTranslations(input) ?? (() => { throw new Error('Category not found.'); })();
   }
 
   listBankOptions(tenantId: string, financialAccountId?: string) {

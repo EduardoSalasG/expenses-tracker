@@ -436,6 +436,63 @@ describe('ProcessInboundFinanceMessageUseCase', () => {
     expect(pending?.missingFields).toContain('category');
   });
 
+  it('recognizes the manually chosen Spanish label for a custom category', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439043', firstName: 'Test', lastName: 'User', preferredName: 'Test',
+      countryOfResidence: 'Chile', preferredCurrency: 'CLP', preferredLanguage: 'es'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
+    const gas = await categories.create({
+      tenantId: user.tenantId, financialAccountId, name: 'Gas', nameEs: 'Gas de tubería', nameEn: 'Natural gas',
+      translationSource: 'manual', isDefault: false
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(), drafts, new CapturingMessagingProvider(),
+      new IncompleteCategoryExpenseInterpreter(), { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await expect(useCase.execute({ providerMessageId: 'manual-es-1', fromPhoneNumber: user.phoneNumber, message: '20.000 cuenta de gas' }))
+      .resolves.toMatchObject({ status: 'needs_confirmation' });
+    await expect(useCase.execute({ providerMessageId: 'manual-es-2', fromPhoneNumber: user.phoneNumber, message: 'Gas de tubería' }))
+      .resolves.toMatchObject({ status: 'saved', expense: { categoryId: gas.id } });
+  });
+
+  it('recognizes the English manual label when English is preferred', async () => {
+    const users = new InMemoryUserRepository();
+    const categories = new InMemoryCategoryRepository();
+    const expenses = new InMemoryExpenseRepository();
+    const drafts = new InMemoryMessagingPendingDraftRepository();
+    const user = await users.upsertByPhoneNumber({
+      phoneNumber: '+56982439044', firstName: 'Test', lastName: 'User', preferredName: 'Test',
+      countryOfResidence: 'Chile', preferredCurrency: 'CLP', preferredLanguage: 'en'
+    });
+    await categories.ensureDefaults(user.tenantId);
+    const financialAccountId = `fallback-account-${user.id}`;
+    const gas = await categories.create({
+      tenantId: user.tenantId, financialAccountId, name: 'Gas', nameEs: 'Gas de tubería', nameEn: 'Natural gas',
+      translationSource: 'manual', isDefault: false
+    });
+    const useCase = new ProcessInboundFinanceMessageUseCase(
+      users, categories, expenses, new InMemoryIncomeRepository(), new InMemoryBudgetRepository(),
+      new InMemoryBankOptionRepository(), new InMemoryPaymentMethodOptionRepository(),
+      new InMemoryMessagingMessageAuditRepository(), drafts, new CapturingMessagingProvider(),
+      new IncompleteCategoryExpenseInterpreter(), { now: () => new Date('2026-05-06T00:00:00.000Z') },
+      { frontendPublicOrigin: 'https://expenses-tracker-easg.netlify.app' }
+    );
+
+    await useCase.execute({ providerMessageId: 'manual-en-1', fromPhoneNumber: user.phoneNumber, message: '20.000 gas bill' });
+    await expect(useCase.execute({ providerMessageId: 'manual-en-2', fromPhoneNumber: user.phoneNumber, message: 'Natural gas' }))
+      .resolves.toMatchObject({ status: 'saved', expense: { categoryId: gas.id } });
+  });
+
   it('asks the user to disambiguate duplicate subcategories before saving', async () => {
     const users = new InMemoryUserRepository();
     const categories = new InMemoryCategoryRepository();

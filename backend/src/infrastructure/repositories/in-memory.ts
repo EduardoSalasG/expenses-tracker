@@ -746,6 +746,14 @@ export class InMemoryCategoryRepository implements CategoryRepository {
     return updated;
   }
 
+  async updateManualTranslations(input: { categoryId: string; nameEs: string; nameEn: string }) {
+    const index = this.categories.findIndex((category) => category.id === input.categoryId);
+    if (index < 0) return undefined;
+    const updated = { ...this.categories[index], ...input, translationSource: 'manual' as const };
+    this.categories[index] = updated;
+    return updated;
+  }
+
   async listMissingTranslations(limit: number) {
     return this.categories
       .filter((category) => category.translationSource !== 'manual' && (!category.nameEs || !category.nameEn))

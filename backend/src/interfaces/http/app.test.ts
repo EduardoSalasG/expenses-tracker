@@ -436,6 +436,41 @@ describe('Telegram webhook', () => {
   });
 });
 
+describe('Category translation routes', () => {
+  it('lets an authenticated owner manually preserve both custom-category labels', async () => {
+    const container = createContainer(testConfig());
+    const user = await container.users.upsertByPhoneNumber({
+      phoneNumber: '+56970000111', firstName: 'Category', lastName: 'Owner', preferredName: 'Category',
+      countryOfResidence: 'Chile', preferredCurrency: 'CLP', preferredLanguage: 'es'
+    });
+    const personal = await container.financialAccounts.ensurePersonalAccount(user.id);
+    const category = await container.useCases.finance.createCategory({
+      tenantId: personal.tenantId,
+      financialAccountId: personal.id,
+      name: 'Gas',
+      nameEs: 'Gas',
+      nameEn: 'Natural gas',
+      isDefault: false
+    });
+
+    const app = createApp(container);
+    const authorization = `Bearer ${container.tokens.signAccessToken(user, personal.id)}`;
+    await expect(request(app).get('/categories').set('authorization', authorization)).resolves.toMatchObject({
+      status: 200,
+      body: expect.arrayContaining([expect.objectContaining({ id: category.id })])
+    });
+    const response = await request(app)
+      .put(`/categories/${category.id}/translations`)
+      .set('authorization', authorization)
+      .send({ nameEs: 'Gas de tubería', nameEn: 'Natural gas' });
+
+    expect(response).toMatchObject({
+      status: 200,
+      body: { id: category.id, nameEs: 'Gas de tubería', nameEn: 'Natural gas', translationSource: 'manual' }
+    });
+  });
+});
+
 function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     nodeEnv: 'test',

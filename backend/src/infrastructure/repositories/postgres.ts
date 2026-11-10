@@ -962,6 +962,14 @@ export class PostgresCategoryRepository implements CategoryRepository {
     return result.rows[0] ? mapCategory(result.rows[0]) : undefined;
   }
 
+  async updateManualTranslations(input: { categoryId: string; nameEs: string; nameEn: string }) {
+    const result = await this.pool.query(
+      `update categories set name_es = $2, name_en = $3, translation_source = 'manual', updated_at = now() where id = $1 returning *`,
+      [input.categoryId, input.nameEs, input.nameEn]
+    );
+    return result.rows[0] ? mapCategory(result.rows[0]) : undefined;
+  }
+
   async listMissingTranslations(limit: number) {
     const result = await this.pool.query(
       `select *

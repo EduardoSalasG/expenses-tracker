@@ -58,4 +58,17 @@ describe('FinanceUseCases category translations', () => {
       isDefault: false
     })).resolves.toMatchObject({ nameEs: 'Inversiones', nameEn: 'Investments' });
   });
+
+  it('preserves a Spanish custom category name before automatic translation', async () => {
+    const categories = new InMemoryCategoryRepository();
+    const translations = { localize: vi.fn(async (category) => category) };
+    const finance = new FinanceUseCases(
+      new InMemoryExpenseRepository(), new InMemoryIncomeRepository(), new InMemoryBudgetRepository(), categories,
+      undefined, undefined, undefined, translations
+    );
+
+    await expect(finance.createCategory({
+      tenantId: 'tenant-1', financialAccountId: 'account-1', name: 'Gas', isDefault: false, preferredLanguage: 'es'
+    })).resolves.toMatchObject({ name: 'Gas', nameEs: 'Gas' });
+  });
 });

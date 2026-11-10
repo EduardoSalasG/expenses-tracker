@@ -8,6 +8,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { catchError, forkJoin, of } from 'rxjs';
 import { ApiService, type Category } from '../core/api.service';
 import { CategoryCreateDialogComponent, type CategoryCreateDialogResult } from './category-create-dialog.component';
+import { CategoryTranslationsDialogComponent } from './category-translations-dialog.component';
 import { AccountContextService } from '../core/account-context.service';
 import { categoryDisplayName } from '../core/category-label';
 import { I18nService } from '../core/i18n.service';
@@ -84,12 +85,14 @@ import { DisclosurePanelComponent } from '../shared/components/disclosure-panel.
                     <button mat-stroked-button type="button" class="!min-h-11" (click)="openCreateDialog(category.id)">
                       {{ t('categories_add_subcategory') }}
                     </button>
+                    @if (!category.isDefault) { <button mat-button type="button" class="!min-h-11" [attr.aria-label]="t('categories_edit_names') + ': ' + displayName(category)" (click)="editTranslations(category)">{{ t('categories_edit_names') }}</button> }
                   </div>
                   @if (visibleSubcategories(category.id).length) {
                     <div class="grid gap-2">
                       @for (subcategory of visibleSubcategories(category.id); track subcategory.id) {
                         <div class="grid gap-1 rounded border border-brand-border/70 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                           <span>{{ displayName(subcategory) }}</span>
+                          @if (!subcategory.isDefault) { <button mat-button type="button" class="!min-h-11" [attr.aria-label]="t('categories_edit_names') + ': ' + displayName(subcategory)" (click)="editTranslations(subcategory)">{{ t('categories_edit_names') }}</button> }
                           <span class="text-xs text-brand-muted">{{ subcategory.isDefault ? t('categories_default') : t('categories_custom') }}</span>
                         </div>
                       }
@@ -209,6 +212,11 @@ export class CategoriesComponent {
     });
   }
 
+  editTranslations(category: Category) {
+    const ref = this.dialog.open(CategoryTranslationsDialogComponent, { width: 'min(520px, calc(100vw - 1.5rem))', maxWidth: 'calc(100vw - 1.5rem)', panelClass: 'brand-dialog-panel', autoFocus: false, data: category });
+    ref.afterClosed().subscribe((result) => { if (!result) return; this.api.updateCategoryTranslations(category.id, result).subscribe({ next: () => this.load(), error: () => this.message.set(this.t('categories_update_error')) }); });
+  }
+
   subcategories(parentId: string) {
     return this.categories().filter((category) => category.parentId === parentId);
   }
@@ -274,7 +282,7 @@ export class CategoriesComponent {
     this.message.set('');
     const knownCategoryIds = new Set(this.categories().map((category) => category.id));
     const requestedAccountId = this.accountService.activeAccountId();
-    this.api.createCategory(payload).subscribe({
+    this.api.createCategory({ ...payload, preferredLanguage: this.i18n.language() }).subscribe({
       next: () => {
         this.completeCategoryCreation(reset, message);
       },
