@@ -6,6 +6,16 @@ La política y el flujo de publicación están en [docs/versioning.md](docs/vers
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-11-10
+
+### Added
+
+- Las categorías personalizadas permiten editar y conservar sus nombres en español e inglés desde la biblioteca de categorías.
+
+### Fixed
+
+- Las aclaraciones de categoría del chat reconocen y muestran únicamente el nombre correspondiente al idioma preferido de la persona usuaria, evitando traducciones automáticas como “Gas” → “Gasolina”.
+
 ## [0.6.6] - 2026-11-04
 
 ### Fixed
